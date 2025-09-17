@@ -7,6 +7,7 @@ import re
 import random
 import csv
 from typing import Dict, Tuple
+from collections import Counter
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -41,20 +42,15 @@ def scrape_eci_initiatives() -> str:
     finally:
         driver.quit()  # Close the browser
 
-    initiative_data = parse_initiatives_list_data(page_source)
+    initiative_data = parse_initiatives_list_data(page_source, base_url)
 
     if initiative_data:
-        downloaded_count = save_and_download_initiatives(
-            list_dir, pages_dir, initiative_data
-        )
+        save_and_download_initiatives(list_dir, pages_dir, initiative_data)
 
     else:
-        downloaded_count = 0
         print("No initiatives found to classify or download")
 
-    display_completion_summary(
-        start_scraping, initiative_data, downloaded_count, main_page_path
-    )
+    display_completion_summary(start_scraping, initiative_data, main_page_path)
 
     return start_scraping
 
@@ -257,11 +253,14 @@ def scrape_initiatives_page(
     return page_source, main_page_path
 
 
-def parse_initiatives_list_data(page_source: str) -> list[Dict[str, str]]:
+def parse_initiatives_list_data(
+    page_source: str, base_url: str
+) -> list[Dict[str, str]]:
     """Parse HTML page source and extract initiatives data.
 
     Args:
         page_source: HTML source code of the page
+        base_url: Base URL for the website
 
     Returns:
         List of dictionaries containing initiatives data
@@ -285,7 +284,7 @@ def parse_initiatives_list_data(page_source: str) -> list[Dict[str, str]]:
             continue
 
         # TODO "https://citizens-initiative.europa.eu" as global const
-        full_url = "https://citizens-initiative.europa.eu" + href
+        full_url = base_url + href
 
         # Extract metadata
         current_status = ""
@@ -326,7 +325,6 @@ def parse_initiatives_list_data(page_source: str) -> list[Dict[str, str]]:
 def display_completion_summary(
     start_scraping: str,
     initiative_data: list[Dict[str, str]],
-    downloaded_count: int,
     main_page_path: str,
 ) -> None:
     """Display final completion summary with statistics.
@@ -334,27 +332,53 @@ def display_completion_summary(
     Args:
         start_scraping: Start time timestamp string
         initiative_data: List of initiative data dictionaries
-        downloaded_count: Number of successfully downloaded pages
         main_page_path: Path to the saved main page file
     """
+    from collections import Counter
 
-    # TODO display total of initiatives by categories
-    # TODO read the `downloaded_count` data directly from the directory with downloaded pages
+    # Display total of initiatives by categories as `current_status` from the csv file
+    current_status_counter = Counter()
+    url_list_file = f"initiatives/{start_scraping}/list/initiatives_list.csv"
 
-    ___ = "=" * 60
+    # Read categories 'current_status' from the CSV
+    if os.path.exists(url_list_file):
 
-    print("\n" + ___)
+        with open(url_list_file, "r", encoding="utf-8") as file:
+            reader = csv.DictReader(file)
+
+            for row in reader:
+                if row["current_status"]:
+                    current_status_counter[row["current_status"]] += 1
+
+    # Read the `downloaded_count` data directly from the directory with downloaded pages
+    pages_dir = f"initiatives/{start_scraping}/pages"
+    downloaded_files_count = 0
+    if os.path.exists(pages_dir):
+        downloaded_files_count = len(
+            [f for f in os.listdir(pages_dir) if f.endswith(".html")]
+        )
+
+    total_initiatives_count = len(initiative_data) if initiative_data else 0
+    div_line = "=" * 60
+
+    print("\n" + div_line)
     print("🎉 SCRAPING FINISHED! 🎉")
-    print(___)
+    print(div_line)
     print(
         f"Scraping completed at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
     print(f"Start time: {start_scraping}")
-    print(f"Total initiatives found: {len(initiative_data) if initiative_data else 0}")
-    print(f"Pages downloaded: {downloaded_count}")
-    print(f"Files saved in: initiatives/{start_scraping}/")
+    print(f"Total initiatives found: {total_initiatives_count}")
+
+    # Display the counts by current_status category
+    print("Initiatives by category (current_status):")
+    for status, count in current_status_counter.items():
+        print(f"- {status}: {count}")
+
+    print(f"Pages downloaded: {downloaded_files_count}/")
+    print(f"Files saved in: initiatives/{start_scraping}/{total_initiatives_count}")
     print(f"Main page source: {main_page_path}")
-    print(___)
+    print(div_line)
 
 
 # Run the scraper
