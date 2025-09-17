@@ -323,7 +323,6 @@ def parse_initiatives_list_data(
         if not href.startswith("/initiatives/details/"):
             continue
 
-        # TODO "https://citizens-initiative.europa.eu" as global const
         full_url = base_url + href
 
         # Extract metadata
