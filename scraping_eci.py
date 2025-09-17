@@ -125,24 +125,28 @@ def download_initiative_pages(pages_dir, initiative_data):
         url = row["url"]
         try:
             print(f"Downloading {i+1}/{len(initiative_data)}: {url}")
-            resp = requests.get(url)
-            resp.raise_for_status()
+            response = requests.get(url)
+            response.raise_for_status()
 
             # Create safe filename from URL
             page_name = url.split("/")[-1] or url.split("/")[-2]
 
             if not page_name:
-                page_name = f"initiative_{i+1}"
+                page_name = f"unknown_initiative_{i+1}"
+
             page_name = re.sub(r"[^\w\-_.]", "_", page_name) + ".html"
             file_path = os.path.join(pages_dir, page_name)
 
             with open(file_path, "w", encoding="utf-8") as f:
-                f.write(resp.text)
+                f.write(response.text)
 
-            # Update datetime for successful download
-            row["datetime"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            successful_download_time = datetime.datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            row["datetime"] = successful_download_time
             downloaded_count += 1
-            time.sleep(0.5)  # Be respectful to the server
+
+            time.sleep(0.5)  # To avoid server overload
 
         except Exception as e:
             print(f"Error downloading {url}: {e}")
@@ -158,28 +162,27 @@ def scrape_initiatives_page(driver, base_url, list_dir):
     route_find_initiative = "/find-initiative_en"
     url_find_initiative = base_url + route_find_initiative
 
-    # Load the page and wait for initiatives to load
     print(f"Loading page: {url_find_initiative}")
     driver.get(url_find_initiative)
 
-    # Wait for initiatives to load - looking for initiative links or a specific element
-    # This might need adjustment based on the actual page structure
+    # Wait for the page to load
     wait = WebDriverWait(driver, 30)
 
     # Wait for initiative elements to be present
-    # You may need to adjust this selector based on actual page structure
     try:
-        # Wait for initiative cards/links to load
+        cards_initiative_selector = "div.ecl-content-block__title a.ecl-link"
         wait.until(
-            EC.presence_of_element_located(
-                (By.CSS_SELECTOR, "div.ecl-content-block__title a.ecl-link")
-            )
+            EC.presence_of_element_located((By.CSS_SELECTOR, cards_initiative_selector))
+        )
+
+        pagination_for_other_cards = (
+            "ul.ecl-pagination__list li.ecl-pagination__item a.ecl-pagination__link"
         )
         wait.until(
             EC.presence_of_element_located(
                 (
                     By.CSS_SELECTOR,
-                    "ul.ecl-pagination__list li.ecl-pagination__item a.ecl-pagination__link",
+                    pagination_for_other_cards,
                 )
             )
         )
@@ -191,15 +194,14 @@ def scrape_initiatives_page(driver, base_url, list_dir):
     random_time = random.uniform(1.5, 1.9)
     time.sleep(random_time)
 
-    # Get the fully loaded page source
-    page_source = driver.page_source
-
     # Save the main page HTML source
+
+    page_source = driver.page_source
     initiative_list_page_name = "Find_initiative_European_Citizens_Initiative"
     main_page_path = os.path.join(list_dir, f"{initiative_list_page_name}.html")
-    pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
 
     with open(main_page_path, "w", encoding="utf-8") as f:
+        pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
         f.write(pretty_html)
 
     print(f"Main page saved to: {main_page_path}")
@@ -208,12 +210,12 @@ def scrape_initiatives_page(driver, base_url, list_dir):
 
 def parse_initiative_data(page_source):
     """Parse HTML page source and extract initiative data"""
-    # Parse the saved HTML for initiative links
+
     print("Parsing saved main page for initiative links...")
+
     soup = BeautifulSoup(page_source, "html.parser")
     initiative_data = []
 
-    # Look for initiative content blocks
     for content_block in soup.select(
         "div.ecl-content-block.ecl-content-item__content-block"
     ):
@@ -236,12 +238,17 @@ def parse_initiative_data(page_source):
         meta_labels = content_block.select(
             "span.ecl-content-block__secondary-meta-label"
         )
+
         for label in meta_labels:
+
             text = label.get_text(strip=True)
+
             if text.startswith("Current status:"):
                 current_status = text.replace("Current status:", "").strip()
+
             elif text.startswith("Registration number:"):
                 registration_number = text.replace("Registration number:", "").strip()
+
             elif "signature collection" in text.lower():
                 signature_collection = text.strip()
 
@@ -263,12 +270,12 @@ def display_completion_summary(
     start_scraping, initiative_data, downloaded_count, main_page_path
 ):
     """Display final completion summary with statistics"""
-    # Final notification
-    _divider_text = "=" * 60
 
-    print("\n" + _divider_text)
+    ___ = "=" * 60
+
+    print("\n" + ___)
     print("🎉 SCRAPING FINISHED! 🎉")
-    print(_divider_text)
+    print(___)
     print(
         f"Scraping completed at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
@@ -277,7 +284,7 @@ def display_completion_summary(
     print(f"Pages downloaded: {downloaded_count}")
     print(f"Files saved in: initiatives/{start_scraping}/")
     print(f"Main page source: {main_page_path}")
-    print(_divider_text)
+    print(___)
 
 
 # Run the scraper
