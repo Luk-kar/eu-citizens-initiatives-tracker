@@ -45,12 +45,16 @@ def scrape_eci_initiatives() -> str:
     initiative_data = parse_initiatives_list_data(page_source, base_url)
 
     if initiative_data:
-        save_and_download_initiatives(list_dir, pages_dir, initiative_data)
-
+        failed_urls = save_and_download_initiatives(
+            list_dir, pages_dir, initiative_data
+        )
     else:
         print("No initiatives found to classify or download")
+        failed_urls = []
 
-    display_completion_summary(start_scraping, initiative_data, main_page_path)
+    display_completion_summary(
+        start_scraping, initiative_data, main_page_path, failed_urls
+    )
 
     return start_scraping
 
@@ -90,7 +94,7 @@ def setup_scraping_dirs(list_dir: str, pages_dir: str) -> None:
 
 def save_and_download_initiatives(
     list_dir: str, pages_dir: str, initiative_data: list[Dict[str, str]]
-) -> int:
+) -> Tuple[int, list]:
     """Save initiative data to CSV and download individual pages.
 
     Args:
@@ -99,13 +103,12 @@ def save_and_download_initiatives(
         initiative_data: List of initiative dictionaries
 
     Returns:
-        int: Number of pages successfully downloaded
+        Tuple containing number of successful downloads and list of failed URLs
     """
 
     url_list_file = os.path.join(list_dir, "initiatives_list.csv")
 
     with open(url_list_file, "w", encoding="utf-8", newline="") as f:
-
         header = [
             "url",
             "current_status",
@@ -113,7 +116,6 @@ def save_and_download_initiatives(
             "signature_collection",
             "datetime",
         ]
-
         writer = csv.DictWriter(f, fieldnames=header)
         writer.writeheader()
         writer.writerows(initiative_data)
@@ -121,9 +123,7 @@ def save_and_download_initiatives(
     print(f"Initiative data saved to: {url_list_file}")
 
     print("\nDownloading individual initiative pages...")
-    updated_data, downloaded_count = download_initiative_pages(
-        pages_dir, initiative_data
-    )
+    updated_data, failed_urls = download_initiative_pages(pages_dir, initiative_data)
 
     # Update CSV with download timestamps
     with open(url_list_file, "w", encoding="utf-8", newline="") as f:
@@ -138,22 +138,22 @@ def save_and_download_initiatives(
         writer.writeheader()
         writer.writerows(updated_data)
 
-    return downloaded_count
+    return failed_urls
 
 
 def download_initiative_pages(pages_dir, initiative_data):
-    """Download individual initiative pages and update datetime stamps.
+    """Download individual initiative pages and update datetime stamps with retry logic.
 
     Args:
         pages_dir: Directory path for saving HTML pages
         initiative_data: List of initiative dictionaries
 
     Returns:
-        Tuple containing updated data list and count of successful downloads
+        Tuple containing updated data list, count of successful downloads, and list of failed URLs
     """
 
-    downloaded_count = 0
     updated_data = []
+    failed_urls = []  # New: track failed download URLs
 
     for i, row in enumerate(initiative_data):
         url = row["url"]
@@ -163,19 +163,23 @@ def download_initiative_pages(pages_dir, initiative_data):
         success = False
 
         while retry_count <= max_retries and not success:
-
             try:
                 print(f"Downloading {i+1}/{len(initiative_data)}: {url}")
                 response = requests.get(url)
                 response.raise_for_status()
 
-                # Create safe filename from URL
-                page_name = url.split("/")[-1] or url.split("/")[-2]
-                if not page_name:
-                    page_name = f"unknown_initiative_{i+1}"
+                # Extract year and number from URL for filename
+                parts = url.rstrip("/").split("/")
+                year = parts[-2]
+                number = parts[-1]
 
-                page_name = re.sub(r"[^\w\-_.]", "_", page_name) + ".html"
-                file_path = os.path.join(pages_dir, page_name)
+                # Generate directory under pages_dir for year
+                year_dir = os.path.join(pages_dir, year)
+                os.makedirs(year_dir, exist_ok=True)
+
+                # Create filename with year and number to avoid overwriting
+                file_name = f"{year}_{number}.html"
+                file_path = os.path.join(year_dir, file_name)
 
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(response.text)
@@ -184,19 +188,15 @@ def download_initiative_pages(pages_dir, initiative_data):
                     "%Y-%m-%d %H:%M:%S"
                 )
                 row["datetime"] = successful_download_time
-                downloaded_count += 1
-                success = True
 
-                print(f"✅ Successfully downloaded: {page_name}")
+                success = True
+                print(f"✅ Successfully downloaded: {file_name}")
 
             except requests.exceptions.HTTPError as e:
-
                 if response.status_code == 429:
                     retry_count += 1
-
                     if retry_count <= max_retries:
                         wait_time = retry_wait_base * retry_count
-
                         print(
                             f"⚠️  Received 429 Too Many Requests. Retrying {retry_count}/{max_retries} in {wait_time} seconds..."
                         )
@@ -205,16 +205,20 @@ def download_initiative_pages(pages_dir, initiative_data):
                         print(
                             f"❌ Failed to download after {max_retries} retries (429 errors): {url}"
                         )
+                        failed_urls.append(url)
                 else:
                     print(f"❌ HTTP error downloading {url}: {e}")
+                    failed_urls.append(url)
                     break
-
             except Exception as e:
                 print(f"❌ Error downloading {url}: {e}")
+                failed_urls.append(url)
                 break
 
         if not success and retry_count > max_retries:
             print(f"❌ Exhausted all {max_retries} retries for: {url}")
+            if url not in failed_urls:  # Avoid duplicates
+                failed_urls.append(url)
 
         # Append the updated row regardless of success
         updated_data.append(row)
@@ -223,7 +227,7 @@ def download_initiative_pages(pages_dir, initiative_data):
         if success:
             time.sleep(0.5)
 
-    return updated_data, downloaded_count
+    return updated_data, failed_urls
 
 
 def scrape_initiatives_page(
@@ -362,6 +366,7 @@ def display_completion_summary(
     start_scraping: str,
     initiative_data: list[Dict[str, str]],
     main_page_path: str,
+    failed_urls: list,
 ) -> None:
     """Display final completion summary with statistics.
 
@@ -369,6 +374,7 @@ def display_completion_summary(
         start_scraping: Start time timestamp string
         initiative_data: List of initiative data dictionaries
         main_page_path: Path to the saved main page file
+        failed_urls: List of URLs that failed to download
     """
     from collections import Counter
 
@@ -378,23 +384,29 @@ def display_completion_summary(
 
     # Read categories 'current_status' from the CSV
     if os.path.exists(url_list_file):
-
         with open(url_list_file, "r", encoding="utf-8") as file:
             reader = csv.DictReader(file)
-
             for row in reader:
                 if row["current_status"]:
                     current_status_counter[row["current_status"]] += 1
 
-    # Read the `downloaded_count` data directly from the directory with downloaded pages
+    # Read the downloaded_count data directly from the directory with downloaded pages
     pages_dir = f"initiatives/{start_scraping}/pages"
     downloaded_files_count = 0
+
     if os.path.exists(pages_dir):
+
         downloaded_files_count = len(
-            [f for f in os.listdir(pages_dir) if f.endswith(".html")]
+            [
+                f
+                for subdir, _, files in os.walk(pages_dir)
+                for f in files
+                if f.endswith(".html")
+            ]
         )
 
     total_initiatives_count = len(initiative_data) if initiative_data else 0
+    failed_downloads_count = len(failed_urls)
     div_line = "=" * 60
 
     print("\n" + div_line)
@@ -412,6 +424,14 @@ def display_completion_summary(
         print(f"- {status}: {count}")
 
     print(f"Pages downloaded: {downloaded_files_count}/{total_initiatives_count}")
+
+    if failed_downloads_count:
+        print(f"Failed downloads: {failed_downloads_count}")
+        for failed_url in failed_urls:
+            print(f" - {failed_url}")
+    else:
+        print("✅ All downloads successful!")
+
     print(f"Files saved in: initiatives/{start_scraping}")
     print(f"Main page source: {main_page_path}")
     print(div_line)
