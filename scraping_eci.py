@@ -19,7 +19,7 @@ def scrape_eci_initiatives():
     print(f"Starting scraping at: {start_scraping}")
 
     # Define the correct URL
-    base_url = "https://citizens-initiative.europa.eu/find-initiative_en"
+    base_url = "https://citizens-initiative.europa.eu"
 
     # Create directories
     list_dir = f"initiatives/{start_scraping}/list"
@@ -39,51 +39,9 @@ def scrape_eci_initiatives():
     driver = webdriver.Chrome(options=chrome_options)
 
     try:
-        # Load the page and wait for initiatives to load
-        print(f"Loading page: {base_url}")
-        driver.get(base_url)
-
-        # Wait for initiatives to load - looking for initiative links or a specific element
-        # This might need adjustment based on the actual page structure
-        wait = WebDriverWait(driver, 30)
-
-        # Wait for initiative elements to be present
-        # You may need to adjust this selector based on actual page structure
-        try:
-            # Wait for initiative cards/links to load
-            wait.until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "div.ecl-content-block__title a.ecl-link")
-                )
-            )
-            wait.until(
-                EC.presence_of_element_located(
-                    (
-                        By.CSS_SELECTOR,
-                        "ul.ecl-pagination__list li.ecl-pagination__item a.ecl-pagination__link",
-                    )
-                )
-            )
-
-            print("Initiatives loaded successfully")
-        except:
-            print("No initiatives found or timeout - continuing with current content")
-
-        # Additional wait to ensure all dynamic content is loaded
-        random_time = random.uniform(1.5, 1.9)
-        time.sleep(random_time)
-
-        # Get the fully loaded page source
-        page_source = driver.page_source
-
-        # Save the main page HTML source
-        initiative_list_page_name = "Find_initiative_European_Citizens_Initiative"
-        main_page_path = os.path.join(list_dir, f"{initiative_list_page_name}.html")
-        pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
-
-        with open(main_page_path, "w", encoding="utf-8") as f:
-            f.write(pretty_html)
-        print(f"Main page saved to: {main_page_path}")
+        page_source, main_page_path = scrape_initiatives_page(
+            driver, base_url, list_dir
+        )
 
     finally:
         # Close the browser
@@ -224,6 +182,60 @@ def scrape_eci_initiatives():
     print(f"Main page source: {main_page_path}")
     print("=" * 60)
     return start_scraping
+
+
+def scrape_initiatives_page(driver, base_url, list_dir):
+    """Load page, wait for elements, and save HTML source"""
+
+    route_find_initiative = "/find-initiative_en"
+    url_find_initiative = base_url + route_find_initiative
+
+    # Load the page and wait for initiatives to load
+    print(f"Loading page: {url_find_initiative}")
+    driver.get(url_find_initiative)
+
+    # Wait for initiatives to load - looking for initiative links or a specific element
+    # This might need adjustment based on the actual page structure
+    wait = WebDriverWait(driver, 30)
+
+    # Wait for initiative elements to be present
+    # You may need to adjust this selector based on actual page structure
+    try:
+        # Wait for initiative cards/links to load
+        wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "div.ecl-content-block__title a.ecl-link")
+            )
+        )
+        wait.until(
+            EC.presence_of_element_located(
+                (
+                    By.CSS_SELECTOR,
+                    "ul.ecl-pagination__list li.ecl-pagination__item a.ecl-pagination__link",
+                )
+            )
+        )
+        print("Initiatives loaded successfully")
+    except:
+        print("No initiatives found or timeout - continuing with current content")
+
+    # Additional wait to ensure all dynamic content is loaded
+    random_time = random.uniform(1.5, 1.9)
+    time.sleep(random_time)
+
+    # Get the fully loaded page source
+    page_source = driver.page_source
+
+    # Save the main page HTML source
+    initiative_list_page_name = "Find_initiative_European_Citizens_Initiative"
+    main_page_path = os.path.join(list_dir, f"{initiative_list_page_name}.html")
+    pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
+
+    with open(main_page_path, "w", encoding="utf-8") as f:
+        f.write(pretty_html)
+
+    print(f"Main page saved to: {main_page_path}")
+    return page_source, main_page_path
 
 
 # Run the scraper
