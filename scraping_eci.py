@@ -72,6 +72,7 @@ def scrape_eci_initiatives() -> str:
 
 def initialize_browser() -> webdriver.Chrome:
     """Initialize Chrome WebDriver with headless options."""
+
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
