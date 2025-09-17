@@ -6,6 +6,7 @@ import time
 import re
 import random
 import csv
+from typing import Dict, Tuple
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -14,7 +15,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 
 
-def scrape_eci_initiatives():
+def scrape_eci_initiatives() -> str:
+    """Main function to scrape European Citizens' Initiative data.
+
+    Returns:
+        str: Timestamp string of when scraping started
+    """
 
     start_scraping = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     print(f"Starting scraping at: {start_scraping}")
@@ -35,7 +41,7 @@ def scrape_eci_initiatives():
     finally:
         driver.quit()  # Close the browser
 
-    initiative_data = parse_initiative_data(page_source)
+    initiative_data = parse_initiatives_list_data(page_source)
 
     if initiative_data:
         downloaded_count = save_and_download_initiatives(
@@ -53,7 +59,12 @@ def scrape_eci_initiatives():
     return start_scraping
 
 
-def initialize_browser():
+def initialize_browser() -> webdriver.Chrome:
+    """Initialize Chrome WebDriver with headless options.
+
+    Returns:
+        webdriver.Chrome: Configured Chrome WebDriver instance
+    """
 
     # Setup Chrome options for headless browsing
     chrome_options = Options()
@@ -61,7 +72,7 @@ def initialize_browser():
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument(
         "--disable-dev-shm-usage"
-    )  # https://stackoverflow.com/a/69175552
+    )  # https://stackoverflow.com/a/69175552 # VM's limitations
 
     print("Initializing browser...")
     driver = webdriver.Chrome(options=chrome_options)
@@ -69,12 +80,31 @@ def initialize_browser():
     return driver
 
 
-def setup_scraping_dirs(list_dir, pages_dir):
+def setup_scraping_dirs(list_dir: str, pages_dir: str) -> None:
+    """Create necessary directories for scraping output.
+
+    Args:
+        list_dir: Path to directory for storing list files
+        pages_dir: Path to directory for storing individual page files
+    """
+
     os.makedirs(list_dir, exist_ok=True)
     os.makedirs(pages_dir, exist_ok=True)
 
 
-def save_and_download_initiatives(list_dir, pages_dir, initiative_data):
+def save_and_download_initiatives(
+    list_dir: str, pages_dir: str, initiative_data: list[Dict[str, str]]
+) -> int:
+    """Save initiative data to CSV and download individual pages.
+
+    Args:
+        list_dir: Directory path for saving CSV files
+        pages_dir: Directory path for saving HTML pages
+        initiative_data: List of initiative dictionaries
+
+    Returns:
+        int: Number of pages successfully downloaded
+    """
 
     url_list_file = os.path.join(list_dir, "initiatives_list.csv")
 
@@ -116,7 +146,15 @@ def save_and_download_initiatives(list_dir, pages_dir, initiative_data):
 
 
 def download_initiative_pages(pages_dir, initiative_data):
-    """Download individual initiative pages and update datetime stamps"""
+    """Download individual initiative pages and update datetime stamps.
+
+    Args:
+        pages_dir: Directory path for saving HTML pages
+        initiative_data: List of initiative dictionaries
+
+    Returns:
+        Tuple containing updated data list and count of successful downloads
+    """
 
     downloaded_count = 0
     updated_data = []
@@ -156,8 +194,19 @@ def download_initiative_pages(pages_dir, initiative_data):
     return updated_data, downloaded_count
 
 
-def scrape_initiatives_page(driver, base_url, list_dir):
-    """Load page, wait for elements, and save HTML source"""
+def scrape_initiatives_page(
+    driver: webdriver.Chrome, base_url: str, list_dir: str
+) -> Tuple[str, str]:
+    """Load page, wait for elements, and save HTML source.
+
+    Args:
+        driver: Chrome WebDriver instance
+        base_url: Base URL for the website
+        list_dir: Directory path for saving the main page
+
+    Returns:
+        Tuple containing page source HTML and path to saved file
+    """
 
     route_find_initiative = "/find-initiative_en"
     url_find_initiative = base_url + route_find_initiative
@@ -208,10 +257,17 @@ def scrape_initiatives_page(driver, base_url, list_dir):
     return page_source, main_page_path
 
 
-def parse_initiative_data(page_source):
-    """Parse HTML page source and extract initiative data"""
+def parse_initiatives_list_data(page_source: str) -> list[Dict[str, str]]:
+    """Parse HTML page source and extract initiatives data.
 
-    print("Parsing saved main page for initiative links...")
+    Args:
+        page_source: HTML source code of the page
+
+    Returns:
+        List of dictionaries containing initiatives data
+    """
+
+    print("Parsing saved main page for initiatives links...")
 
     soup = BeautifulSoup(page_source, "html.parser")
     initiative_data = []
@@ -228,6 +284,7 @@ def parse_initiative_data(page_source):
         if not href.startswith("/initiatives/details/"):
             continue
 
+        # TODO "https://citizens-initiative.europa.eu" as global const
         full_url = "https://citizens-initiative.europa.eu" + href
 
         # Extract metadata
@@ -267,9 +324,22 @@ def parse_initiative_data(page_source):
 
 
 def display_completion_summary(
-    start_scraping, initiative_data, downloaded_count, main_page_path
-):
-    """Display final completion summary with statistics"""
+    start_scraping: str,
+    initiative_data: list[Dict[str, str]],
+    downloaded_count: int,
+    main_page_path: str,
+) -> None:
+    """Display final completion summary with statistics.
+
+    Args:
+        start_scraping: Start time timestamp string
+        initiative_data: List of initiative data dictionaries
+        downloaded_count: Number of successfully downloaded pages
+        main_page_path: Path to the saved main page file
+    """
+
+    # TODO display total of initiatives by categories
+    # TODO read the `downloaded_count` data directly from the directory with downloaded pages
 
     ___ = "=" * 60
 
