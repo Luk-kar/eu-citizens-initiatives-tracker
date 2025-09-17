@@ -157,35 +157,71 @@ def download_initiative_pages(pages_dir, initiative_data):
 
     for i, row in enumerate(initiative_data):
         url = row["url"]
-        try:
-            print(f"Downloading {i+1}/{len(initiative_data)}: {url}")
-            response = requests.get(url)
-            response.raise_for_status()
+        max_retries = 5
+        retry_wait_base = 1 * random.uniform(0.7, 1.0)  # initial wait time in seconds
+        retry_count = 0
+        success = False
 
-            # Create safe filename from URL
-            page_name = url.split("/")[-1] or url.split("/")[-2]
+        while retry_count <= max_retries and not success:
 
-            if not page_name:
-                page_name = f"unknown_initiative_{i+1}"
+            try:
+                print(f"Downloading {i+1}/{len(initiative_data)}: {url}")
+                response = requests.get(url)
+                response.raise_for_status()
 
-            page_name = re.sub(r"[^\w\-_.]", "_", page_name) + ".html"
-            file_path = os.path.join(pages_dir, page_name)
+                # Create safe filename from URL
+                page_name = url.split("/")[-1] or url.split("/")[-2]
+                if not page_name:
+                    page_name = f"unknown_initiative_{i+1}"
 
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(response.text)
+                page_name = re.sub(r"[^\w\-_.]", "_", page_name) + ".html"
+                file_path = os.path.join(pages_dir, page_name)
 
-            successful_download_time = datetime.datetime.now().strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-            row["datetime"] = successful_download_time
-            downloaded_count += 1
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(response.text)
 
-            time.sleep(0.5)  # To avoid server overload
+                successful_download_time = datetime.datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+                row["datetime"] = successful_download_time
+                downloaded_count += 1
+                success = True
 
-        except Exception as e:
-            print(f"Error downloading {url}: {e}")
+                print(f"✅ Successfully downloaded: {page_name}")
 
+            except requests.exceptions.HTTPError as e:
+
+                if response.status_code == 429:
+                    retry_count += 1
+
+                    if retry_count <= max_retries:
+                        wait_time = retry_wait_base * retry_count
+
+                        print(
+                            f"⚠️  Received 429 Too Many Requests. Retrying {retry_count}/{max_retries} in {wait_time} seconds..."
+                        )
+                        time.sleep(wait_time)
+                    else:
+                        print(
+                            f"❌ Failed to download after {max_retries} retries (429 errors): {url}"
+                        )
+                else:
+                    print(f"❌ HTTP error downloading {url}: {e}")
+                    break
+
+            except Exception as e:
+                print(f"❌ Error downloading {url}: {e}")
+                break
+
+        if not success and retry_count > max_retries:
+            print(f"❌ Exhausted all {max_retries} retries for: {url}")
+
+        # Append the updated row regardless of success
         updated_data.append(row)
+
+        # Sleep after each successful attempt to avoid overload
+        if success:
+            time.sleep(0.5)
 
     return updated_data, downloaded_count
 
@@ -375,8 +411,8 @@ def display_completion_summary(
     for status, count in current_status_counter.items():
         print(f"- {status}: {count}")
 
-    print(f"Pages downloaded: {downloaded_files_count}/")
-    print(f"Files saved in: initiatives/{start_scraping}/{total_initiatives_count}")
+    print(f"Pages downloaded: {downloaded_files_count}/{total_initiatives_count}")
+    print(f"Files saved in: initiatives/{start_scraping}")
     print(f"Main page source: {main_page_path}")
     print(div_line)
 
