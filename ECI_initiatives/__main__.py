@@ -1,26 +1,42 @@
-# Python
-from collections import Counter
-import os
-import datetime
-import requests
-from bs4 import BeautifulSoup
-import time
-import random
+# Python Standard Library
 import csv
+import datetime
+import os
+import random
+import time
+from collections import Counter
 from typing import Dict, Tuple
+
+# BeautifulSoup
+from bs4 import BeautifulSoup
 
 # Selenium
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 # Scraper
 from scraper_logger import ScraperLogger
 from css_selectors import ECIinitiativeSelectors, ECIlistingSelectors
 
 logger = None
+
+# URLs
+BASE_URL = "https://citizens-initiative.europa.eu"
+
+# Directory
+DATA_DIR_NAME = "data"
+LOG_DIR_NAME = "logs"
+LISTINGS_DIR_NAME = "listings"
+PAGES_DIR_NAME = "initiative_pages"
+
+# Waiting time
+WAIT_DYNAMIC_CONTENT = (1.5, 1.9)
+WAIT_BETWEEN_PAGES = (1.0, 2.0)
+WAIT_BETWEEN_DOWNLOADS = (0.5, 1.5)
+RETRY_WAIT_BASE = (1.0, 1.2)
 
 
 def scrape_eci_initiatives() -> str:
@@ -37,20 +53,18 @@ def scrape_eci_initiatives() -> str:
     # Get the directory where this script is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    data_dir_name = "data"
-
     # Initialize logger with log directory relative to script location
-    log_dir = os.path.join(script_dir, data_dir_name, start_scraping, "logs")
+    log_dir = os.path.join(script_dir, DATA_DIR_NAME, start_scraping, LOG_DIR_NAME)
     logger = ScraperLogger(log_dir)
     logger.info(f"Starting scraping at: {start_scraping}")
 
-    base_url = "https://citizens-initiative.europa.eu"
+    base_url = BASE_URL
 
     # Create directories relative to script location
-    list_dir = os.path.join(script_dir, data_dir_name, start_scraping, "listings")
-    pages_dir = os.path.join(
-        script_dir, data_dir_name, start_scraping, "initiative_pages"
+    list_dir = os.path.join(
+        script_dir, DATA_DIR_NAME, start_scraping, LISTINGS_DIR_NAME
     )
+    pages_dir = os.path.join(script_dir, DATA_DIR_NAME, start_scraping, PAGES_DIR_NAME)
     setup_scraping_dirs(list_dir, pages_dir)
 
     driver = initialize_browser()
@@ -125,11 +139,12 @@ def scrape_all_initiatives_on_all_pages(
         except Exception as e:
 
             logger.warning(
-                f"No initiatives found or timeout on page {current_page}: {e} - continuing with current content"
+                f"No initiatives found or timeout on page {current_page}: "
+                f"{e} - continuing with current content"
             )
 
         # Additional wait for dynamic content
-        random_time = random.uniform(1.5, 1.9)
+        random_time = random.uniform(*WAIT_DYNAMIC_CONTENT)
         logger.debug(f"Waiting {random_time:.1f}s for dynamic content...")
         time.sleep(random_time)
 
@@ -168,9 +183,9 @@ def scrape_all_initiatives_on_all_pages(
             current_page += 1
 
             # Wait a bit for the page to start loading
-            time.sleep(random.uniform(1.0, 2.0))
+            time.sleep(random.uniform(*WAIT_BETWEEN_PAGES))
 
-        except Exception as e:
+        except Exception:
 
             logger.info(
                 f"No 'Next' button found on page {current_page}. This appears to be the last page."
@@ -178,7 +193,8 @@ def scrape_all_initiatives_on_all_pages(
             break
 
     logger.info(
-        f"Completed scraping {current_page} pages with total of {len(all_initiative_data)} initiatives"
+        f"Completed scraping {current_page} pages with total of "
+        "{len(all_initiative_data)} initiatives"
     )
 
     return all_initiative_data, saved_page_paths
@@ -258,7 +274,9 @@ def save_and_download_initiatives(
 
 
 def download_initiative_pages(pages_dir: str, initiative_data: list):
-    """Download individual initiative pages using Selenium with proper waiting and update datetime stamps with retry logic.
+    """Download individual initiative pages using Selenium
+    with proper waiting and update datetime stamps with retry logic.
+
     Args:
         pages_dir: Directory path for saving HTML pages
         initiative_data: List of initiative dictionaries
@@ -275,7 +293,7 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
         for i, row in enumerate(initiative_data):
             url = row["url"]
             max_retries = 5
-            retry_wait_base = 1 * random.uniform(1.0, 1.2)
+            retry_wait_base = 1 * random.uniform(*RETRY_WAIT_BASE)
             retry_count = 0
             success = False
 
@@ -319,7 +337,10 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
                                 )
                             )
                         )
-                        logger.debug("Initiative progress timeline loaded")
+                        logger.debug(
+                            "Initiative progress timeline loaded. "
+                            "Should be in all initiatives."
+                        )
                     except:
                         logger.warning(
                             "Initiative progress timeline not found, continuing..."
@@ -327,7 +348,6 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
 
                     # Wait for at least one of the main content sections
                     content_selectors_to_wait = [
-                        ECIinitiativeSelectors.INITIATIVE_PROGRESS,
                         ECIinitiativeSelectors.OBJECTIVES,
                         ECIinitiativeSelectors.ANNEX,
                         ECIinitiativeSelectors.ORGANISERS,
@@ -352,11 +372,11 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
 
                     if not element_found:
                         logger.warning(
-                            "No main content elements found, but proceeding..."
+                            "No main content other elements found, but proceeding..."
                         )
 
                     # Additional wait for dynamic content
-                    time.sleep(random.uniform(1.0, 2.0))
+                    time.sleep(random.uniform(*WAIT_DYNAMIC_CONTENT))
 
                     # Get page source after elements have loaded
                     page_source = driver.page_source
@@ -411,12 +431,14 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
                         if retry_count <= max_retries:
                             wait_time = retry_wait_base * (retry_count**2)
                             logger.warning(
-                                f"⚠️  Received rate limiting. Retrying {retry_count}/{max_retries} in {wait_time:.1f} seconds..."
+                                f"⚠️  Received rate limiting. "
+                                f"Retrying {retry_count}/{max_retries} in {wait_time:.1f} seconds..."
                             )
                             time.sleep(wait_time)
                         else:
                             logger.error(
-                                f"❌ Failed to download after {max_retries} retries (rate limited): {url}"
+                                f"❌ Failed to download after {max_retries} "
+                                f"retries (rate limited): {url}"
                             )
                             failed_urls.append(url)
                             break
@@ -433,8 +455,8 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
             updated_data.append(row)
 
             if success:
-                # Wait between successful downloads to be respectful
-                time.sleep(random.uniform(0.5, 1.5))
+                # Wait between successful downloads to not jam the server
+                time.sleep(random.uniform(*WAIT_BETWEEN_DOWNLOADS))
 
     finally:
         driver.quit()
@@ -476,7 +498,7 @@ def scrape_initiatives_page(
         )
 
     # Additional wait to ensure all dynamic content is loaded
-    random_time = random.uniform(1.5, 1.9)
+    random_time = random.uniform(*WAIT_DYNAMIC_CONTENT)
     logger.debug(f"Waiting {random_time:.1f}s for dynamic content...")
     time.sleep(random_time)
 
@@ -555,7 +577,6 @@ def display_completion_summary(
         saved_page_paths: List of paths to saved page files
         failed_urls: List of URLs that failed to download
     """
-    from collections import Counter
 
     # Display total of initiatives by categories as `current_status` from the csv file
     current_status_counter = Counter()
