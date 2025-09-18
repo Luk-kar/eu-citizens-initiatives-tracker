@@ -408,7 +408,7 @@ def download_single_initiative(
 
     while retry_count <= max_retries:
         try:
-            logger.info(f"Downloading the html file...")
+            logger.info("Downloading the html file...")
             driver.get(url)
 
             # Check for rate limiting
@@ -600,69 +600,81 @@ def parse_initiatives_list_data(
     return initiative_data
 
 
-def display_completion_summary(
-    start_scraping: str,
-    initiative_data: list[Dict[str, str]],
-    saved_page_paths: list,
-    failed_urls: list,
-) -> None:
-    """Display final completion summary with statistics.
-    Args:
-        start_scraping: Start time timestamp string
-        initiative_data: List of initiative data dictionaries
-        saved_page_paths: List of paths to saved page files
-        failed_urls: List of URLs that failed to download
-    """
+def gather_scraping_statistics(
+    start_scraping: str, initiative_data: list, failed_urls: list
+) -> dict:
+    """Gather all statistics needed for the completion summary."""
 
-    # Display total of initiatives by categories as `current_status` from the csv file
+    # Count initiatives by status from CSV
     current_status_counter = Counter()
     url_list_file = f"initiatives/{start_scraping}/list/initiatives_list.csv"
 
     if os.path.exists(url_list_file):
+
         with open(url_list_file, "r", encoding="utf-8") as file:
+
             reader = csv.DictReader(file)
+
             for row in reader:
                 if row["current_status"]:
                     current_status_counter[row["current_status"]] += 1
 
+    # Count downloaded files
     pages_dir = f"initiatives/{start_scraping}/initiative_pages"
+
     downloaded_files_count = 0
 
     if os.path.exists(pages_dir):
-        downloaded_files_count = len(
-            [
-                f
-                for subdir, _, files in os.walk(pages_dir)
-                for f in files
-                if f.endswith(".html")
-            ]
-        )
 
-    total_initiatives_count = len(initiative_data) if initiative_data else 0
-    failed_downloads_count = len(failed_urls)
+        # Iterate through year directories and count HTML files
+        for year_dir in os.listdir(pages_dir):
 
+            year_path = os.path.join(pages_dir, year_dir)
+
+            if os.path.isdir(year_path):
+
+                html_files = [f for f in os.listdir(year_path) if f.endswith(".html")]
+                downloaded_files_count += len(html_files)
+
+    return {
+        "status_counter": current_status_counter,
+        "downloaded_count": downloaded_files_count,
+        "total_initiatives": len(initiative_data) if initiative_data else 0,
+        "failed_count": len(failed_urls),
+    }
+
+
+def display_summary_info(
+    start_scraping: str, saved_page_paths: list, stats: dict
+) -> None:
+    """Display the main summary information and statistics."""
     div_line = "=" * 60
-
     logger.info(div_line)
     logger.info("🎉 SCRAPING FINISHED! 🎉")
     logger.info(div_line)
+
     logger.info(
         f"Scraping completed at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
     logger.info(f"Start time: {start_scraping}")
     logger.info(f"Total pages scraped: {len(saved_page_paths)}")
-    logger.info(f"Total initiatives found: {total_initiatives_count}")
-    logger.info("Initiatives by category (current_status):")
+    logger.info(f"Total initiatives found: {stats['total_initiatives']}")
 
-    for status, count in current_status_counter.items():
+    logger.info("Initiatives by category (current_status):")
+    for status, count in stats["status_counter"].items():
         logger.info(f"- {status}: {count}")
 
-    logger.info(f"Pages downloaded: {downloaded_files_count}/{total_initiatives_count}")
 
-    if failed_downloads_count:
+def display_results_and_files(
+    start_scraping: str, saved_page_paths: list, failed_urls: list, stats: dict
+) -> None:
+    """Display download results and file location information."""
+    logger.info(
+        f"Pages downloaded: {stats['downloaded_count']}/{stats['total_initiatives']}"
+    )
 
-        logger.error(f"Failed downloads: {failed_downloads_count}")
-
+    if stats["failed_count"]:
+        logger.error(f"Failed downloads: {stats['failed_count']}")
         for failed_url in failed_urls:
             logger.error(f" - {failed_url}")
     else:
@@ -670,11 +682,22 @@ def display_completion_summary(
 
     logger.info(f"Files saved in: initiatives/{start_scraping}")
     logger.info("Main page sources:")
-
     for i, path in enumerate(saved_page_paths, 1):
         logger.info(f"  Page {i}: {path}")
 
-    logger.info(div_line)
+    logger.info("=" * 60)
+
+
+def display_completion_summary(
+    start_scraping: str,
+    initiative_data: list[Dict[str, str]],
+    saved_page_paths: list,
+    failed_urls: list,
+) -> None:
+    """Display final completion summary with statistics."""
+    stats = gather_scraping_statistics(start_scraping, initiative_data, failed_urls)
+    display_summary_info(start_scraping, saved_page_paths, stats)
+    display_results_and_files(start_scraping, saved_page_paths, failed_urls, stats)
 
 
 if __name__ == "__main__":
