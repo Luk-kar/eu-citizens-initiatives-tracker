@@ -1,4 +1,5 @@
 # Python
+from collections import Counter
 import os
 import datetime
 import requests
@@ -36,40 +37,145 @@ def scrape_eci_initiatives() -> str:
     # Initialize logger with log directory
     log_dir = f"initiatives/{start_scraping}/logs"
     logger = ScraperLogger(log_dir)
-
     logger.info(f"Starting scraping at: {start_scraping}")
 
     base_url = "https://citizens-initiative.europa.eu"
 
-    list_dir = f"initiatives/{start_scraping}/list"
-    pages_dir = f"initiatives/{start_scraping}/pages"
+    list_dir = f"initiatives/{start_scraping}/listings"
+    pages_dir = f"initiatives/{start_scraping}/initiative_pages"
     setup_scraping_dirs(list_dir, pages_dir)
 
     driver = initialize_browser()
 
     try:
-        page_source, main_page_path = scrape_initiatives_page(
+        # Scrape all pages and get accumulated initiative data
+        all_initiative_data, saved_page_paths = scrape_all_initiatives_on_all_pages(
             driver, base_url, list_dir
         )
     finally:
         driver.quit()
         logger.info("Browser closed")
 
-    initiative_data = parse_initiatives_list_data(page_source, base_url)
-
-    if initiative_data:
+    if all_initiative_data:
         failed_urls = save_and_download_initiatives(
-            list_dir, pages_dir, initiative_data
+            list_dir, pages_dir, all_initiative_data
         )
     else:
         logger.warning("No initiatives found to classify or download")
         failed_urls = []
 
     display_completion_summary(
-        start_scraping, initiative_data, main_page_path, failed_urls
+        start_scraping, all_initiative_data, saved_page_paths, failed_urls
     )
 
     return start_scraping
+
+
+def scrape_all_initiatives_on_all_pages(
+    driver: webdriver.Chrome, base_url: str, list_dir: str
+) -> Tuple[list, list]:
+    """Scrape all pages of initiatives by iterating through pagination.
+
+    Args:
+        driver: Chrome WebDriver instance
+        base_url: Base URL of the site
+        list_dir: Directory to save page HTML files
+
+    Returns:
+        Tuple containing:
+        - List of all initiative data from all pages
+        - List of paths to saved HTML files
+    """
+    route_find_initiative = "/find-initiative_en"
+    url_find_initiative = base_url + route_find_initiative
+
+    all_initiative_data = []
+    saved_page_paths = []
+    current_page = 1
+
+    logger.info(f"Starting pagination scraping from: {url_find_initiative}")
+
+    # Load the first page
+    logger.info(f"Loading page {current_page}: {url_find_initiative}")
+    driver.get(url_find_initiative)
+
+    while True:
+
+        # Wait for page elements to load
+        wait = WebDriverWait(driver, 30)
+
+        try:
+
+            cards_initiative_selector = "div.ecl-content-block__title a.ecl-link"
+            wait.until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, cards_initiative_selector)
+                )
+            )
+            logger.info(f"Initiatives loaded successfully on page {current_page}")
+
+        except Exception as e:
+
+            logger.warning(
+                f"No initiatives found or timeout on page {current_page}: {e} - continuing with current content"
+            )
+
+        # Additional wait for dynamic content
+        random_time = random.uniform(1.5, 1.9)
+        logger.debug(f"Waiting {random_time:.1f}s for dynamic content...")
+        time.sleep(random_time)
+
+        # Get page source and save it
+        page_source = driver.page_source
+        page_filename = (
+            f"Find_initiative_European_Citizens_Initiative_page_{current_page:03d}.html"
+        )
+        page_path = os.path.join(list_dir, page_filename)
+
+        with open(page_path, "w", encoding="utf-8") as f:
+            pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
+            f.write(pretty_html)
+
+        saved_page_paths.append(page_path)
+        logger.info(f"Page {current_page} saved to: {page_path}")
+
+        # Parse initiatives from current page
+        page_initiative_data = parse_initiatives_list_data(page_source, base_url)
+        all_initiative_data.extend(page_initiative_data)
+        logger.info(
+            f"Found {len(page_initiative_data)} initiatives on page {current_page}"
+        )
+
+        # Check if there's a "Next" button to continue to next page
+        next_button_selector = (
+            'li.ecl-pagination__item--next a[aria-label="Go to next page"]'
+        )
+        try:
+
+            next_button = driver.find_element(By.CSS_SELECTOR, next_button_selector)
+            logger.info(
+                f"Found 'Next' button on page {current_page}, navigating to page {current_page + 1}"
+            )
+
+            # Click the next button
+            driver.execute_script("arguments[0].click();", next_button)
+            current_page += 1
+
+            # Wait a bit for the page to start loading
+            time.sleep(random.uniform(1.0, 2.0))
+
+        except Exception as e:
+
+            logger.info(
+                f"No 'Next' button found on page {current_page}. This appears to be the last page."
+            )
+            break
+
+    logger.info(
+        f"Completed scraping {current_page} pages with total of {len(all_initiative_data)} initiatives"
+    )
+
+    return all_initiative_data, saved_page_paths
 
 
 def initialize_browser() -> webdriver.Chrome:
@@ -89,6 +195,7 @@ def initialize_browser() -> webdriver.Chrome:
 
 def setup_scraping_dirs(list_dir: str, pages_dir: str) -> None:
     """Create necessary directories for scraping output."""
+
     os.makedirs(list_dir, exist_ok=True)
     os.makedirs(pages_dir, exist_ok=True)
     logger.debug(f"Created directories: {list_dir}, {pages_dir}")
@@ -173,8 +280,28 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
                     # Load page with Selenium
                     driver.get(url)
 
-                    # Wait for key elements to load
-                    wait = WebDriverWait(driver, 20)
+                    # Wait for page to load
+                    wait = WebDriverWait(driver, 15)
+
+                    # First check if we got a rate limiting page
+                    try:
+                        # Check for rate limiting error page
+                        rate_limit_title = driver.find_element(
+                            By.CSS_SELECTOR, "h1.ecl-page-header-core__title"
+                        )
+                        if (
+                            rate_limit_title
+                            and "Server inaccessibility" in rate_limit_title.text
+                        ):
+                            raise Exception("429 - Rate limited (HTML response)")
+
+                    except Exception as rate_check_error:
+
+                        if "429" in str(rate_check_error):
+                            raise rate_check_error
+
+                        # If it's not a rate limit check error, continue normally
+                        pass
 
                     # Wait for the main content to load - checking for initiative progress timeline
                     try:
@@ -225,6 +352,13 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
                     # Get page source after elements have loaded
                     page_source = driver.page_source
 
+                    # Double-check page source for rate limiting content
+                    if (
+                        "Server inaccessibility" in page_source
+                        and "429 - Too Many Requests" in page_source
+                    ):
+                        raise Exception("429 - Rate limited (found in page source)")
+
                     # Extract year and number from URL for filename
                     parts = url.rstrip("/").split("/")
                     year = parts[-2]
@@ -255,10 +389,18 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
 
                 except Exception as e:
                     error_msg = str(e)
-                    if "429" in error_msg or "Too Many Requests" in error_msg:
+
+                    # Check for rate limiting in various forms
+                    is_rate_limited = (
+                        "429" in error_msg
+                        or "Too Many Requests" in error_msg
+                        or "Rate limited" in error_msg
+                    )
+
+                    if is_rate_limited:
                         retry_count += 1
                         if retry_count <= max_retries:
-                            wait_time = retry_wait_base * retry_count
+                            wait_time = retry_wait_base * (retry_count**2)
                             logger.warning(
                                 f"⚠️  Received rate limiting. Retrying {retry_count}/{max_retries} in {wait_time:.1f} seconds..."
                             )
@@ -268,6 +410,7 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
                                 f"❌ Failed to download after {max_retries} retries (rate limited): {url}"
                             )
                             failed_urls.append(url)
+                            break
                     else:
                         logger.error(f"❌ Error downloading {url}: {e}")
                         failed_urls.append(url)
@@ -346,7 +489,7 @@ def parse_initiatives_list_data(
     page_source: str, base_url: str
 ) -> list[Dict[str, str]]:
     """Parse HTML page source and extract initiatives data."""
-    logger.info("Parsing saved main page for initiatives links...")
+    logger.info("Parsing saved listing page for initiatives links...")
 
     soup = BeautifulSoup(page_source, "html.parser")
     initiative_data = []
@@ -399,15 +542,14 @@ def parse_initiatives_list_data(
 def display_completion_summary(
     start_scraping: str,
     initiative_data: list[Dict[str, str]],
-    main_page_path: str,
+    saved_page_paths: list,
     failed_urls: list,
 ) -> None:
     """Display final completion summary with statistics.
-
     Args:
         start_scraping: Start time timestamp string
         initiative_data: List of initiative data dictionaries
-        main_page_path: Path to the saved main page file
+        saved_page_paths: List of paths to saved page files
         failed_urls: List of URLs that failed to download
     """
     from collections import Counter
@@ -423,7 +565,7 @@ def display_completion_summary(
                 if row["current_status"]:
                     current_status_counter[row["current_status"]] += 1
 
-    pages_dir = f"initiatives/{start_scraping}/pages"
+    pages_dir = f"initiatives/{start_scraping}/initiative_pages"
     downloaded_files_count = 0
 
     if os.path.exists(pages_dir):
@@ -438,32 +580,40 @@ def display_completion_summary(
 
     total_initiatives_count = len(initiative_data) if initiative_data else 0
     failed_downloads_count = len(failed_urls)
+
     div_line = "=" * 60
 
-    logger.info("\n" + div_line)
+    logger.info(div_line)
     logger.info("🎉 SCRAPING FINISHED! 🎉")
     logger.info(div_line)
     logger.info(
         f"Scraping completed at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
     logger.info(f"Start time: {start_scraping}")
+    logger.info(f"Total pages scraped: {len(saved_page_paths)}")
     logger.info(f"Total initiatives found: {total_initiatives_count}")
-
     logger.info("Initiatives by category (current_status):")
+
     for status, count in current_status_counter.items():
         logger.info(f"- {status}: {count}")
 
     logger.info(f"Pages downloaded: {downloaded_files_count}/{total_initiatives_count}")
 
     if failed_downloads_count:
+
         logger.error(f"Failed downloads: {failed_downloads_count}")
+
         for failed_url in failed_urls:
             logger.error(f" - {failed_url}")
     else:
         logger.info("✅ All downloads successful!")
 
     logger.info(f"Files saved in: initiatives/{start_scraping}")
-    logger.info(f"Main page source: {main_page_path}")
+    logger.info("Main page sources:")
+
+    for i, path in enumerate(saved_page_paths, 1):
+        logger.info(f"  Page {i}: {path}")
+
     logger.info(div_line)
 
 
