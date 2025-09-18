@@ -18,7 +18,7 @@ from selenium.webdriver.chrome.options import Options
 
 # Scraper
 from scraper_logger import ScraperLogger
-from css_selectors import ECIPageSelectors
+from css_selectors import ECIinitiativeSelectors, ECIlistingSelectors
 
 logger = None
 
@@ -106,7 +106,7 @@ def scrape_all_initiatives_on_all_pages(
 
         try:
 
-            cards_initiative_selector = "div.ecl-content-block__title a.ecl-link"
+            cards_initiative_selector = ECIlistingSelectors.INITIATIVE_CARDS
             wait.until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, cards_initiative_selector)
@@ -147,9 +147,7 @@ def scrape_all_initiatives_on_all_pages(
         )
 
         # Check if there's a "Next" button to continue to next page
-        next_button_selector = (
-            'li.ecl-pagination__item--next a[aria-label="Go to next page"]'
-        )
+        next_button_selector = ECIlistingSelectors.NEXT_BUTTON
         try:
 
             next_button = driver.find_element(By.CSS_SELECTOR, next_button_selector)
@@ -287,7 +285,7 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
                     try:
                         # Check for rate limiting error page
                         rate_limit_title = driver.find_element(
-                            By.CSS_SELECTOR, "h1.ecl-page-header-core__title"
+                            By.CSS_SELECTOR, ECIinitiativeSelectors.PAGE_HEADER_TITLE
                         )
                         if (
                             rate_limit_title
@@ -307,7 +305,10 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
                     try:
                         wait.until(
                             EC.presence_of_element_located(
-                                (By.CSS_SELECTOR, ECIPageSelectors.INITIATIVE_PROGRESS)
+                                (
+                                    By.CSS_SELECTOR,
+                                    ECIinitiativeSelectors.INITIATIVE_PROGRESS,
+                                )
                             )
                         )
                         logger.debug("Initiative progress timeline loaded")
@@ -318,13 +319,13 @@ def download_initiative_pages(pages_dir: str, initiative_data: list):
 
                     # Wait for at least one of the main content sections
                     content_selectors_to_wait = [
-                        ECIPageSelectors.INITIATIVE_PROGRESS,
-                        ECIPageSelectors.OBJECTIVES,
-                        ECIPageSelectors.ANNEX,
-                        ECIPageSelectors.ORGANISERS,
-                        ECIPageSelectors.REPRESENTATIVE,
-                        ECIPageSelectors.SOURCES_OF_FUNDING,
-                        ECIPageSelectors.SOCIAL_SHARE,
+                        ECIinitiativeSelectors.INITIATIVE_PROGRESS,
+                        ECIinitiativeSelectors.OBJECTIVES,
+                        ECIinitiativeSelectors.ANNEX,
+                        ECIinitiativeSelectors.ORGANISERS,
+                        ECIinitiativeSelectors.REPRESENTATIVE,
+                        ECIinitiativeSelectors.SOURCES_OF_FUNDING,
+                        ECIinitiativeSelectors.SOCIAL_SHARE,
                     ]
 
                     element_found = False
@@ -449,14 +450,12 @@ def scrape_initiatives_page(
     wait = WebDriverWait(driver, 30)
 
     try:
-        cards_initiative_selector = "div.ecl-content-block__title a.ecl-link"
+        cards_initiative_selector = ECIlistingSelectors.INITIATIVE_CARDS
         wait.until(
             EC.presence_of_element_located((By.CSS_SELECTOR, cards_initiative_selector))
         )
 
-        pagination_for_other_cards = (
-            "ul.ecl-pagination__list li.ecl-pagination__item a.ecl-pagination__link"
-        )
+        pagination_for_other_cards = ECIlistingSelectors.PAGINATION_LINKS
         wait.until(
             EC.presence_of_element_located(
                 (By.CSS_SELECTOR, pagination_for_other_cards)
@@ -494,10 +493,8 @@ def parse_initiatives_list_data(
     soup = BeautifulSoup(page_source, "html.parser")
     initiative_data = []
 
-    for content_block in soup.select(
-        "div.ecl-content-block.ecl-content-item__content-block"
-    ):
-        title_link = content_block.select_one("div.ecl-content-block__title a.ecl-link")
+    for content_block in soup.select(ECIlistingSelectors.CONTENT_BLOCKS):
+        title_link = content_block.select_one(ECIlistingSelectors.INITIATIVE_CARDS)
         if not title_link or not title_link.get("href"):
             continue
 
@@ -511,9 +508,7 @@ def parse_initiatives_list_data(
         registration_number = ""
         signature_collection = ""
 
-        meta_labels = content_block.select(
-            "span.ecl-content-block__secondary-meta-label"
-        )
+        meta_labels = content_block.select(ECIlistingSelectors.META_LABELS)
 
         for label in meta_labels:
             text = label.get_text(strip=True)
