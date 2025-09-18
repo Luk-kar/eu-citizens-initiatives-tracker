@@ -93,6 +93,86 @@ def scrape_eci_initiatives() -> str:
     return start_scraping
 
 
+def wait_for_listing_page_content(driver: webdriver.Chrome, current_page: int) -> None:
+    """Wait for listing page elements to load."""
+    wait = WebDriverWait(driver, 30)
+    try:
+        cards_initiative_selector = ECIlistingSelectors.INITIATIVE_CARDS
+        wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, cards_initiative_selector))
+        )
+        logger.info(f"Initiatives loaded successfully on page {current_page}")
+    except Exception as e:
+        logger.warning(
+            f"No initiatives found or timeout on page {current_page}: "
+            f"{e} - continuing with current content"
+        )
+
+
+def save_listing_page(
+    driver: webdriver.Chrome, list_dir: str, current_page: int
+) -> Tuple[str, str]:
+    """Save listing page source and return page source and file path."""
+    # Additional wait for dynamic content
+    random_time = random.uniform(*WAIT_DYNAMIC_CONTENT)
+    logger.debug(f"Waiting {random_time:.1f}s for dynamic content...")
+    time.sleep(random_time)
+
+    # Get page source and save it
+    page_source = driver.page_source
+    page_filename = (
+        f"Find_initiative_European_Citizens_Initiative_page_{current_page:03d}.html"
+    )
+    page_path = os.path.join(list_dir, page_filename)
+
+    with open(page_path, "w", encoding="utf-8") as f:
+        pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
+        f.write(pretty_html)
+
+    logger.info(f"Page {current_page} saved to: {page_path}")
+    return page_source, page_path
+
+
+def navigate_to_next_page(driver: webdriver.Chrome, current_page: int) -> bool:
+    """Check for next button and navigate to next page.
+
+    Returns:
+        bool: True if successfully navigated to next page, False if no more pages
+    """
+    next_button_selector = ECIlistingSelectors.NEXT_BUTTON
+    try:
+        next_button = driver.find_element(By.CSS_SELECTOR, next_button_selector)
+        logger.info(
+            f"Found 'Next' button on page {current_page}, navigating to page {current_page + 1}"
+        )
+        # Click the next button
+        driver.execute_script("arguments[0].click();", next_button)
+        # Wait a bit for the page to start loading
+        time.sleep(random.uniform(*WAIT_BETWEEN_PAGES))
+        return True
+    except Exception:
+        logger.info(
+            f"No 'Next' button found on page {current_page}. This appears to be the last page."
+        )
+        return False
+
+
+def scrape_single_listing_page(
+    driver: webdriver.Chrome, base_url: str, list_dir: str, current_page: int
+) -> Tuple[list, str]:
+    """Scrape a single listing page and return initiative data and saved page path."""
+    # Wait for page elements to load
+    wait_for_listing_page_content(driver, current_page)
+
+    # Save page source
+    page_source, page_path = save_listing_page(driver, list_dir, current_page)
+
+    # Parse initiatives from current page
+    page_initiative_data = parse_initiatives_list_data(page_source, base_url)
+
+    return page_initiative_data, page_path
+
+
 def scrape_all_initiatives_on_all_pages(
     driver: webdriver.Chrome, base_url: str, list_dir: str
 ) -> Tuple[list, list]:
@@ -110,7 +190,6 @@ def scrape_all_initiatives_on_all_pages(
     """
     route_find_initiative = "/find-initiative_en"
     url_find_initiative = base_url + route_find_initiative
-
     all_initiative_data = []
     saved_page_paths = []
     current_page = 1
@@ -122,81 +201,25 @@ def scrape_all_initiatives_on_all_pages(
     driver.get(url_find_initiative)
 
     while True:
-
-        # Wait for page elements to load
-        wait = WebDriverWait(driver, 30)
-
-        try:
-
-            cards_initiative_selector = ECIlistingSelectors.INITIATIVE_CARDS
-            wait.until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, cards_initiative_selector)
-                )
-            )
-            logger.info(f"Initiatives loaded successfully on page {current_page}")
-
-        except Exception as e:
-
-            logger.warning(
-                f"No initiatives found or timeout on page {current_page}: "
-                f"{e} - continuing with current content"
-            )
-
-        # Additional wait for dynamic content
-        random_time = random.uniform(*WAIT_DYNAMIC_CONTENT)
-        logger.debug(f"Waiting {random_time:.1f}s for dynamic content...")
-        time.sleep(random_time)
-
-        # Get page source and save it
-        page_source = driver.page_source
-        page_filename = (
-            f"Find_initiative_European_Citizens_Initiative_page_{current_page:03d}.html"
+        # Scrape current page
+        page_initiative_data, page_path = scrape_single_listing_page(
+            driver, base_url, list_dir, current_page
         )
-        page_path = os.path.join(list_dir, page_filename)
 
-        with open(page_path, "w", encoding="utf-8") as f:
-            pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
-            f.write(pretty_html)
-
-        saved_page_paths.append(page_path)
-        logger.info(f"Page {current_page} saved to: {page_path}")
-
-        # Parse initiatives from current page
-        page_initiative_data = parse_initiatives_list_data(page_source, base_url)
+        # Add to accumulated data
         all_initiative_data.extend(page_initiative_data)
-        logger.info(
-            f"Found {len(page_initiative_data)} initiatives on page {current_page}"
-        )
+        saved_page_paths.append(page_path)
 
-        # Check if there's a "Next" button to continue to next page
-        next_button_selector = ECIlistingSelectors.NEXT_BUTTON
-        try:
-
-            next_button = driver.find_element(By.CSS_SELECTOR, next_button_selector)
-            logger.info(
-                f"Found 'Next' button on page {current_page}, navigating to page {current_page + 1}"
-            )
-
-            # Click the next button
-            driver.execute_script("arguments[0].click();", next_button)
+        # Try to navigate to next page
+        if navigate_to_next_page(driver, current_page):
             current_page += 1
-
-            # Wait a bit for the page to start loading
-            time.sleep(random.uniform(*WAIT_BETWEEN_PAGES))
-
-        except Exception:
-
-            logger.info(
-                f"No 'Next' button found on page {current_page}. This appears to be the last page."
-            )
+        else:
             break
 
     logger.info(
         f"Completed scraping {current_page} pages with total of "
-        "{len(all_initiative_data)} initiatives"
+        f"{len(all_initiative_data)} initiatives"
     )
-
     return all_initiative_data, saved_page_paths
 
 
