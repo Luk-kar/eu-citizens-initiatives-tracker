@@ -273,190 +273,203 @@ def save_and_download_initiatives(
     return failed_urls
 
 
-def download_initiative_pages(pages_dir: str, initiative_data: list):
-    """Download individual initiative pages using Selenium
-    with proper waiting and update datetime stamps with retry logic.
+def check_rate_limiting(driver: webdriver.Chrome) -> None:
+    """Check if the current page shows rate limiting errors."""
+
+    try:
+        rate_limit_title = driver.find_element(
+            By.CSS_SELECTOR, ECIinitiativeSelectors.PAGE_HEADER_TITLE
+        )
+
+        if rate_limit_title and "Server inaccessibility" in rate_limit_title.text:
+            raise Exception("429 - Rate limited (HTML response)")
+
+    except Exception as rate_check_error:
+
+        if "429" in str(rate_check_error):
+            raise rate_check_error
+        # If it's not a rate limit check error, continue normally
+        pass
+
+
+def wait_for_page_content(driver: webdriver.Chrome) -> None:
+    """Wait for initiative page content to load."""
+    wait = WebDriverWait(driver, 15)
+
+    # Wait for initiative progress timeline
+    try:
+        wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, ECIinitiativeSelectors.INITIATIVE_PROGRESS)
+            )
+        )
+        logger.debug("Initiative progress timeline loaded")
+    except:
+        logger.warning(
+            "Initiative progress timeline not found, "
+            "Should be in all initiatives."
+            "\ncontinuing..."
+        )
+
+    # Wait for at least one of the main content sections
+    content_selectors_to_wait = [
+        ECIinitiativeSelectors.OBJECTIVES,
+        ECIinitiativeSelectors.ANNEX,
+        ECIinitiativeSelectors.ORGANISERS,
+        ECIinitiativeSelectors.REPRESENTATIVE,
+        ECIinitiativeSelectors.SOURCES_OF_FUNDING,
+        ECIinitiativeSelectors.SOCIAL_SHARE,
+    ]
+
+    element_found = False
+
+    for selector in content_selectors_to_wait:
+
+        try:
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector)))
+            logger.debug(f"Content loaded: {selector}")
+            element_found = True
+
+            break
+
+        except:
+            continue
+
+    if not element_found:
+        logger.warning("No main content other elements found, but proceeding...")
+
+
+def save_initiative_page(pages_dir: str, url: str, page_source: str) -> str:
+    """Save initiative page source to file and return filename."""
+
+    # Double-check page source for rate limiting content
+    if (
+        "Server inaccessibility" in page_source
+        and "429 - Too Many Requests" in page_source
+    ):
+        raise Exception("429 - Rate limited (found in page source)")
+
+    # Extract year and number from URL for filename
+    parts = url.rstrip("/").split("/")
+    year = parts[-2]
+    number = parts[-1]
+
+    # Generate directory under pages_dir for year
+    year_dir = os.path.join(pages_dir, year)
+    os.makedirs(year_dir, exist_ok=True)
+
+    # Create filename with year and number to avoid overwriting
+    file_name = f"{year}_{number}.html"
+    file_path = os.path.join(year_dir, file_name)
+
+    # Save the page source
+    with open(file_path, "w", encoding="utf-8") as f:
+
+        pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
+        f.write(pretty_html)
+
+    return file_name
+
+
+def download_single_initiative(
+    driver: webdriver.Chrome, pages_dir: str, url: str, max_retries: int = 5
+) -> bool:
+    """Download a single initiative page with retry logic.
+
+    Returns:
+        bool: True if successful, False if failed
+    """
+
+    retry_wait_base = 1 * random.uniform(*RETRY_WAIT_BASE)
+    retry_count = 0
+
+    while retry_count <= max_retries:
+        try:
+            logger.info(f"Downloading the html file...")
+            driver.get(url)
+
+            # Check for rate limiting
+            check_rate_limiting(driver)
+
+            # Wait for page content to load
+            wait_for_page_content(driver)
+
+            # Additional wait for dynamic content
+            time.sleep(random.uniform(*WAIT_DYNAMIC_CONTENT))
+
+            # Get page source and save
+            page_source = driver.page_source
+            file_name = save_initiative_page(pages_dir, url, page_source)
+
+            logger.info(f"✅ Successfully downloaded: {file_name}")
+            return True
+
+        except Exception as e:
+            error_msg = str(e)
+            is_rate_limited = (
+                "429" in error_msg
+                or "Too Many Requests" in error_msg
+                or "Rate limited" in error_msg
+            )
+
+            if is_rate_limited:
+                retry_count += 1
+                if retry_count <= max_retries:
+                    wait_time = retry_wait_base * (retry_count**2)
+                    logger.warning(
+                        f"⚠️  Received rate limiting. "
+                        f"Retrying {retry_count}/{max_retries} in {wait_time:.1f} seconds..."
+                    )
+                    time.sleep(wait_time)
+                else:
+                    logger.error(
+                        f"❌ Failed to download after {max_retries} "
+                        f"retries (rate limited): {url}"
+                    )
+                    return False
+            else:
+                logger.error(f"❌ Error downloading {url}: {e}")
+                return False
+
+    logger.error(f"❌ Exhausted all {max_retries} retries for: {url}")
+    return False
+
+
+def download_initiative_pages(
+    pages_dir: str, initiative_data: list
+) -> Tuple[list, list]:
+    """Download individual initiative pages using Selenium.
 
     Args:
         pages_dir: Directory path for saving HTML pages
         initiative_data: List of initiative dictionaries
+
     Returns:
         Tuple containing updated data list and list of failed URLs
     """
     updated_data = []
     failed_urls = []
 
-    # Initialize browser for downloading individual pages
     driver = initialize_browser()
 
     try:
+
         for i, row in enumerate(initiative_data):
+
             url = row["url"]
-            max_retries = 5
-            retry_wait_base = 1 * random.uniform(*RETRY_WAIT_BASE)
-            retry_count = 0
-            success = False
+            logger.info(f"Processing {i+1}/{len(initiative_data)}: {url}")
 
-            while retry_count <= max_retries and not success:
-                try:
-                    logger.info(f"Downloading {i+1}/{len(initiative_data)}: {url}")
-
-                    # Load page with Selenium
-                    driver.get(url)
-
-                    # Wait for page to load
-                    wait = WebDriverWait(driver, 15)
-
-                    # First check if we got a rate limiting page
-                    try:
-                        # Check for rate limiting error page
-                        rate_limit_title = driver.find_element(
-                            By.CSS_SELECTOR, ECIinitiativeSelectors.PAGE_HEADER_TITLE
-                        )
-                        if (
-                            rate_limit_title
-                            and "Server inaccessibility" in rate_limit_title.text
-                        ):
-                            raise Exception("429 - Rate limited (HTML response)")
-
-                    except Exception as rate_check_error:
-
-                        if "429" in str(rate_check_error):
-                            raise rate_check_error
-
-                        # If it's not a rate limit check error, continue normally
-                        pass
-
-                    # Wait for the main content to load - checking for initiative progress timeline
-                    try:
-                        wait.until(
-                            EC.presence_of_element_located(
-                                (
-                                    By.CSS_SELECTOR,
-                                    ECIinitiativeSelectors.INITIATIVE_PROGRESS,
-                                )
-                            )
-                        )
-                        logger.debug(
-                            "Initiative progress timeline loaded. "
-                            "Should be in all initiatives."
-                        )
-                    except:
-                        logger.warning(
-                            "Initiative progress timeline not found, continuing..."
-                        )
-
-                    # Wait for at least one of the main content sections
-                    content_selectors_to_wait = [
-                        ECIinitiativeSelectors.OBJECTIVES,
-                        ECIinitiativeSelectors.ANNEX,
-                        ECIinitiativeSelectors.ORGANISERS,
-                        ECIinitiativeSelectors.REPRESENTATIVE,
-                        ECIinitiativeSelectors.SOURCES_OF_FUNDING,
-                        ECIinitiativeSelectors.SOCIAL_SHARE,
-                    ]
-
-                    element_found = False
-                    for selector in content_selectors_to_wait:
-                        try:
-                            wait.until(
-                                EC.presence_of_element_located(
-                                    (By.CSS_SELECTOR, selector)
-                                )
-                            )
-                            logger.debug(f"Content loaded: {selector}")
-                            element_found = True
-                            break
-                        except:
-                            continue
-
-                    if not element_found:
-                        logger.warning(
-                            "No main content other elements found, but proceeding..."
-                        )
-
-                    # Additional wait for dynamic content
-                    time.sleep(random.uniform(*WAIT_DYNAMIC_CONTENT))
-
-                    # Get page source after elements have loaded
-                    page_source = driver.page_source
-
-                    # Double-check page source for rate limiting content
-                    if (
-                        "Server inaccessibility" in page_source
-                        and "429 - Too Many Requests" in page_source
-                    ):
-                        raise Exception("429 - Rate limited (found in page source)")
-
-                    # Extract year and number from URL for filename
-                    parts = url.rstrip("/").split("/")
-                    year = parts[-2]
-                    number = parts[-1]
-
-                    # Generate directory under pages_dir for year
-                    year_dir = os.path.join(pages_dir, year)
-                    os.makedirs(year_dir, exist_ok=True)
-
-                    # Create filename with year and number to avoid overwriting
-                    file_name = f"{year}_{number}.html"
-                    file_path = os.path.join(year_dir, file_name)
-
-                    # Save the page source
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        # Prettify the HTML for better readability
-                        pretty_html = BeautifulSoup(
-                            page_source, "html.parser"
-                        ).prettify()
-                        f.write(pretty_html)
-
-                    successful_download_time = datetime.datetime.now().strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
-                    row["datetime"] = successful_download_time
-                    success = True
-                    logger.info(f"✅ Successfully downloaded: {file_name}")
-
-                except Exception as e:
-                    error_msg = str(e)
-
-                    # Check for rate limiting in various forms
-                    is_rate_limited = (
-                        "429" in error_msg
-                        or "Too Many Requests" in error_msg
-                        or "Rate limited" in error_msg
-                    )
-
-                    if is_rate_limited:
-                        retry_count += 1
-                        if retry_count <= max_retries:
-                            wait_time = retry_wait_base * (retry_count**2)
-                            logger.warning(
-                                f"⚠️  Received rate limiting. "
-                                f"Retrying {retry_count}/{max_retries} in {wait_time:.1f} seconds..."
-                            )
-                            time.sleep(wait_time)
-                        else:
-                            logger.error(
-                                f"❌ Failed to download after {max_retries} "
-                                f"retries (rate limited): {url}"
-                            )
-                            failed_urls.append(url)
-                            break
-                    else:
-                        logger.error(f"❌ Error downloading {url}: {e}")
-                        failed_urls.append(url)
-                        break
-
-            if not success and retry_count > max_retries:
-                logger.error(f"❌ Exhausted all {max_retries} retries for: {url}")
-                if url not in failed_urls:
-                    failed_urls.append(url)
-
-            updated_data.append(row)
+            success = download_single_initiative(driver, pages_dir, url)
 
             if success:
-                # Wait between successful downloads to not jam the server
+
+                row["datetime"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 time.sleep(random.uniform(*WAIT_BETWEEN_DOWNLOADS))
+
+            else:
+                failed_urls.append(url)
+
+            updated_data.append(row)
 
     finally:
         driver.quit()
