@@ -37,17 +37,19 @@ def scrape_eci_initiatives() -> str:
     # Get the directory where this script is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
+    data_dir_name = "data"
+
     # Initialize logger with log directory relative to script location
-    log_dir = os.path.join(script_dir, "initiatives", start_scraping, "logs")
+    log_dir = os.path.join(script_dir, data_dir_name, start_scraping, "logs")
     logger = ScraperLogger(log_dir)
     logger.info(f"Starting scraping at: {start_scraping}")
 
     base_url = "https://citizens-initiative.europa.eu"
 
     # Create directories relative to script location
-    list_dir = os.path.join(script_dir, "initiatives", start_scraping, "listings")
+    list_dir = os.path.join(script_dir, data_dir_name, start_scraping, "listings")
     pages_dir = os.path.join(
-        script_dir, "initiatives", start_scraping, "initiative_pages"
+        script_dir, data_dir_name, start_scraping, "initiative_pages"
     )
     setup_scraping_dirs(list_dir, pages_dir)
 
