@@ -15,7 +15,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 
+# Scraper
 from scraper_logger import ScraperLogger
+from css_selectors import ECIPageSelectors
 
 logger = None
 
@@ -142,89 +144,149 @@ def save_and_download_initiatives(
     return failed_urls
 
 
-def download_initiative_pages(pages_dir: str, initiative_data: str):
-    """Download individual initiative pages and update datetime stamps with retry logic.
-
+def download_initiative_pages(pages_dir: str, initiative_data: list):
+    """Download individual initiative pages using Selenium with proper waiting and update datetime stamps with retry logic.
     Args:
         pages_dir: Directory path for saving HTML pages
         initiative_data: List of initiative dictionaries
-
     Returns:
-        Tuple containing updated data list, count of successful downloads, and list of failed URLs
+        Tuple containing updated data list and list of failed URLs
     """
-
     updated_data = []
     failed_urls = []
 
-    for i, row in enumerate(initiative_data):
-        url = row["url"]
-        max_retries = 5
-        retry_wait_base = 1 * random.uniform(1.0, 1.2)
-        retry_count = 0
-        success = False
+    # Initialize browser for downloading individual pages
+    driver = initialize_browser()
 
-        while retry_count <= max_retries and not success:
-            try:
-                logger.info(f"Downloading {i+1}/{len(initiative_data)}: {url}")
-                response = requests.get(url)
-                response.raise_for_status()
+    try:
+        for i, row in enumerate(initiative_data):
+            url = row["url"]
+            max_retries = 5
+            retry_wait_base = 1 * random.uniform(1.0, 1.2)
+            retry_count = 0
+            success = False
 
-                # Extract year and number from URL for filename
-                parts = url.rstrip("/").split("/")
-                year = parts[-2]
-                number = parts[-1]
+            while retry_count <= max_retries and not success:
+                try:
+                    logger.info(f"Downloading {i+1}/{len(initiative_data)}: {url}")
 
-                # Generate directory under pages_dir for year
-                year_dir = os.path.join(pages_dir, year)
-                os.makedirs(year_dir, exist_ok=True)
+                    # Load page with Selenium
+                    driver.get(url)
 
-                # Create filename with year and number to avoid overwriting
-                file_name = f"{year}_{number}.html"
-                file_path = os.path.join(year_dir, file_name)
+                    # Wait for key elements to load
+                    wait = WebDriverWait(driver, 20)
 
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(response.text)
-
-                successful_download_time = datetime.datetime.now().strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
-                row["datetime"] = successful_download_time
-
-                success = True
-                logger.info(f"✅ Successfully downloaded: {file_name}")
-
-            except requests.exceptions.HTTPError as e:
-                if hasattr(response, "status_code") and response.status_code == 429:
-                    retry_count += 1
-                    if retry_count <= max_retries:
-                        wait_time = retry_wait_base * retry_count
+                    # Wait for the main content to load - checking for initiative progress timeline
+                    try:
+                        wait.until(
+                            EC.presence_of_element_located(
+                                (By.CSS_SELECTOR, ECIPageSelectors.INITIATIVE_PROGRESS)
+                            )
+                        )
+                        logger.debug("Initiative progress timeline loaded")
+                    except:
                         logger.warning(
-                            f"⚠️  Received 429 Too Many Requests. Retrying {retry_count}/{max_retries} in {wait_time:.1f} seconds..."
+                            "Initiative progress timeline not found, continuing..."
                         )
-                        time.sleep(wait_time)
+
+                    # Wait for at least one of the main content sections
+                    content_selectors_to_wait = [
+                        ECIPageSelectors.INITIATIVE_PROGRESS,
+                        ECIPageSelectors.OBJECTIVES,
+                        ECIPageSelectors.ANNEX,
+                        ECIPageSelectors.ORGANISERS,
+                        ECIPageSelectors.REPRESENTATIVE,
+                        ECIPageSelectors.SOURCES_OF_FUNDING,
+                        ECIPageSelectors.SOCIAL_SHARE,
+                    ]
+
+                    element_found = False
+                    for selector in content_selectors_to_wait:
+                        try:
+                            wait.until(
+                                EC.presence_of_element_located(
+                                    (By.CSS_SELECTOR, selector)
+                                )
+                            )
+                            logger.debug(f"Content loaded: {selector}")
+                            element_found = True
+                            break
+                        except:
+                            continue
+
+                    if not element_found:
+                        logger.warning(
+                            "No main content elements found, but proceeding..."
+                        )
+
+                    # Additional wait for dynamic content
+                    time.sleep(random.uniform(1.0, 2.0))
+
+                    # Get page source after elements have loaded
+                    page_source = driver.page_source
+
+                    # Extract year and number from URL for filename
+                    parts = url.rstrip("/").split("/")
+                    year = parts[-2]
+                    number = parts[-1]
+
+                    # Generate directory under pages_dir for year
+                    year_dir = os.path.join(pages_dir, year)
+                    os.makedirs(year_dir, exist_ok=True)
+
+                    # Create filename with year and number to avoid overwriting
+                    file_name = f"{year}_{number}.html"
+                    file_path = os.path.join(year_dir, file_name)
+
+                    # Save the page source
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        # Prettify the HTML for better readability
+                        pretty_html = BeautifulSoup(
+                            page_source, "html.parser"
+                        ).prettify()
+                        f.write(pretty_html)
+
+                    successful_download_time = datetime.datetime.now().strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                    row["datetime"] = successful_download_time
+                    success = True
+                    logger.info(f"✅ Successfully downloaded: {file_name}")
+
+                except Exception as e:
+                    error_msg = str(e)
+                    if "429" in error_msg or "Too Many Requests" in error_msg:
+                        retry_count += 1
+                        if retry_count <= max_retries:
+                            wait_time = retry_wait_base * retry_count
+                            logger.warning(
+                                f"⚠️  Received rate limiting. Retrying {retry_count}/{max_retries} in {wait_time:.1f} seconds..."
+                            )
+                            time.sleep(wait_time)
+                        else:
+                            logger.error(
+                                f"❌ Failed to download after {max_retries} retries (rate limited): {url}"
+                            )
+                            failed_urls.append(url)
                     else:
-                        logger.error(
-                            f"❌ Failed to download after {max_retries} retries (429 errors): {url}"
-                        )
+                        logger.error(f"❌ Error downloading {url}: {e}")
                         failed_urls.append(url)
-                else:
-                    logger.error(f"❌ HTTP error downloading {url}: {e}")
+                        break
+
+            if not success and retry_count > max_retries:
+                logger.error(f"❌ Exhausted all {max_retries} retries for: {url}")
+                if url not in failed_urls:
                     failed_urls.append(url)
-                    break
-            except Exception as e:
-                logger.error(f"❌ Error downloading {url}: {e}")
-                failed_urls.append(url)
-                break
 
-        if not success and retry_count > max_retries:
-            logger.error(f"❌ Exhausted all {max_retries} retries for: {url}")
-            if url not in failed_urls:
-                failed_urls.append(url)
+            updated_data.append(row)
 
-        updated_data.append(row)
+            if success:
+                # Wait between successful downloads to be respectful
+                time.sleep(random.uniform(0.5, 1.5))
 
-        if success:
-            time.sleep(0.5)
+    finally:
+        driver.quit()
+        logger.info("Individual pages browser closed")
 
     logger.info(f"Download completed. Failed URLs: {len(failed_urls)}")
     return updated_data, failed_urls
