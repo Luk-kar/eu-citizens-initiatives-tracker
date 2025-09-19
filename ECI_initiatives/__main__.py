@@ -140,7 +140,9 @@ def navigate_to_next_page(driver: webdriver.Chrome, current_page: int) -> bool:
         bool: True if successfully navigated to next page, False if no more pages
     """
     next_button_selector = ECIlistingSelectors.NEXT_BUTTON
+
     try:
+
         next_button = driver.find_element(By.CSS_SELECTOR, next_button_selector)
         logger.info(
             f"Found 'Next' button on page {current_page}, navigating to page {current_page + 1}"
@@ -150,6 +152,7 @@ def navigate_to_next_page(driver: webdriver.Chrome, current_page: int) -> bool:
         # Wait a bit for the page to start loading
         time.sleep(random.uniform(*WAIT_BETWEEN_PAGES))
         return True
+
     except Exception:
         logger.info(
             f"No 'Next' button found on page {current_page}. This appears to be the last page."
@@ -554,6 +557,7 @@ def parse_initiatives_list_data(
     page_source: str, base_url: str
 ) -> list[Dict[str, str]]:
     """Parse HTML page source and extract initiatives data."""
+
     logger.info("Parsing saved listing page for initiatives links...")
 
     soup = BeautifulSoup(page_source, "html.parser")
