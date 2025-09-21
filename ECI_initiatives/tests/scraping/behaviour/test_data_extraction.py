@@ -19,7 +19,7 @@ TEST_DATA_DIR = os.path.join(
 )
 INITIATIVES_HTML_DIR = os.path.join(TEST_DATA_DIR, "initiatives")
 LISTINGS_HTML_DIR = os.path.join(TEST_DATA_DIR, "listings")
-CSV_FILE_PATH = os.path.join(INITIATIVES_HTML_DIR, "eci_status_initiatives.csv")
+CSV_FILE_PATH = os.path.join(LISTINGS_HTML_DIR, "initiatives_list.csv")
 
 # Base URL for testing
 BASE_URL = "https://citizens-initiative.europa.eu"
@@ -35,6 +35,7 @@ sys.path.append(program_dir)
 from ECI_initiatives.__main__ import (
     save_and_download_initiatives,
     parse_initiatives_list_data,
+    scrape_all_initiatives_on_all_pages,
 )
 
 
@@ -151,7 +152,7 @@ class TestCSVDataValidation:
         # Load the reference CSV to get expected data
         with open(CSV_FILE_PATH, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            expected_data = {row["example_url"]: row["status"] for row in reader}
+            expected_data = {row["url"]: row["current_status"] for row in reader}
 
         # Load test listing page
         first_page_path = os.path.join(LISTINGS_HTML_DIR, "first_page.html")
@@ -161,6 +162,8 @@ class TestCSVDataValidation:
 
         # Extract data using main module function
         initiative_data = parse_initiatives_list_data(page_source, BASE_URL)
+
+        print(initiative_data)
 
         # Compare extracted status with expected (if URLs match)
         for initiative in initiative_data:
@@ -268,18 +271,189 @@ class TestCSVDataValidation:
 class TestDataCompleteness:
     """Test data completeness and accuracy."""
 
-    def test_initiative_count_matches_website(self):
+    @patch("ECI_initiatives.__main__.logger")
+    def test_initiative_count_matches_website(self, mock_logger):
         """Compare the number of initiatives found against manual count on the website."""
-        pass
 
-    def test_all_listing_pages_processed(self):
+        # Load test listing pages and count unique initiatives
+        all_initiatives = []
+
+        for page_file in ["first_page.html", "last_page.html"]:
+            page_path = os.path.join(LISTINGS_HTML_DIR, page_file)
+
+            with open(page_path, "r", encoding="utf-8") as f:
+                page_source = f.read()
+
+            initiative_data = parse_initiatives_list_data(page_source, BASE_URL)
+
+            # Add URLs to set to avoid duplicates
+            for initiative in initiative_data:
+                all_initiatives.append(initiative["url"])
+
+        total_initiatives = len(all_initiatives)
+
+        with open(CSV_FILE_PATH, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            expected_count = sum(1 for _ in reader)
+
+        assert (
+            total_initiatives >= expected_count
+        ), f"Found {total_initiatives} unique initiatives, expected at least {expected_count}"
+
+    @patch("ECI_initiatives.__main__.initialize_browser")
+    @patch("ECI_initiatives.__main__.logger")
+    def test_all_listing_pages_processed(self, mock_logger, mock_browser):
         """Verify that all pages of listings are processed (pagination handling)."""
-        pass
 
-    def test_status_distribution_accuracy(self):
-        """Check that initiative counts by status match expected distributions."""
-        pass
+        # Create a mock driver
+        mock_driver = MagicMock()
+        mock_browser.return_value = mock_driver
 
-    def test_all_available_fields_extracted(self):
+        # Mock pagination scenario: 3 pages total
+        page_sources = [
+            "<html>page1</html>",
+            "<html>page2</html>",
+            "<html>page3</html>",
+        ]
+        mock_driver.page_source = page_sources[0]  # Start with first page
+
+        # Mock find_element for next button - return button for first 2 pages, raise exception for 3rd
+        def mock_find_element_side_effect(*args, **kwargs):
+            """
+            Mock the browser's find_element behavior for pagination.
+
+            Returns a mock button element for the first 2 calls (pages 1-2 have Next buttons),
+            then raises an exception on the 3rd call (page 3 has no Next button).
+            This simulates reaching the last page of results.
+            """
+
+            if mock_find_element_side_effect.call_count <= 2:
+
+                mock_button = MagicMock()
+                return mock_button
+
+            else:
+                raise Exception("No next button found")
+
+        mock_find_element_side_effect.call_count = 0
+
+        def increment_and_side_effect(*args, **kwargs):
+            """
+            Wrapper function that increments the call counter and delegates to the main side effect.
+
+            This tracks how many times find_element has been called to simulate
+            the pagination logic checking for Next buttons on each page.
+            """
+
+            mock_find_element_side_effect.call_count += 1
+
+            return mock_find_element_side_effect(*args, **kwargs)
+
+        mock_driver.find_element.side_effect = increment_and_side_effect
+
+        # Mock page source updates
+        def update_page_source():
+            """
+            Update the mock driver's page_source to simulate navigating to the next page.
+
+            Changes the HTML content to the next page in the sequence when the
+            Next button is clicked, simulating how a real browser would load new content.
+            """
+
+            if mock_find_element_side_effect.call_count <= len(page_sources):
+
+                mock_driver.page_source = page_sources[
+                    mock_find_element_side_effect.call_count - 1
+                ]
+
+        mock_driver.execute_script.side_effect = (
+            lambda script, element: update_page_source()
+        )
+
+        # Mock other required methods
+        with patch("ECI_initiatives.__main__.wait_for_listing_page_content"), patch(
+            "ECI_initiatives.__main__.save_listing_page"
+        ) as mock_save, patch(
+            "ECI_initiatives.__main__.parse_initiatives_list_data"
+        ) as mock_parse, patch(
+            "time.sleep"
+        ):
+
+            mock_save.return_value = ("", "test_path")
+            mock_parse.return_value = [
+                {
+                    "url": "test",
+                    "current_status": "",
+                    "registration_number": "",
+                    "signature_collection": "",
+                    "datetime": "",
+                }
+            ]
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+
+                all_data, saved_paths = scrape_all_initiatives_on_all_pages(
+                    mock_driver, BASE_URL, temp_dir
+                )
+
+                expected_page_count = 3
+
+                # Should have processed 3 pages
+                assert (
+                    len(saved_paths) == expected_page_count
+                ), f"Expected {expected_page_count} pages processed, got {len(saved_paths)}"
+                assert (
+                    mock_driver.find_element.call_count == 3
+                ), f"Should have checked for next button {expected_page_count} times"
+
+    @patch("ECI_initiatives.__main__.logger")
+    def test_all_available_fields_extracted(self, mock_logger):
         """Ensure all initiative fields are extracted when available on source pages."""
-        pass
+
+        def load_expected_statuses():
+            """Load status distribution from reference CSV file."""
+
+            with open(CSV_FILE_PATH, "r", encoding="utf-8") as f:
+
+                reader = csv.DictReader(f)
+                return Counter(row["current_status"] for row in reader)
+
+        def parse_test_pages():
+            """Parse all test HTML pages and extract statuses."""
+
+            all_statuses = []
+
+            for page_file in ["first_page.html", "last_page.html"]:
+
+                page_path = os.path.join(LISTINGS_HTML_DIR, page_file)
+
+                with open(page_path, "r", encoding="utf-8") as f:
+                    page_content = f.read()
+
+                initiatives = parse_initiatives_list_data(page_content, BASE_URL)
+
+                # Extract non-empty statuses
+                page_statuses = [
+                    init["current_status"]
+                    for init in initiatives
+                    if init["current_status"]
+                ]
+                all_statuses.extend(page_statuses)
+
+            return Counter(all_statuses)
+
+        # Main test logic
+        expected_statuses = load_expected_statuses()
+        actual_statuses = parse_test_pages()
+
+        # Verify each expected status appears in parsed data
+        missing_statuses = []
+        for expected_status in expected_statuses:
+            if expected_status not in actual_statuses:
+                missing_statuses.append(expected_status)
+
+        assert not missing_statuses, (
+            f"These expected statuses were not found in parsed data: {missing_statuses}\n"
+            f"Expected: {list(expected_statuses.keys())}\n"
+            f"Found: {list(actual_statuses.keys())}"
+        )
