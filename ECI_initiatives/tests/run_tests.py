@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Test runner script for ECI initiatives scraper tests.
+"""
+Test runner script for ECI initiatives scraper tests.
 
 This script provides a convenient interface to run pytest tests for the ECI scraper
 with pre-configured options and shortcuts for common test scenarios.
@@ -13,14 +14,8 @@ Basic Examples:
     python run_tests.py --end-to-end              # Run only end-to-end tests
     python run_tests.py scraping/behaviour        # Run specific directory
 
-Advanced Examples:
-    python run_tests.py --coverage                # Generate coverage report
-    python run_tests.py --no-stop                 # Don't stop on first failure
-    python run_tests.py --no-verbose              # Minimal output
-    python run_tests.py --markers "not slow"      # Skip slow tests
-    python run_tests.py --markers "unit"          # Run only unit tests
-
 Specific Test Selection:
+
     # Run specific test file
     python run_tests.py scraping/behaviour/test_scraping_process.py
 
@@ -29,22 +24,6 @@ Specific Test Selection:
 
     # Run specific test method
     python run_tests.py scraping/behaviour/test_scraping_process.py::TestErrorRecoveryAndResilience::test_individual_page_download_failure_handling
-
-Combined Options:
-    python run_tests.py --behaviour --coverage --no-stop    # Behaviour tests with coverage, no early exit
-    python run_tests.py --markers "not slow" --coverage     # Fast tests with coverage
-
-Arguments:
-    path                    Test path, file, or specific test (default: scraping)
-    --no-verbose           Disable verbose output
-    --no-stop              Don't stop on first failure
-    --coverage             Generate HTML and terminal coverage reports
-    --markers EXPR         Run tests matching marker expression
-    --behaviour            Shortcut for scraping/behaviour tests
-    --end-to-end           Shortcut for scraping/end_to_end tests
-
-Note: This script automatically changes to the tests directory and runs pytest
-with optimized settings including colored output, short tracebacks, and timing info.
 """
 
 
