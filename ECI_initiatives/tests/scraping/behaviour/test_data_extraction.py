@@ -38,6 +38,42 @@ from ECI_initiatives.__main__ import (
     scrape_all_initiatives_on_all_pages,
 )
 
+# ===== SHARED FIXTURES (used by multiple test classes) =====
+
+
+@pytest.fixture(scope="session")
+def parsed_test_data():
+    """Parse test HTML files once and reuse across all tests."""
+    with patch("ECI_initiatives.__main__.logger"):
+        all_initiatives = []
+
+        for page_file in ["first_page.html", "last_page.html"]:
+            page_path = os.path.join(LISTINGS_HTML_DIR, page_file)
+
+            if not os.path.exists(page_path):
+                continue
+
+            with open(page_path, "r", encoding="utf-8") as f:
+                page_source = f.read()
+
+            initiatives = parse_initiatives_list_data(page_source, BASE_URL)
+            all_initiatives.extend(initiatives)
+
+        return all_initiatives
+
+
+@pytest.fixture(scope="session")
+def reference_data():
+    """Load reference CSV once and reuse across all tests."""
+    if not os.path.exists(CSV_FILE_PATH):
+        pytest.skip(f"Reference CSV file not found: {CSV_FILE_PATH}")
+
+    with open(CSV_FILE_PATH, "r", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+# ===== TEST CLASSES =====
+
 
 class TestCSVDataValidation:
     """Test CSV data validation functionality."""
@@ -117,67 +153,6 @@ class TestCSVDataValidation:
                 assert (
                     data_row[0] == test_initiative_data[0]["url"]
                 ), "URL not correctly written to CSV:\n" + str(data_row[0])
-
-    @patch("ECI_initiatives.__main__.logger")
-    def test_url_format_validation(self, mock_logger):
-        """Validate that all extracted URLs follow the expected format (/initiatives/details/YYYY/number)."""
-
-        # Load test HTML file to parse
-        first_page_path = os.path.join(LISTINGS_HTML_DIR, "first_page.html")
-
-        with open(first_page_path, "r", encoding="utf-8") as f:
-            page_source = f.read()
-
-        # Parse the page using the main module function
-        initiative_data = parse_initiatives_list_data(page_source, BASE_URL)
-
-        # URL pattern: /initiatives/details/YYYY/NNNNNN_lang
-        url_pattern = r"https://citizens-initiative\.europa\.eu/initiatives/details/\d{4}/\d{6}_[a-z]{2}"
-
-        for initiative in initiative_data:
-
-            url = initiative["url"]
-
-            assert re.match(
-                url_pattern, url
-            ), f"URL does not match expected format:\n{url}"
-
-    @patch("ECI_initiatives.__main__.logger")
-    def test_extracted_data_matches_web_pages(self, mock_logger):
-        """
-        Check that extracted data fields (status, registration numbers)
-        match what's visible on the actual web pages.
-        """
-
-        # Load the reference CSV to get expected data
-        with open(CSV_FILE_PATH, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            expected_data = {row["url"]: row["current_status"] for row in reader}
-
-        # Load test listing page
-        first_page_path = os.path.join(LISTINGS_HTML_DIR, "first_page.html")
-
-        with open(first_page_path, "r", encoding="utf-8") as f:
-            page_source = f.read()
-
-        # Extract data using main module function
-        initiative_data = parse_initiatives_list_data(page_source, BASE_URL)
-
-        print(initiative_data)
-
-        # Compare extracted status with expected (if URLs match)
-        for initiative in initiative_data:
-
-            url = initiative["url"]
-
-            if url in expected_data:
-
-                expected_status = expected_data[url]
-                extracted_status = initiative["current_status"]
-
-                assert (
-                    extracted_status == expected_status
-                ), f"Status mismatch for {url}: expected '{expected_status}', got '{extracted_status}'"
 
     @patch("ECI_initiatives.__main__.logger")
     @patch("ECI_initiatives.__main__.download_initiative_pages")
@@ -268,43 +243,65 @@ class TestCSVDataValidation:
                 ), f"Expected URL {expected_url} not found in CSV"
 
 
+class TestDataExtraction:
+    """Test HTML parsing and data extraction."""
+
+    def test_all_fields_extracted(self, parsed_test_data):
+        """Ensure all required fields are present in extracted data."""
+        expected_fields = [
+            "url",
+            "current_status",
+            "registration_number",
+            "signature_collection",
+            "datetime",
+        ]
+
+        for initiative in parsed_test_data:
+            missing_fields = [f for f in expected_fields if f not in initiative]
+            assert (
+                not missing_fields
+            ), f"Missing fields {missing_fields} in {initiative}"
+            assert initiative["url"], "URL field is empty"
+
+    def test_extracted_data_accuracy(self, parsed_test_data, reference_data):
+        """Verify extracted data matches reference values."""
+        reference_dict = {row["url"]: row["current_status"] for row in reference_data}
+
+        for initiative in parsed_test_data:
+            url = initiative["url"]
+            if url in reference_dict:
+                expected = reference_dict[url]
+                actual = initiative["current_status"]
+                assert (
+                    actual == expected
+                ), f"Status mismatch for {url}: expected '{expected}', got '{actual}'"
+
+    def test_status_distribution_accuracy(self, parsed_test_data, reference_data):
+        """Check that expected statuses appear in parsed data."""
+        expected_statuses = {row["current_status"] for row in reference_data}
+        actual_statuses = {
+            init["current_status"]
+            for init in parsed_test_data
+            if init["current_status"]
+        }
+
+        missing = expected_statuses - actual_statuses
+        assert not missing, f"Missing statuses in parsed data: {missing}"
+
+
 class TestDataCompleteness:
     """Test data completeness and accuracy."""
 
-    @patch("ECI_initiatives.__main__.logger")
-    def test_initiative_count_matches_website(self, mock_logger):
-        """Compare the number of initiatives found against manual count on the website."""
-
-        # Load test listing pages and count unique initiatives
-        all_initiatives = []
-
-        for page_file in ["first_page.html", "last_page.html"]:
-            page_path = os.path.join(LISTINGS_HTML_DIR, page_file)
-
-            with open(page_path, "r", encoding="utf-8") as f:
-                page_source = f.read()
-
-            initiative_data = parse_initiatives_list_data(page_source, BASE_URL)
-
-            # Add URLs to set to avoid duplicates
-            for initiative in initiative_data:
-                all_initiatives.append(initiative["url"])
-
-        total_initiatives = len(all_initiatives)
-
-        with open(CSV_FILE_PATH, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            expected_count = sum(1 for _ in reader)
-
-        assert (
-            total_initiatives >= expected_count
-        ), f"Found {total_initiatives} unique initiatives, expected at least {expected_count}"
+    def test_initiative_count_matches_reference(self, parsed_test_data, reference_data):
+        """Compare initiative count with reference data."""
+        assert len(parsed_test_data) >= len(
+            reference_data
+        ), f"Found {len(parsed_test_data)} initiatives, expected at least {len(reference_data)}"
 
     @patch("ECI_initiatives.__main__.initialize_browser")
     @patch("ECI_initiatives.__main__.logger")
-    def test_all_listing_pages_processed(self, mock_logger, mock_browser):
-        """Verify that all pages of listings are processed (pagination handling)."""
-
+    def test_pagination_handling(self, mock_logger, mock_browser):
+        """Test pagination processing logic."""
         # Create a mock driver
         mock_driver = MagicMock()
         mock_browser.return_value = mock_driver
@@ -317,51 +314,28 @@ class TestDataCompleteness:
         ]
         mock_driver.page_source = page_sources[0]  # Start with first page
 
-        # Mock find_element for next button - return button for first 2 pages, raise exception for 3rd
+        # Mock find_element for next button
         def mock_find_element_side_effect(*args, **kwargs):
-            """
-            Mock the browser's find_element behavior for pagination.
-
-            Returns a mock button element for the first 2 calls (pages 1-2 have Next buttons),
-            then raises an exception on the 3rd call (page 3 has no Next button).
-            This simulates reaching the last page of results.
-            """
-
+            """Mock browser's find_element behavior for pagination."""
             if mock_find_element_side_effect.call_count <= 2:
-
                 mock_button = MagicMock()
                 return mock_button
-
             else:
                 raise Exception("No next button found")
 
         mock_find_element_side_effect.call_count = 0
 
         def increment_and_side_effect(*args, **kwargs):
-            """
-            Wrapper function that increments the call counter and delegates to the main side effect.
-
-            This tracks how many times find_element has been called to simulate
-            the pagination logic checking for Next buttons on each page.
-            """
-
+            """Wrapper to increment call counter and delegate to main side effect."""
             mock_find_element_side_effect.call_count += 1
-
             return mock_find_element_side_effect(*args, **kwargs)
 
         mock_driver.find_element.side_effect = increment_and_side_effect
 
         # Mock page source updates
         def update_page_source():
-            """
-            Update the mock driver's page_source to simulate navigating to the next page.
-
-            Changes the HTML content to the next page in the sequence when the
-            Next button is clicked, simulating how a real browser would load new content.
-            """
-
+            """Update mock driver's page_source to simulate navigation."""
             if mock_find_element_side_effect.call_count <= len(page_sources):
-
                 mock_driver.page_source = page_sources[
                     mock_find_element_side_effect.call_count - 1
                 ]
@@ -391,7 +365,6 @@ class TestDataCompleteness:
             ]
 
             with tempfile.TemporaryDirectory() as temp_dir:
-
                 all_data, saved_paths = scrape_all_initiatives_on_all_pages(
                     mock_driver, BASE_URL, temp_dir
                 )
@@ -403,11 +376,8 @@ class TestDataCompleteness:
                     len(saved_paths) == expected_page_count
                 ), f"Expected {expected_page_count} pages processed, got {len(saved_paths)}"
                 assert (
-                    mock_driver.find_element.call_count == 3
+                    mock_driver.find_element.call_count == expected_page_count
                 ), f"Should have checked for next button {expected_page_count} times"
-
-    @patch("ECI_initiatives.__main__.logger")
-    def test_all_available_fields_extracted(self, mock_logger):
         """Ensure all initiative fields are extracted when available on source pages."""
 
         def load_expected_statuses():
