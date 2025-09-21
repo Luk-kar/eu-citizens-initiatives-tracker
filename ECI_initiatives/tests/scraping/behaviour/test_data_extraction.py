@@ -1,19 +1,41 @@
-"""Tests for data extraction and accuracy validation."""
+"""
+A test suite for scraper that validates
+CSV file generation, HTML parsing accuracy,
+through mocked browser interactions and static test fixtures,
+ensuring reliable verification of data extraction
+without depending on live website availability.
+"""
 
-import pytest
-import csv
-import os
-import tempfile
-import re
+# python
 import copy
-from typing import List, Dict
-from unittest.mock import patch, MagicMock, mock_open, call
-from bs4 import BeautifulSoup
+import csv
 import datetime
+import os
+import re
+import sys
+import tempfile
 from collections import Counter
+from typing import List, Dict
+
+# third-party
+import pytest
+from bs4 import BeautifulSoup
+from unittest.mock import patch, MagicMock, mock_open, call
 
 
-# Test data directory path relative to this test file
+# Local
+program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+
+sys.path.append(program_dir)
+
+from ECI_initiatives.__main__ import (
+    save_and_download_initiatives,
+    parse_initiatives_list_data,
+    scrape_all_initiatives_on_all_pages,
+)
+
+# ===== CONSTS =====
+
 TEST_DATA_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "example_htmls"
 )
@@ -23,20 +45,6 @@ CSV_FILE_PATH = os.path.join(LISTINGS_HTML_DIR, "initiatives_list.csv")
 
 # Base URL for testing
 BASE_URL = "https://citizens-initiative.europa.eu"
-
-# Import the functions we want to test
-import sys
-
-program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
-
-print(program_dir)
-sys.path.append(program_dir)
-
-from ECI_initiatives.__main__ import (
-    save_and_download_initiatives,
-    parse_initiatives_list_data,
-    scrape_all_initiatives_on_all_pages,
-)
 
 # ===== SHARED FIXTURES (used by multiple test classes) =====
 
@@ -75,7 +83,7 @@ def reference_data():
 # ===== TEST CLASSES =====
 
 
-class TestCSVDataValidation:
+class TestCsvFileOperations:
     """Test CSV data validation functionality."""
 
     @patch("ECI_initiatives.__main__.download_initiative_pages")
@@ -243,7 +251,7 @@ class TestCSVDataValidation:
                 ), f"Expected URL {expected_url} not found in CSV"
 
 
-class TestDataExtraction:
+class TestHtmlParsingBehaviour:
     """Test HTML parsing and data extraction."""
 
     def test_all_fields_extracted(self, parsed_test_data):
@@ -289,7 +297,7 @@ class TestDataExtraction:
         assert not missing, f"Missing statuses in parsed data: {missing}"
 
 
-class TestDataCompleteness:
+class TestScrapingWorkflow:
     """Test data completeness and accuracy."""
 
     def test_initiative_count_matches_reference(self, parsed_test_data, reference_data):
