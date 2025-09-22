@@ -1,12 +1,15 @@
 """Tests for output and reporting functionality."""
 
-import pytest
-from unittest.mock import Mock, patch, mock_open, MagicMock
-import os
+# Standard library
 import csv
 import datetime
-from collections import Counter
+import os
 import sys
+from collections import Counter
+from unittest.mock import Mock, patch, mock_open, MagicMock
+
+# Third party
+import pytest
 
 # Local
 program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")

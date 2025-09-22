@@ -1,28 +1,26 @@
 """Tests for scraping process behavior and flow."""
 
-import pytest
-import os
+# Standard library
 import csv
+import os
+import sys
 import time
-
 from unittest.mock import Mock, patch, MagicMock, call
 
+# Third party
+import pytest
+from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.common.exceptions import (
-    TimeoutException,
     NoSuchElementException,
+    TimeoutException,
     WebDriverException,
 )
+from selenium.webdriver.common.by import By
 
-from bs4 import BeautifulSoup
-
-# Import the functions we want to test
-import sys
-
+# Local
 program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 
-print(program_dir)
 sys.path.append(program_dir)
 
 from ECI_initiatives.__main__ import (
