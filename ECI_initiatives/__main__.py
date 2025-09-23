@@ -164,6 +164,7 @@ def scrape_single_listing_page(
     driver: webdriver.Chrome, base_url: str, list_dir: str, current_page: int
 ) -> Tuple[list, str]:
     """Scrape a single listing page and return initiative data and saved page path."""
+
     # Wait for page elements to load
     wait_for_listing_page_content(driver, current_page)
 
@@ -204,6 +205,7 @@ def scrape_all_initiatives_on_all_pages(
     driver.get(url_find_initiative)
 
     while True:
+
         # Scrape current page
         page_initiative_data, page_path = scrape_single_listing_page(
             driver, base_url, list_dir, current_page
@@ -644,6 +646,7 @@ def parse_initiatives_list_data(
     initiative_data = []
 
     for content_block in soup.select(ECIlistingSelectors.CONTENT_BLOCKS):
+
         title_link = content_block.select_one(ECIlistingSelectors.INITIATIVE_CARDS)
         if not title_link or not title_link.get("href"):
             continue
@@ -661,12 +664,15 @@ def parse_initiatives_list_data(
         meta_labels = content_block.select(ECIlistingSelectors.META_LABELS)
 
         for label in meta_labels:
+
             text = label.get_text(strip=True)
 
             if text.startswith("Current status:"):
                 current_status = text.replace("Current status:", "").strip()
+
             elif text.startswith("Registration number:"):
                 registration_number = text.replace("Registration number:", "").strip()
+
             elif "signature collection" in text.lower():
                 signature_collection = text.strip()
 
