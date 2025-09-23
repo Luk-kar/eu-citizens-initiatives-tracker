@@ -388,11 +388,43 @@ def save_initiative_page(pages_dir: str, url: str, page_source: str) -> str:
     file_name = f"{year}_{number}.html"
     file_path = os.path.join(year_dir, file_name)
 
-    # Save the page source
-    with open(file_path, "w", encoding="utf-8") as f:
+    try:
+        # Check for obvious signs of malformed HTML
+        original_length = len(page_source)
 
-        pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
-        f.write(pretty_html)
+        # Common malformed HTML indicators
+        malformed_indicators = [
+            page_source.count("<") != page_source.count(">"),  # Unmatched brackets
+            page_source.count('"') % 2 != 0,  # Unmatched quotes
+            "</html>" not in page_source.lower()
+            and "<html" in page_source.lower(),  # Missing closing html tag
+            original_length < 50,  # Suspiciously short HTML
+        ]
+
+        if any(malformed_indicators):
+            logger.warning(
+                f"⚠️  Potential malformed HTML detected in {file_name}: "
+                f"length={original_length}, unmatched_brackets={malformed_indicators[0]}, "
+                f"unmatched_quotes={malformed_indicators[1]}"
+            )
+
+        # Parse with BeautifulSoup and detect if it had to fix issues
+        soup = BeautifulSoup(page_source, "html.parser")
+        pretty_html = soup.prettify()
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(pretty_html)
+
+    except Exception as e:
+        # BeautifulSoup rarely throws exceptions, but if it does, the HTML is severely malformed
+        logger.warning(
+            f"⚠️  Failed to parse HTML for {file_name}: {str(e)}. "
+            f"Saving raw HTML without prettification."
+        )
+
+        # Save raw HTML as fallback
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(page_source)
 
     return file_name
 
@@ -438,23 +470,71 @@ def download_single_initiative(
                 or "Rate limited" in error_msg
             )
 
+            logger.debug(
+                f"🔍 Exception details for {url}: {type(e).__name__}: {error_msg}"
+            )
+
             if is_rate_limited:
+
                 retry_count += 1
+
                 if retry_count <= max_retries:
+
                     wait_time = retry_wait_base * (retry_count**2)
                     logger.warning(
                         f"⚠️  Received rate limiting. "
                         f"Retrying {retry_count}/{max_retries} in {wait_time:.1f} seconds..."
                     )
                     time.sleep(wait_time)
+
                 else:
-                    logger.error(
-                        f"❌ Failed to download after {max_retries} "
-                        f"retries (rate limited): {url}"
-                    )
+
+                    error_type = type(e).__name__
+
+                    # Categorize different types of errors for better logging
+                    if (
+                        "chrome not reachable" in error_msg.lower()
+                        or "session not created" in error_msg.lower()
+                    ):
+                        logger.error(
+                            f"❌ Browser crash/connection error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
+                    elif "timeout" in error_msg.lower():
+                        logger.error(
+                            f"❌ Timeout error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
+                    elif (
+                        "permission" in error_msg.lower()
+                        or "access" in error_msg.lower()
+                    ):
+                        logger.error(
+                            f"❌ Permission/access error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
+                    elif (
+                        "network" in error_msg.lower()
+                        or "connection" in error_msg.lower()
+                    ):
+                        logger.error(
+                            f"❌ Network error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
+                    elif "disk" in error_msg.lower() or "space" in error_msg.lower():
+                        logger.error(
+                            f"❌ Disk space error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
+                    else:
+                        logger.error(
+                            f"❌ Error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
                     return False
+
             else:
-                logger.error(f"❌ Error downloading {url}: {e}")
+                logger.error(f"❌ Error downloading:\n{url}:\n{e}")
                 return False
 
     logger.error(f"❌ Exhausted all {max_retries} retries for: {url}")

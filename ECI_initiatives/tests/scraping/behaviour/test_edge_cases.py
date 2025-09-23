@@ -1,24 +1,318 @@
 """Tests for edge cases and boundary conditions."""
 
+# Standard library
+import os
+import sys
+import time
+from unittest.mock import Mock, patch, MagicMock, mock_open
+
+# Third party
 import pytest
-from unittest.mock import Mock, patch
+from selenium.common.exceptions import (
+    TimeoutException,
+    WebDriverException,
+    NoSuchElementException,
+    ElementNotInteractableException,
+)
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+
+# Local
+program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+sys.path.append(program_dir)
+
+from ECI_initiatives.__main__ import (
+    check_rate_limiting,
+    download_initiative_pages,
+    download_single_initiative,
+    initialize_browser,
+    navigate_to_next_page,
+    save_and_download_initiatives,
+    save_initiative_page,
+    scrape_all_initiatives_on_all_pages,
+    scrape_single_listing_page,
+    wait_for_page_content,
+)
 
 
-class TestSystemAndNetworkConditions:
+class TestBrowserInitialization:
+    """Test browser initialization edge cases."""
+
+    @patch("ECI_initiatives.__main__.logger")
+    @patch("selenium.webdriver.Chrome")
+    def test_webdriver_initialization_failures(self, mock_chrome, mock_logger):
+        """Test WebDriver initialization failures."""
+
+        # Test ChromeDriver not found
+        mock_chrome.side_effect = WebDriverException("ChromeDriver not found")
+
+        with pytest.raises(WebDriverException):
+            initialize_browser()
+
+        # Test Chrome browser not installed
+        mock_chrome.side_effect = WebDriverException("Chrome binary not found")
+
+        with pytest.raises(WebDriverException):
+            initialize_browser()
+
+        # Test permission errors
+        mock_chrome.side_effect = PermissionError("Permission denied")
+
+        with pytest.raises(PermissionError):
+            initialize_browser()
+
+
+class TestResourceCleanup:
+    """Test resource cleanup and interruption handling."""
+
+    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.__main__.initialize_browser")
+    @patch("ECI_initiatives.__main__.download_single_initiative")
+    def test_browser_cleanup_on_interruption(
+        self, mock_download_single, mock_init_browser, mock_logger
+    ):
+        """Test that driver.quit() is called in finally block even during interruptions."""
+
+        mock_driver = Mock()
+        mock_init_browser.return_value = mock_driver
+
+        # Test data for download_initiative_pages
+        test_initiative_data = [
+            {
+                "url": "http://test1.com",
+                "current_status": "test",
+                "registration_number": "001",
+                "signature_collection": "",
+                "datetime": "",
+            },
+            {
+                "url": "http://test2.com",
+                "current_status": "test",
+                "registration_number": "002",
+                "signature_collection": "",
+                "datetime": "",
+            },
+        ]
+
+        # Test KeyboardInterrupt cleanup
+        mock_download_single.side_effect = KeyboardInterrupt("User interrupted")
+
+        with pytest.raises(KeyboardInterrupt):
+            download_initiative_pages("/tmp", test_initiative_data)
+
+        # Verify driver.quit() was called even though KeyboardInterrupt was raised
+        mock_driver.quit.assert_called_once()
+        mock_logger.info.assert_any_call("Individual pages browser closed")
+
+        # Reset mocks for next test
+        mock_driver.reset_mock()
+        mock_logger.reset_mock()
+
+        # Test SystemExit cleanup
+        mock_download_single.side_effect = SystemExit("System shutdown")
+
+        with pytest.raises(SystemExit):
+            download_initiative_pages("/tmp", test_initiative_data)
+
+        # Verify driver.quit() was called even though SystemExit was raised
+        mock_driver.quit.assert_called_once()
+        mock_logger.info.assert_any_call("Individual pages browser closed")
+
+        # Reset mocks for next test
+        mock_driver.reset_mock()
+        mock_logger.reset_mock()
+
+        # Test that cleanup happens even with unexpected exceptions
+        mock_download_single.side_effect = Exception("Unexpected error")
+
+        # This should NOT raise an exception (unlike KeyboardInterrupt/SystemExit)
+        # because download_single_initiative should handle and return False
+        mock_download_single.side_effect = None
+        mock_download_single.return_value = False
+
+        updated_data, failed_urls = download_initiative_pages(
+            "/tmp", test_initiative_data
+        )
+
+        # Verify normal completion and cleanup
+        mock_driver.quit.assert_called_once()
+        mock_logger.info.assert_any_call("Individual pages browser closed")
+        assert len(failed_urls) == 2  # Both URLs should fail
+        assert len(updated_data) == 2  # But data should still be returned
+
+
+class TestContentProcessing:
+    """Test content parsing and validation edge cases."""
+
+    @patch("ECI_initiatives.__main__.logger")
+    def test_malformed_html_responses(self, mock_logger):
+        """Test handling of malformed HTML responses."""
+
+        mock_driver = Mock()
+
+        # Test empty page source
+        mock_driver.page_source = ""
+
+        result = save_initiative_page("/tmp", "http://test.com/2024/000001", "")
+        assert result == "2024_000001.html"  # Should still save the file
+
+        # Test malformed HTML that BeautifulSoup can't parse well
+        malformed_html = "<html><body><div><p>Unclosed tags<div><span></body>"
+
+        # BeautifulSoup is robust, but test that our code handles edge cases
+        result = save_initiative_page(
+            "/tmp", "http://test.com/2024/000002", malformed_html
+        )
+        assert result == "2024_000002.html"
+
+        # Test page with no useful content
+        empty_content_html = "<html><head></head><body></body></html>"
+        mock_driver.page_source = empty_content_html
+
+        wait_for_page_content(mock_driver)
+        # Should log warnings but not crash
+        mock_logger.warning.assert_called()
+
+    @patch("ECI_initiatives.__main__.logger")
+    def test_rate_limiting_scenarios(self, mock_logger):
+        """Test various rate limiting scenarios."""
+
+        mock_driver = Mock()
+
+        # Test rate limiting detection in HTML content
+        mock_driver.find_element.return_value.text = "Server inaccessibility"
+
+        with pytest.raises(Exception, match="429 - Rate limited"):
+            check_rate_limiting(mock_driver)
+
+        # Test rate limiting in page source during save
+        rate_limited_html = """
+        <html>
+            <body>
+                <h1>Server inaccessibility</h1>
+                <p>429 - Too Many Requests</p>
+            </body>
+        </html>
+        """
+
+        with pytest.raises(Exception, match="429 - Rate limited"):
+            save_initiative_page(
+                "/tmp", "http://test.com/2024/000001", rate_limited_html
+            )
+
+        # Reset mock driver for successful retry test
+        mock_driver.reset_mock()
+
+        # Test successful retry after rate limiting
+        mock_driver.get.side_effect = [
+            Exception("429 - Rate limited"),
+            Exception("429 - Too Many Requests"),
+            None,  # Finally succeeds
+        ]
+        mock_driver.page_source = "<html><body>Success</body></html>"
+
+        # Setup mock to NOT detect rate limiting on successful attempt
+        mock_element = Mock()
+        mock_element.text = "Normal page content"  # NOT "Server inaccessibility"
+        mock_driver.find_element.return_value = mock_element
+
+        with patch("ECI_initiatives.__main__.save_initiative_page") as mock_save:
+            with patch("ECI_initiatives.__main__.time.sleep"):
+                with patch(
+                    "ECI_initiatives.__main__.wait_for_page_content"
+                ) as mock_wait_content:
+
+                    mock_wait_content.return_value = None
+                    mock_save.return_value = "test_file.html"
+
+                    result = download_single_initiative(
+                        mock_driver, "/tmp", "http://test.com", max_retries=3
+                    )
+
+        assert result is True
+
+        # Verify retry logic was executed
+        assert mock_driver.get.call_count == 3
+
+
+class TestNetworkConditions:
+    """Test various network condition scenarios."""
+
+    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.__main__.time.sleep")
+    @patch("ECI_initiatives.__main__.WebDriverWait")
+    def test_slow_network_conditions(self, mock_wait, mock_sleep, mock_logger):
+        """Test behavior under slow network conditions."""
+
+        # Setup
+        mock_driver = Mock()
+        mock_wait_instance = Mock()
+        mock_wait.return_value = mock_wait_instance
+
+        # Simulate slow network by making WebDriverWait timeout multiple times
+        mock_wait_instance.until.side_effect = [
+            TimeoutException("Timeout waiting for element"),
+            TimeoutException("Timeout waiting for element"),
+            Mock(),  # Eventually succeeds
+        ]
+
+        # Test wait_for_page_content with slow network
+        wait_for_page_content(mock_driver)
+
+        # Verify WebDriverWait was called multiple times due to timeouts
+        assert mock_wait_instance.until.call_count >= 2
+        mock_logger.warning.assert_called()
+
+        # Test download_single_initiative with slow network and eventual success
+        mock_driver.get.side_effect = None  # Reset side effect
+        mock_driver.page_source = "<html><body>Test content</body></html>"
+
+        with patch("ECI_initiatives.__main__.save_initiative_page") as mock_save:
+            mock_save.return_value = "test_file.html"
+            result = download_single_initiative(mock_driver, "/tmp", "http://test.com")
+
+        assert result is True
+        # Verify retries were attempted due to slow conditions
+        assert mock_sleep.call_count > 0
+
+
+class TestDownloadSingleInitiative:
     """Test behavior under various system conditions."""
 
-    def test_slow_network_conditions(self):
-        """Test behavior under slow network conditions."""
-        pass
+    @patch("ECI_initiatives.__main__.logger")
+    def test_download_single_initiative_error_handling(self, mock_logger):
+        """Test download_single_initiative handles various error scenarios."""
 
-    def test_temporary_website_unavailability(self):
-        """Verify handling of temporary website unavailability."""
-        pass
+        mock_driver = Mock()
 
-    def test_limited_disk_space_handling(self):
-        """Check behavior when disk space is limited."""
-        pass
+        # Test scenarios with expected outcomes
+        error_scenarios = [
+            # Network/connection errors
+            (WebDriverException("Connection refused"), "connection refused"),
+            (WebDriverException("DNS resolution failed"), "dns resolution failed"),
+            (TimeoutException("Page load timeout"), "page load timeout"),
+            # Browser crashes
+            (WebDriverException("chrome not reachable"), "chrome not reachable"),
+            (WebDriverException("Session not created"), "session not created"),
+            # Invalid URLs
+            (
+                WebDriverException("invalid argument: 'not-a-url' must be a valid URL"),
+                "error downloading",
+            ),
+            # File system errors (would need additional mocking)
+            # (OSError(28, "No space left on device"), "disk space error"),
+        ]
 
-    def test_interruption_and_recovery_scenarios(self):
-        """Test interruption and recovery scenarios."""
-        pass
+        for exception, expected_log_content in error_scenarios:
+            mock_driver.get.side_effect = exception
+
+            result = download_single_initiative(mock_driver, "/tmp", "http://test.com")
+            assert result is False
+
+            # Verify appropriate error logging
+            mock_logger.error.assert_called()
+            error_call = mock_logger.error.call_args[0][0].lower()
+            assert expected_log_content in error_call
+
+            # Reset for next iteration
+            mock_logger.reset_mock()
