@@ -34,17 +34,15 @@ from ECI_initiatives.__main__ import (
     scrape_all_initiatives_on_all_pages,
 )
 
-# ===== CONSTS =====
+# Consts
 
-TEST_DATA_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "data", "example_htmls"
+from ECI_initiatives.tests.consts import (
+    LISTINGS_HTML_DIR,
+    CSV_FILE_PATH,
+    BASE_URL,
+    REQUIRED_CSV_COLUMNS,
+    SAMPLE_LISTING_FILES,
 )
-INITIATIVES_HTML_DIR = os.path.join(TEST_DATA_DIR, "initiatives")
-LISTINGS_HTML_DIR = os.path.join(TEST_DATA_DIR, "listings")
-CSV_FILE_PATH = os.path.join(LISTINGS_HTML_DIR, "initiatives_list.csv")
-
-# Base URL for testing
-BASE_URL = "https://citizens-initiative.europa.eu"
 
 # ===== SHARED FIXTURES (used by multiple test classes) =====
 
@@ -55,7 +53,7 @@ def parsed_test_data():
     with patch("ECI_initiatives.__main__.logger"):
         all_initiatives = []
 
-        for page_file in ["first_page.html", "last_page.html"]:
+        for page_file in SAMPLE_LISTING_FILES:
             page_path = os.path.join(LISTINGS_HTML_DIR, page_file)
 
             if not os.path.exists(page_path):
@@ -97,17 +95,17 @@ class TestCsvFileOperations:
         # Sample initiative data
         test_initiative_data = [
             {
-                "url": "https://citizens-initiative.europa.eu/initiatives/details/2019/000007_en",
-                "current_status": "Answered initiative",
-                "registration_number": "ECI(2019)000007",
-                "signature_collection": "Collection completed",
-                "datetime": "",
+                REQUIRED_CSV_COLUMNS.URL: "https://citizens-initiative.europa.eu/initiatives/details/2019/000007_en",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "Answered initiative",
+                REQUIRED_CSV_COLUMNS.REGISTRATION_NUMBER: "ECI(2019)000007",
+                REQUIRED_CSV_COLUMNS.SIGNATURE_COLLECTION: "Collection completed",
+                REQUIRED_CSV_COLUMNS.DATETIME: "",
             }
         ]
 
         # Mock download_initiative_pages to return the same data with updated datetime
         updated_data = copy.deepcopy(test_initiative_data)
-        updated_data[0]["datetime"] = "2025-09-21 11:24:00"
+        updated_data[0][REQUIRED_CSV_COLUMNS.DATETIME] = "2025-09-21 11:24:00"
 
         mock_download_pages.return_value = (
             updated_data,
@@ -134,11 +132,11 @@ class TestCsvFileOperations:
                 reader = csv.reader(f)
                 headers = next(reader)
                 expected_headers = [
-                    "url",
-                    "current_status",
-                    "registration_number",
-                    "signature_collection",
-                    "datetime",
+                    REQUIRED_CSV_COLUMNS.URL,
+                    REQUIRED_CSV_COLUMNS.CURRENT_STATUS,
+                    REQUIRED_CSV_COLUMNS.REGISTRATION_NUMBER,
+                    REQUIRED_CSV_COLUMNS.SIGNATURE_COLLECTION,
+                    REQUIRED_CSV_COLUMNS.DATETIME,
                 ]
 
                 assert (
@@ -159,7 +157,7 @@ class TestCsvFileOperations:
                 )
 
                 assert (
-                    data_row[0] == test_initiative_data[0]["url"]
+                    data_row[0] == test_initiative_data[0][REQUIRED_CSV_COLUMNS.URL]
                 ), "URL not correctly written to CSV:\n" + str(data_row[0])
 
     @patch("ECI_initiatives.__main__.logger")
@@ -170,25 +168,25 @@ class TestCsvFileOperations:
         # Create test data with duplicates (simulating what parse_initiatives_list_data might return)
         test_initiative_data_with_duplicates = [
             {
-                "url": "https://citizens-initiative.europa.eu/initiatives/details/2019/000007_en",
-                "current_status": "Answered initiative",
-                "registration_number": "ECI(2019)000007",
-                "signature_collection": "Collection completed",
-                "datetime": "",
+                REQUIRED_CSV_COLUMNS.URL: "https://citizens-initiative.europa.eu/initiatives/details/2019/000007_en",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "Answered initiative",
+                REQUIRED_CSV_COLUMNS.REGISTRATION_NUMBER: "ECI(2019)000007",
+                REQUIRED_CSV_COLUMNS.SIGNATURE_COLLECTION: "Collection completed",
+                REQUIRED_CSV_COLUMNS.DATETIME: "",
             },
             {
-                "url": "https://citizens-initiative.europa.eu/initiatives/details/2024/000004_en",
-                "current_status": "Valid initiative",
-                "registration_number": "ECI(2024)000004",
-                "signature_collection": "Collection closed",
-                "datetime": "",
+                REQUIRED_CSV_COLUMNS.URL: "https://citizens-initiative.europa.eu/initiatives/details/2024/000004_en",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "Valid initiative",
+                REQUIRED_CSV_COLUMNS.REGISTRATION_NUMBER: "ECI(2024)000004",
+                REQUIRED_CSV_COLUMNS.SIGNATURE_COLLECTION: "Collection closed",
+                REQUIRED_CSV_COLUMNS.DATETIME: "",
             },
             {
-                "url": "https://citizens-initiative.europa.eu/initiatives/details/2019/000007_en",  # DUPLICATE
-                "current_status": "Answered initiative",
-                "registration_number": "ECI(2019)000007",
-                "signature_collection": "Collection completed",
-                "datetime": "",
+                REQUIRED_CSV_COLUMNS.URL: "https://citizens-initiative.europa.eu/initiatives/details/2019/000007_en",  # DUPLICATE
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "Answered initiative",
+                REQUIRED_CSV_COLUMNS.REGISTRATION_NUMBER: "ECI(2019)000007",
+                REQUIRED_CSV_COLUMNS.SIGNATURE_COLLECTION: "Collection completed",
+                REQUIRED_CSV_COLUMNS.DATETIME: "",
             },
         ]
 
@@ -198,10 +196,10 @@ class TestCsvFileOperations:
 
         for item in test_initiative_data_with_duplicates:
 
-            if item["url"] not in seen_urls:
+            if item[REQUIRED_CSV_COLUMNS.URL] not in seen_urls:
 
                 unique_data.append(item.copy())
-                seen_urls.add(item["url"])
+                seen_urls.add(item[REQUIRED_CSV_COLUMNS.URL])
 
         mock_download_pages.return_value = (unique_data, [])
 
@@ -228,7 +226,7 @@ class TestCsvFileOperations:
                 csv_data = list(reader)
 
             # Extract URLs from CSV
-            csv_urls = [row["url"] for row in csv_data]
+            csv_urls = [row[REQUIRED_CSV_COLUMNS.URL] for row in csv_data]
             unique_csv_urls = list(set(csv_urls))
 
             # Should have only 2 unique URLs, not 3
@@ -257,11 +255,11 @@ class TestHtmlParsingBehaviour:
     def test_all_fields_extracted(self, parsed_test_data):
         """Ensure all required fields are present in extracted data."""
         expected_fields = [
-            "url",
-            "current_status",
-            "registration_number",
-            "signature_collection",
-            "datetime",
+            REQUIRED_CSV_COLUMNS.URL,
+            REQUIRED_CSV_COLUMNS.CURRENT_STATUS,
+            REQUIRED_CSV_COLUMNS.REGISTRATION_NUMBER,
+            REQUIRED_CSV_COLUMNS.SIGNATURE_COLLECTION,
+            REQUIRED_CSV_COLUMNS.DATETIME,
         ]
 
         for initiative in parsed_test_data:
@@ -269,28 +267,33 @@ class TestHtmlParsingBehaviour:
             assert (
                 not missing_fields
             ), f"Missing fields {missing_fields} in {initiative}"
-            assert initiative["url"], "URL field is empty"
+            assert initiative[REQUIRED_CSV_COLUMNS.URL], "URL field is empty"
 
     def test_extracted_data_accuracy(self, parsed_test_data, reference_data):
         """Verify extracted data matches reference values."""
-        reference_dict = {row["url"]: row["current_status"] for row in reference_data}
+        reference_dict = {
+            row[REQUIRED_CSV_COLUMNS.URL]: row[REQUIRED_CSV_COLUMNS.CURRENT_STATUS]
+            for row in reference_data
+        }
 
         for initiative in parsed_test_data:
-            url = initiative["url"]
+            url = initiative[REQUIRED_CSV_COLUMNS.URL]
             if url in reference_dict:
                 expected = reference_dict[url]
-                actual = initiative["current_status"]
+                actual = initiative[REQUIRED_CSV_COLUMNS.CURRENT_STATUS]
                 assert (
                     actual == expected
                 ), f"Status mismatch for {url}: expected '{expected}', got '{actual}'"
 
     def test_status_distribution_accuracy(self, parsed_test_data, reference_data):
         """Check that expected statuses appear in parsed data."""
-        expected_statuses = {row["current_status"] for row in reference_data}
+        expected_statuses = {
+            row[REQUIRED_CSV_COLUMNS.CURRENT_STATUS] for row in reference_data
+        }
         actual_statuses = {
-            init["current_status"]
+            init[REQUIRED_CSV_COLUMNS.CURRENT_STATUS]
             for init in parsed_test_data
-            if init["current_status"]
+            if init[REQUIRED_CSV_COLUMNS.CURRENT_STATUS]
         }
 
         missing = expected_statuses - actual_statuses
@@ -364,11 +367,11 @@ class TestScrapingWorkflow:
             mock_save.return_value = ("", "test_path")
             mock_parse.return_value = [
                 {
-                    "url": "test",
-                    "current_status": "",
-                    "registration_number": "",
-                    "signature_collection": "",
-                    "datetime": "",
+                    REQUIRED_CSV_COLUMNS.URL: "test",
+                    REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "",
+                    REQUIRED_CSV_COLUMNS.REGISTRATION_NUMBER: "",
+                    REQUIRED_CSV_COLUMNS.SIGNATURE_COLLECTION: "",
+                    REQUIRED_CSV_COLUMNS.DATETIME: "",
                 }
             ]
 
@@ -394,14 +397,16 @@ class TestScrapingWorkflow:
             with open(CSV_FILE_PATH, "r", encoding="utf-8") as f:
 
                 reader = csv.DictReader(f)
-                return Counter(row["current_status"] for row in reader)
+                return Counter(
+                    row[REQUIRED_CSV_COLUMNS.CURRENT_STATUS] for row in reader
+                )
 
         def parse_test_pages():
             """Parse all test HTML pages and extract statuses."""
 
             all_statuses = []
 
-            for page_file in ["first_page.html", "last_page.html"]:
+            for page_file in SAMPLE_LISTING_FILES:
 
                 page_path = os.path.join(LISTINGS_HTML_DIR, page_file)
 
@@ -412,9 +417,9 @@ class TestScrapingWorkflow:
 
                 # Extract non-empty statuses
                 page_statuses = [
-                    init["current_status"]
+                    init[REQUIRED_CSV_COLUMNS.CURRENT_STATUS]
                     for init in initiatives
-                    if init["current_status"]
+                    if init[REQUIRED_CSV_COLUMNS.CURRENT_STATUS]
                 ]
                 all_statuses.extend(page_statuses)
 

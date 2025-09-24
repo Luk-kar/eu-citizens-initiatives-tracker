@@ -34,6 +34,13 @@ from ECI_initiatives.__main__ import (
     wait_for_page_content,
 )
 
+# Consts
+# Constants
+from ECI_initiatives.tests.consts import (
+    RATE_LIMIT_INDICATORS,
+    REQUIRED_CSV_COLUMNS,
+)
+
 
 class TestBrowserInitialization:
     """Test browser initialization edge cases."""
@@ -79,18 +86,18 @@ class TestResourceCleanup:
         # Test data for download_initiative_pages
         test_initiative_data = [
             {
-                "url": "http://test1.com",
-                "current_status": "test",
-                "registration_number": "001",
-                "signature_collection": "",
-                "datetime": "",
+                REQUIRED_CSV_COLUMNS.URL: "http://test1.com",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "test",
+                REQUIRED_CSV_COLUMNS.REGISTRATION_NUMBER: "001",
+                REQUIRED_CSV_COLUMNS.SIGNATURE_COLLECTION: "",
+                REQUIRED_CSV_COLUMNS.DATETIME: "",
             },
             {
-                "url": "http://test2.com",
-                "current_status": "test",
-                "registration_number": "002",
-                "signature_collection": "",
-                "datetime": "",
+                REQUIRED_CSV_COLUMNS.URL: "http://test2.com",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "test",
+                REQUIRED_CSV_COLUMNS.REGISTRATION_NUMBER: "002",
+                REQUIRED_CSV_COLUMNS.SIGNATURE_COLLECTION: "",
+                REQUIRED_CSV_COLUMNS.DATETIME: "",
             },
         ]
 
@@ -180,9 +187,11 @@ class TestContentProcessing:
         mock_driver = Mock()
 
         # Test rate limiting detection in HTML content
-        mock_driver.find_element.return_value.text = "Server inaccessibility"
+        mock_driver.find_element.return_value.text = (
+            RATE_LIMIT_INDICATORS.SERVER_INACCESSIBILITY
+        )
 
-        with pytest.raises(Exception, match="429 - Rate limited"):
+        with pytest.raises(Exception, match=RATE_LIMIT_INDICATORS.RATE_LIMITED):
             check_rate_limiting(mock_driver)
 
         # Test rate limiting in page source during save
@@ -195,7 +204,7 @@ class TestContentProcessing:
         </html>
         """
 
-        with pytest.raises(Exception, match="429 - Rate limited"):
+        with pytest.raises(Exception, match=RATE_LIMIT_INDICATORS.RATE_LIMITED):
             save_initiative_page(
                 "/tmp", "http://test.com/2024/000001", rate_limited_html
             )
@@ -205,8 +214,8 @@ class TestContentProcessing:
 
         # Test successful retry after rate limiting
         mock_driver.get.side_effect = [
-            Exception("429 - Rate limited"),
-            Exception("429 - Too Many Requests"),
+            Exception(RATE_LIMIT_INDICATORS.RATE_LIMITED),
+            Exception(RATE_LIMIT_INDICATORS.TOO_MANY_REQUESTS),
             None,  # Finally succeeds
         ]
         mock_driver.page_source = "<html><body>Success</body></html>"
