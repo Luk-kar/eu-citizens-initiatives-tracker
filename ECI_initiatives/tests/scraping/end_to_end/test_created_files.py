@@ -40,14 +40,17 @@ The test validates:
  - File naming convention compliance
 """
 
+# Standard library
 import csv
 import os
 import shutil
 import sys
 import tempfile
-from unittest.mock import patch, MagicMock
-import pytest
 from pathlib import Path
+from unittest.mock import patch, MagicMock
+
+# Third party
+import pytest
 
 # Local
 program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
