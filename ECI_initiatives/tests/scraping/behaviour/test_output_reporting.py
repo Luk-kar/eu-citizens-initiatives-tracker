@@ -29,6 +29,7 @@ from ECI_initiatives.tests.consts import (
     REQUIRED_CSV_COLUMNS,
     CSV_FILENAME,
     PAGES_DIR_NAME,
+    LOG_MESSAGES,
 )
 
 
@@ -189,7 +190,9 @@ class TestCompletionSummaryAccuracy:
         mock_logger.info.assert_any_call(
             f"Files saved in: initiatives/{start_scraping}"
         )
-        mock_logger.info.assert_any_call("Main page sources:")
+        mock_logger.info.assert_any_call(
+            LOG_MESSAGES["summary_scraping"]["main_page_sources"]
+        )
 
         # Check that each path is logged with correct numbering
         for i, path in enumerate(saved_page_paths, 1):
@@ -277,8 +280,14 @@ class TestCompletionSummaryAccuracy:
         display_results_and_files(start_scraping, saved_page_paths, failed_urls, stats)
 
         # Assert
-        mock_logger.info.assert_any_call("Pages downloaded: 2/4")
-        mock_logger.error.assert_any_call("Failed downloads: 2")
+        mock_logger.info.assert_any_call(
+            LOG_MESSAGES["summary_scraping"]["pages_downloaded"].format(
+                downloaded_count=2, total_initiatives=4
+            )
+        )
+        mock_logger.error.assert_any_call(
+            LOG_MESSAGES["summary_scraping"]["failed_downloads"].format(failed_count=2)
+        )
         mock_logger.error.assert_any_call(" - https://example.com/failed1")
         mock_logger.error.assert_any_call(" - https://example.com/failed2")
 
@@ -296,8 +305,14 @@ class TestCompletionSummaryAccuracy:
         display_results_and_files(start_scraping, saved_page_paths, failed_urls, stats)
 
         # Assert
-        mock_logger.info.assert_any_call("Pages downloaded: 2/2")
-        mock_logger.info.assert_any_call("✅ All downloads successful!")
+        mock_logger.info.assert_any_call(
+            LOG_MESSAGES["summary_scraping"]["pages_downloaded"].format(
+                downloaded_count=2, total_initiatives=2
+            )
+        )
+        mock_logger.info.assert_any_call(
+            LOG_MESSAGES["summary_scraping"]["all_downloads_successful"]
+        )
         # Should not call error methods
         assert not mock_logger.error.called
 
@@ -325,7 +340,9 @@ class TestCompletionSummaryAccuracy:
             display_summary_info(start_scraping, saved_page_paths, stats)
 
             # Assert
-            mock_logger.info.assert_any_call("🎉 SCRAPING FINISHED! 🎉")
+            mock_logger.info.assert_any_call(
+                LOG_MESSAGES["summary_scraping"]["scraping_complete"]
+            )
             mock_logger.info.assert_any_call(
                 f"Total pages scraped: {len(saved_page_paths)}"
             )
@@ -335,6 +352,17 @@ class TestCompletionSummaryAccuracy:
             mock_logger.info.assert_any_call(
                 "Initiatives by category (current_status):"
             )
-            mock_logger.info.assert_any_call("- Registered: 2")
-            mock_logger.info.assert_any_call("- Collection ongoing: 1")
-            mock_logger.info.assert_any_call("- Valid initiative: 1")
+
+            mock_logger.info.assert_any_call(
+                LOG_MESSAGES["summary_scraping"]["registered_status"].format(count=2)
+            )
+            mock_logger.info.assert_any_call(
+                LOG_MESSAGES["summary_scraping"]["collection_ongoing_status"].format(
+                    count=1
+                )
+            )
+            mock_logger.info.assert_any_call(
+                LOG_MESSAGES["summary_scraping"]["valid_initiative_status"].format(
+                    count=1
+                )
+            )

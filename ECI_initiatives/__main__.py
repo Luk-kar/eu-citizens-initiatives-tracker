@@ -593,10 +593,13 @@ def download_initiative_pages(
 
     finally:
         driver.quit()
-        logger.info("Individual pages browser closed")
+        logger.info(LOG_MESSAGES["pages_browser_closed"])
 
     logger.info(f"Download completed. Failed URLs: {len(failed_urls)}")
     return updated_data, failed_urls
+
+
+LOG_SUMMARY = LOG_MESSAGES["summary_scraping"]
 
 
 def scrape_initiatives_page(
@@ -748,19 +751,26 @@ def display_summary_info(
     start_scraping: str, saved_page_paths: list, stats: dict
 ) -> None:
     """Display the main summary information and statistics."""
-    div_line = "=" * 60
-    logger.info(div_line)
-    logger.info(LOG_MESSAGES["scraping_complete"])
-    logger.info(div_line)
+    logger.info(LOG_SUMMARY["divider_line"])
+    logger.info(LOG_SUMMARY["scraping_complete"])
+    logger.info(LOG_SUMMARY["divider_line"])
 
     logger.info(
-        f"Scraping completed at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        LOG_SUMMARY["completion_timestamp"].format(
+            timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
     )
-    logger.info(f"Start time: {start_scraping}")
-    logger.info(f"Total pages scraped: {len(saved_page_paths)}")
-    logger.info(f"Total initiatives found: {stats['total_initiatives']}")
+    logger.info(LOG_SUMMARY["start_time"].format(start_scraping=start_scraping))
+    logger.info(
+        LOG_SUMMARY["total_pages_scraped"].format(page_count=len(saved_page_paths))
+    )
+    logger.info(
+        LOG_SUMMARY["total_initiatives_found"].format(
+            total_initiatives=stats["total_initiatives"]
+        )
+    )
 
-    logger.info("Initiatives by category (current_status):")
+    logger.info(LOG_SUMMARY["initiatives_by_category"])
     for status, count in stats["status_counter"].items():
         logger.info(f"- {status}: {count}")
 
@@ -770,22 +780,27 @@ def display_results_and_files(
 ) -> None:
     """Display download results and file location information."""
     logger.info(
-        f"Pages downloaded: {stats['downloaded_count']}/{stats['total_initiatives']}"
+        LOG_SUMMARY["pages_downloaded"].format(
+            downloaded_count=stats["downloaded_count"],
+            total_initiatives=stats["total_initiatives"],
+        )
     )
 
     if stats["failed_count"]:
-        logger.error(f"Failed downloads: {stats['failed_count']}")
+        logger.error(
+            LOG_SUMMARY["failed_downloads"].format(failed_count=stats["failed_count"])
+        )
         for failed_url in failed_urls:
-            logger.error(f" - {failed_url}")
+            logger.error(LOG_SUMMARY["failed_url"].format(failed_url=failed_url))
     else:
-        logger.info("✅ All downloads successful!")
+        logger.info(LOG_SUMMARY["all_downloads_successful"])
 
-    logger.info(f"Files saved in: initiatives/{start_scraping}")
-    logger.info("Main page sources:")
+    logger.info(LOG_SUMMARY["files_saved_in"].format(start_scraping=start_scraping))
+    logger.info(LOG_SUMMARY["main_page_sources"])
     for i, path in enumerate(saved_page_paths, 1):
-        logger.info(f"  Page {i}: {path}")
+        logger.info(LOG_SUMMARY["page_source"].format(page_num=i, path=path))
 
-    logger.info("=" * 60)
+    logger.info(LOG_SUMMARY["divider_line"])
 
 
 def display_completion_summary(

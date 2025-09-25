@@ -39,6 +39,7 @@ from ECI_initiatives.__main__ import (
 from ECI_initiatives.tests.consts import (
     RATE_LIMIT_INDICATORS,
     REQUIRED_CSV_COLUMNS,
+    LOG_MESSAGES,
 )
 
 
@@ -109,7 +110,7 @@ class TestResourceCleanup:
 
         # Verify driver.quit() was called even though KeyboardInterrupt was raised
         mock_driver.quit.assert_called_once()
-        mock_logger.info.assert_any_call("Individual pages browser closed")
+        mock_logger.info.assert_any_call(LOG_MESSAGES["pages_browser_closed"])
 
         # Reset mocks for next test
         mock_driver.reset_mock()
@@ -123,7 +124,7 @@ class TestResourceCleanup:
 
         # Verify driver.quit() was called even though SystemExit was raised
         mock_driver.quit.assert_called_once()
-        mock_logger.info.assert_any_call("Individual pages browser closed")
+        mock_logger.info.assert_any_call(LOG_MESSAGES["pages_browser_closed"])
 
         # Reset mocks for next test
         mock_driver.reset_mock()
@@ -143,7 +144,7 @@ class TestResourceCleanup:
 
         # Verify normal completion and cleanup
         mock_driver.quit.assert_called_once()
-        mock_logger.info.assert_any_call("Individual pages browser closed")
+        mock_logger.info.assert_any_call(LOG_MESSAGES["pages_browser_closed"])
         assert len(failed_urls) == 2  # Both URLs should fail
         assert len(updated_data) == 2  # But data should still be returned
 

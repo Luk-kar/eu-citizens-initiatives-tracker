@@ -25,6 +25,7 @@ from ECI_initiatives.tests.consts import (
     REQUIRED_CSV_COLUMNS,
     SAMPLE_INITIATIVE_DATA,
     BASE_URL,
+    LOG_MESSAGES,
 )
 
 
@@ -52,8 +53,8 @@ class TestBrowserInitializationAndCleanup:
         assert driver == mock_driver
 
         # Check that logging occurred
-        mock_logger.info.assert_called_with("Initializing browser...")
-        mock_logger.debug.assert_called_with("Browser initialized successfully")
+        mock_logger.info.assert_called_with(LOG_MESSAGES["browser_init"])
+        mock_logger.debug.assert_called_with(LOG_MESSAGES["browser_success"])
 
         # Test that quit is properly called in a typical workflow
         driver.quit()
@@ -97,7 +98,8 @@ class TestBrowserInitializationAndCleanup:
             initialize_browser()
 
         # Verify error was attempted to be logged
-        mock_logger.info.assert_called_with("Initializing browser...")
+        mock_logger.info.assert_called_with(LOG_MESSAGES["browser_init"])
+
         # The debug log wouldn't be called since initialization failed
         assert not mock_logger.debug.called
 

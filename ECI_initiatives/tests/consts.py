@@ -2,6 +2,23 @@
 
 import os
 
+from ..consts import (
+    BASE_URL,
+    ROUTE_FIND_INITIATIVE,
+    CSV_FILENAME,
+    CSV_FIELDNAMES,
+    DATA_DIR_NAME,
+    LISTINGS_DIR_NAME,
+    PAGES_DIR_NAME,
+    LOG_DIR_NAME,
+    LOG_MESSAGES,
+    WEBDRIVER_TIMEOUT_DEFAULT as DEFAULT_WEBDRIVER_TIMEOUT,
+    WEBDRIVER_TIMEOUT_CONTENT as PAGE_CONTENT_TIMEOUT,
+    LISTING_PAGE_FILENAME_PATTERN,
+    INITIATIVE_PAGE_FILENAME_PATTERN,
+    RATE_LIMIT_INDICATORS as MAIN_RATE_LIMIT_INDICATORS,
+)
+
 # ===== PATH CONFIGURATIONS =====
 
 # Base paths relative to test files
@@ -14,13 +31,11 @@ INITIATIVES_HTML_DIR = os.path.join(TEST_DATA_DIR, "initiatives")
 LISTINGS_HTML_DIR = os.path.join(TEST_DATA_DIR, "listings")
 
 # Reference files
-CSV_FILE_PATH = os.path.join(LISTINGS_HTML_DIR, "initiatives_list.csv")
+CSV_FILE_PATH = os.path.join(LISTINGS_HTML_DIR, CSV_FILENAME)
 
 # ===== URL CONFIGURATIONS =====
 
 # Base URL for ECI website
-BASE_URL = "https://citizens-initiative.europa.eu"
-ROUTE_FIND_INITIATIVE = "/find-initiative_en"
 FULL_FIND_INITIATIVE_URL = BASE_URL + ROUTE_FIND_INITIATIVE
 
 # ===== TEST DATA CONFIGURATIONS =====
@@ -32,11 +47,11 @@ SAMPLE_LISTING_FILES = ["first_page.html", "last_page.html"]
 # CSV columns expected in output
 class REQUIRED_CSV_COLUMNS:
 
-    URL = "url"
-    CURRENT_STATUS = "current_status"
-    REGISTRATION_NUMBER = "registration_number"
-    SIGNATURE_COLLECTION = "signature_collection"
-    DATETIME = "datetime"
+    URL = CSV_FIELDNAMES[0]  # "url"
+    CURRENT_STATUS = CSV_FIELDNAMES[1]  # "current_status"
+    REGISTRATION_NUMBER = CSV_FIELDNAMES[2]  # "registration_number"
+    SIGNATURE_COLLECTION = CSV_FIELDNAMES[3]  # "signature_collection"
+    DATETIME = CSV_FIELDNAMES[4]  # "datetime"
 
 
 # ===== TEST LIMITS AND CONSTRAINTS =====
@@ -45,22 +60,11 @@ class REQUIRED_CSV_COLUMNS:
 MAX_PAGES_E2E_TEST = 1  # Only scrape first page
 MAX_INITIATIVES_E2E_TEST = 3  # Only download first 3 initiatives
 
-# Timeout values for tests
-DEFAULT_WEBDRIVER_TIMEOUT = 30
-PAGE_CONTENT_TIMEOUT = 15
-
 # ===== EXPECTED FILE PATTERNS =====
 
 # File naming patterns
 LISTING_HTML_PATTERN = "Find_initiative_European_Citizens_Initiative_page_"
 INITIATIVE_HTML_PATTERN = r"\d{4}_\d+\.html"
-CSV_FILENAME = "initiatives_list.csv"
-
-# Directory names
-DATA_DIR_NAME = "data"
-LISTINGS_DIR_NAME = "listings"
-PAGES_DIR_NAME = "initiative_pages"
-LOG_DIR_NAME = "logs"
 
 # ===== MOCK RESPONSES FOR TESTING =====
 
@@ -76,9 +80,9 @@ SAMPLE_INITIATIVE_DATA = {
 
 # Rate limiting patterns to detect
 class RATE_LIMIT_INDICATORS:
-    SERVER_INACCESSIBILITY = "Server inaccessibility"
-    TOO_MANY_REQUESTS = "429 - Too Many Requests"
-    RATE_LIMITED = "429 - Rate limited"
+    SERVER_INACCESSIBILITY = MAIN_RATE_LIMIT_INDICATORS[0]  # "Server inaccessibility"
+    TOO_MANY_REQUESTS = MAIN_RATE_LIMIT_INDICATORS[1]  # "429 - Too Many Requests"
+    RATE_LIMITED = MAIN_RATE_LIMIT_INDICATORS[4]  # "Rate limited"
 
 
 # ===== STATUS CATEGORIES =====
