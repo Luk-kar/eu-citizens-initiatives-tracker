@@ -23,20 +23,30 @@ from css_selectors import ECIinitiativeSelectors, ECIlistingSelectors
 
 logger = None
 
-# URLs
-BASE_URL = "https://citizens-initiative.europa.eu"
-
-# Directory
-DATA_DIR_NAME = "data"
-LOG_DIR_NAME = "logs"
-LISTINGS_DIR_NAME = "listings"
-PAGES_DIR_NAME = "initiative_pages"
-
-# Waiting time
-WAIT_DYNAMIC_CONTENT = (1.5, 1.9)
-WAIT_BETWEEN_PAGES = (1.0, 2.0)
-WAIT_BETWEEN_DOWNLOADS = (0.5, 1.5)
-RETRY_WAIT_BASE = (1.0, 1.2)
+# Consts
+from .consts import (
+    BASE_URL,
+    ROUTE_FIND_INITIATIVE,
+    DATA_DIR_NAME,
+    LOG_DIR_NAME,
+    LISTINGS_DIR_NAME,
+    PAGES_DIR_NAME,
+    WAIT_DYNAMIC_CONTENT,
+    WAIT_BETWEEN_PAGES,
+    WAIT_BETWEEN_DOWNLOADS,
+    RETRY_WAIT_BASE,
+    WEBDRIVER_TIMEOUT_DEFAULT,
+    WEBDRIVER_TIMEOUT_CONTENT,
+    CHROME_OPTIONS,
+    LISTING_PAGE_FILENAME_PATTERN,
+    LISTING_PAGE_MAIN_FILENAME,
+    CSV_FIELDNAMES,
+    CSV_FILENAME,
+    DEFAULT_MAX_RETRIES,
+    MIN_HTML_LENGTH,
+    RATE_LIMIT_INDICATORS,
+    LOG_MESSAGES,
+)
 
 
 def scrape_eci_initiatives() -> str:
@@ -56,7 +66,7 @@ def scrape_eci_initiatives() -> str:
     # Initialize logger with log directory relative to script location
     log_dir = os.path.join(script_dir, DATA_DIR_NAME, start_scraping, LOG_DIR_NAME)
     logger = ScraperLogger(log_dir)
-    logger.info(f"Starting scraping at: {start_scraping}")
+    logger.info(LOG_MESSAGES["scraping_start"].format(timestamp=start_scraping))
 
     base_url = BASE_URL
 
@@ -76,7 +86,7 @@ def scrape_eci_initiatives() -> str:
         )
     finally:
         driver.quit()
-        logger.info("Browser closed")
+        logger.info(LOG_MESSAGES["browser_closed"])
 
     if all_initiative_data:
         failed_urls = save_and_download_initiatives(
@@ -95,13 +105,14 @@ def scrape_eci_initiatives() -> str:
 
 def wait_for_listing_page_content(driver: webdriver.Chrome, current_page: int) -> None:
     """Wait for listing page elements to load."""
-    wait = WebDriverWait(driver, 30)
+
+    wait = WebDriverWait(driver, WEBDRIVER_TIMEOUT_DEFAULT)
     try:
         cards_initiative_selector = ECIlistingSelectors.INITIATIVE_CARDS
         wait.until(
             EC.presence_of_element_located((By.CSS_SELECTOR, cards_initiative_selector))
         )
-        logger.info(f"Initiatives loaded successfully on page {current_page}")
+        logger.info(LOG_MESSAGES["page_loaded"].format(page=current_page))
     except Exception as e:
         logger.warning(
             f"No initiatives found or timeout on page {current_page}: "
@@ -113,6 +124,7 @@ def save_listing_page(
     driver: webdriver.Chrome, list_dir: str, current_page: int
 ) -> Tuple[str, str]:
     """Save listing page source and return page source and file path."""
+
     # Additional wait for dynamic content
     random_time = random.uniform(*WAIT_DYNAMIC_CONTENT)
     logger.debug(f"Waiting {random_time:.1f}s for dynamic content...")
@@ -120,16 +132,14 @@ def save_listing_page(
 
     # Get page source and save it
     page_source = driver.page_source
-    page_filename = (
-        f"Find_initiative_European_Citizens_Initiative_page_{current_page:03d}.html"
-    )
+    page_filename = LISTING_PAGE_FILENAME_PATTERN.format(current_page)
     page_path = os.path.join(list_dir, page_filename)
 
     with open(page_path, "w", encoding="utf-8") as f:
         pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
         f.write(pretty_html)
 
-    logger.info(f"Page {current_page} saved to: {page_path}")
+    logger.info(LOG_MESSAGES["page_saved"].format(page=current_page, path=page_path))
     return page_source, page_path
 
 
@@ -145,7 +155,9 @@ def navigate_to_next_page(driver: webdriver.Chrome, current_page: int) -> bool:
 
         next_button = driver.find_element(By.CSS_SELECTOR, next_button_selector)
         logger.info(
-            f"Found 'Next' button on page {current_page}, navigating to page {current_page + 1}"
+            LOG_MESSAGES["next_button_found"].format(
+                page=current_page, next_page=current_page + 1
+            )
         )
         # Click the next button
         driver.execute_script("arguments[0].click();", next_button)
@@ -154,9 +166,7 @@ def navigate_to_next_page(driver: webdriver.Chrome, current_page: int) -> bool:
         return True
 
     except Exception:
-        logger.info(
-            f"No 'Next' button found on page {current_page}. This appears to be the last page."
-        )
+        logger.info(LOG_MESSAGES["last_page"].format(page=current_page))
         return False
 
 
@@ -192,8 +202,7 @@ def scrape_all_initiatives_on_all_pages(
         - List of all initiative data from all pages
         - List of paths to saved HTML files
     """
-    route_find_initiative = "/find-initiative_en"
-    url_find_initiative = base_url + route_find_initiative
+    url_find_initiative = base_url + ROUTE_FIND_INITIATIVE
     all_initiative_data = []
     saved_page_paths = []
     current_page = 1
@@ -232,13 +241,12 @@ def initialize_browser() -> webdriver.Chrome:
     """Initialize Chrome WebDriver with headless options."""
 
     chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+    for option in CHROME_OPTIONS:
+        chrome_options.add_argument(option)
 
-    logger.info("Initializing browser...")
+    logger.info(LOG_MESSAGES["browser_init"])
     driver = webdriver.Chrome(options=chrome_options)
-    logger.debug("Browser initialized successfully")
+    logger.debug(LOG_MESSAGES["browser_success"])
 
     return driver
 
@@ -265,40 +273,36 @@ def save_and_download_initiatives(
         Tuple containing number of successful downloads and list of failed URLs
     """
 
-    url_list_file = os.path.join(list_dir, "initiatives_list.csv")
+    url_list_file = os.path.join(list_dir, CSV_FILENAME)
 
-    with open(url_list_file, "w", encoding="utf-8", newline="") as f:
-        header = [
-            "url",
-            "current_status",
-            "registration_number",
-            "signature_collection",
-            "datetime",
-        ]
-        writer = csv.DictWriter(f, fieldnames=header)
-        writer.writeheader()
-        writer.writerows(initiative_data)
-
+    # Save initial data to CSV
+    write_initiatives_csv(url_list_file, initiative_data)
     logger.info(f"Initiative data saved to: {url_list_file}")
 
     logger.info("Starting individual initiative pages download...")
     updated_data, failed_urls = download_initiative_pages(pages_dir, initiative_data)
 
     # Update CSV with download timestamps
-    with open(url_list_file, "w", encoding="utf-8", newline="") as f:
-        header = [
-            "url",
-            "current_status",
-            "registration_number",
-            "signature_collection",
-            "datetime",
-        ]
-        writer = csv.DictWriter(f, fieldnames=header)
-        writer.writeheader()
-        writer.writerows(updated_data)
-
+    write_initiatives_csv(url_list_file, updated_data)
     logger.info(f"Updated CSV with download timestamps: {url_list_file}")
+
     return failed_urls
+
+
+def write_initiatives_csv(
+    file_path: str, initiative_data: list[Dict[str, str]]
+) -> None:
+    """Write initiative data to CSV file.
+
+    Args:
+        file_path: Full path to the CSV file
+        initiative_data: List of initiative dictionaries to write
+    """
+    with open(file_path, "w", encoding="utf-8", newline="") as f:
+
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(initiative_data)
 
 
 def check_rate_limiting(driver: webdriver.Chrome) -> None:
@@ -309,20 +313,26 @@ def check_rate_limiting(driver: webdriver.Chrome) -> None:
             By.CSS_SELECTOR, ECIinitiativeSelectors.PAGE_HEADER_TITLE
         )
 
-        if rate_limit_title and "Server inaccessibility" in rate_limit_title.text:
+        if rate_limit_title and any(
+            indicator in rate_limit_title.text for indicator in RATE_LIMIT_INDICATORS
+        ):
             raise Exception("429 - Rate limited (HTML response)")
 
     except Exception as rate_check_error:
 
-        if "429" in str(rate_check_error):
+        if any(
+            indicator in str(rate_check_error) for indicator in RATE_LIMIT_INDICATORS
+        ):
             raise rate_check_error
+
         # If it's not a rate limit check error, continue normally
         pass
 
 
 def wait_for_page_content(driver: webdriver.Chrome) -> None:
     """Wait for initiative page content to load."""
-    wait = WebDriverWait(driver, 15)
+
+    wait = WebDriverWait(driver, WEBDRIVER_TIMEOUT_CONTENT)
 
     # Wait for initiative progress timeline
     try:
@@ -371,10 +381,7 @@ def save_initiative_page(pages_dir: str, url: str, page_source: str) -> str:
     """Save initiative page source to file and return filename."""
 
     # Double-check page source for rate limiting content
-    if (
-        "Server inaccessibility" in page_source
-        and "429 - Too Many Requests" in page_source
-    ):
+    if any(indicator in page_source for indicator in RATE_LIMIT_INDICATORS[:2]):
         raise Exception("429 - Rate limited (found in page source)")
 
     # Extract year and number from URL for filename
@@ -400,7 +407,7 @@ def save_initiative_page(pages_dir: str, url: str, page_source: str) -> str:
             page_source.count('"') % 2 != 0,  # Unmatched quotes
             "</html>" not in page_source.lower()
             and "<html" in page_source.lower(),  # Missing closing html tag
-            original_length < 50,  # Suspiciously short HTML
+            original_length < MIN_HTML_LENGTH,  # Suspiciously short HTML
         ]
 
         if any(malformed_indicators):
@@ -432,7 +439,10 @@ def save_initiative_page(pages_dir: str, url: str, page_source: str) -> str:
 
 
 def download_single_initiative(
-    driver: webdriver.Chrome, pages_dir: str, url: str, max_retries: int = 5
+    driver: webdriver.Chrome,
+    pages_dir: str,
+    url: str,
+    max_retries: int = DEFAULT_MAX_RETRIES,
 ) -> bool:
     """Download a single initiative page with retry logic.
 
@@ -461,15 +471,14 @@ def download_single_initiative(
             page_source = driver.page_source
             file_name = save_initiative_page(pages_dir, url, page_source)
 
-            logger.info(f"✅ Successfully downloaded: {file_name}")
+            logger.info(LOG_MESSAGES["download_success"].format(filename=file_name))
             return True
 
         except Exception as e:
+
             error_msg = str(e)
-            is_rate_limited = (
-                "429" in error_msg
-                or "Too Many Requests" in error_msg
-                or "Rate limited" in error_msg
+            is_rate_limited = any(
+                indicator in error_msg for indicator in RATE_LIMIT_INDICATORS
             )
 
             logger.debug(
@@ -484,8 +493,11 @@ def download_single_initiative(
 
                     wait_time = retry_wait_base * (retry_count**2)
                     logger.warning(
-                        f"⚠️  Received rate limiting. "
-                        f"Retrying {retry_count}/{max_retries} in {wait_time:.1f} seconds..."
+                        LOG_MESSAGES["rate_limit_retry"].format(
+                            retry=retry_count,
+                            max_retries=max_retries,
+                            wait_time=wait_time,
+                        )
                     )
                     time.sleep(wait_time)
 
@@ -592,13 +604,12 @@ def scrape_initiatives_page(
 ) -> Tuple[str, str]:
     """Load page, wait for elements, and save HTML source."""
 
-    route_find_initiative = "/find-initiative_en"
-    url_find_initiative = base_url + route_find_initiative
+    url_find_initiative = base_url + ROUTE_FIND_INITIATIVE
 
     logger.info(f"Loading page: {url_find_initiative}")
     driver.get(url_find_initiative)
 
-    wait = WebDriverWait(driver, 30)
+    wait = WebDriverWait(driver, WEBDRIVER_TIMEOUT_DEFAULT)
 
     try:
         cards_initiative_selector = ECIlistingSelectors.INITIATIVE_CARDS
@@ -624,8 +635,7 @@ def scrape_initiatives_page(
     time.sleep(random_time)
 
     page_source = driver.page_source
-    initiative_list_page_name = "Find_initiative_European_Citizens_Initiative"
-    main_page_path = os.path.join(list_dir, f"{initiative_list_page_name}.html")
+    main_page_path = os.path.join(list_dir, LISTING_PAGE_MAIN_FILENAME)
 
     with open(main_page_path, "w", encoding="utf-8") as f:
         pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
@@ -697,7 +707,7 @@ def gather_scraping_statistics(
 
     # Count initiatives by status from CSV
     current_status_counter = Counter()
-    url_list_file = f"initiatives/{start_scraping}/list/initiatives_list.csv"
+    url_list_file = f"initiatives/{start_scraping}/list/{CSV_FILENAME}"
 
     if os.path.exists(url_list_file):
 
@@ -740,7 +750,7 @@ def display_summary_info(
     """Display the main summary information and statistics."""
     div_line = "=" * 60
     logger.info(div_line)
-    logger.info("🎉 SCRAPING FINISHED! 🎉")
+    logger.info(LOG_MESSAGES["scraping_complete"])
     logger.info(div_line)
 
     logger.info(
