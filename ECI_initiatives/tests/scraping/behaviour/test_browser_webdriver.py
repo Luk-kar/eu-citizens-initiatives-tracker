@@ -21,6 +21,12 @@ from ECI_initiatives.__main__ import (
     download_initiative_pages,
 )
 
+from ECI_initiatives.tests.consts import (
+    REQUIRED_CSV_COLUMNS,
+    SAMPLE_INITIATIVE_DATA,
+    BASE_URL,
+)
+
 
 class TestBrowserInitializationAndCleanup:
     """Test browser management functionality."""
@@ -118,15 +124,7 @@ class TestBrowserInitializationAndCleanup:
             )
 
             # Sample initiative data
-            initiative_data = [
-                {
-                    "url": "http://example.com/1",
-                    "current_status": "test",
-                    "registration_number": "123",
-                    "signature_collection": "test",
-                    "datetime": "",
-                }
-            ]
+            initiative_data = [SAMPLE_INITIATIVE_DATA.copy()]
 
             # Act
             updated_data, failed_urls = download_initiative_pages(
@@ -143,7 +141,9 @@ class TestBrowserInitializationAndCleanup:
             # Verify successful processing
             assert len(updated_data) == 1
             assert len(failed_urls) == 0
-            assert updated_data[0]["datetime"] == "2025-09-22 20:25:00"
+            assert (
+                updated_data[0][REQUIRED_CSV_COLUMNS.DATETIME] == "2025-09-22 20:25:00"
+            )
 
     @patch("ECI_initiatives.__main__.webdriver.Chrome")
     @patch("ECI_initiatives.__main__.logger")
@@ -162,9 +162,7 @@ class TestBrowserInitializationAndCleanup:
 
             # Act & Assert
             with pytest.raises(Exception):
-                scrape_all_initiatives_on_all_pages(
-                    mock_driver, "http://base.url", "/test/dir"
-                )
+                scrape_all_initiatives_on_all_pages(mock_driver, BASE_URL, "/test/dir")
 
             # The function should still call quit in the finally block
             # Note: This test verifies the pattern exists in the actual code

@@ -23,6 +23,14 @@ from ECI_initiatives.__main__ import (
     display_results_and_files,
 )
 
+# Const
+from ECI_initiatives.tests.consts import (
+    COMMON_STATUSES,
+    REQUIRED_CSV_COLUMNS,
+    CSV_FILENAME,
+    PAGES_DIR_NAME,
+)
+
 
 class TestCompletionSummaryAccuracy:
     """Test completion summary and statistics accuracy."""
@@ -39,9 +47,18 @@ class TestCompletionSummaryAccuracy:
         # Arrange
         start_scraping = "2025-09-21_17-13-00"
         initiative_data = [
-            {"url": "https://example.com/1", "current_status": "Registered"},
-            {"url": "https://example.com/2", "current_status": "Collection ongoing"},
-            {"url": "https://example.com/3", "current_status": "Valid initiative"},
+            {
+                REQUIRED_CSV_COLUMNS.URL: "https://example.com/1",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "Registered",
+            },
+            {
+                REQUIRED_CSV_COLUMNS.URL: "https://example.com/2",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "Collection ongoing",
+            },
+            {
+                REQUIRED_CSV_COLUMNS.URL: "https://example.com/3",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "Valid initiative",
+            },
         ]
         saved_page_paths = ["page1.html", "page2.html", "page3.html"]
         failed_urls = ["https://example.com/failed"]
@@ -92,34 +109,27 @@ class TestCompletionSummaryAccuracy:
         start_scraping = "2025-09-21_17-13-00"
         mock_exists.return_value = True
 
+        test_csv_data = []
+        expected_counts = {}
+
+        for status in COMMON_STATUSES:
+            test_csv_data.append({REQUIRED_CSV_COLUMNS.CURRENT_STATUS: status})
+            expected_counts[status] = 1
+
+        # Add extra "Answered initiative" to test multiple counts
+        test_csv_data.append(
+            {"current_status": COMMON_STATUSES[0]}
+        )  # "Answered initiative"
+        expected_counts[COMMON_STATUSES[0]] = 2
+
         # Mock CSV reading using the example data from user's CSV file
         with patch("csv.DictReader") as mock_csv_reader:
-            mock_csv_reader.return_value = [
-                {"current_status": "Answered initiative"},
-                {"current_status": "Unsuccessful collection"},
-                {"current_status": "Withdrawn"},
-                {"current_status": "Registered"},
-                {"current_status": "Collection ongoing"},
-                {"current_status": "Verification"},
-                {"current_status": "Valid initiative"},
-                {"current_status": "Answered initiative"},  # Second occurrence
-            ]
-
+            mock_csv_reader.return_value = test_csv_data
             # Act
             stats = gather_scraping_statistics(start_scraping, [], [])
 
             # Assert
-            expected_counter = Counter(
-                {
-                    "Answered initiative": 2,
-                    "Unsuccessful collection": 1,
-                    "Withdrawn": 1,
-                    "Registered": 1,
-                    "Collection ongoing": 1,
-                    "Verification": 1,
-                    "Valid initiative": 1,
-                }
-            )
+            expected_counter = Counter(expected_counts)
 
             assert stats["status_counter"] == expected_counter
 
@@ -197,19 +207,19 @@ class TestCompletionSummaryAccuracy:
         # Arrange
         start_scraping = "2025-09-21_17-13-00"
         initiative_data = [
-            {"url": "https://example.com/1"},
-            {"url": "https://example.com/2"},
-            {"url": "https://example.com/3"},
+            {REQUIRED_CSV_COLUMNS.URL: "https://example.com/1"},
+            {REQUIRED_CSV_COLUMNS.URL: "https://example.com/2"},
+            {REQUIRED_CSV_COLUMNS.URL: "https://example.com/3"},
         ]
         failed_urls = ["https://example.com/failed1", "https://example.com/failed2"]
 
         # Mock file system for CSV reading and directory counting
         def side_effect(path):
 
-            if path.endswith("initiatives_list.csv"):
+            if path.endswith(CSV_FILENAME):
                 return True
 
-            elif path.endswith("initiative_pages"):
+            elif path.endswith(PAGES_DIR_NAME):
                 return True
 
             return False
@@ -219,9 +229,9 @@ class TestCompletionSummaryAccuracy:
         # Mock CSV reading
         with patch("csv.DictReader") as mock_csv_reader:
             mock_csv_reader.return_value = [
-                {"current_status": "Registered"},
-                {"current_status": "Collection ongoing"},
-                {"current_status": "Valid initiative"},
+                {REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "Registered"},
+                {REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "Collection ongoing"},
+                {REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "Valid initiative"},
             ]
 
             # Mock directory structure for counting files

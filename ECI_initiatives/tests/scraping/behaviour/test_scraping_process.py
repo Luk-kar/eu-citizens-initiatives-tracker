@@ -37,6 +37,19 @@ from ECI_initiatives.__main__ import (
     initialize_browser,
 )
 
+from ECI_initiatives.tests.consts import (
+    BASE_URL,
+    LISTINGS_HTML_DIR,
+    SAMPLE_LISTING_FILES,
+    REQUIRED_CSV_COLUMNS,
+    DEFAULT_WEBDRIVER_TIMEOUT,
+    PAGE_CONTENT_TIMEOUT,
+    LISTING_HTML_PATTERN,
+    RATE_LIMIT_INDICATORS,
+    SAMPLE_INITIATIVE_DATA,
+    FULL_FIND_INITIATIVE_URL,
+)
+
 
 class TestPaginationHandling:
     """Test pagination functionality."""
@@ -54,7 +67,7 @@ class TestPaginationHandling:
         test_dir = os.path.join(
             os.path.dirname(__file__), "..", "..", "data", "example_htmls", "listings"
         )
-        first_page_path = os.path.join(test_dir, "first_page.html")
+        first_page_path = os.path.join(LISTINGS_HTML_DIR, SAMPLE_LISTING_FILES[0])
 
         if os.path.exists(first_page_path):
             with open(first_page_path, "r", encoding="utf-8") as f:
@@ -67,7 +80,7 @@ class TestPaginationHandling:
         test_dir = os.path.join(
             os.path.dirname(__file__), "..", "..", "data", "example_htmls", "listings"
         )
-        last_page_path = os.path.join(test_dir, "last_page.html")
+        last_page_path = os.path.join(LISTINGS_HTML_DIR, SAMPLE_LISTING_FILES[1])
 
         if os.path.exists(last_page_path):
             with open(last_page_path, "r", encoding="utf-8") as f:
@@ -131,16 +144,19 @@ class TestPaginationHandling:
                 mock_driver, str(tmp_path), page_num
             )
 
-            expected_filename = (
-                f"Find_initiative_European_Citizens_Initiative_page_{page_num:03d}.html"
-            )
+            expected_filename = f"{LISTING_HTML_PATTERN}{page_num:03d}.html"
             assert expected_filename in page_path
             assert os.path.exists(page_path)
 
     @patch("ECI_initiatives.__main__.logger")
     @patch(
         "ECI_initiatives.__main__.parse_initiatives_list_data",
-        return_value=[{"url": "test", "status": "active"}],
+        return_value=[
+            {
+                REQUIRED_CSV_COLUMNS.URL: "test",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "active",
+            }
+        ],
     )
     @patch("ECI_initiatives.__main__.wait_for_listing_page_content")
     @patch("ECI_initiatives.__main__.save_listing_page")
@@ -214,7 +230,7 @@ class TestErrorRecoveryAndResilience:
         # Simulate a WebDriver exception during page load
         mock_driver.get.side_effect = WebDriverException("Connection failed")
 
-        url = "https://citizens-initiative.europa.eu/initiatives/details/2024/000001_en"
+        url = f"{BASE_URL}/initiatives/details/2024/000001_en"
 
         result = download_single_initiative(
             mock_driver, str(tmp_path), url, max_retries=1
@@ -242,10 +258,22 @@ class TestErrorRecoveryAndResilience:
         mock_download.side_effect = [True, False, True, False]
 
         test_data = [
-            {"url": "http://test1.com", "status": "active"},
-            {"url": "http://test2.com", "status": "active"},
-            {"url": "http://test3.com", "status": "active"},
-            {"url": "http://test4.com", "status": "active"},
+            {
+                REQUIRED_CSV_COLUMNS.URL: "http://test1.com",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "active",
+            },
+            {
+                REQUIRED_CSV_COLUMNS.URL: "http://test2.com",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "active",
+            },
+            {
+                REQUIRED_CSV_COLUMNS.URL: "http://test3.com",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "active",
+            },
+            {
+                REQUIRED_CSV_COLUMNS.URL: "http://test4.com",
+                REQUIRED_CSV_COLUMNS.CURRENT_STATUS: "active",
+            },
         ]
 
         updated_data, failed_urls = download_initiative_pages("/tmp", test_data)
@@ -262,12 +290,14 @@ class TestErrorRecoveryAndResilience:
         """Check that rate limiting is handled gracefully with appropriate retries."""
 
         # Test rate limiting detection in page content
-        mock_driver.page_source = "<html><head><title>Server inaccessibility</title></head><body>429 - Too Many Requests</body></html>"
+        mock_driver.page_source = f"<html><head><title>{RATE_LIMIT_INDICATORS.SERVER_INACCESSIBILITY}</title></head><body>{RATE_LIMIT_INDICATORS.TOO_MANY_REQUESTS}</body></html>"
 
-        url = "https://citizens-initiative.europa.eu/initiatives/details/2024/000001_en"
+        url = f"{FULL_FIND_INITIATIVE_URL}/details/2024/000001_en"
 
         with patch("ECI_initiatives.__main__.check_rate_limiting") as mock_check:
-            mock_check.side_effect = Exception("429 - Rate limited (HTML response)")
+            mock_check.side_effect = Exception(
+                f"{RATE_LIMIT_INDICATORS.RATE_LIMITED} (HTML response)"
+            )
 
             result = download_single_initiative(mock_driver, "/tmp", url, max_retries=1)
             assert result is False
@@ -294,8 +324,8 @@ class TestErrorRecoveryAndResilience:
 
         # First two calls fail with rate limiting, third succeeds
         mock_driver.get.side_effect = [
-            Exception("429 - Too Many Requests"),
-            Exception("429 - Rate limited"),
+            Exception(RATE_LIMIT_INDICATORS.TOO_MANY_REQUESTS),
+            Exception(RATE_LIMIT_INDICATORS.RATE_LIMITED),
             None,  # Success
         ]
         mock_driver.page_source = "<html><body>Success</body></html>"
@@ -339,7 +369,7 @@ class TestScrapingProcessFlow:
         # Test successful wait
         wait_for_listing_page_content(mock_driver, 1)
 
-        mock_wait_class.assert_called_with(mock_driver, 30)
+        mock_wait_class.assert_called_with(mock_driver, DEFAULT_WEBDRIVER_TIMEOUT)
         mock_wait.until.assert_called_once()
 
     @patch("ECI_initiatives.__main__.logger")
@@ -353,7 +383,7 @@ class TestScrapingProcessFlow:
 
         wait_for_page_content(mock_driver)
 
-        mock_wait_class.assert_called_with(mock_driver, 15)
+        mock_wait_class.assert_called_with(mock_driver, PAGE_CONTENT_TIMEOUT)
         # Should be called multiple times as it tries different selectors
         assert mock_wait.until.call_count >= 1
 
@@ -362,10 +392,10 @@ class TestScrapingProcessFlow:
 
         # Test case: Rate limiting detected
         mock_element = Mock()
-        mock_element.text = "Server inaccessibility - 429"
+        mock_element.text = f"{RATE_LIMIT_INDICATORS.SERVER_INACCESSIBILITY} - 429"
         mock_driver.find_element.return_value = mock_element
 
-        with pytest.raises(Exception, match="429 - Rate limited"):
+        with pytest.raises(Exception, match=RATE_LIMIT_INDICATORS.RATE_LIMITED):
             check_rate_limiting(mock_driver)
 
         # Test case: No rate limiting
@@ -382,9 +412,12 @@ class TestScrapingProcessFlow:
 
         # Setup mocks
         mock_save.return_value = ("page_source", "/path/to/page.html")
-        mock_parse.return_value = [{"url": "test1.com"}, {"url": "test2.com"}]
+        mock_parse.return_value = [
+            SAMPLE_INITIATIVE_DATA | {REQUIRED_CSV_COLUMNS.URL: "test1.com"},
+            SAMPLE_INITIATIVE_DATA | {REQUIRED_CSV_COLUMNS.URL: "test2.com"},
+        ]
 
-        base_url = "https://citizens-initiative.europa.eu"
+        base_url = BASE_URL
         list_dir = "/test/dir"
         current_page = 1
 
@@ -413,13 +446,22 @@ class TestScrapingProcessFlow:
 
         # Mock scraping single page to return different data for each page
         mock_scrape_single.side_effect = [
-            ([{"url": "page1_init1"}, {"url": "page1_init2"}], "/path/page1.html"),
-            ([{"url": "page2_init1"}], "/path/page2.html"),
             (
                 [
-                    {"url": "page3_init1"},
-                    {"url": "page3_init2"},
-                    {"url": "page3_init3"},
+                    SAMPLE_INITIATIVE_DATA | {REQUIRED_CSV_COLUMNS.URL: "page1_init1"},
+                    SAMPLE_INITIATIVE_DATA | {REQUIRED_CSV_COLUMNS.URL: "page1_init2"},
+                ],
+                "/path/page1.html",
+            ),
+            (
+                [SAMPLE_INITIATIVE_DATA | {REQUIRED_CSV_COLUMNS.URL: "page2_init1"}],
+                "/path/page2.html",
+            ),
+            (
+                [
+                    SAMPLE_INITIATIVE_DATA | {REQUIRED_CSV_COLUMNS.URL: "page3_init1"},
+                    SAMPLE_INITIATIVE_DATA | {REQUIRED_CSV_COLUMNS.URL: "page3_init2"},
+                    SAMPLE_INITIATIVE_DATA | {REQUIRED_CSV_COLUMNS.URL: "page3_init3"},
                 ],
                 "/path/page3.html",
             ),
@@ -441,26 +483,6 @@ class TestScrapingProcessFlow:
 
         # Verify single page scraping was called 3 times
         assert mock_scrape_single.call_count == 3
-
-
-# TODO: not here
-# Fixture for loading test data
-# @pytest.fixture
-# def test_data_csv():
-#     """Load test data from CSV file."""
-
-#     test_dir = os.path.join(
-#         os.path.dirname(__file__), "..", "..", "data", "example_htmls", "initiatives"
-#     )
-#     csv_path = os.path.join(test_dir, "eci_status_initiatives.csv")
-
-#     if os.path.exists(csv_path):
-
-#         with open(csv_path, "r", encoding="utf-8") as f:
-#             reader = csv.DictReader(f)
-#             return list(reader)
-
-#     return []
 
 
 @patch("ECI_initiatives.__main__.logger")
@@ -490,6 +512,6 @@ def test_parse_initiatives_with_real_data(mock_logger):
 
             for initiative in initiatives:
 
-                assert "url" in initiative
-                assert "current_status" in initiative
-                assert initiative["url"].startswith(base_url)
+                assert REQUIRED_CSV_COLUMNS.URL in initiative
+                assert REQUIRED_CSV_COLUMNS.CURRENT_STATUS in initiative
+                assert initiative[REQUIRED_CSV_COLUMNS.URL].startswith(base_url)

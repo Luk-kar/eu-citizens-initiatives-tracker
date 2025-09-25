@@ -63,6 +63,19 @@ from ECI_initiatives.__main__ import (
     navigate_to_next_page,
 )
 
+from ECI_initiatives.tests.consts import (
+    BASE_URL,
+    REQUIRED_CSV_COLUMNS,
+    MAX_PAGES_E2E_TEST,
+    MAX_INITIATIVES_E2E_TEST,
+    LISTING_HTML_PATTERN,
+    CSV_FILENAME,
+    DATA_DIR_NAME,
+    LISTINGS_DIR_NAME,
+    PAGES_DIR_NAME,
+    LOG_DIR_NAME,
+)
+
 
 class TestCreatedFiles:
     """Test suite for validating created files from ECI scraping."""
@@ -73,7 +86,7 @@ class TestCreatedFiles:
 
         # Create temporary directories for testing
         self.temp_base_dir = tempfile.mkdtemp(prefix="eci_test_")
-        self.temp_data_dir = os.path.join(self.temp_base_dir, "data")
+        self.temp_data_dir = os.path.join(self.temp_base_dir, DATA_DIR_NAME)
 
         # Store original functions for later restoration
         original_parse_initiatives = parse_initiatives_list_data
@@ -86,7 +99,9 @@ class TestCreatedFiles:
             """
 
             full_data = original_parse_initiatives(page_source, base_url)
-            return full_data[:3]  # Return only first 3 initiatives
+            return full_data[
+                :MAX_INITIATIVES_E2E_TEST
+            ]  # Return only first 3 initiatives
 
         def mock_navigate_to_next_page_first_only(driver, current_page):
             """
@@ -117,9 +132,9 @@ class TestCreatedFiles:
 
         # Store results for tests
         self.timestamp = timestamp
-        self.data_path = os.path.join(self.temp_base_dir, "data", timestamp)
-        self.listings_path = os.path.join(self.data_path, "listings")
-        self.pages_path = os.path.join(self.data_path, "initiative_pages")
+        self.data_path = os.path.join(self.temp_base_dir, DATA_DIR_NAME, timestamp)
+        self.listings_path = os.path.join(self.data_path, LISTINGS_DIR_NAME)
+        self.pages_path = os.path.join(self.data_path, PAGES_DIR_NAME)
 
         # Yield test data to all test methods - this creates the handoff point
         # between setup and teardown phases. The dictionary contains all paths
@@ -146,7 +161,7 @@ class TestCreatedFiles:
         assert os.path.exists(paths["pages_path"]), "Pages directory not created"
 
         # Check logs directory exists
-        logs_path = os.path.join(paths["data_path"], "logs")
+        logs_path = os.path.join(paths["data_path"], LOG_DIR_NAME)
         assert os.path.exists(logs_path), "Logs directory not created"
 
     def test_listing_files_created(self, setup_scraping):
@@ -155,7 +170,7 @@ class TestCreatedFiles:
         paths = setup_scraping
 
         # Check CSV file exists
-        csv_file = os.path.join(paths["listings_path"], "initiatives_list.csv")
+        csv_file = os.path.join(paths["listings_path"], CSV_FILENAME)
         assert os.path.exists(csv_file), "initiatives_list.csv not created"
 
         # Check HTML listing file exists (should be exactly 1 since we only scrape first page)
@@ -163,7 +178,7 @@ class TestCreatedFiles:
             f for f in os.listdir(paths["listings_path"]) if f.endswith(".html")
         ]
         assert (
-            len(html_files) == 1
+            len(html_files) == MAX_PAGES_E2E_TEST
         ), f"Expected 1 HTML listing file, found {len(html_files)}"
 
         # Check HTML file name pattern
@@ -177,7 +192,7 @@ class TestCreatedFiles:
         """Test CSV file has correct structure and limited content."""
 
         paths = setup_scraping
-        csv_file = os.path.join(paths["listings_path"], "initiatives_list.csv")
+        csv_file = os.path.join(paths["listings_path"], CSV_FILENAME)
 
         with open(csv_file, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -188,11 +203,11 @@ class TestCreatedFiles:
 
         # Check required columns exist
         required_columns = [
-            "url",
-            "current_status",
-            "registration_number",
-            "signature_collection",
-            "datetime",
+            REQUIRED_CSV_COLUMNS.URL,
+            REQUIRED_CSV_COLUMNS.CURRENT_STATUS,
+            REQUIRED_CSV_COLUMNS.REGISTRATION_NUMBER,
+            REQUIRED_CSV_COLUMNS.SIGNATURE_COLLECTION,
+            REQUIRED_CSV_COLUMNS.DATETIME,
         ]
 
         if rows:
@@ -205,8 +220,8 @@ class TestCreatedFiles:
             # Check URL format
             for row in rows:
 
-                assert row["url"].startswith(
-                    "https://citizens-initiative.europa.eu/initiatives/details/"
+                assert row[REQUIRED_CSV_COLUMNS.URL].startswith(
+                    f"{BASE_URL}/initiatives/details/"
                 ), f"URL format incorrect: {row['url']}"
 
     def test_initiative_pages_downloaded(self, setup_scraping):
@@ -289,7 +304,7 @@ class TestCreatedFiles:
         for html_file in html_files:
 
             assert html_file.startswith(
-                "Find_initiative_European_Citizens_Initiative_page_"
+                LISTING_HTML_PATTERN
             ), f"Listing HTML file naming incorrect: {html_file}"
 
             assert html_file.endswith(
