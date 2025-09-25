@@ -2,7 +2,7 @@
 
 import os
 
-from ..consts import (
+from ..scraper.consts import (
     BASE_URL,
     ROUTE_FIND_INITIATIVE,
     CSV_FILENAME,

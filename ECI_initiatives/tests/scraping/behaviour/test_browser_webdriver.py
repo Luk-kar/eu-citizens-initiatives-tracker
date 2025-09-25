@@ -15,12 +15,19 @@ from selenium.webdriver.chrome.options import Options
 program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 
 sys.path.append(program_dir)
-from ECI_initiatives.__main__ import (
-    initialize_browser,
+
+## scraper
+from ECI_initiatives.scraper.browser import initialize_browser
+from ECI_initiatives.scraper.crawler import (
     scrape_all_initiatives_on_all_pages,
+    scrape_single_listing_page,
+)
+from ECI_initiatives.scraper.downloader import (
     download_initiative_pages,
+    download_single_initiative,
 )
 
+## tests
 from ECI_initiatives.tests.consts import (
     REQUIRED_CSV_COLUMNS,
     SAMPLE_INITIATIVE_DATA,
@@ -32,8 +39,8 @@ from ECI_initiatives.tests.consts import (
 class TestBrowserInitializationAndCleanup:
     """Test browser management functionality."""
 
-    @patch("ECI_initiatives.__main__.webdriver.Chrome")
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.browser.webdriver.Chrome")
+    @patch("ECI_initiatives.scraper.browser.logger")
     def test_browser_instances_properly_managed(self, mock_logger, mock_chrome):
         """Verify that browser instances are properly created and closed."""
 
@@ -60,8 +67,8 @@ class TestBrowserInitializationAndCleanup:
         driver.quit()
         mock_driver.quit.assert_called_once()
 
-    @patch("ECI_initiatives.__main__.webdriver.Chrome")
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.browser.webdriver.Chrome")
+    @patch("ECI_initiatives.scraper.browser.logger")
     def test_headless_mode_works_correctly(self, mock_logger, mock_chrome):
         """Check that headless mode works correctly."""
 
@@ -85,8 +92,8 @@ class TestBrowserInitializationAndCleanup:
         assert "--no-sandbox" in options.arguments
         assert "--disable-dev-shm-usage" in options.arguments
 
-    @patch("ECI_initiatives.__main__.webdriver.Chrome")
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.browser.webdriver.Chrome")
+    @patch("ECI_initiatives.scraper.browser.logger")
     def test_webdriver_initialization_failure_handling(self, mock_logger, mock_chrome):
         """Test behavior when WebDriver initialization fails."""
 
@@ -103,8 +110,8 @@ class TestBrowserInitializationAndCleanup:
         # The debug log wouldn't be called since initialization failed
         assert not mock_logger.debug.called
 
-    @patch("ECI_initiatives.__main__.initialize_browser")
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.downloader.initialize_browser")
+    @patch("ECI_initiatives.scraper.downloader.logger")
     @patch("time.sleep", return_value=None)
     def test_download_function_properly_manages_driver_lifecycle(
         self, mock_sleep, mock_logger, mock_init_browser
@@ -117,8 +124,10 @@ class TestBrowserInitializationAndCleanup:
 
         # Mock the necessary functions to avoid actual web requests
         with patch(
-            "ECI_initiatives.__main__.download_single_initiative"
-        ) as mock_download, patch("ECI_initiatives.__main__.datetime") as mock_datetime:
+            "ECI_initiatives.scraper.__main__.download_single_initiative"
+        ) as mock_download, patch(
+            "ECI_initiatives.scraper.__main__.datetime"
+        ) as mock_datetime:
 
             mock_download.return_value = True  # Simulate successful download
             mock_datetime.datetime.now.return_value.strftime.return_value = (
@@ -147,8 +156,8 @@ class TestBrowserInitializationAndCleanup:
                 updated_data[0][REQUIRED_CSV_COLUMNS.DATETIME] == "2025-09-22 20:25:00"
             )
 
-    @patch("ECI_initiatives.__main__.webdriver.Chrome")
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.browser.webdriver.Chrome")
+    @patch("ECI_initiatives.scraper.crawler.logger")
     def test_driver_quit_called_on_exception(self, mock_logger, mock_chrome):
         """Test that driver.quit() is called even when exceptions occur."""
 
@@ -158,7 +167,7 @@ class TestBrowserInitializationAndCleanup:
 
         # Simulate an exception during scraping
         with patch(
-            "ECI_initiatives.__main__.scrape_single_listing_page"
+            "ECI_initiatives.scraper.__main__.scrape_single_listing_page"
         ) as mock_scrape:
             mock_scrape.side_effect = Exception("Test exception")
 
