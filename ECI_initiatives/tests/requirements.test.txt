@@ -1,0 +1,7 @@
+# Include production dependencies
+-r ../requirements.prod.txt
+
+# Testing dependencies
+pytest==8.4.2
+pytest-mock==3.15.1
+pytest-cov==7.0.0
