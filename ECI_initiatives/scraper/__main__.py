@@ -1,5 +1,7 @@
 # Python Standard Library
 import datetime
+from typing import Dict, Tuple
+import os
 
 # Local
 from .crawler import scrape_all_initiatives_on_all_pages
@@ -16,9 +18,7 @@ from .consts import (
     CSV_FILENAME,
     LOG_MESSAGES,
 )
-from .scraper_logger import ScraperLogger
-
-logger = None
+from .logger import logger
 
 
 def scrape_eci_initiatives() -> str:
@@ -27,8 +27,6 @@ def scrape_eci_initiatives() -> str:
     Returns:
         str: Timestamp string of when scraping started
     """
-
-    global logger
 
     start_scraping = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -53,23 +51,26 @@ def scrape_eci_initiatives() -> str:
 
     try:
         # Scrape all pages and get accumulated initiative data
-        all_initiative_data, saved_page_paths = scrape_all_initiatives_on_all_pages(
-            driver, base_url, list_dir
+        all_initiative_pages_catalog, saved_page_listing_paths = (
+            scrape_all_initiatives_on_all_pages(driver, base_url, list_dir)
         )
     finally:
         driver.quit()
         logger.info(LOG_MESSAGES["browser_closed"])
 
-    if all_initiative_data:
+    if all_initiative_pages_catalog:
         failed_urls = save_and_download_initiatives(
-            list_dir, pages_dir, all_initiative_data
+            list_dir, pages_dir, all_initiative_pages_catalog
         )
     else:
         logger.warning("No initiatives found to classify or download")
         failed_urls = []
 
     display_completion_summary(
-        start_scraping, all_initiative_data, saved_page_paths, failed_urls
+        start_scraping,
+        all_initiative_pages_catalog,
+        saved_page_listing_paths,
+        failed_urls,
     )
 
     return start_scraping

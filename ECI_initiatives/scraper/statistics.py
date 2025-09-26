@@ -7,7 +7,7 @@ from typing import Dict, List
 
 # Local modules
 from .consts import CSV_FILENAME, LOG_MESSAGES
-from .scraper_logger import ScraperLogger
+from .logger import logger
 
 
 def display_completion_summary(

@@ -28,9 +28,13 @@ program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 
 sys.path.append(program_dir)
 
-from ECI_initiatives.__main__ import (
+from ECI_initiatives.scraper.__main__ import (
     save_and_download_initiatives,
+)
+from ECI_initiatives.scraper.data_parser import (
     parse_initiatives_list_data,
+)
+from ECI_initiatives.scraper.crawler import (
     scrape_all_initiatives_on_all_pages,
 )
 
@@ -50,7 +54,7 @@ from ECI_initiatives.tests.consts import (
 @pytest.fixture(scope="session")
 def parsed_test_data():
     """Parse test HTML files once and reuse across all tests."""
-    with patch("ECI_initiatives.__main__.logger"):
+    with patch("ECI_initiatives.scraper.data_parser.logger"):
         all_initiatives = []
 
         for page_file in SAMPLE_LISTING_FILES:
@@ -71,6 +75,7 @@ def parsed_test_data():
 @pytest.fixture(scope="session")
 def reference_data():
     """Load reference CSV once and reuse across all tests."""
+
     if not os.path.exists(CSV_FILE_PATH):
         pytest.skip(f"Reference CSV file not found: {CSV_FILE_PATH}")
 
@@ -84,8 +89,8 @@ def reference_data():
 class TestCsvFileOperations:
     """Test CSV data validation functionality."""
 
-    @patch("ECI_initiatives.__main__.download_initiative_pages")
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.__main__.download_initiative_pages")
+    @patch("ECI_initiatives.scraper.__main__.logger")
     def test_csv_created_with_correct_headers(self, mock_logger, mock_download_pages):
         """
         Verify that initiatives_list.csv is created with correct headers:
@@ -160,8 +165,8 @@ class TestCsvFileOperations:
                     data_row[0] == test_initiative_data[0][REQUIRED_CSV_COLUMNS.URL]
                 ), "URL not correctly written to CSV:\n" + str(data_row[0])
 
-    @patch("ECI_initiatives.__main__.logger")
-    @patch("ECI_initiatives.__main__.download_initiative_pages")
+    @patch("ECI_initiatives.scraper.__main__.logger")
+    @patch("ECI_initiatives.scraper.__main__.download_initiative_pages")
     def test_no_duplicate_initiatives(self, mock_download_pages, mock_logger):
         """Ensure no duplicate initiatives are recorded in the CSV when scraping produces duplicates."""
 
@@ -309,8 +314,8 @@ class TestScrapingWorkflow:
             reference_data
         ), f"Found {len(parsed_test_data)} initiatives, expected at least {len(reference_data)}"
 
-    @patch("ECI_initiatives.__main__.initialize_browser")
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.browser.initialize_browser")
+    @patch("ECI_initiatives.scraper.__main__.logger")
     def test_pagination_handling(self, mock_logger, mock_browser):
         """Test pagination processing logic."""
         # Create a mock driver
@@ -356,10 +361,12 @@ class TestScrapingWorkflow:
         )
 
         # Mock other required methods
-        with patch("ECI_initiatives.__main__.wait_for_listing_page_content"), patch(
-            "ECI_initiatives.__main__.save_listing_page"
+        with patch(
+            "ECI_initiatives.scraper.crawler.wait_for_listing_page_content"
+        ), patch(
+            "ECI_initiatives.scraper.file_ops.save_listing_page"
         ) as mock_save, patch(
-            "ECI_initiatives.__main__.parse_initiatives_list_data"
+            "ECI_initiatives.scraper.data_parser.parse_initiatives_list_data"
         ) as mock_parse, patch(
             "time.sleep"
         ):

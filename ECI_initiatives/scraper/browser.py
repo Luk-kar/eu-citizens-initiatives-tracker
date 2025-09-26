@@ -4,7 +4,7 @@ from selenium.webdriver.chrome.options import Options
 
 # Local
 from .consts import CHROME_OPTIONS, LOG_MESSAGES
-from .scraper_logger import ScraperLogger
+from .logger import logger
 
 
 def initialize_browser() -> webdriver.Chrome:

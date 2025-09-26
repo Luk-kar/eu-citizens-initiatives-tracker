@@ -22,13 +22,13 @@ from .consts import (
     WEBDRIVER_TIMEOUT_DEFAULT,
     LOG_MESSAGES,
 )
-from .scraper_logger import ScraperLogger
+from .logger import logger
 
 
 def scrape_all_initiatives_on_all_pages(
     driver: webdriver.Chrome, base_url: str, list_dir: str
 ) -> Tuple[list, list]:
-    """Scrape all pages of initiatives by iterating through pagination.
+    """Scrape all pages of initiatives on the listings by iterating through pagination.
 
     Args:
         driver: Chrome WebDriver instance
@@ -41,7 +41,7 @@ def scrape_all_initiatives_on_all_pages(
         - List of paths to saved HTML files
     """
     url_find_initiative = base_url + ROUTE_FIND_INITIATIVE
-    all_initiative_data = []
+    all_initiative_pages = []
     saved_page_paths = []
     current_page = 1
 
@@ -59,7 +59,7 @@ def scrape_all_initiatives_on_all_pages(
         )
 
         # Add to accumulated data
-        all_initiative_data.extend(page_initiative_data)
+        all_initiative_pages.extend(page_initiative_data)
         saved_page_paths.append(page_path)
 
         # Try to navigate to next page
@@ -70,9 +70,9 @@ def scrape_all_initiatives_on_all_pages(
 
     logger.info(
         f"Completed scraping {current_page} pages with total of "
-        f"{len(all_initiative_data)} initiatives"
+        f"{len(all_initiative_pages)} initiatives"
     )
-    return all_initiative_data, saved_page_paths
+    return all_initiative_pages, saved_page_paths
 
 
 def scrape_single_listing_page(

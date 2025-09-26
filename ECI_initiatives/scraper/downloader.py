@@ -25,7 +25,8 @@ from .consts import (
     RATE_LIMIT_INDICATORS,
     LOG_MESSAGES,
 )
-from .scraper_logger import ScraperLogger
+from .file_ops import save_initiative_page
+from .logger import logger
 
 
 def download_initiative_pages(

@@ -122,16 +122,18 @@ class TestBrowserInitializationAndCleanup:
         mock_driver = Mock()
         mock_init_browser.return_value = mock_driver
 
+        download_datetime = "2025-09-22 20:25:00"
+
         # Mock the necessary functions to avoid actual web requests
         with patch(
-            "ECI_initiatives.scraper.__main__.download_single_initiative"
+            "ECI_initiatives.scraper.downloader.download_single_initiative"
         ) as mock_download, patch(
-            "ECI_initiatives.scraper.__main__.datetime"
+            "ECI_initiatives.scraper.downloader.datetime"
         ) as mock_datetime:
 
             mock_download.return_value = True  # Simulate successful download
             mock_datetime.datetime.now.return_value.strftime.return_value = (
-                "2025-09-22 20:25:00"
+                download_datetime
             )
 
             # Sample initiative data
@@ -152,9 +154,7 @@ class TestBrowserInitializationAndCleanup:
             # Verify successful processing
             assert len(updated_data) == 1
             assert len(failed_urls) == 0
-            assert (
-                updated_data[0][REQUIRED_CSV_COLUMNS.DATETIME] == "2025-09-22 20:25:00"
-            )
+            assert updated_data[0][REQUIRED_CSV_COLUMNS.DATETIME] == download_datetime
 
     @patch("ECI_initiatives.scraper.browser.webdriver.Chrome")
     @patch("ECI_initiatives.scraper.crawler.logger")
@@ -167,7 +167,7 @@ class TestBrowserInitializationAndCleanup:
 
         # Simulate an exception during scraping
         with patch(
-            "ECI_initiatives.scraper.__main__.scrape_single_listing_page"
+            "ECI_initiatives.scraper.crawler.scrape_single_listing_page"
         ) as mock_scrape:
             mock_scrape.side_effect = Exception("Test exception")
 

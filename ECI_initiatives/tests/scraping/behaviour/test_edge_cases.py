@@ -21,21 +21,22 @@ from selenium.webdriver.common.by import By
 program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 sys.path.append(program_dir)
 
-from ECI_initiatives.__main__ import (
+from ECI_initiatives.scraper.__main__ import save_and_download_initiatives
+from ECI_initiatives.scraper.browser import initialize_browser
+from ECI_initiatives.scraper.crawler import (
+    navigate_to_next_page,
+    scrape_all_initiatives_on_all_pages,
+    scrape_single_listing_page,
+)
+from ECI_initiatives.scraper.downloader import (
     check_rate_limiting,
     download_initiative_pages,
     download_single_initiative,
-    initialize_browser,
-    navigate_to_next_page,
-    save_and_download_initiatives,
-    save_initiative_page,
-    scrape_all_initiatives_on_all_pages,
-    scrape_single_listing_page,
     wait_for_page_content,
 )
+from ECI_initiatives.scraper.file_ops import save_initiative_page
 
 # Consts
-# Constants
 from ECI_initiatives.tests.consts import (
     RATE_LIMIT_INDICATORS,
     REQUIRED_CSV_COLUMNS,
@@ -46,7 +47,7 @@ from ECI_initiatives.tests.consts import (
 class TestBrowserInitialization:
     """Test browser initialization edge cases."""
 
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.__main__.logger")
     @patch("selenium.webdriver.Chrome")
     def test_webdriver_initialization_failures(self, mock_chrome, mock_logger):
         """Test WebDriver initialization failures."""
@@ -73,9 +74,9 @@ class TestBrowserInitialization:
 class TestResourceCleanup:
     """Test resource cleanup and interruption handling."""
 
-    @patch("ECI_initiatives.__main__.logger")
-    @patch("ECI_initiatives.__main__.initialize_browser")
-    @patch("ECI_initiatives.__main__.download_single_initiative")
+    @patch("ECI_initiatives.scraper.downloader.logger")
+    @patch("ECI_initiatives.scraper.downloader.initialize_browser")
+    @patch("ECI_initiatives.scraper.downloader.download_single_initiative")
     def test_browser_cleanup_on_interruption(
         self, mock_download_single, mock_init_browser, mock_logger
     ):
@@ -145,6 +146,7 @@ class TestResourceCleanup:
         # Verify normal completion and cleanup
         mock_driver.quit.assert_called_once()
         mock_logger.info.assert_any_call(LOG_MESSAGES["pages_browser_closed"])
+
         assert len(failed_urls) == 2  # Both URLs should fail
         assert len(updated_data) == 2  # But data should still be returned
 
@@ -152,7 +154,7 @@ class TestResourceCleanup:
 class TestContentProcessing:
     """Test content parsing and validation edge cases."""
 
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.file_ops.logger")
     def test_malformed_html_responses(self, mock_logger):
         """Test handling of malformed HTML responses."""
 
@@ -181,7 +183,7 @@ class TestContentProcessing:
         # Should log warnings but not crash
         mock_logger.warning.assert_called()
 
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.__main__.logger")
     def test_rate_limiting_scenarios(self, mock_logger):
         """Test various rate limiting scenarios."""
 
@@ -226,10 +228,12 @@ class TestContentProcessing:
         mock_element.text = "Normal page content"  # NOT "Server inaccessibility"
         mock_driver.find_element.return_value = mock_element
 
-        with patch("ECI_initiatives.__main__.save_initiative_page") as mock_save:
-            with patch("ECI_initiatives.__main__.time.sleep"):
+        with patch(
+            "ECI_initiatives.scraper.downloader.save_initiative_page"
+        ) as mock_save:
+            with patch("ECI_initiatives.scraper.downloader.time.sleep"):
                 with patch(
-                    "ECI_initiatives.__main__.wait_for_page_content"
+                    "ECI_initiatives.scraper.downloader.wait_for_page_content"
                 ) as mock_wait_content:
 
                     mock_wait_content.return_value = None
@@ -248,9 +252,9 @@ class TestContentProcessing:
 class TestNetworkConditions:
     """Test various network condition scenarios."""
 
-    @patch("ECI_initiatives.__main__.logger")
-    @patch("ECI_initiatives.__main__.time.sleep")
-    @patch("ECI_initiatives.__main__.WebDriverWait")
+    @patch("ECI_initiatives.scraper.downloader.logger")
+    @patch("ECI_initiatives.scraper.downloader.time.sleep")
+    @patch("ECI_initiatives.scraper.downloader.WebDriverWait")
     def test_slow_network_conditions(self, mock_wait, mock_sleep, mock_logger):
         """Test behavior under slow network conditions."""
 
@@ -277,7 +281,9 @@ class TestNetworkConditions:
         mock_driver.get.side_effect = None  # Reset side effect
         mock_driver.page_source = "<html><body>Test content</body></html>"
 
-        with patch("ECI_initiatives.__main__.save_initiative_page") as mock_save:
+        with patch(
+            "ECI_initiatives.scraper.file_ops.save_initiative_page"
+        ) as mock_save:
             mock_save.return_value = "test_file.html"
             result = download_single_initiative(mock_driver, "/tmp", "http://test.com")
 
@@ -289,7 +295,7 @@ class TestNetworkConditions:
 class TestDownloadSingleInitiative:
     """Test behavior under various system conditions."""
 
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.downloader.logger")
     def test_download_single_initiative_error_handling(self, mock_logger):
         """Test download_single_initiative handles various error scenarios."""
 

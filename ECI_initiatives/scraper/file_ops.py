@@ -18,7 +18,7 @@ from .consts import (
     LISTING_PAGE_FILENAME_PATTERN,
     LOG_MESSAGES,
 )
-from .scraper_logger import ScraperLogger
+from .logger import logger
 
 
 def setup_scraping_dirs(list_dir: str, pages_dir: str) -> None:

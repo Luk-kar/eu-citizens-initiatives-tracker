@@ -16,7 +16,7 @@ program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 
 sys.path.append(program_dir)
 
-from ECI_initiatives.__main__ import (
+from ECI_initiatives.scraper.statistics import (
     display_completion_summary,
     gather_scraping_statistics,
     display_summary_info,
@@ -36,10 +36,10 @@ from ECI_initiatives.tests.consts import (
 class TestCompletionSummaryAccuracy:
     """Test completion summary and statistics accuracy."""
 
-    @patch("ECI_initiatives.__main__.logger")
-    @patch("ECI_initiatives.__main__.gather_scraping_statistics")
-    @patch("ECI_initiatives.__main__.display_summary_info")
-    @patch("ECI_initiatives.__main__.display_results_and_files")
+    @patch("ECI_initiatives.scraper.statistics.logger")
+    @patch("ECI_initiatives.scraper.statistics.gather_scraping_statistics")
+    @patch("ECI_initiatives.scraper.statistics.display_summary_info")
+    @patch("ECI_initiatives.scraper.statistics.display_results_and_files")
     def test_final_statistics_match_actual_results(
         self, mock_display_results, mock_display_summary, mock_gather_stats, mock_logger
     ):
@@ -91,7 +91,7 @@ class TestCompletionSummaryAccuracy:
             start_scraping, saved_page_paths, failed_urls, expected_stats
         )
 
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.statistics.logger")
     @patch("os.path.exists")
     @patch("os.path.isdir")
     @patch("os.listdir")
@@ -134,9 +134,9 @@ class TestCompletionSummaryAccuracy:
 
             assert stats["status_counter"] == expected_counter
 
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.statistics.logger")
     @patch("datetime.datetime")
-    @patch("ECI_initiatives.__main__.gather_scraping_statistics")
+    @patch("ECI_initiatives.scraper.statistics.gather_scraping_statistics")
     def test_completion_timestamps_accurate(
         self, mock_gather_stats, mock_datetime, mock_logger
     ):
@@ -168,7 +168,7 @@ class TestCompletionSummaryAccuracy:
             for call in mock_logger.info.call_args_list
         )
 
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.statistics.logger")
     def test_file_path_reporting_matches_saved_locations(self, mock_logger):
         """Validate that file path reporting matches actual saved locations."""
 
@@ -266,7 +266,7 @@ class TestCompletionSummaryAccuracy:
             assert result["total_initiatives"] == expected_result["total_initiatives"]
             assert result["failed_count"] == expected_result["failed_count"]
 
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.statistics.logger")
     def test_display_results_with_failed_downloads(self, mock_logger):
         """Test display_results_and_files function with failed downloads."""
 
@@ -291,7 +291,7 @@ class TestCompletionSummaryAccuracy:
         mock_logger.error.assert_any_call(" - https://example.com/failed1")
         mock_logger.error.assert_any_call(" - https://example.com/failed2")
 
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.statistics.logger")
     def test_display_results_no_failures(self, mock_logger):
         """Test display_results_and_files function with no failed downloads."""
 
@@ -316,7 +316,7 @@ class TestCompletionSummaryAccuracy:
         # Should not call error methods
         assert not mock_logger.error.called
 
-    @patch("ECI_initiatives.__main__.logger")
+    @patch("ECI_initiatives.scraper.statistics.logger")
     def test_display_summary_info_content(self, mock_logger):
         """Test that display_summary_info outputs correct summary content."""
 
