@@ -56,9 +56,9 @@ import pytest
 program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 sys.path.append(program_dir)
 
-from ECI_initiatives.__main__ import (
-    scrape_eci_initiatives,
-    parse_initiatives_list_data,
+from ECI_initiatives.scraper.__main__ import scrape_eci_initiatives
+from ECI_initiatives.scraper.data_parser import parse_initiatives_list_data
+from ECI_initiatives.scraper.crawler import (
     scrape_all_initiatives_on_all_pages,
     navigate_to_next_page,
 )
@@ -80,13 +80,13 @@ from ECI_initiatives.tests.consts import (
 class TestCreatedFiles:
     """Test suite for validating created files from ECI scraping."""
 
-    @pytest.fixture(scope="class")
-    def setup_scraping(self):
-        """Setup fixture that runs scraping once and provides results."""
+    @classmethod
+    def setup_class(cls):
+        """Setup class-level resources that runs once before all tests."""
 
         # Create temporary directories for testing
-        self.temp_base_dir = tempfile.mkdtemp(prefix="eci_test_")
-        self.temp_data_dir = os.path.join(self.temp_base_dir, DATA_DIR_NAME)
+        cls.temp_base_dir = tempfile.mkdtemp(prefix="eci_test_")
+        cls.temp_data_dir = os.path.join(cls.temp_base_dir, DATA_DIR_NAME)
 
         # Store original functions for later restoration
         original_parse_initiatives = parse_initiatives_list_data
@@ -113,70 +113,67 @@ class TestCreatedFiles:
 
         # Apply mocks and run scraping
         with patch.object(
-            sys.modules["ECI_initiatives.__main__"],
+            sys.modules["ECI_initiatives.scraper.crawler"],
             "parse_initiatives_list_data",
             side_effect=mock_parse_initiatives_limited,
         ), patch.object(
-            sys.modules["ECI_initiatives.__main__"],
+            sys.modules["ECI_initiatives.scraper.crawler"],
             "navigate_to_next_page",
             side_effect=mock_navigate_to_next_page_first_only,
         ), patch(
-            "ECI_initiatives.__main__.os.path.dirname"
-        ) as mock_dirname:
+            "ECI_initiatives.scraper.__main__.os.path.dirname"
+        ) as mock_abspath:
 
             # Mock the script directory to use our temp directory
-            mock_dirname.return_value = self.temp_base_dir
+            mock_abspath.return_value = cls.temp_base_dir
 
             # Run the scraping function
             timestamp = scrape_eci_initiatives()
 
         # Store results for tests
-        self.timestamp = timestamp
-        self.data_path = os.path.join(self.temp_base_dir, DATA_DIR_NAME, timestamp)
-        self.listings_path = os.path.join(self.data_path, LISTINGS_DIR_NAME)
-        self.pages_path = os.path.join(self.data_path, PAGES_DIR_NAME)
+        cls.timestamp = timestamp
+        cls.data_path = os.path.join(cls.temp_base_dir, DATA_DIR_NAME, timestamp)
+        cls.listings_path = os.path.join(cls.data_path, LISTINGS_DIR_NAME)
+        cls.pages_path = os.path.join(cls.data_path, PAGES_DIR_NAME)
+        cls.logs_path = os.path.join(cls.data_path, LOG_DIR_NAME)
 
-        # Yield test data to all test methods - this creates the handoff point
-        # between setup and teardown phases. The dictionary contains all paths
-        # and metadata that test methods need to validate file creation results.
-        yield {
-            "timestamp": timestamp,  # When scraping started (for reference)
-            "data_path": self.data_path,  # Main data directory path
-            "listings_path": self.listings_path,  # CSV and HTML listing files path
-            "pages_path": self.pages_path,  # Individual initiative pages path
-        }
+    @classmethod
+    def teardown_class(cls):
+        """Cleanup class-level resources that runs once after all tests."""
 
-        # Cleanup after all tests
-        if os.path.exists(self.temp_base_dir):
-            shutil.rmtree(self.temp_base_dir)
+        if hasattr(cls, "temp_base_dir") and os.path.exists(cls.temp_base_dir):
 
-    def test_directory_structure_created(self, setup_scraping):
+            shutil.rmtree(cls.temp_base_dir)
+            print(f"Cleaned up temporary directory: {cls.temp_base_dir}")
+
+    def test_debug_fixture(self):
+        """Debug test to see setup output."""
+
+        print("Debug - setup completed successfully")
+        print(f"Timestamp: {self.timestamp}")
+        print(f"Data path: {self.data_path}")
+        print(f"Listings path: {self.listings_path}")
+        print(f"Pages path: {self.pages_path}")
+
+    def test_directory_structure_created(self):
         """Test that all required directories are created."""
 
-        paths = setup_scraping
-
         # Check main directories exist
-        assert os.path.exists(paths["data_path"]), "Main data directory not created"
-        assert os.path.exists(paths["listings_path"]), "Listings directory not created"
-        assert os.path.exists(paths["pages_path"]), "Pages directory not created"
+        assert os.path.exists(self.data_path), "Main data directory not created"
+        assert os.path.exists(self.listings_path), "Listings directory not created"
+        assert os.path.exists(self.pages_path), "Pages directory not created"
 
-        # Check logs directory exists
-        logs_path = os.path.join(paths["data_path"], LOG_DIR_NAME)
-        assert os.path.exists(logs_path), "Logs directory not created"
+        assert os.path.exists(self.logs_path), "Logs directory not created"
 
-    def test_listing_files_created(self, setup_scraping):
+    def test_listing_files_created(self):
         """Test that listing page files are created with correct content."""
 
-        paths = setup_scraping
-
         # Check CSV file exists
-        csv_file = os.path.join(paths["listings_path"], CSV_FILENAME)
+        csv_file = os.path.join(self.listings_path, CSV_FILENAME)
         assert os.path.exists(csv_file), "initiatives_list.csv not created"
 
         # Check HTML listing file exists (should be exactly 1 since we only scrape first page)
-        html_files = [
-            f for f in os.listdir(paths["listings_path"]) if f.endswith(".html")
-        ]
+        html_files = [f for f in os.listdir(self.listings_path) if f.endswith(".html")]
         assert (
             len(html_files) == MAX_PAGES_E2E_TEST
         ), f"Expected 1 HTML listing file, found {len(html_files)}"
@@ -188,11 +185,10 @@ class TestCreatedFiles:
             "Find_initiative_European_Citizens_Initiative_page_"
         ), f"HTML file name pattern incorrect: {html_file}"
 
-    def test_csv_content_structure(self, setup_scraping):
+    def test_csv_content_structure(self):
         """Test CSV file has correct structure and limited content."""
 
-        paths = setup_scraping
-        csv_file = os.path.join(paths["listings_path"], CSV_FILENAME)
+        csv_file = os.path.join(self.listings_path, CSV_FILENAME)
 
         with open(csv_file, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -212,59 +208,46 @@ class TestCreatedFiles:
 
         if rows:
             for col in required_columns:
-
                 assert (
                     col in rows[0].keys()
                 ), f"Required column '{col}' missing from CSV"
 
             # Check URL format
             for row in rows:
-
                 assert row[REQUIRED_CSV_COLUMNS.URL].startswith(
                     f"{BASE_URL}/initiatives/details/"
                 ), f"URL format incorrect: {row['url']}"
 
-    def test_initiative_pages_downloaded(self, setup_scraping):
+    def test_initiative_pages_downloaded(self):
         """Test that individual initiative pages are downloaded."""
-
-        paths = setup_scraping
 
         # Count HTML files in year directories
         html_count = 0
 
-        if os.path.exists(paths["pages_path"]):
-
-            for item in os.listdir(paths["pages_path"]):
-
-                year_path = os.path.join(paths["pages_path"], item)
+        if os.path.exists(self.pages_path):
+            for item in os.listdir(self.pages_path):
+                year_path = os.path.join(self.pages_path, item)
 
                 if os.path.isdir(year_path):
-
                     html_files = [
                         f for f in os.listdir(year_path) if f.endswith(".html")
                     ]
-
                     html_count += len(html_files)
 
         # Should have exactly 3 HTML files (one for each initiative)
         assert html_count == 3, f"Expected 3 initiative HTML files, found {html_count}"
 
-    def test_initiative_html_content(self, setup_scraping):
+    def test_initiative_html_content(self):
         """Test that downloaded HTML files contain valid content."""
-
-        paths = setup_scraping
 
         html_files = []
 
         # Collect all HTML files from year directories
-        for item in os.listdir(paths["pages_path"]):
-
-            year_path = os.path.join(paths["pages_path"], item)
+        for item in os.listdir(self.pages_path):
+            year_path = os.path.join(self.pages_path, item)
 
             if os.path.isdir(year_path):
-
                 for file in os.listdir(year_path):
-
                     if file.endswith(".html"):
                         html_files.append(os.path.join(year_path, file))
 
@@ -272,15 +255,12 @@ class TestCreatedFiles:
 
         # Test each HTML file
         for html_file in html_files:
-
             with open(html_file, "r", encoding="utf-8") as f:
                 content = f.read()
 
             # Basic HTML validation
             assert len(content) > 100, f"HTML file too short: {html_file}"
-
             assert "<html" in content.lower(), f"No HTML tag found in: {html_file}"
-
             assert (
                 "</html>" in content.lower()
             ), f"No closing HTML tag found in: {html_file}"
@@ -291,18 +271,13 @@ class TestCreatedFiles:
                 or "European Citizens' Initiative" in content
             ), f"File doesn't appear to be ECI content: {html_file}"
 
-    def test_file_naming_convention(self, setup_scraping):
+    def test_file_naming_convention(self):
         """Test that files follow the expected naming conventions."""
 
-        paths = setup_scraping
-
         # Check listing HTML file naming
-        html_files = [
-            f for f in os.listdir(paths["listings_path"]) if f.endswith(".html")
-        ]
+        html_files = [f for f in os.listdir(self.listings_path) if f.endswith(".html")]
 
         for html_file in html_files:
-
             assert html_file.startswith(
                 LISTING_HTML_PATTERN
             ), f"Listing HTML file naming incorrect: {html_file}"
@@ -312,21 +287,17 @@ class TestCreatedFiles:
             ), f"Listing file should end with .html: {html_file}"
 
         # Check initiative page file naming (should be <year>_<number_initiative>.html format)
-        for item in os.listdir(paths["pages_path"]):
-
-            year_path = os.path.join(paths["pages_path"], item)
+        for item in os.listdir(self.pages_path):
+            year_path = os.path.join(self.pages_path, item)
 
             if os.path.isdir(year_path):
                 # Directory should be a year (4 digits)
-
                 assert (
                     item.isdigit() and len(item) == 4
                 ), f"Year directory name incorrect: {item}"
 
                 for file in os.listdir(year_path):
-
                     if file.endswith(".html"):
-
                         # File should be year_number.html format
                         assert (
                             "_" in file

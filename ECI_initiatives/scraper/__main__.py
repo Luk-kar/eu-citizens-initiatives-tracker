@@ -35,7 +35,6 @@ def scrape_eci_initiatives() -> str:
 
     # Initialize logger with log directory relative to script location
     log_dir = os.path.join(script_dir, DATA_DIR_NAME, start_scraping, LOG_DIR_NAME)
-    logger = ScraperLogger(log_dir)
     logger.info(LOG_MESSAGES["scraping_start"].format(timestamp=start_scraping))
 
     base_url = BASE_URL
