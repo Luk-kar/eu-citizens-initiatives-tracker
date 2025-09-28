@@ -56,13 +56,7 @@ import pytest
 program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 sys.path.append(program_dir)
 
-from ECI_initiatives.scraper.__main__ import scrape_eci_initiatives
-from ECI_initiatives.scraper.data_parser import parse_initiatives_list_data
-from ECI_initiatives.scraper.crawler import (
-    scrape_all_initiatives_on_all_pages,
-    navigate_to_next_page,
-)
-
+# Safe imports (don't trigger logger creation)
 from ECI_initiatives.tests.consts import (
     BASE_URL,
     REQUIRED_CSV_COLUMNS,
@@ -82,7 +76,26 @@ class TestCreatedFiles:
 
     @classmethod
     def setup_class(cls):
-        """Setup class-level resources that runs once before all tests."""
+        """
+        Setup class-level resources that runs once before all tests.
+        
+        Imports are done here rather than at module level to avoid
+        log file creation during module loading, allowing the session
+        fixture to properly track and clean up test artifacts.
+        """
+        # Import scraper modules at setup time
+        from ECI_initiatives.scraper.__main__ import scrape_eci_initiatives
+        from ECI_initiatives.scraper.data_parser import parse_initiatives_list_data
+        from ECI_initiatives.scraper.crawler import (
+            scrape_all_initiatives_on_all_pages,
+            navigate_to_next_page,
+        )
+        
+        # Store as class attributes for use in tests
+        cls.scrape_eci_initiatives = staticmethod(scrape_eci_initiatives)
+        cls.parse_initiatives_list_data = staticmethod(parse_initiatives_list_data)
+        cls.scrape_all_initiatives_on_all_pages = staticmethod(scrape_all_initiatives_on_all_pages)
+        cls.navigate_to_next_page = staticmethod(navigate_to_next_page)
 
         # Create temporary directories for testing
         cls.temp_base_dir = tempfile.mkdtemp(prefix="eci_test_")
@@ -128,7 +141,7 @@ class TestCreatedFiles:
             mock_abspath.return_value = cls.temp_base_dir
 
             # Run the scraping function
-            timestamp = scrape_eci_initiatives()
+            timestamp = cls.scrape_eci_initiatives()
 
         # Store results for tests
         cls.timestamp = timestamp
