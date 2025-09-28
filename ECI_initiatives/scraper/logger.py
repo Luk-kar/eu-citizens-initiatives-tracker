@@ -4,34 +4,29 @@ import os
 import datetime
 
 # scraper
-from .consts import LOG_DIR_NAME
+from .consts import LOG_DIR
 
-
-class Singleton:
-    """Base singleton class that can be inherited by other classes."""
-
-    def __new__(cls):
-        if not hasattr(cls, "_instance"):
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-
-class ScraperLogger(Singleton):
+class ScraperLogger:
     """
     Logger class for ECI scraper with file and console output.
     (Singleton) - ensures only one logger instance exists across the application.
     """
+    _instance = None
+    _initialized = False
 
-    def __new__(cls):
-        if not hasattr(cls, "instance"):
-            cls.instance = super(ScraperLogger, cls).__new__(cls)
-        return cls.instance
+    def __new__(cls, log_dir: str = None):
+        if cls._instance is None:
+            cls._instance = super(ScraperLogger, cls).__new__(cls)
+        return cls._instance
 
     def __init__(self, log_dir: str = None):
-
+        # Prevent re-initialization of singleton
+        if ScraperLogger._initialized:
+            return
+            
         self.logger = logging.getLogger("ECIScraper")
         self.logger.setLevel(logging.DEBUG)
-        self.log_dir = LOG_DIR_NAME
+        self.log_dir = log_dir or LOG_DIR
 
         # Clear existing handlers to avoid duplicates
         if self.logger.hasHandlers():
@@ -61,6 +56,9 @@ class ScraperLogger(Singleton):
         )
         console_handler.setFormatter(console_formatter)
         self.logger.addHandler(console_handler)
+        
+        # Mark as initialized
+        ScraperLogger._initialized = True
 
     def debug(self, message: str):
         self.logger.debug(message)
@@ -77,5 +75,4 @@ class ScraperLogger(Singleton):
     def critical(self, message: str):
         self.logger.critical(message)
 
-
-logger = ScraperLogger()
+logger = ScraperLogger(LOG_DIR)

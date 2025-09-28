@@ -1,6 +1,8 @@
-"""
-Configuration constants for ECI (European Citizens' Initiative) scraper.
-"""
+# python
+import datetime
+import os
+
+START_SCRAPING = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 # URLs and Routes
 BASE_URL = "https://citizens-initiative.europa.eu"
@@ -11,6 +13,8 @@ DATA_DIR_NAME = "data"
 LOG_DIR_NAME = "logs"
 LISTINGS_DIR_NAME = "listings"
 PAGES_DIR_NAME = "initiative_pages"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_DIR = os.path.join(SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, LOG_DIR_NAME)
 
 # Timing Configuration (in seconds)
 WAIT_DYNAMIC_CONTENT = (1.5, 1.9)

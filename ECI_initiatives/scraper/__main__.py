@@ -10,9 +10,10 @@ from .file_ops import setup_scraping_dirs, write_initiatives_csv
 from .statistics import display_completion_summary, gather_scraping_statistics
 from .browser import initialize_browser
 from .consts import (
+    START_SCRAPING,
+    SCRIPT_DIR,
     BASE_URL,
     DATA_DIR_NAME,
-    LOG_DIR_NAME,
     LISTINGS_DIR_NAME,
     PAGES_DIR_NAME,
     CSV_FILENAME,
@@ -28,22 +29,16 @@ def scrape_eci_initiatives() -> str:
         str: Timestamp string of when scraping started
     """
 
-    start_scraping = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    # Get the directory where this script is located
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Initialize logger with log directory relative to script location
-    log_dir = os.path.join(script_dir, DATA_DIR_NAME, start_scraping, LOG_DIR_NAME)
-    logger.info(LOG_MESSAGES["scraping_start"].format(timestamp=start_scraping))
+    logger.info(LOG_MESSAGES["scraping_start"].format(timestamp=START_SCRAPING))
 
     base_url = BASE_URL
 
     # Create directories relative to script location
     list_dir = os.path.join(
-        script_dir, DATA_DIR_NAME, start_scraping, LISTINGS_DIR_NAME
+        SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, LISTINGS_DIR_NAME
     )
-    pages_dir = os.path.join(script_dir, DATA_DIR_NAME, start_scraping, PAGES_DIR_NAME)
+    pages_dir = os.path.join(SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, PAGES_DIR_NAME)
     setup_scraping_dirs(list_dir, pages_dir)
 
     driver = initialize_browser()
@@ -66,13 +61,13 @@ def scrape_eci_initiatives() -> str:
         failed_urls = []
 
     display_completion_summary(
-        start_scraping,
+        START_SCRAPING,
         all_initiative_pages_catalog,
         saved_page_listing_paths,
         failed_urls,
     )
 
-    return start_scraping
+    return START_SCRAPING
 
 
 def save_and_download_initiatives(
