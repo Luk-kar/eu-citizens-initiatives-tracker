@@ -28,7 +28,7 @@ since external websites can change unpredictably,
 and keeps the test reliable by avoiding dependencies on
 specific website content that may vary over time.
 
-It should take between 3.5 and 4 minutes to complete.
+It should take between 30 seconds and 1 minute to complete.
 
 The test validates:
 
