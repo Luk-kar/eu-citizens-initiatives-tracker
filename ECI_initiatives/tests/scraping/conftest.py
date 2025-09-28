@@ -22,7 +22,7 @@ def cleanup_log_directories():
     timestamp_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$')
     
     # Get the base directory where log directories are created
-    script_dir = Path(__file__).parent.parent.parent.parent.absolute()
+    script_dir = Path(__file__).parent.parent.parent.absolute() # Where the ECI_initiatives/ is
     data_base_dir = script_dir / "data"
 
     print(f"\n{DIVIDER_START}")
