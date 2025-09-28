@@ -28,18 +28,7 @@ program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 
 sys.path.append(program_dir)
 
-from ECI_initiatives.scraper.__main__ import (
-    save_and_download_initiatives,
-)
-from ECI_initiatives.scraper.data_parser import (
-    parse_initiatives_list_data,
-)
-from ECI_initiatives.scraper.crawler import (
-    scrape_all_initiatives_on_all_pages,
-)
-
-# Consts
-
+# Safe imports (don't trigger logger creation)
 from ECI_initiatives.tests.consts import (
     LISTINGS_HTML_DIR,
     CSV_FILE_PATH,
@@ -48,12 +37,17 @@ from ECI_initiatives.tests.consts import (
     SAMPLE_LISTING_FILES,
 )
 
+
 # ===== SHARED FIXTURES (used by multiple test classes) =====
 
 
 @pytest.fixture(scope="session")
 def parsed_test_data():
     """Parse test HTML files once and reuse across all tests."""
+    
+    # Import here to avoid early logger initialization
+    from ECI_initiatives.scraper.data_parser import parse_initiatives_list_data
+    
     with patch("ECI_initiatives.scraper.data_parser.logger"):
         all_initiatives = []
 
@@ -88,6 +82,19 @@ def reference_data():
 
 class TestCsvFileOperations:
     """Test CSV data validation functionality."""
+
+    @classmethod
+    def setup_class(cls):
+        """
+        Import modules and set up class attributes.
+        
+        Imports are done here rather than at module level to avoid
+        log file creation during module loading, allowing the session
+        fixture to properly track and clean up test artifacts.
+        """
+        from ECI_initiatives.scraper.__main__ import save_and_download_initiatives
+        
+        cls.save_and_download_initiatives = staticmethod(save_and_download_initiatives)
 
     @patch("ECI_initiatives.scraper.__main__.download_initiative_pages")
     @patch("ECI_initiatives.scraper.__main__.logger")
@@ -125,7 +132,7 @@ class TestCsvFileOperations:
             os.makedirs(pages_dir, exist_ok=True)
 
             # Call the function to test
-            save_and_download_initiatives(list_dir, pages_dir, test_initiative_data)
+            self.save_and_download_initiatives(list_dir, pages_dir, test_initiative_data)
 
             # Check that CSV file was created
             csv_file_path = os.path.join(list_dir, "initiatives_list.csv")
@@ -217,7 +224,7 @@ class TestCsvFileOperations:
             os.makedirs(pages_dir, exist_ok=True)
 
             # Test the actual function from main module
-            save_and_download_initiatives(
+            self.save_and_download_initiatives(
                 list_dir, pages_dir, test_initiative_data_with_duplicates
             )
 
@@ -308,6 +315,21 @@ class TestHtmlParsingBehaviour:
 class TestScrapingWorkflow:
     """Test data completeness and accuracy."""
 
+    @classmethod
+    def setup_class(cls):
+        """
+        Import modules and set up class attributes.
+        
+        Imports are done here rather than at module level to avoid
+        log file creation during module loading, allowing the session
+        fixture to properly track and clean up test artifacts.
+        """
+        from ECI_initiatives.scraper.crawler import scrape_all_initiatives_on_all_pages
+        from ECI_initiatives.scraper.data_parser import parse_initiatives_list_data
+        
+        cls.scrape_all_initiatives_on_all_pages = staticmethod(scrape_all_initiatives_on_all_pages)
+        cls.parse_initiatives_list_data = staticmethod(parse_initiatives_list_data)
+
     def test_initiative_count_matches_reference(self, parsed_test_data, reference_data):
         """Compare initiative count with reference data."""
         assert len(parsed_test_data) >= len(
@@ -383,7 +405,7 @@ class TestScrapingWorkflow:
             ]
 
             with tempfile.TemporaryDirectory() as temp_dir:
-                all_data, saved_paths = scrape_all_initiatives_on_all_pages(
+                all_data, saved_paths = self.scrape_all_initiatives_on_all_pages(
                     mock_driver, BASE_URL, temp_dir
                 )
 
@@ -420,7 +442,7 @@ class TestScrapingWorkflow:
                 with open(page_path, "r", encoding="utf-8") as f:
                     page_content = f.read()
 
-                initiatives = parse_initiatives_list_data(page_content, BASE_URL)
+                initiatives = self.parse_initiatives_list_data(page_content, BASE_URL)
 
                 # Extract non-empty statuses
                 page_statuses = [

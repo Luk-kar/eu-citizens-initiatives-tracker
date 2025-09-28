@@ -13,21 +13,9 @@ from selenium.webdriver.chrome.options import Options
 
 # Local
 program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
-
 sys.path.append(program_dir)
 
-## scraper
-from ECI_initiatives.scraper.browser import initialize_browser
-from ECI_initiatives.scraper.crawler import (
-    scrape_all_initiatives_on_all_pages,
-    scrape_single_listing_page,
-)
-from ECI_initiatives.scraper.downloader import (
-    download_initiative_pages,
-    download_single_initiative,
-)
-
-## tests
+# Safe imports (don't trigger logger creation)
 from ECI_initiatives.tests.consts import (
     REQUIRED_CSV_COLUMNS,
     SAMPLE_INITIATIVE_DATA,
@@ -35,9 +23,36 @@ from ECI_initiatives.tests.consts import (
     LOG_MESSAGES,
 )
 
-
 class TestBrowserInitializationAndCleanup:
     """Test browser management functionality."""
+
+    @classmethod
+    def setup_class(cls):
+        """
+        Import modules and set up class attributes.
+        
+        Imports are done here rather than at module level to avoid
+        log file creation during module loading, allowing the session
+        fixture to properly track and clean up test artifacts.
+        """
+
+        from ECI_initiatives.scraper.browser import initialize_browser
+        from ECI_initiatives.scraper.crawler import (
+            scrape_all_initiatives_on_all_pages,
+        )
+        from ECI_initiatives.scraper.downloader import (
+            download_initiative_pages,
+        )
+        from ECI_initiatives.tests.consts import (
+            REQUIRED_CSV_COLUMNS,
+            SAMPLE_INITIATIVE_DATA,
+            BASE_URL,
+            LOG_MESSAGES,
+        )
+        
+        cls.initialize_browser = staticmethod(initialize_browser)
+        cls.scrape_all_initiatives_on_all_pages = staticmethod(scrape_all_initiatives_on_all_pages)
+        cls.download_initiative_pages = staticmethod(download_initiative_pages)
 
     @patch("ECI_initiatives.scraper.browser.webdriver.Chrome")
     @patch("ECI_initiatives.scraper.browser.logger")
@@ -49,7 +64,7 @@ class TestBrowserInitializationAndCleanup:
         mock_chrome.return_value = mock_driver
 
         # Act
-        driver = initialize_browser()
+        driver = self.initialize_browser()
 
         # Assert - Check that Chrome webdriver was called with options
         mock_chrome.assert_called_once()
@@ -77,7 +92,7 @@ class TestBrowserInitializationAndCleanup:
         mock_chrome.return_value = mock_driver
 
         # Act
-        initialize_browser()
+        self.initialize_browser()
 
         # Assert - Check that Chrome was called with proper options
         mock_chrome.assert_called_once()
@@ -102,7 +117,7 @@ class TestBrowserInitializationAndCleanup:
 
         # Act & Assert
         with pytest.raises(WebDriverException):
-            initialize_browser()
+            self.initialize_browser()
 
         # Verify error was attempted to be logged
         mock_logger.info.assert_called_with(LOG_MESSAGES["browser_init"])
@@ -140,7 +155,7 @@ class TestBrowserInitializationAndCleanup:
             initiative_data = [SAMPLE_INITIATIVE_DATA.copy()]
 
             # Act
-            updated_data, failed_urls = download_initiative_pages(
+            updated_data, failed_urls = self.download_initiative_pages(
                 "/test/dir", initiative_data
             )
 
@@ -173,7 +188,7 @@ class TestBrowserInitializationAndCleanup:
 
             # Act & Assert
             with pytest.raises(Exception):
-                scrape_all_initiatives_on_all_pages(mock_driver, BASE_URL, "/test/dir")
+                self.scrape_all_initiatives_on_all_pages(mock_driver, BASE_URL, "/test/dir")
 
             # The function should still call quit in the finally block
             # Note: This test verifies the pattern exists in the actual code

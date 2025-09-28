@@ -1,0 +1,8 @@
+status,example_url,state_type,description,classification_date
+Answered initiative,https://citizens-initiative.europa.eu/initiatives/details/2019/000007_en,Final,European Commission has completed examination and provided formal response,2025-09-19
+Unsuccessful collection,https://citizens-initiative.europa.eu/initiatives/details/2023/000008_en,Final,Failed to collect required 1 million signatures within 12-month period,2025-09-19
+Withdrawn,https://citizens-initiative.europa.eu/initiatives/details/2024/000005_en,Final,Organizers voluntarily withdrew initiative,2025-09-19
+Registered,https://citizens-initiative.europa.eu/initiatives/details/2025/000002_en,Changeable,Commission approved initiative for signature collection,2025-09-19
+Collection ongoing,https://citizens-initiative.europa.eu/initiatives/details/2025/000003_en,Changeable,Active signature collection phase (up to 12 months),2025-09-19
+Verification,https://citizens-initiative.europa.eu/initiatives/details/2024/000007_en,Changeable,National authorities verifying collected signatures (up to 3 months),2025-09-19
+Valid initiative,https://citizens-initiative.europa.eu/initiatives/details/2024/000004_en,Changeable,Successfully verified and submitted to Commission for examination,2025-09-19

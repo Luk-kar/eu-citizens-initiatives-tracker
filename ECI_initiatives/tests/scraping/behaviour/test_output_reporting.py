@@ -13,17 +13,9 @@ import pytest
 
 # Local
 program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
-
 sys.path.append(program_dir)
 
-from ECI_initiatives.scraper.statistics import (
-    display_completion_summary,
-    gather_scraping_statistics,
-    display_summary_info,
-    display_results_and_files,
-)
-
-# Const
+# Safe imports (don't trigger logger creation)
 from ECI_initiatives.tests.consts import (
     COMMON_STATUSES,
     REQUIRED_CSV_COLUMNS,
@@ -35,6 +27,27 @@ from ECI_initiatives.tests.consts import (
 
 class TestCompletionSummaryAccuracy:
     """Test completion summary and statistics accuracy."""
+
+    @classmethod
+    def setup_class(cls):
+        """
+        Import modules and set up class attributes.
+        
+        Imports are done here rather than at module level to avoid
+        log file creation during module loading, allowing the session
+        fixture to properly track and clean up test artifacts.
+        """
+        from ECI_initiatives.scraper.statistics import (
+            display_completion_summary,
+            gather_scraping_statistics,
+            display_summary_info,
+            display_results_and_files,
+        )
+        
+        cls.display_completion_summary = staticmethod(display_completion_summary)
+        cls.gather_scraping_statistics = staticmethod(gather_scraping_statistics)
+        cls.display_summary_info = staticmethod(display_summary_info)
+        cls.display_results_and_files = staticmethod(display_results_and_files)
 
     @patch("ECI_initiatives.scraper.statistics.logger")
     @patch("ECI_initiatives.scraper.statistics.gather_scraping_statistics")
@@ -76,7 +89,7 @@ class TestCompletionSummaryAccuracy:
         mock_gather_stats.return_value = expected_stats
 
         # Act
-        display_completion_summary(
+        self.display_completion_summary(
             start_scraping, initiative_data, saved_page_paths, failed_urls
         )
 
@@ -127,7 +140,7 @@ class TestCompletionSummaryAccuracy:
         with patch("csv.DictReader") as mock_csv_reader:
             mock_csv_reader.return_value = test_csv_data
             # Act
-            stats = gather_scraping_statistics(start_scraping, [], [])
+            stats = self.gather_scraping_statistics(start_scraping, [], [])
 
             # Assert
             expected_counter = Counter(expected_counts)
@@ -152,7 +165,7 @@ class TestCompletionSummaryAccuracy:
         stats = {"status_counter": Counter({"Registered": 2}), "total_initiatives": 2}
 
         # Act
-        display_summary_info(start_scraping, saved_page_paths, stats)
+        self.display_summary_info(start_scraping, saved_page_paths, stats)
 
         # Assert
         mock_datetime.now.assert_called_once()
@@ -183,7 +196,7 @@ class TestCompletionSummaryAccuracy:
         stats = {"downloaded_count": 3, "total_initiatives": 3, "failed_count": 0}
 
         # Act
-        display_results_and_files(start_scraping, saved_page_paths, failed_urls, stats)
+        self.display_results_and_files(start_scraping, saved_page_paths, failed_urls, stats)
 
         # Assert
         # Verify that the saved paths are reported correctly
@@ -247,7 +260,7 @@ class TestCompletionSummaryAccuracy:
             mock_isdir.return_value = True
 
             # Act
-            result = gather_scraping_statistics(
+            result = self.gather_scraping_statistics(
                 start_scraping, initiative_data, failed_urls
             )
 
@@ -277,7 +290,7 @@ class TestCompletionSummaryAccuracy:
         stats = {"downloaded_count": 2, "total_initiatives": 4, "failed_count": 2}
 
         # Act
-        display_results_and_files(start_scraping, saved_page_paths, failed_urls, stats)
+        self.display_results_and_files(start_scraping, saved_page_paths, failed_urls, stats)
 
         # Assert
         mock_logger.info.assert_any_call(
@@ -302,7 +315,7 @@ class TestCompletionSummaryAccuracy:
         stats = {"downloaded_count": 2, "total_initiatives": 2, "failed_count": 0}
 
         # Act
-        display_results_and_files(start_scraping, saved_page_paths, failed_urls, stats)
+        self.display_results_and_files(start_scraping, saved_page_paths, failed_urls, stats)
 
         # Assert
         mock_logger.info.assert_any_call(
@@ -337,7 +350,7 @@ class TestCompletionSummaryAccuracy:
             mock_datetime.now.return_value = mock_now
 
             # Act
-            display_summary_info(start_scraping, saved_page_paths, stats)
+            self.display_summary_info(start_scraping, saved_page_paths, stats)
 
             # Assert
             mock_logger.info.assert_any_call(

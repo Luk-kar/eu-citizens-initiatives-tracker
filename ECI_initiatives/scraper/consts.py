@@ -1,6 +1,7 @@
 # python
 import datetime
 import os
+from pathlib import Path
 
 START_SCRAPING = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -13,7 +14,7 @@ DATA_DIR_NAME = "data"
 LOG_DIR_NAME = "logs"
 LISTINGS_DIR_NAME = "listings"
 PAGES_DIR_NAME = "initiative_pages"
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_DIR = Path(__file__).parent.parent.absolute()
 LOG_DIR = os.path.join(SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, LOG_DIR_NAME)
 
 # Timing Configuration (in seconds)
