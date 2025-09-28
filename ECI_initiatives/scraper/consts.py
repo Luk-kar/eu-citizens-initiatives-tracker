@@ -3,6 +3,7 @@ import datetime
 import os
 from pathlib import Path
 
+# The program is so small that we can treat it as init during running it
 START_SCRAPING = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 # URLs and Routes

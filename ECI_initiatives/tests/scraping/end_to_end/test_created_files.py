@@ -83,6 +83,7 @@ class TestCreatedFiles:
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
+
         # Import scraper modules at setup time
         from ECI_initiatives.scraper.__main__ import scrape_eci_initiatives
         from ECI_initiatives.scraper.data_parser import parse_initiatives_list_data
@@ -124,7 +125,7 @@ class TestCreatedFiles:
 
             return False
 
-        # Apply mocks and run scraping
+        # Apply mocks and run scraping - using REAL directories
         with patch.object(
             sys.modules["ECI_initiatives.scraper.crawler"],
             "parse_initiatives_list_data",
@@ -133,31 +134,30 @@ class TestCreatedFiles:
             sys.modules["ECI_initiatives.scraper.crawler"],
             "navigate_to_next_page",
             side_effect=mock_navigate_to_next_page_first_only,
-        ), patch(
-            "ECI_initiatives.scraper.__main__.os.path.dirname"
-        ) as mock_abspath:
+        ):
 
-            # Mock the script directory to use our temp directory
-            mock_abspath.return_value = cls.temp_base_dir
-
-            # Run the scraping function
+            # Run the scraping function - saves to real ECI_initiatives/data/ directory
             timestamp = cls.scrape_eci_initiatives()
 
-        # Store results for tests
+        # Store results for tests - point to REAL data directory
         cls.timestamp = timestamp
-        cls.data_path = os.path.join(cls.temp_base_dir, DATA_DIR_NAME, timestamp)
-        cls.listings_path = os.path.join(cls.data_path, LISTINGS_DIR_NAME)
-        cls.pages_path = os.path.join(cls.data_path, PAGES_DIR_NAME)
-        cls.logs_path = os.path.join(cls.data_path, LOG_DIR_NAME)
+        
+        # Get the real script directory (where ECI_initiatives project is located)
+        script_dir = Path(__file__).parent.parent.parent.parent.absolute()  # Go up to ECI_initiatives/
+        real_data_dir = script_dir / "data"
+        
+        cls.data_path = real_data_dir / timestamp
+        cls.listings_path = cls.data_path / LISTINGS_DIR_NAME
+        cls.pages_path = cls.data_path / PAGES_DIR_NAME
+        cls.logs_path = cls.data_path / LOG_DIR_NAME
 
     @classmethod
     def teardown_class(cls):
         """Cleanup class-level resources that runs once after all tests."""
 
-        if hasattr(cls, "temp_base_dir") and os.path.exists(cls.temp_base_dir):
-
-            shutil.rmtree(cls.temp_base_dir)
-            print(f"Cleaned up temporary directory: {cls.temp_base_dir}")
+        # No cleanup needed - the conftest.py fixture will handle cleaning up the real directories
+        print(f"\n\nTest completed. Files created in:\n{cls.data_path}")
+        print("Note: Files will be cleaned up by the session fixture.")
 
     def test_debug_fixture(self):
         """Debug test to see setup output."""
