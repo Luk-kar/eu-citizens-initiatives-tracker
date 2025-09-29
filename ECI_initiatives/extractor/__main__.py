@@ -399,7 +399,7 @@ class ECIDataProcessor:
         session_path = self.find_latest_scrape_session()
 
         if not session_path:
-            print("No scraping session found")
+            print("No scraping session found in:\n"+ self.last_session_scraping_dir)
             return
         
         self.logger = self._setup_logger()
