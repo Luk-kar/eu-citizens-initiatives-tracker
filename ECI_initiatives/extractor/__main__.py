@@ -290,11 +290,12 @@ class ECIDataProcessor:
     def __init__(self, data_root: str = "/ECI_initiatives/data"):
 
         current_file = Path(__file__)
-        project_root = current_file.parent.parent  # Move 2 directories up
+        project_root = current_file.parent.parent.parent  # Move 3 directories up
         self.data_root = project_root / data_root.lstrip('/')
+        self.last_session_scraping_dir = None
 
         self.parser = ECIHTMLParser()
-        self.logger = self._setup_logger()
+        self.logger = None
     
     def _setup_logger(self) -> logging.Logger:
         """Configure logging"""
@@ -302,7 +303,7 @@ class ECIDataProcessor:
         logger.setLevel(logging.INFO)
         
         # Create logs directory if it doesn't exist
-        log_dir = self.data_root / "logs"
+        log_dir = self.last_session_scraping_dir / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         
         # File handler
@@ -334,7 +335,11 @@ class ECIDataProcessor:
                            if d.is_dir() and re.match(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}', d.name)]
 
             if session_dirs:
-                return max(session_dirs, key=lambda x: x.name)
+
+                last_session = max(session_dirs, key=lambda x: x.name)
+                self.last_session_scraping_dir = last_session
+
+                return last_session
 
         except Exception as e:
             self.logger.error(f"Error finding scrape sessions: {e}")
@@ -352,6 +357,7 @@ class ECIDataProcessor:
         
         # Process each year directory
         for year_dir in sorted(initiative_pages_dir.iterdir()):
+
             if not year_dir.is_dir():
                 continue
                 
@@ -388,14 +394,16 @@ class ECIDataProcessor:
     
     def run(self, output_filename: str = None) -> None:
         """Main processing pipeline"""
-        self.logger.info("Starting ECI data processing")
-        
+
         # Find latest scraping session
         session_path = self.find_latest_scrape_session()
+
         if not session_path:
-            self.logger.error("No scraping session found")
+            print("No scraping session found")
             return
         
+        self.logger = self._setup_logger()
+        self.logger.info("Starting ECI data processing")
         self.logger.info(f"Processing session: {session_path.name}")
         
         # Process all initiative pages
