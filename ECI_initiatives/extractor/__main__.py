@@ -8,6 +8,7 @@ import os
 import csv
 import re
 import logging
+import json
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Union
@@ -35,7 +36,10 @@ class ECIInitiative:
     organizer_country: Optional[str]
     legal_entity: Optional[str]
     funding_sources: Optional[str]
+
     signatures_collected: Optional[str]
+    signatures_collected_by_country: Optional[str]
+
     countries_threshold_met: Optional[str]
     commission_response_date: Optional[str]
     hearing_date: Optional[str]
@@ -76,6 +80,8 @@ class ECIHTMLParser:
             
             reg_number = self._extract_registration_number(file_path.name)
             timeline_data = self._extract_timeline_data(soup)
+            title = self._extract_title(soup)
+            url = self._construct_url(reg_number)
             
             initiative_data = ECIInitiative(
                 registration_number=reg_number,
@@ -95,7 +101,10 @@ class ECIHTMLParser:
                 organizer_country=self._extract_organizer_country(soup),
                 legal_entity=self._extract_legal_entity(soup),
                 funding_sources=self._extract_funding_sources(soup),
+
                 signatures_collected=self._extract_signatures_collected(soup),
+                signatures_collected_by_country=self._extract_signatures_by_country(soup, file_path, title, url),
+
                 countries_threshold_met=self._extract_countries_threshold_met(soup),
                 commission_response_date=self._extract_commission_response_date(soup),
                 hearing_date=self._extract_hearing_date(soup),
@@ -109,7 +118,8 @@ class ECIHTMLParser:
             return initiative_data
             
         except Exception as e:
-            self.logger.error(f"Error parsing {file_path}: {str(e)}")
+            raise ValueError(f"Error parsing {file_path}:\n{str(e)}") from e
+            # self.logger.error(f"Error parsing {file_path}: {str(e)}")
             return None
     
     def _extract_registration_number(self, filename: str) -> str:
@@ -240,7 +250,7 @@ class ECIHTMLParser:
 
             signatures_text = signatures_element.get_text().strip()
             numbers = re.findall(r'\d+', signatures_text.replace(',', '').replace(' ', ''))
-            
+
             if numbers:
                 return ''.join(numbers)
         
@@ -342,6 +352,75 @@ class ECIHTMLParser:
 
         return title_mapping.get(title)
 
+    def _extract_signatures_by_country(self, soup: BeautifulSoup, file_path: Path, title: str, url: str) -> Optional[str]:
+        """Extract country-level signature data as JSON"""
+        
+        signatures_table = soup.find('table', class_='ecl-table')
+        if not signatures_table:
+            return None
+        
+        country_data = {}
+        
+        # Find table rows (skip header)
+        rows = signatures_table.find_all('tr', class_='ecl-table__row')
+        
+        for row in rows:
+            cells = row.find_all('td', class_='ecl-table__cell')
+            
+            # Skip rows that don't have 4 cells or contain total
+            if len(cells) != 4:
+                continue
+                
+            country_text = cells[0].get_text().strip()
+            
+            # Skip the total row
+            if 'total number of signatories' in country_text.lower():
+                continue
+                
+            if not country_text:
+                continue
+            
+            # Extract data from cells
+            statements_of_support = cells[1].get_text().strip()
+            threshold = cells[2].get_text().strip()
+            percentage = cells[3].get_text().strip()
+            
+            # Check for missing data and log warnings
+            missing_fields = []
+            if not statements_of_support:
+                missing_fields.append("statements_of_support")
+            if not threshold:
+                missing_fields.append("threshold")
+            if not percentage:
+                missing_fields.append("percentage")
+            
+            if missing_fields:
+                self.logger.warning(
+                    f"Missing signature data - Country: {country_text}, "
+                    f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
+                    f"Missing fields: {', '.join(missing_fields)}"
+                )
+            
+            # Add country data (even if some fields are missing)
+            country_data[country_text] = {
+                "statements_of_support": statements_of_support,
+                "threshold": threshold,
+                "percentage": percentage
+            }
+        
+        # Return JSON string if we have data
+        if country_data:
+            try:
+                return json.dumps(country_data, ensure_ascii=False, separators=(',', ':'))
+            except Exception as e:
+                self.logger.error(
+                    f"Error serializing country data to JSON - "
+                    f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
+                    f"Error: {str(e)}"
+                )
+                return None
+        
+        return None
 
 class ECIDataProcessor:
     """Main processor for ECI data extraction"""
