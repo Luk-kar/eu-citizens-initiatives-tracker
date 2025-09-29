@@ -21,14 +21,16 @@ class ECIInitiative:
 
     registration_number: str
     title: str
-    title_en: str
     objective: str
-    objective_en: str
     status: str
-    registration_date: Optional[str]
-    collection_start_date: Optional[str]
-    collection_end_date: Optional[str]
-    url_en: str
+    url: str
+    
+    timeline_registered: Optional[str]
+    timeline_collection_start_date: Optional[str]
+    timeline_collection_closed: Optional[str] 
+    timeline_verification: Optional[str]
+    timeline_valid_initiative: Optional[str]
+
     organizer_representative: Optional[str]
     organizer_country: Optional[str]
     legal_entity: Optional[str]
@@ -51,6 +53,7 @@ class ECIHTMLParser:
     
     def _setup_logger(self) -> logging.Logger:
         """Configure logging for the parser"""
+
         logger = logging.getLogger('eci_parser')
         logger.setLevel(logging.INFO)
         
@@ -71,21 +74,24 @@ class ECIHTMLParser:
             
             soup = BeautifulSoup(content, 'html.parser')
             
-            # Extract registration number from filename
             reg_number = self._extract_registration_number(file_path.name)
+            timeline_data = self._extract_timeline_data(soup)
             
             initiative_data = ECIInitiative(
                 registration_number=reg_number,
                 title=self._extract_title(soup),
-                title_en=self._extract_title_en(soup),
                 objective=self._extract_objective(soup),
-                objective_en=self._extract_objective_en(soup),
                 status=self._extract_status(soup),
-                registration_date=self._extract_registration_date(soup),
-                collection_start_date=self._extract_collection_start_date(soup),
-                collection_end_date=self._extract_collection_end_date(soup),
-                url_en=self._construct_url_en(reg_number),
+                url=self._construct_url(reg_number),
+
+                timeline_registered=timeline_data.get('timeline_registered'),
+                timeline_collection_start_date=timeline_data.get('timeline_collection_start_date'),
+                timeline_collection_closed=timeline_data.get('timeline_collection_closed'),
+                timeline_verification=timeline_data.get('timeline_verification'),
+                timeline_valid_initiative=timeline_data.get('timeline_valid_initiative'),
+                
                 organizer_representative=self._extract_organizer_representative(soup),
+
                 organizer_country=self._extract_organizer_country(soup),
                 legal_entity=self._extract_legal_entity(soup),
                 funding_sources=self._extract_funding_sources(soup),
@@ -108,6 +114,7 @@ class ECIHTMLParser:
     
     def _extract_registration_number(self, filename: str) -> str:
         """Extract registration number from filename pattern YYYY_NNNNNN_en.html"""
+
         pattern = r'(\d{4})_(\d{6})_en\.html'
         match = re.match(pattern, filename)
         if match:
@@ -117,6 +124,7 @@ class ECIHTMLParser:
     
     def _extract_title(self, soup: BeautifulSoup) -> str:
         """Extract initiative title"""
+
         # Try meta tag first
         meta_title = soup.find('meta', {'name': 'dcterms.title'})
         if meta_title and meta_title.get('content'):
@@ -129,12 +137,9 @@ class ECIHTMLParser:
         
         return ""
     
-    def _extract_title_en(self, soup: BeautifulSoup) -> str:
-        """Extract English title (same as title for _en pages)"""
-        return self._extract_title(soup)
-    
     def _extract_objective(self, soup: BeautifulSoup) -> str:
         """Extract initiative objectives (max 1,100 characters)"""
+
         # Find objectives section
         objectives_section = soup.find('h2', string=re.compile(r'Objectives?', re.I))
         if objectives_section:
@@ -149,12 +154,9 @@ class ECIHTMLParser:
         
         return ""
     
-    def _extract_objective_en(self, soup: BeautifulSoup) -> str:
-        """Extract English objective (same as objective for _en pages)"""
-        return self._extract_objective(soup)
-    
     def _extract_status(self, soup: BeautifulSoup) -> str:
         """Extract current initiative status"""
+
         # Look for timeline current item
         current_status = soup.find(class_='ecl-timeline__item--current')
         if current_status:
@@ -174,32 +176,9 @@ class ECIHTMLParser:
         
         return ""
     
-    def _extract_registration_date(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract registration date from timeline"""
-        first_timeline_item = soup.find(class_='ecl-timeline__item')
-        if first_timeline_item:
-            date_element = first_timeline_item.find(class_='ecl-timeline__content')
-            if date_element:
-                return self._parse_date(date_element.get_text())
-        return None
-    
-    def _extract_collection_start_date(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract collection start date"""
-        collection_item = soup.find('li', {'id': '1'})  # Usually second timeline item
-        if collection_item:
-            date_element = collection_item.find(class_='ecl-timeline__content')
-            if date_element:
-                return self._parse_date(date_element.get_text())
-        return None
-    
-    def _extract_collection_end_date(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract or calculate collection end date"""
-        # Implementation depends on HTML structure
-        # Usually calculated as start_date + 12 months
-        return None
-    
-    def _construct_url_en(self, reg_number: str) -> str:
+    def _construct_url(self, reg_number: str) -> str:
         """Construct English URL from registration number"""
+
         if reg_number:
             year, number = reg_number.split('/')
             return f"https://citizens-initiative.europa.eu/initiatives/details/{year}/{number}_en"
@@ -207,26 +186,31 @@ class ECIHTMLParser:
     
     def _extract_organizer_representative(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract organizer representative name"""
+
         # Implementation depends on HTML structure
         return None
     
     def _extract_organizer_country(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract organizer country"""
+
         # Implementation depends on HTML structure
         return None
     
     def _extract_legal_entity(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract legal entity information"""
+
         # Implementation depends on HTML structure
         return None
     
     def _extract_funding_sources(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract funding sources"""
+
         # Implementation depends on HTML structure
         return None
     
     def _extract_signatures_collected(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract number of signatures collected"""
+
         signatures_element = soup.find(class_='ecl-counter__value')
         if signatures_element:
             signatures_text = signatures_element.get_text().strip()
@@ -238,26 +222,31 @@ class ECIHTMLParser:
     
     def _extract_countries_threshold_met(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract number of countries with threshold met"""
+
         # Implementation depends on HTML structure
         return None
     
     def _extract_commission_response_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract Commission response date"""
+
         # Implementation depends on HTML structure
         return None
     
     def _extract_hearing_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract public hearing date"""
+
         # Implementation depends on HTML structure
         return None
     
     def _extract_final_outcome(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract final outcome"""
+
         # Implementation depends on HTML structure
         return None
     
     def _extract_languages_available(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract available languages"""
+
         language_links = soup.find_all(class_='ecl-site-header__language-link')
         if language_links:
             languages = []
@@ -272,16 +261,60 @@ class ECIHTMLParser:
     
     def _extract_last_updated(self, soup: BeautifulSoup) -> str:
         """Extract last updated timestamp"""
+
         meta_modified = soup.find('meta', {'name': 'dcterms.modified'})
         if meta_modified and meta_modified.get('content'):
             return meta_modified['content']
         return datetime.now().isoformat()
     
-    def _parse_date(self, date_text: str) -> Optional[str]:
-        """Parse date from various formats to ISO format"""
-        # Implementation for date parsing
-        # Handle various European date formats
-        return None
+    def _extract_timeline_data(self, soup: BeautifulSoup) -> Dict[str, Optional[str]]:
+        """Extract timeline information from ECL timeline"""
+
+        timeline_data = {}
+        
+        # Find the timeline container
+        timeline = soup.find('ol', class_='ecl-timeline')
+        if not timeline:
+            return timeline_data
+        
+        # Extract all timeline items
+        timeline_items = timeline.find_all('li', class_='ecl-timeline__item')
+        
+        for item in timeline_items:
+            # Extract title
+            title_element = item.find('div', class_='ecl-timeline__title')
+            if not title_element:
+                continue
+                
+            title = title_element.get_text().strip()
+            
+            # Extract content (date) if available
+            content_element = item.find('div', class_='ecl-timeline__content')
+            content = content_element.get_text().strip() if content_element else None
+            
+            # Normalize title to match our field names
+            normalized_title = self._normalize_timeline_title(title)
+
+            if normalized_title:
+                timeline_data[normalized_title] = content
+        
+        return timeline_data
+
+    def _normalize_timeline_title(self, title: str) -> Optional[str]:
+        """Normalize timeline titles to standard field names"""
+
+        title_mapping = {
+            'Registered': 'timeline_registered',
+            'Collection start date': 'timeline_collection_start_date',
+            'Collection closed': 'timeline_collection_closed',
+            'Verification': 'timeline_verification',
+            'Valid initiative': 'timeline_valid_initiative',
+            # Add more mappings as needed
+            'Collection ongoing': 'timeline_collection_start_date',  # Map ongoing to start date
+            'Registration': 'timeline_registered',
+        }
+
+        return title_mapping.get(title)
 
 
 class ECIDataProcessor:
@@ -299,6 +332,7 @@ class ECIDataProcessor:
     
     def _setup_logger(self) -> logging.Logger:
         """Configure logging"""
+
         logger = logging.getLogger('eci_processor')
         logger.setLevel(logging.INFO)
         
@@ -348,6 +382,7 @@ class ECIDataProcessor:
     
     def process_initiative_pages(self, session_path: Path) -> List[ECIInitiative]:
         """Process all initiative HTML pages in a session"""
+
         initiatives = []
         initiative_pages_dir = session_path / "initiative_pages"
         
@@ -374,6 +409,7 @@ class ECIDataProcessor:
     
     def save_to_csv(self, initiatives: List[ECIInitiative], output_path: Path) -> None:
         """Save initiatives data to CSV file"""
+
         try:
             with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
                 if not initiatives:
@@ -421,6 +457,7 @@ class ECIDataProcessor:
 
 def main():
     """Main entry point"""
+
     processor = ECIDataProcessor()
     processor.run()
 
