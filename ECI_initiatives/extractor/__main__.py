@@ -23,6 +23,7 @@ class ECIInitiative:
     registration_number: str
     title: str
     objective: str
+    annex: Optional[str]
     status: str
     url: str
     
@@ -35,10 +36,13 @@ class ECIInitiative:
     organizer_representative: Optional[str]
     organizer_country: Optional[str]
     legal_entity: Optional[str]
-    funding_sources: Optional[str]
+
+    funding_total: Optional[str]
+    funding_by: Optional[str]
 
     signatures_collected: Optional[str]
     signatures_collected_by_country: Optional[str]
+
 
     countries_threshold_met: Optional[str]
     commission_response_date: Optional[str]
@@ -82,11 +86,12 @@ class ECIHTMLParser:
             timeline_data = self._extract_timeline_data(soup)
             title = self._extract_title(soup)
             url = self._construct_url(reg_number)
-            
+
             initiative_data = ECIInitiative(
                 registration_number=reg_number,
                 title=self._extract_title(soup),
                 objective=self._extract_objective(soup),
+                annex=self._extract_annex(soup),
                 status=self._extract_status(soup),
                 url=self._construct_url(reg_number),
 
@@ -100,10 +105,12 @@ class ECIHTMLParser:
 
                 organizer_country=self._extract_organizer_country(soup),
                 legal_entity=self._extract_legal_entity(soup),
-                funding_sources=self._extract_funding_sources(soup),
 
                 signatures_collected=self._extract_signatures_collected(soup),
                 signatures_collected_by_country=self._extract_signatures_by_country(soup, file_path, title, url),
+
+                funding_total=self._extract_funding_total(soup),
+                funding_by=self._extract_funding_by(soup, file_path, title, url), 
 
                 countries_threshold_met=self._extract_countries_threshold_met(soup),
                 commission_response_date=self._extract_commission_response_date(soup),
@@ -208,12 +215,6 @@ class ECIHTMLParser:
     
     def _extract_legal_entity(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract legal entity information"""
-
-        # Implementation depends on HTML structure
-        return None
-    
-    def _extract_funding_sources(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract funding sources"""
 
         # Implementation depends on HTML structure
         return None
@@ -421,6 +422,131 @@ class ECIHTMLParser:
                 return None
         
         return None
+
+    def _extract_funding_total(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extract total funding amount from paragraph"""
+        
+        # Look for paragraph containing total funding text
+        funding_paragraph = soup.find('p', string=re.compile(r'Total amount of support and funding:', re.I))
+        if not funding_paragraph:
+            # Try alternative search in paragraph content
+            paragraphs = soup.find_all('p', class_='ecl-u-type-paragraph')
+            for p in paragraphs:
+                if 'total amount of support and funding' in p.get_text().lower():
+                    funding_paragraph = p
+                    break
+        
+        if funding_paragraph:
+            text = funding_paragraph.get_text()
+            # Extract amount using regex - matches €followed by numbers, commas, dots
+            amount_match = re.search(r'€([\d,]+\.?\d*)', text)
+            if amount_match:
+                return amount_match.group(1)  # Return just the number part without €
+        
+        return None
+
+    def _extract_funding_by(self, soup: BeautifulSoup, file_path: Path, title: str, url: str) -> Optional[str]:
+        """Extract funding sponsors data as JSON"""
+        
+        # Find funding table - look for table with sponsor headers
+        funding_tables = soup.find_all('table', class_='ecl-table')
+        funding_table = None
+        
+        for table in funding_tables:
+            headers = table.find_all('th', class_='ecl-table__header')
+            header_texts = [h.get_text().strip().lower() for h in headers]
+            
+            # Check if this is the funding table by looking for expected headers
+            if ('name of sponsor' in ' '.join(header_texts) and 
+                'amount in eur' in ' '.join(header_texts)):
+                funding_table = table
+                break
+        
+        if not funding_table:
+            return None
+        
+        sponsors_data = []
+        
+        # Extract table rows (skip header)
+        rows = funding_table.find_all('tr', class_='ecl-table__row')
+        
+        for row in rows:
+            cells = row.find_all('td', class_='ecl-table__cell')
+            
+            if len(cells) != 3:  # Should have 3 cells: Name, Date, Amount
+                continue
+            
+            sponsor_name = cells[0].get_text().strip()
+            date = cells[1].get_text().strip()
+            amount = cells[2].get_text().strip()
+            
+            # Check for missing data and log warnings
+            missing_fields = []
+            if not sponsor_name:
+                missing_fields.append("name_of_sponsor")
+            if not date:
+                missing_fields.append("date")
+            if not amount:
+                missing_fields.append("amount_in_eur")
+            
+            if missing_fields:
+                self.logger.warning(
+                    f"Missing funding data - Sponsor: {sponsor_name or 'UNKNOWN'}, "
+                    f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
+                    f"Missing fields: {', '.join(missing_fields)}"
+                )
+            
+            # Clean sponsor name (remove superscript references)
+            clean_sponsor_name = re.sub(r'<sup>.*?</sup>', '', sponsor_name)
+            clean_sponsor_name = re.sub(r'\s*\[\d+\]\s*', '', clean_sponsor_name).strip()
+            
+            # Add sponsor data (even if some fields are missing)
+            sponsor_entry = {
+                "name_of_sponsor": clean_sponsor_name,
+                "date": date,
+                "amount_in_eur": amount
+            }
+            
+            sponsors_data.append(sponsor_entry)
+        
+        # Return JSON string if we have data
+        if sponsors_data:
+            try:
+                return json.dumps(sponsors_data, ensure_ascii=False, separators=(',', ':'))
+            except Exception as e:
+                self.logger.error(
+                    f"Error serializing funding data to JSON - "
+                    f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
+                    f"Error: {str(e)}"
+                )
+                return None
+        
+        return None
+        
+    def _extract_annex(self, soup: BeautifulSoup) -> Optional[str]:
+        """Return full Annex text (concatenated paragraphs) or None."""
+        
+        # Find the Annex h2 header (case insensitive)
+        annex_h2 = soup.find('h2', string=re.compile(r'^\s*Annex\s*$', re.I))
+        
+        if not annex_h2:
+            return None
+        
+        texts: List[str] = []
+        node = annex_h2.find_next_sibling()
+        
+        while node and not (node.name == 'h2'):
+            # grab paragraph–level text, skip empty / whitespace nodes
+            if node.name in {'p', 'ul', 'ol'}:
+                txt = node.get_text(' ', strip=True)
+                
+                if txt:
+                    texts.append(txt)
+                    
+            node = node.find_next_sibling()
+        
+        joined = ' '.join(texts).strip()
+        return joined or None
 
 class ECIDataProcessor:
     """Main processor for ECI data extraction"""
