@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """
 Test runner script for ECI initiatives scraper tests.
 
@@ -12,18 +13,18 @@ Basic Examples:
     python run_tests.py                           # Run all scraping tests
     python run_tests.py --behaviour               # Run only behaviour tests
     python run_tests.py --end-to-end              # Run only end-to-end tests
-    python run_tests.py scraping/behaviour        # Run specific directory
+    python run_tests.py scraper/behaviour        # Run specific directory
 
 Specific Test Selection:
 
     # Run specific test file
-    python run_tests.py scraping/behaviour/test_scraping_process.py
+    python run_tests.py scraper/behaviour/test_scraping_process.py
 
     # Run specific test class
-    python run_tests.py scraping/behaviour/test_scraping_process.py::TestErrorRecoveryAndResilience
+    python run_tests.py scraper/behaviour/test_scraping_process.py::TestErrorRecoveryAndResilience
 
     # Run specific test method
-    python run_tests.py scraping/behaviour/test_scraping_process.py::TestErrorRecoveryAndResilience::test_individual_page_download_failure_handling
+    python run_tests.py scraper/behaviour/test_scraping_process.py::TestErrorRecoveryAndResilience::test_individual_page_download_failure_handling
 """
 
 
@@ -34,7 +35,7 @@ import argparse
 
 
 def run_tests(
-    test_path="scraping",
+    test_path="scraper",
     verbose=True,
     stop_on_failure=True,
     coverage=False,
@@ -93,8 +94,8 @@ def main():
     arguments = {
         "path": {
             "nargs": "?",
-            "default": "scraping",
-            "help": "Test path to run (default: scraping)",
+            "default": "scraper",
+            "help": "Test path to run (default: scraper)",
         },
         "--no-verbose": {"action": "store_true", "help": "Disable verbose output"},
         "--no-stop": {"action": "store_true", "help": "Don't stop on first failure"},
@@ -112,9 +113,9 @@ def main():
 
     # Determine test path based on arguments
     if args.behaviour:
-        test_path = "scraping/behaviour"
+        test_path = "scraper/behaviour"
     elif getattr(args, "end_to_end"):  # Use getattr because of the hyphen
-        test_path = "scraping/end_to_end"
+        test_path = "scraper/end_to_end"
     else:
         test_path = args.path
 

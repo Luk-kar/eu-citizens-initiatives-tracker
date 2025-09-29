@@ -1,5 +1,5 @@
 """
-Shared fixtures for browser and scraping behavior tests.
+Shared fixtures for browser and scraper behavior tests.
 """
 
 import pytest
