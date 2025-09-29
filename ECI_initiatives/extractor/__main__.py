@@ -89,7 +89,7 @@ class ECIHTMLParser:
                 timeline_collection_closed=timeline_data.get('timeline_collection_closed'),
                 timeline_verification=timeline_data.get('timeline_verification'),
                 timeline_valid_initiative=timeline_data.get('timeline_valid_initiative'),
-                
+
                 organizer_representative=self._extract_organizer_representative(soup),
 
                 organizer_country=self._extract_organizer_country(soup),
@@ -209,15 +209,41 @@ class ECIHTMLParser:
         return None
     
     def _extract_signatures_collected(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract number of signatures collected"""
+        """Extract number of signatures collected from signatures table"""
+        
+        # Look for signatures table
+        signatures_table = soup.find('table', class_='ecl-table')
 
+        if signatures_table:
+            # Find all table rows
+            rows = signatures_table.find_all('tr', class_='ecl-table__row')
+            
+            for row in rows:
+
+                # Check if this row contains total signatures
+                first_cell = row.find('td', class_='ecl-table__cell')
+                if first_cell and 'total number of signatories' in first_cell.get_text().lower():
+
+                    # Get all cells in this row
+                    cells = row.find_all('td', class_='ecl-table__cell')
+
+                    if len(cells) >= 2:
+
+                        # Second cell contains the number
+                        signatures_text = cells[1].get_text().strip()
+                        if signatures_text and re.match(r'^[\d,\s]+$', signatures_text):
+                            return signatures_text.replace(' ', '')  # Keep commas for readability
+        
+        # Fallback to original counter method
         signatures_element = soup.find(class_='ecl-counter__value')
         if signatures_element:
+
             signatures_text = signatures_element.get_text().strip()
-            # Extract numeric value
             numbers = re.findall(r'\d+', signatures_text.replace(',', '').replace(' ', ''))
+            
             if numbers:
-                return numbers[0]
+                return ''.join(numbers)
+        
         return None
     
     def _extract_countries_threshold_met(self, soup: BeautifulSoup) -> Optional[str]:
