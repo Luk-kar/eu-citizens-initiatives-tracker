@@ -11,7 +11,7 @@ import logging
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple
 from dataclasses import dataclass, asdict
 from bs4 import BeautifulSoup
 
@@ -24,7 +24,7 @@ class ECIInitiative:
     title: str
     objective: str
     annex: Optional[str]
-    status: str
+    current_status: str
     url: str
 
     timeline_registered: Optional[str]
@@ -33,19 +33,16 @@ class ECIInitiative:
     timeline_verification: Optional[str]
     timeline_valid_initiative: Optional[str]
 
-    # Split organiser fields (replaced organizer_representative, organizer_country, legal_entity)
     organizer_representative: Optional[str]  # JSON with representative data
     organizer_entity: Optional[str]         # JSON with legal entity data
     organizer_others: Optional[str]         # JSON with members, substitutes, others, DPO data
-
 
     funding_total: Optional[str]
     funding_by: Optional[str]
 
     signatures_collected: Optional[str]
     signatures_collected_by_country: Optional[str]
-
-    countries_threshold_met: Optional[str]
+    signatures_threshold_met: Optional[str]
 
     commission_response_date: Optional[str]
     commission_response: Optional[str]
@@ -102,7 +99,7 @@ class ECIHTMLParser:
                 title=self._extract_title(soup),
                 objective=self._extract_objective(soup),
                 annex=self._extract_annex(soup),
-                status=self._extract_status(soup),
+                current_status=self._extract_current_status(soup),
                 url=self._construct_url(reg_number),
 
                 timeline_registered=timeline_data.get('timeline_registered'),
@@ -111,18 +108,17 @@ class ECIHTMLParser:
                 timeline_verification=timeline_data.get('timeline_verification'),
                 timeline_valid_initiative=timeline_data.get('timeline_valid_initiative'),
 
-                # Split organiser fields
                 organizer_representative=organizer_representative,
                 organizer_entity=organizer_entity,
                 organizer_others=organizer_others,
 
                 signatures_collected=self._extract_signatures_collected(soup),
                 signatures_collected_by_country=self._extract_signatures_by_country(soup, file_path, title, url),
+                signatures_threshold_met=self._extract_signatures_threshold_met(soup),
 
                 funding_total=self._extract_funding_total(soup),
                 funding_by=self._extract_funding_by(soup, file_path, title, url), 
 
-                countries_threshold_met=self._extract_countries_threshold_met(soup),
                 commission_response_date=self._extract_commission_response_date(soup),
                 commission_response=self._extract_commission_response(soup),
                 hearing_date=self._extract_hearing_date(soup),
@@ -139,6 +135,72 @@ class ECIHTMLParser:
             raise ValueError(f"Error parsing {file_path}:\n{str(e)}") from e
             # self.logger.error(f"Error parsing {file_path}: {str(e)}")
             return None
+
+    def _find_signatures_table(self, soup: BeautifulSoup) -> Optional[BeautifulSoup]:
+        """Common inner function to find the signatures table with zebra styling"""
+        # Look for table with specific classes
+        signatures_table = soup.find('table', class_='ecl-table ecl-table--zebra ecl-u-type-paragraph')
+
+        # Fallback to basic ecl-table if not found
+        if not signatures_table:
+            signatures_table = soup.find('table', class_='ecl-table')
+
+        return signatures_table
+
+    def _get_signature_table_rows(self, soup: BeautifulSoup, skip_total: bool = True) -> List[Tuple]:
+        """
+        Extract rows from the signature collection table.
+        
+        Each row contains: country name, number of signatures, required threshold, and percentage achieved.
+        
+        Args:
+            soup: BeautifulSoup parsed HTML document
+            skip_total: If True, exclude the "Total number of signatories" summary row
+            
+        Returns:
+            List of tuples, each containing (country_name, signatures_count, threshold_required, percentage_achieved)
+        """
+        
+        # Find the signatures table in the HTML
+        signatures_table = self._find_signatures_table(soup)
+        if not signatures_table:
+            return []
+        
+        # Store extracted data from each country row
+        country_data = []
+        
+        # Find all table rows in the signatures table
+        table_rows = signatures_table.find_all('tr', class_='ecl-table__row')
+
+        for row in table_rows:
+
+            cells = row.find_all('td', class_='ecl-table__cell')
+            
+            # Validate that row has exactly 4 columns (country, signatures, threshold, percentage)
+            if len(cells) != 4:
+                continue
+            
+            # Extract the country name from the first column
+            country_name = cells[0].get_text().strip()
+            
+            # Skip the total summary row if requested
+            if skip_total and 'total number of signatories' in country_name.lower():
+                continue
+            
+            # Skip rows with empty country names
+            if not country_name:
+                continue
+            
+            # Extract signature collection data from the remaining columns
+            signatures_count = cells[1].get_text().strip()
+            threshold_required = cells[2].get_text().strip()
+            percentage_achieved = cells[3].get_text().strip()
+            
+            # Add this country's data to our results
+            country_data.append((country_name, signatures_count, threshold_required, percentage_achieved))
+        
+        return country_data
+
 
     def extract_organisers_data(self, soup: BeautifulSoup) -> Optional[Dict]:
         """Extract organiser data from the HTML including representatives, substitutes, members, etc."""
@@ -335,26 +397,21 @@ class ECIHTMLParser:
 
         return ""
 
-    def _extract_status(self, soup: BeautifulSoup) -> str:
-        """Extract current initiative status"""
+    def _extract_current_status(self, soup: BeautifulSoup) -> str:
+        """Extract current initiative current_status"""
 
-        # Look for timeline current item
-        current_status = soup.find(class_='ecl-timeline__item--current')
-        if current_status:
-            status_title = current_status.find(class_='ecl-timeline__title')
+        # Find the currently active timeline item
+        current_status_element = soup.find(class_='ecl-timeline__item--current')
+        
+        if current_status_element:
+            # Extract the status title from the timeline item
+            status_title = current_status_element.find(class_='ecl-timeline__title')
+            
             if status_title:
-                status_text = status_title.get_text().strip()
-                # Map to standardized status values
-                status_mapping = {
-                    'Registered': 'Open',
-                    'Registration': 'Registered',
-                    'Collection': 'Open',
-                    'Withdrawn': 'Withdrawn',
-                    'Successful': 'Successful',
-                    'Closed': 'Closed'
-                }
-                return status_mapping.get(status_text, status_text)
-
+                # Return the raw status text without any mapping
+                return status_title.get_text().strip()
+        
+        # No current status found in timeline
         return ""
 
     def _construct_url(self, reg_number: str) -> str:
@@ -366,22 +423,31 @@ class ECIHTMLParser:
         return ""
 
     def _extract_signatures_collected(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract number of signatures collected from signatures table"""
+        """
+        Extract the total number of signatures collected for the initiative.
+    
+        This function attempts to find the total signature count using two methods:
+        1. Primary: Searches for the "Total number of signatories" row in the signatures table
+        2. Fallback: Looks for a standalone counter element on the page
+        
+        Note:
+            The returned string preserves commas for readability but removes spaces.
+            This matches the format displayed on the ECI website.
+        """
 
-        # Look for signatures table
-        signatures_table = soup.find('table', class_='ecl-table')
+        # Use common function to get table
+        signatures_table = self._find_signatures_table(soup)
 
         if signatures_table:
+
             # Find all table rows
             rows = signatures_table.find_all('tr', class_='ecl-table__row')
 
             for row in rows:
 
-                # Check if this row contains total signatures
                 first_cell = row.find('td', class_='ecl-table__cell')
                 if first_cell and 'total number of signatories' in first_cell.get_text().lower():
 
-                    # Get all cells in this row
                     cells = row.find_all('td', class_='ecl-table__cell')
 
                     if len(cells) >= 2:
@@ -393,8 +459,8 @@ class ECIHTMLParser:
 
         # Fallback to original counter method
         signatures_element = soup.find(class_='ecl-counter__value')
-        if signatures_element:
 
+        if signatures_element:
             signatures_text = signatures_element.get_text().strip()
             numbers = re.findall(r'\d+', signatures_text.replace(',', '').replace(' ', ''))
 
@@ -403,11 +469,38 @@ class ECIHTMLParser:
 
         return None
 
-    def _extract_countries_threshold_met(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract number of countries with threshold met"""
+    def _extract_signatures_threshold_met(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract number of countries with threshold met (percentage >= 100%)
+        Uses common inner function to extract signature table data
+        """
+        try:
+            # Get all rows from signature table
+            rows_data = self._get_signature_table_rows(soup, skip_total=True)
 
-        # Implementation depends on HTML structure
-        return None
+            if not rows_data:
+                return None
+
+            # Count countries with percentage >= 100%
+            countries_met_threshold = 0
+
+            for country, statements, threshold, percentage in rows_data:
+
+                # Extract numeric percentage value
+                percentage_match = re.search(r'([\d.]+)%', percentage)
+
+                if percentage_match:
+
+                    percentage_value = float(percentage_match.group(1))
+
+                    if percentage_value >= 100.0:
+                        countries_met_threshold += 1
+
+            return str(countries_met_threshold) if countries_met_threshold > 0 else "0"
+
+        except Exception as e:
+            self.logger.error(f"Error extracting threshold met countries: {str(e)}")
+            return None
 
     def _extract_commission_response_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract Commission response date"""
@@ -506,72 +599,51 @@ class ECIHTMLParser:
         return title_mapping.get(title)
 
     def _extract_signatures_by_country(self, soup: BeautifulSoup, file_path: Path, title: str, url: str) -> Optional[str]:
-        """Extract country-level signature data as JSON"""
+        """Extract country-level signature data as JSON using common function"""
 
-        signatures_table = soup.find('table', class_='ecl-table')
-        if not signatures_table:
-            return None
+        try:
+            # Use common function to get table rows
+            rows_data = self._get_signature_table_rows(soup, skip_total=True)
 
-        country_data = {}
-
-        # Find table rows (skip header)
-        rows = signatures_table.find_all('tr', class_='ecl-table__row')
-
-        for row in rows:
-            cells = row.find_all('td', class_='ecl-table__cell')
-
-            # Skip rows that don't have 4 cells or contain total
-            if len(cells) != 4:
-                continue
-
-            country_text = cells[0].get_text().strip()
-
-            # Skip the total row
-            if 'total number of signatories' in country_text.lower():
-                continue
-
-            if not country_text:
-                continue
-
-            # Extract data from cells
-            statements_of_support = cells[1].get_text().strip()
-            threshold = cells[2].get_text().strip()
-            percentage = cells[3].get_text().strip()
-
-            # Check for missing data and log warnings
-            missing_fields = []
-            if not statements_of_support:
-                missing_fields.append("statements_of_support")
-            if not threshold:
-                missing_fields.append("threshold")
-            if not percentage:
-                missing_fields.append("percentage")
-
-            if missing_fields:
-                self.logger.warning(
-                    f"Missing signature data - Country: {country_text}, "
-                    f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
-                    f"Missing fields: {', '.join(missing_fields)}"
-                )
-
-            # Add country data (even if some fields are missing)
-            country_data[country_text] = {
-                "statements_of_support": statements_of_support,
-                "threshold": threshold,
-                "percentage": percentage
-            }
-
-        # Return JSON string if we have data
-        if country_data:
-            try:
-                return json.dumps(country_data, ensure_ascii=False, separators=(',', ':'))
-            except Exception as e:
-                self.logger.error(
-                    f"Error serializing country data to JSON - "
-                    f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
-                    f"Error: {str(e)}"
-                )
+            if not rows_data:
                 return None
+
+            country_data = {}
+
+            for country_text, statements_of_support, threshold, percentage in rows_data:
+                # Check for missing data and log warnings
+                missing_fields = []
+                if not statements_of_support:
+                    missing_fields.append("statements_of_support")
+                if not threshold:
+                    missing_fields.append("threshold")
+                if not percentage:
+                    missing_fields.append("percentage")
+
+                if missing_fields:
+                    self.logger.warning(
+                        f"Missing signature data - Country: {country_text}, "
+                        f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
+                        f"Missing fields: {', '.join(missing_fields)}"
+                    )
+
+                # Add country data (even if some fields are missing)
+                country_data[country_text] = {
+                    "statements_of_support": statements_of_support,
+                    "threshold": threshold,
+                    "percentage": percentage
+                }
+
+            # Return JSON string if we have data
+            if country_data:
+                return json.dumps(country_data, ensure_ascii=False, separators=(',', ':'))
+
+        except Exception as e:
+            self.logger.error(
+                f"Error serializing country data to JSON - "
+                f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
+                f"Error: {str(e)}"
+            )
 
         return None
 
@@ -818,7 +890,7 @@ class ECIDataProcessor:
         session_path = self.find_latest_scrape_session()
 
         if not session_path:
-            print("No scraping session found in:\n"+ self.last_session_scraping_dir)
+            print("No scraping session found in:\n"+ str(self.last_session_scraping_dir))
             return
 
         self.logger = self._setup_logger()
