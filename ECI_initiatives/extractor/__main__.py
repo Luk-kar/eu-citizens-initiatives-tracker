@@ -521,10 +521,94 @@ class ECIHTMLParser:
         return None
 
     def _extract_final_outcome(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract final outcome"""
+        """
+        Extract the final outcome of the initiative based on the timeline progress.
+        
+        Determines if an initiative has reached a final state and categorizes the outcome.
+        
+        Possible outcomes:
+        - "Unsuccessful Collection": Failed to collect required signatures
+        - "Withdrawn": Initiative was withdrawn by organizers
+        - "Commission Response": Initiative received official Commission answer
+        - None: Initiative is still in progress (not in final state)
+            
+        Raises:
+            ValueError: If the Initiative progress timeline is not found in the HTML
+        """
+        
+        # Find the timeline container (Initiative progress)
+        timeline = soup.find('ol', class_='ecl-timeline')
+        
+        if not timeline:
+            raise ValueError(
+                "Initiative progress timeline not found. "
+                "Expected element: <ol class='ecl-timeline'>"
+            )
+        
+        # Extract all timeline items
+        timeline_items = timeline.find_all('li', class_='ecl-timeline__item')
+        
+        if not timeline_items:
+            raise ValueError(
+                "No timeline items found in Initiative progress. "
+                "Expected elements: <li class='ecl-timeline__item'>"
+            )
+        
+        # Find the current (final) status from the timeline
+        current_status = None
+        for item in timeline_items:
 
-        # Implementation depends on HTML structure
+            # Check if this is the current/active item
+            if 'ecl-timeline__item--current' in item.get('class', []):
+
+                title_element = item.find('div', class_='ecl-timeline__title')
+
+                if title_element:
+                    current_status = title_element.get_text().strip()
+                    break
+        
+        if not current_status:
+            # No current status marked - initiative may be in progress
+            return None
+        
+        # Map timeline status to final outcome categories
+        status_lower = current_status.lower()
+        
+        # Check for "Answered initiative" - maps to Commission Response
+        if 'answered' in status_lower and 'initiative' in status_lower:
+            return "Commission Response"
+        
+        # Check for "Withdrawn" status
+        if 'withdrawn' in status_lower:
+            return "Withdrawn"
+        
+        # Check for "Unsuccessful collection" status
+        if 'unsuccessful' in status_lower and 'collection' in status_lower:
+            return "Unsuccessful Collection"
+        
+        # Ongoing statuses (not final outcomes)
+        ongoing_statuses = [
+            'collection ongoing',
+            'collection start date',
+            'registered',
+            'registration',
+            'verification',
+            'valid initiative',
+            'open'
+        ]
+        
+        # If current status is in ongoing list, return None (not final)
+        if any(ongoing in status_lower for ongoing in ongoing_statuses):
+            return None
+        
+        # Unknown status - log warning and return None
+        raise ValueError(
+            f"Unknown timeline status encountered: '{current_status}'. "
+            f"Treating as ongoing (not final outcome)."
+        )
+
         return None
+
 
     def _extract_languages_available(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract available languages"""
