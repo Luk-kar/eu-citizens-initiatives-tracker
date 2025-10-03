@@ -47,9 +47,8 @@ class ECIInitiative:
     signatures_collected_by_country: Optional[str]
     signatures_threshold_met: Optional[str]
 
-    response_commission: Optional[str]
+    response_commission_url: Optional[str]
 
-    hearing_date: Optional[str]
     final_outcome: Optional[str]
     languages_available: Optional[str]
     created_timestamp: str
@@ -124,8 +123,7 @@ class ECIHTMLParser:
                 funding_total=self._extract_funding_total(soup),
                 funding_by=self._extract_funding_by(soup, file_path, title, url), 
 
-                response_commission=self._extract_response_commission(soup),
-                hearing_date=self._extract_hearing_date(soup),
+                response_commission_url=self._extract_response_commission_url(soup),
                 final_outcome=self._extract_final_outcome(soup),
                 languages_available=self._extract_languages_available(soup),
                 created_timestamp=datetime.now().isoformat(),
@@ -204,6 +202,25 @@ class ECIHTMLParser:
             country_data.append((country_name, signatures_count, threshold_required, percentage_achieved))
         
         return country_data
+
+    def _extract_response_commission_url(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract the Commission's answer and follow-up page URL.
+        
+        Finds the <a> tag containing text "Commission's answer and follow-up"
+        and returns its href attribute.
+        
+        Returns:
+            URL to the initiative's follow-up page, or None if not found
+        """
+        
+        # Find the link with text containing "Commission's answer and follow-up"
+        link = soup.find('a', string=re.compile(r"Commission['\u2019]s answer and follow-up", re.I))
+        
+        if link and link.get('href'):
+            return link.get('href')
+        
+        return None
 
 
     def extract_organisers_data(self, soup: BeautifulSoup) -> Optional[Dict]:
@@ -503,26 +520,9 @@ class ECIHTMLParser:
             return str(countries_met_threshold) if countries_met_threshold > 0 else "0"
 
         except Exception as e:
+
             self.logger.error(f"Error extracting threshold met countries: {str(e)}")
             return None
-
-    def _extract_response_commission_date(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract Commission response date"""
-
-        # Implementation depends on HTML structure
-        return None
-
-    def _extract_response_commission(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract Commission response date"""
-
-        # Implementation depends on HTML structure
-        return None
-
-    def _extract_hearing_date(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract public hearing date"""
-
-        # Implementation depends on HTML structure
-        return None
 
     def _extract_final_outcome(self, soup: BeautifulSoup) -> Optional[str]:
         """
