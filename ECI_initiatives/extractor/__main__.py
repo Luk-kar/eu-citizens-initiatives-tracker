@@ -32,7 +32,7 @@ class ECIInitiative:
     timeline_collection_closed: Optional[str] 
     timeline_verification_start: Optional[str]
     timeline_verification_end: Optional[str]
-    timeline_commission_answer_date:  Optional[str]
+    timeline_response_commission_date:  Optional[str]
 
     timeline: Optional[str]
 
@@ -47,7 +47,7 @@ class ECIInitiative:
     signatures_collected_by_country: Optional[str]
     signatures_threshold_met: Optional[str]
 
-    commission_response: Optional[str]
+    response_commission: Optional[str]
 
     hearing_date: Optional[str]
     final_outcome: Optional[str]
@@ -79,6 +79,7 @@ class ECIHTMLParser:
 
     def parse_html_file(self, file_path: Path) -> Optional[ECIInitiative]:
         """Parse a single ECI HTML file and extract initiative data"""
+
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -109,7 +110,7 @@ class ECIHTMLParser:
                 timeline_collection_closed=timeline_data.get('timeline_collection_closed'),
                 timeline_verification_start=timeline_data.get('timeline_verification_start'),
                 timeline_verification_end=timeline_data.get('timeline_verification_end'),
-                timeline_commission_answer_date=timeline_data.get('timeline_commission_answer_date'),
+                timeline_response_commission_date=timeline_data.get('timeline_response_commission_date'),
                 timeline=timeline_data.get('timeline'),
 
                 organizer_representative=organizer_representative,
@@ -123,7 +124,7 @@ class ECIHTMLParser:
                 funding_total=self._extract_funding_total(soup),
                 funding_by=self._extract_funding_by(soup, file_path, title, url), 
 
-                commission_response=self._extract_commission_response(soup),
+                response_commission=self._extract_response_commission(soup),
                 hearing_date=self._extract_hearing_date(soup),
                 final_outcome=self._extract_final_outcome(soup),
                 languages_available=self._extract_languages_available(soup),
@@ -505,13 +506,13 @@ class ECIHTMLParser:
             self.logger.error(f"Error extracting threshold met countries: {str(e)}")
             return None
 
-    def _extract_commission_response_date(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_response_commission_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract Commission response date"""
 
         # Implementation depends on HTML structure
         return None
 
-    def _extract_commission_response(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_response_commission(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract Commission response date"""
 
         # Implementation depends on HTML structure
@@ -743,7 +744,7 @@ class ECIHTMLParser:
             'Collection start date': 'timeline_collection_start_date',
             'Collection closed': 'timeline_collection_closed',
             'Verification': 'timeline_verification_start',
-            'Answered initiative': 'timeline_commission_answer_date',
+            'Answered initiative': 'timeline_response_commission_date',
             'Collection ongoing': 'timeline_collection_start_date',  # Map ongoing to start date
             'Registration': 'timeline_registered',
         }
