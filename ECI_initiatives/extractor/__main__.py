@@ -38,6 +38,7 @@ class ECIInitiative:
     organizer_entity: Optional[str]         # JSON with legal entity data
     organizer_others: Optional[str]         # JSON with members, substitutes, others, DPO data
 
+
     funding_total: Optional[str]
     funding_by: Optional[str]
 
@@ -45,7 +46,10 @@ class ECIInitiative:
     signatures_collected_by_country: Optional[str]
 
     countries_threshold_met: Optional[str]
+
     commission_response_date: Optional[str]
+    commission_response: Optional[str]
+
     hearing_date: Optional[str]
     final_outcome: Optional[str]
     languages_available: Optional[str]
@@ -120,6 +124,7 @@ class ECIHTMLParser:
 
                 countries_threshold_met=self._extract_countries_threshold_met(soup),
                 commission_response_date=self._extract_commission_response_date(soup),
+                commission_response=self._extract_commission_response(soup),
                 hearing_date=self._extract_hearing_date(soup),
                 final_outcome=self._extract_final_outcome(soup),
                 languages_available=self._extract_languages_available(soup),
@@ -405,6 +410,12 @@ class ECIHTMLParser:
         return None
 
     def _extract_commission_response_date(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extract Commission response date"""
+
+        # Implementation depends on HTML structure
+        return None
+
+    def _extract_commission_response(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract Commission response date"""
 
         # Implementation depends on HTML structure
