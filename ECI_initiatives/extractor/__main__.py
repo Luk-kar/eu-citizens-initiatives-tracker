@@ -34,6 +34,8 @@ class ECIInitiative:
     timeline_verification_end: Optional[str]
     timeline_commission_answer_date:  Optional[str]
 
+    timeline: Optional[str]
+
     organizer_representative: Optional[str]  # JSON with representative data
     organizer_entity: Optional[str]         # JSON with legal entity data
     organizer_others: Optional[str]         # JSON with members, substitutes, others, DPO data
@@ -108,6 +110,7 @@ class ECIHTMLParser:
                 timeline_verification_start=timeline_data.get('timeline_verification_start'),
                 timeline_verification_end=timeline_data.get('timeline_verification_end'),
                 timeline_commission_answer_date=timeline_data.get('timeline_commission_answer_date'),
+                timeline=timeline_data.get('timeline'),
 
                 organizer_representative=organizer_representative,
                 organizer_entity=organizer_entity,
@@ -120,7 +123,6 @@ class ECIHTMLParser:
                 funding_total=self._extract_funding_total(soup),
                 funding_by=self._extract_funding_by(soup, file_path, title, url), 
 
-                commission_response_date=self._extract_commission_response_date(soup),
                 commission_response=self._extract_commission_response(soup),
                 hearing_date=self._extract_hearing_date(soup),
                 final_outcome=self._extract_final_outcome(soup),
@@ -647,8 +649,9 @@ class ECIHTMLParser:
         # Extract all timeline items
         timeline_items = timeline.find_all('li', class_='ecl-timeline__item')
 
-        # Track timeline order for verification end logic
+        # Track timeline order for verification end logic AND for full timeline JSON
         timeline_sequence = []
+        timeline_json_data = []
         
         for item in timeline_items:
             # Extract title
@@ -657,6 +660,9 @@ class ECIHTMLParser:
                 continue
 
             title = title_element.get_text().strip()
+            # Remove red asterisk marker if present
+            title = re.sub(r'<span[^>]*>.*?</span>', '', title)
+            title = title.replace('*', '').strip()
 
             # Extract content (date) if available
             content_element = item.find('div', class_='ecl-timeline__content')
@@ -664,6 +670,12 @@ class ECIHTMLParser:
 
             # Store sequence for verification end processing
             timeline_sequence.append((title, content))
+            
+            # NEW: Store for full timeline JSON
+            timeline_json_data.append({
+                "step": title,
+                "date": content
+            })
 
             # Normalize title to match our field names
             normalized_title = self._normalize_timeline_title(title)
@@ -673,8 +685,13 @@ class ECIHTMLParser:
 
         # Post-process timeline_verification_end based on sequence
         timeline_data = self._process_verification_end(timeline_sequence, timeline_data)
+        
+        # Add full timeline as JSON string
+        if timeline_json_data:
+            timeline_data['timeline'] = json.dumps(timeline_json_data, ensure_ascii=False, separators=(',', ':'))
 
         return timeline_data
+
 
     def _process_verification_end(self, timeline_sequence: List[Tuple[str, Optional[str]]], 
                                 timeline_data: Dict[str, Optional[str]]) -> Dict[str, Optional[str]]:
