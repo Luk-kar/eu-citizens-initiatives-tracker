@@ -19,8 +19,8 @@ from dataclasses import dataclass, asdict
 from bs4 import BeautifulSoup
 
 # initiatives extractor
-from initiatives_logger import InitiativesExtractorLogger
-from processor import ECIDataProcessor
+from .initiatives_logger import InitiativesExtractorLogger
+from .processor import ECIDataProcessor
 
 
 def main():

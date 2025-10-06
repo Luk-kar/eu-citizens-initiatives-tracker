@@ -1,5 +1,6 @@
 """Common configuration and constants for all ECI initiative tests."""
 
+# python
 import os
 
 from ..scraper.initiatives.consts import (
@@ -18,6 +19,10 @@ from ..scraper.initiatives.consts import (
     INITIATIVE_PAGE_FILENAME_PATTERN,
     RATE_LIMIT_INDICATORS as MAIN_RATE_LIMIT_INDICATORS,
 )
+
+# ===============================
+#       SCRAPER INITIATIVES
+# ===============================
 
 # ===== PATH CONFIGURATIONS =====
 
@@ -97,4 +102,37 @@ COMMON_STATUSES = [
     "Verification",
     "Valid initiative",
     "Collection closed",
+]
+
+# ===============================
+#       EXTRACTOR INITIATIVES
+# ===============================
+
+REQUIRED_EXTRACTOR_CSV_COLUMNS = [
+    'registration_number',
+    'title',
+    'objective',
+    'annex',
+    'current_status',
+    'url',
+    'timeline_registered',
+    'timeline_collection_start_date',
+    'timeline_collection_closed',
+    'timeline_verification_start',
+    'timeline_verification_end',
+    'timeline_response_commission_date',
+    'timeline',
+    'organizer_representative',
+    'organizer_entity',
+    'organizer_others',
+    'funding_total',
+    'funding_by',
+    'signatures_collected',
+    'signatures_collected_by_country',
+    'signatures_threshold_met',
+    'response_commission_url',
+    'final_outcome',
+    'languages_available',
+    'created_timestamp',
+    'last_updated'
 ]

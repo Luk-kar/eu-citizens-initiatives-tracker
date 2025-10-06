@@ -13,9 +13,9 @@ from dataclasses import asdict
 import logging
 
 # Local
-from model import ECIInitiative
-from parser import ECIHTMLParser
-from initiatives_logger import InitiativesExtractorLogger
+from .model import ECIInitiative
+from .parser import ECIHTMLParser
+from .initiatives_logger import InitiativesExtractorLogger
 
 
 class ECIDataProcessor:
@@ -46,7 +46,6 @@ class ECIDataProcessor:
 
             if session_dirs:
                 last_session = max(session_dirs, key=lambda x: x.name)
-                self.last_session_scraping_dir = last_session
                 return last_session
 
         except Exception as e:
@@ -107,6 +106,7 @@ class ECIDataProcessor:
         
         # Find latest scraping session
         session_path = self.find_latest_scrape_session()
+        self.last_session_scraping_dir = session_path
         
         if not session_path:
             print("No scraping session found in:\n" + str(self.data_root))

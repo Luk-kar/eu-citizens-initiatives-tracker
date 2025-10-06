@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Tuple
 from bs4 import BeautifulSoup
 
 # Local
-from model import ECIInitiative
+from .model import ECIInitiative
 
 
 class ECIHTMLParser:

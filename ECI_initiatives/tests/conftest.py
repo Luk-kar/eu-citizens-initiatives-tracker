@@ -18,10 +18,6 @@ def pytest_configure(config):
     # Go up 2 levels: conftest.py -> tests/ -> ECI_initiatives/
     root_dir = Path(__file__).parent.parent.absolute()
     root_dir_str = str(root_dir)
-
-    print("+++++++++++++++++++++++++++++++++++")
-    print("root_dir_str\n", root_dir_str)
-    print("+++++++++++++++++++++++++++++++++++")
     
     # Add to sys.path if not already there
     if root_dir_str not in sys.path:

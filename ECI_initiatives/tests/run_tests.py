@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Test runner script for ECI initiatives scraper tests.
-
-This script provides a convenient interface to run pytest tests for the ECI scraper
-with pre-configured options and shortcuts for common test scenarios.
+Test runner script for ECI initiatives scraper and extractor tests.
 
 Usage:
     python run_tests.py [options]
@@ -12,21 +9,22 @@ Usage:
 Basic Examples:
     python run_tests.py                              # Run all tests
     python run_tests.py --scraper                    # Run all scraper tests
-    python run_tests.py --scraper --behaviour        # Run only behaviour tests
-    python run_tests.py --scraper --end-to-end       # Run only end-to-end tests
+    python run_tests.py --scraper --behaviour        # Run scraper behaviour tests
+    python run_tests.py --scraper --end-to-end       # Run scraper end-to-end tests
+    python run_tests.py --extractor                  # Run all extractor tests
+    python run_tests.py --extractor --behaviour      # Run extractor behaviour tests
+    python run_tests.py --extractor --end-to-end     # Run extractor end-to-end tests
 
 Specific Test Selection:
-
     # Run specific test file
-    python run_tests.py scraper/initiatives/behaviour/test_scraping_process.py
+    python run_tests.py extractor/initiatives/behaviour/test_data_extraction.py
 
     # Run specific test class
-    python run_tests.py scraper/initiatives/behaviour/test_scraping_process.py::TestErrorRecoveryAndResilience
+    python run_tests.py extractor/initiatives/behaviour/test_data_extraction.py::TestTitleExtraction
 
     # Run specific test method
-    python run_tests.py scraper/initiatives/behaviour/test_scraping_process.py::TestErrorRecoveryAndResilience::test_individual_page_download_failure_handling
+    python run_tests.py extractor/initiatives/behaviour/test_data_extraction.py::TestTitleExtraction::test_title_from_meta_tag
 """
-
 
 # python
 import os
@@ -42,7 +40,7 @@ def run_tests(
     coverage=False,
     markers=None,
 ):
-    """Run the scraper tests with appropriate options."""
+    """Run the scraper and extractor tests with appropriate options."""
 
     # Change to the tests directory
     test_dir = os.path.dirname(os.path.abspath(__file__))
@@ -89,7 +87,7 @@ def run_tests(
 
 def main():
     """Main function with argument parsing."""
-    parser = argparse.ArgumentParser(description="Run ECI scraper tests")
+    parser = argparse.ArgumentParser(description="Run ECI scraper and extractor tests")
 
     # Define all arguments in a dictionary
     arguments = {
@@ -103,6 +101,7 @@ def main():
         "--coverage": {"action": "store_true", "help": "Generate coverage report"},
         "--markers": {"help": "Run tests with specific markers (e.g., 'not slow')"},
         "--scraper": {"action": "store_true", "help": "Run scraper tests"},
+        "--extractor": {"action": "store_true", "help": "Run extractor tests"},
         "--behaviour": {"action": "store_true", "help": "Run only behaviour tests"},
         "--end-to-end": {"action": "store_true", "help": "Run only end-to-end tests"},
     }
@@ -117,15 +116,24 @@ def main():
     if args.path:
         # Explicit path provided - use it directly
         test_path = args.path
-    elif args.behaviour:
-        # Behaviour tests flag
+    elif args.behaviour and args.scraper:
+        # Scraper behaviour tests
         test_path = "scraper/initiatives/behaviour"
-    elif getattr(args, "end_to_end"):
-        # End-to-end tests flag
+    elif args.behaviour and args.extractor:
+        # Extractor behaviour tests
+        test_path = "extractor/initiatives/behaviour"
+    elif getattr(args, "end_to_end") and args.scraper:
+        # Scraper end-to-end tests
         test_path = "scraper/initiatives/end_to_end"
+    elif getattr(args, "end_to_end") and args.extractor:
+        # Extractor end-to-end tests
+        test_path = "extractor/initiatives/end_to_end"
     elif args.scraper:
         # All scraper tests
         test_path = "scraper"
+    elif args.extractor:
+        # All extractor tests
+        test_path = "extractor"
     else:
         # Default - run all tests
         test_path = "."
