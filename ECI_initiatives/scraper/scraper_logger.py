@@ -38,7 +38,7 @@ class ScraperLogger:
 
         os.makedirs(self.log_dir, exist_ok=True)
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        log_file = os.path.join(self.log_dir, f"scraper_{timestamp}.log")
+        log_file = os.path.join(self.log_dir, f"scraper_initiatives{timestamp}.log")
 
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)

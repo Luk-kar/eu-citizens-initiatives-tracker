@@ -1,80 +1,35 @@
 #!/usr/bin/env python3
 """
-ECI Data Scraper - European Citizens' Initiative HTML Parser
-Processes scraped HTML files and extracts structured data to CSV
+ECI HTML Parser
+Parses ECI initiative HTML pages and extracts structured data
 """
 
-import os
-import csv
+# Standard library
 import re
-import logging
 import json
+import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional, Union, Tuple
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Optional, Tuple
+
+# Third-party
 from bs4 import BeautifulSoup
 
-
-@dataclass
-class ECIInitiative:
-    """Data structure for ECI initiative information"""
-
-    registration_number: str
-    title: str
-    objective: str
-    annex: Optional[str]
-    current_status: str
-    url: str
-
-    timeline_registered: Optional[str]
-    timeline_collection_start_date: Optional[str]
-    timeline_collection_closed: Optional[str] 
-    timeline_verification_start: Optional[str]
-    timeline_verification_end: Optional[str]
-    timeline_response_commission_date:  Optional[str]
-
-    timeline: Optional[str]
-
-    organizer_representative: Optional[str]  # JSON with representative data
-    organizer_entity: Optional[str]         # JSON with legal entity data
-    organizer_others: Optional[str]         # JSON with members, substitutes, others, DPO data
-
-    funding_total: Optional[str]
-    funding_by: Optional[str]
-
-    signatures_collected: Optional[str]
-    signatures_collected_by_country: Optional[str]
-    signatures_threshold_met: Optional[str]
-
-    response_commission_url: Optional[str]
-
-    final_outcome: Optional[str]
-    languages_available: Optional[str]
-    created_timestamp: str
-    last_updated: str
+# Local
+from model import ECIInitiative
 
 
 class ECIHTMLParser:
     """Parser for ECI initiative HTML pages"""
 
-    def __init__(self):
-        self.logger = self._setup_logger()
-
-    def _setup_logger(self) -> logging.Logger:
-        """Configure logging for the parser"""
-
-        logger = logging.getLogger('eci_parser')
-        logger.setLevel(logging.INFO)
-
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-
-        return logger
+    def __init__(self, logger: logging.Logger):
+        """
+        Initialize parser with shared logger
+        
+        Args:
+            logger: Shared logger instance from InitiativesExtractorLogger
+        """
+        self.logger = logger
 
     def parse_html_file(self, file_path: Path) -> Optional[ECIInitiative]:
         """Parse a single ECI HTML file and extract initiative data"""
@@ -924,151 +879,3 @@ class ECIHTMLParser:
 
         joined = ' '.join(texts).strip()
         return joined or None
-
-class ECIDataProcessor:
-    """Main processor for ECI data extraction"""
-
-    def __init__(self, data_root: str = "/ECI_initiatives/data"):
-
-        current_file = Path(__file__)
-        project_root = current_file.parent.parent.parent  # Move 3 directories up
-        self.data_root = project_root / data_root.lstrip('/')
-        self.last_session_scraping_dir = None
-
-        self.parser = ECIHTMLParser()
-        self.logger = None
-
-    def _setup_logger(self) -> logging.Logger:
-        """Configure logging"""
-
-        logger = logging.getLogger('eci_processor')
-        logger.setLevel(logging.INFO)
-
-        # Create logs directory if it doesn't exist
-        log_dir = self.last_session_scraping_dir / "logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
-
-        # File handler
-        log_file = log_dir / f"processor_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setLevel(logging.INFO)
-
-        # Console handler
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-
-        # Formatter
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        file_handler.setFormatter(formatter)
-        console_handler.setFormatter(formatter)
-
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
-
-        return logger
-
-    def find_latest_scrape_session(self) -> Optional[Path]:
-        """Find the most recent scraping session directory"""
-
-        try:
-            session_dirs = [d for d in self.data_root.iterdir() 
-                           if d.is_dir() and re.match(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}', d.name)]
-
-            if session_dirs:
-
-                last_session = max(session_dirs, key=lambda x: x.name)
-                self.last_session_scraping_dir = last_session
-
-                return last_session
-
-        except Exception as e:
-            self.logger.error(f"Error finding scrape sessions: {e}")
-
-        return None
-
-    def process_initiative_pages(self, session_path: Path) -> List[ECIInitiative]:
-        """Process all initiative HTML pages in a session"""
-
-        initiatives = []
-        initiative_pages_dir = session_path / "initiative_pages"
-
-        if not initiative_pages_dir.exists():
-            self.logger.error(f"Initiative pages directory not found: {initiative_pages_dir}")
-            return initiatives
-
-        # Process each year directory
-        for year_dir in sorted(initiative_pages_dir.iterdir()):
-
-            if not year_dir.is_dir():
-                continue
-
-            self.logger.info(f"Processing year: {year_dir.name}")
-
-            # Process each HTML file in the year directory
-            for html_file in sorted(year_dir.glob("*.html")):
-                initiative = self.parser.parse_html_file(html_file)
-                if initiative:
-                    initiatives.append(initiative)
-
-        self.logger.info(f"Successfully processed {len(initiatives)} initiatives")
-        return initiatives
-
-    def save_to_csv(self, initiatives: List[ECIInitiative], output_path: Path) -> None:
-        """Save initiatives data to CSV file"""
-
-        try:
-            with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
-                if not initiatives:
-                    self.logger.warning("No initiatives to save")
-                    return
-
-                fieldnames = list(asdict(initiatives[0]).keys())
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-                writer.writeheader()
-                for initiative in initiatives:
-                    writer.writerow(asdict(initiative))
-
-            self.logger.info(f"Saved {len(initiatives)} initiatives to {output_path}")
-
-        except Exception as e:
-            self.logger.error(f"Error saving CSV: {e}")
-
-    def run(self, output_filename: str = None) -> None:
-        """Main processing pipeline"""
-
-        # Find latest scraping session
-        session_path = self.find_latest_scrape_session()
-
-        if not session_path:
-            print("No scraping session found in:\n"+ str(self.last_session_scraping_dir))
-            return
-
-        self.logger = self._setup_logger()
-        self.logger.info("Starting ECI data processing")
-        self.logger.info(f"Processing session: {session_path.name}")
-
-        # Process all initiative pages
-        initiatives = self.process_initiative_pages(session_path)
-
-        # Save to CSV
-        if not output_filename:
-            output_filename = f"eci_initiatives_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
-
-        output_path = session_path / output_filename
-        self.save_to_csv(initiatives, output_path)
-
-        self.logger.info("Processing completed successfully")
-
-
-def main():
-    """Main entry point"""
-
-    processor = ECIDataProcessor()
-    processor.run()
-
-
-if __name__ == "__main__":
-    main()

@@ -22,7 +22,7 @@ from .consts import (
     WEBDRIVER_TIMEOUT_DEFAULT,
     LOG_MESSAGES,
 )
-from .logger import logger
+from .scraper_logger import logger
 
 
 def scrape_all_initiatives_on_all_pages(

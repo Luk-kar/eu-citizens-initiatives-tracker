@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 
 # Local
 from .css_selectors import ECIlistingSelectors
-from .logger import logger
+from .scraper_logger import logger
 
 # Consts
 from .consts import (

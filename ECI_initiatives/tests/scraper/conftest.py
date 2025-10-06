@@ -56,7 +56,7 @@ def cleanup_log_directories():
                     # Count files before removal
                     logs_dir = item / "logs"
                     if logs_dir.exists():
-                        log_files = list(logs_dir.glob("scraper_*.log"))
+                        log_files = list(logs_dir.glob("scraper_initiatives*.log"))
                         files_removed += len(log_files)
                     
                     shutil.rmtree(item)

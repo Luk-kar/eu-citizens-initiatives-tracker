@@ -26,7 +26,7 @@ from .consts import (
     LOG_MESSAGES,
 )
 from .file_ops import save_initiative_page
-from .logger import logger
+from .scraper_logger import logger
 
 
 def download_initiative_pages(

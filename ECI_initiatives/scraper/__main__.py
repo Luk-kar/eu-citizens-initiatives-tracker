@@ -19,7 +19,7 @@ from .consts import (
     CSV_FILENAME,
     LOG_MESSAGES,
 )
-from .logger import logger
+from .scraper_logger import logger
 
 
 def scrape_eci_initiatives() -> str:
