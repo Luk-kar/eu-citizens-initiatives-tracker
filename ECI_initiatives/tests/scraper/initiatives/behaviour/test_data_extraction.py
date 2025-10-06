@@ -22,13 +22,7 @@ import pytest
 from bs4 import BeautifulSoup
 from unittest.mock import patch, MagicMock, mock_open, call
 
-
-# Local
-program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "..") # \ECI_initiatives
-
-sys.path.append(program_dir)
-
-# Safe imports (don't trigger logger creation)
+# Local imports (handled by conftest fixture)
 from ECI_initiatives.tests.consts import (
     LISTINGS_HTML_DIR,
     CSV_FILE_PATH,

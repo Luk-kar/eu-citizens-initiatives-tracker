@@ -1,27 +1,19 @@
 """Tests for browser and WebDriver functionality."""
 
-# Standard library
-import os
-import sys
-from unittest.mock import Mock, patch, MagicMock
-
 # Third party
 import pytest
-
+from unittest.mock import Mock, patch, MagicMock
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options
 
-# Local
-program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..") # \ECI_initiatives
-sys.path.append(program_dir)
-
-# Safe imports (don't trigger logger creation)
+# Local imports (handled by conftest fixture)
 from ECI_initiatives.tests.consts import (
     REQUIRED_CSV_COLUMNS,
     SAMPLE_INITIATIVE_DATA,
     BASE_URL,
     LOG_MESSAGES,
 )
+
 
 class TestBrowserInitializationAndCleanup:
     """Test browser management functionality."""
@@ -42,12 +34,6 @@ class TestBrowserInitializationAndCleanup:
         )
         from ECI_initiatives.scraper.initiatives.downloader import (
             download_initiative_pages,
-        )
-        from ECI_initiatives.tests.consts import (
-            REQUIRED_CSV_COLUMNS,
-            SAMPLE_INITIATIVE_DATA,
-            BASE_URL,
-            LOG_MESSAGES,
         )
         
         cls.initialize_browser = staticmethod(initialize_browser)

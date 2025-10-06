@@ -43,20 +43,15 @@ The test validates:
 # Standard library
 import csv
 import os
-import shutil
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Third party
 import pytest
 
-# Local
-program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..") # \ECI_initiatives
-sys.path.append(program_dir)
-
-# Safe imports (don't trigger logger creation)
+# Local imports (handled by conftest fixture)
 from ECI_initiatives.tests.consts import (
     BASE_URL,
     REQUIRED_CSV_COLUMNS,
@@ -75,13 +70,16 @@ class TestCreatedFiles:
     """Test suite for validating created files from ECI scraping."""
 
     @classmethod
-    def setup_class(cls):
+    def setup_class(cls, data_dir=None):
         """
         Setup class-level resources that runs once before all tests.
         
         Imports are done here rather than at module level to avoid
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
+        
+        Args:
+            data_dir: Path to the data directory (injected by pytest via fixture)
         """
 
         # Import scraper modules at setup time
@@ -139,12 +137,18 @@ class TestCreatedFiles:
             # Run the scraping function - saves to real ECI_initiatives/data/ directory
             timestamp = cls.scrape_eci_initiatives()
 
-        # Store results for tests - point to REAL data directory
+        # Store results for tests - use fixture-provided data_dir
         cls.timestamp = timestamp
         
-        # Get the real script directory (where ECI_initiatives project is located)
-        script_dir = Path(__file__).parent.parent.parent.parent.parent.absolute()  # Go up to ECI_initiatives/
-        real_data_dir = script_dir / "data"
+        # Get data_dir from pytest request context
+        # This will be injected by the pytest fixture mechanism
+        request = pytest._current_request if hasattr(pytest, '_current_request') else None
+        if request:
+            real_data_dir = request.getfixturevalue('data_dir')
+        else:
+            # Fallback: calculate manually (should not happen with proper fixture setup)
+            script_dir = Path(__file__).parent.parent.parent.parent.parent.absolute()
+            real_data_dir = script_dir / "data"
         
         cls.data_path = real_data_dir / timestamp
         cls.listings_path = cls.data_path / LISTINGS_DIR_NAME
@@ -319,3 +323,10 @@ class TestCreatedFiles:
                         assert file.endswith(
                             ".html"
                         ), f"Initiative file should end with .html: {file}"
+
+
+# Inject fixture into setup_class using pytest hook
+@pytest.fixture(scope="class")
+def inject_data_dir(request, data_dir):
+    """Inject data_dir fixture into TestCreatedFiles class."""
+    request.cls.setup_class(data_dir=data_dir)

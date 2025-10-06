@@ -11,11 +11,7 @@ from unittest.mock import Mock, patch, mock_open, MagicMock
 # Third party
 import pytest
 
-# Local
-program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..") # \ECI_initiatives
-sys.path.append(program_dir)
-
-# Safe imports (don't trigger logger creation)
+# Local imports (handled by conftest fixture)
 from ECI_initiatives.tests.consts import (
     COMMON_STATUSES,
     REQUIRED_CSV_COLUMNS,
