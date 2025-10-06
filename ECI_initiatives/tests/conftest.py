@@ -44,7 +44,7 @@ def program_root_dir():
     """
     # From ECI_initiatives/tests/conftest.py
     # Go up: conftest.py -> tests/ -> ECI_initiatives/
-    root_dir = Path(__file__).parent.parent.absolute()  # ✅ Changed from 3 to 2 parent calls
+    root_dir = Path(__file__).parent.parent.absolute()
     return root_dir
 
 

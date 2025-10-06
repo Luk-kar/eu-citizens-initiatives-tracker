@@ -21,7 +21,7 @@ from initiatives_logger import InitiativesExtractorLogger
 class ECIDataProcessor:
     """Main processor for ECI data extraction"""
 
-    def __init__(self, data_root: str = "/ECI_initiatives/data", logger: Optional[logging.Logger] = None):
+    def __init__(self, data_root: str = "/initiatives/data", logger: Optional[logging.Logger] = None):
         """
         Initialize the data processor
         
