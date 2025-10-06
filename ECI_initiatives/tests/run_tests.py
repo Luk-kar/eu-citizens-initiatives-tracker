@@ -7,27 +7,28 @@ This script provides a convenient interface to run pytest tests for the ECI scra
 with pre-configured options and shortcuts for common test scenarios.
 
 Usage:
-    python run_tests.py [path] [options]
+    python run_tests.py [options]
 
 Basic Examples:
-    python run_tests.py                           # Run all scraping tests
-    python run_tests.py --behaviour               # Run only behaviour tests
-    python run_tests.py --end-to-end              # Run only end-to-end tests
-    python run_tests.py scraper/behaviour        # Run specific directory
+    python run_tests.py                              # Run all tests
+    python run_tests.py --scraper                    # Run all scraper tests
+    python run_tests.py --scraper --behaviour        # Run only behaviour tests
+    python run_tests.py --scraper --end-to-end       # Run only end-to-end tests
 
 Specific Test Selection:
 
     # Run specific test file
-    python run_tests.py scraper/behaviour/test_scraping_process.py
+    python run_tests.py scraper/initiatives/behaviour/test_scraping_process.py
 
     # Run specific test class
-    python run_tests.py scraper/behaviour/test_scraping_process.py::TestErrorRecoveryAndResilience
+    python run_tests.py scraper/initiatives/behaviour/test_scraping_process.py::TestErrorRecoveryAndResilience
 
     # Run specific test method
-    python run_tests.py scraper/behaviour/test_scraping_process.py::TestErrorRecoveryAndResilience::test_individual_page_download_failure_handling
+    python run_tests.py scraper/initiatives/behaviour/test_scraping_process.py::TestErrorRecoveryAndResilience::test_individual_page_download_failure_handling
 """
 
 
+# python
 import os
 import sys
 import subprocess
@@ -35,7 +36,7 @@ import argparse
 
 
 def run_tests(
-    test_path="scraper",
+    test_path=".",
     verbose=True,
     stop_on_failure=True,
     coverage=False,
@@ -78,7 +79,7 @@ def run_tests(
     if markers:
         cmd.extend(["-m", markers])
 
-    print(f"Running scraper tests from: {test_path}")
+    print(f"Running tests from: {test_path}")
     print("Command:", " ".join(cmd))
     print("-" * 60)
 
@@ -94,13 +95,14 @@ def main():
     arguments = {
         "path": {
             "nargs": "?",
-            "default": "scraper",
-            "help": "Test path to run (default: scraper)",
+            "default": None,
+            "help": "Test path to run (optional, overrides other path flags)",
         },
         "--no-verbose": {"action": "store_true", "help": "Disable verbose output"},
         "--no-stop": {"action": "store_true", "help": "Don't stop on first failure"},
         "--coverage": {"action": "store_true", "help": "Generate coverage report"},
         "--markers": {"help": "Run tests with specific markers (e.g., 'not slow')"},
+        "--scraper": {"action": "store_true", "help": "Run scraper tests"},
         "--behaviour": {"action": "store_true", "help": "Run only behaviour tests"},
         "--end-to-end": {"action": "store_true", "help": "Run only end-to-end tests"},
     }
@@ -111,13 +113,22 @@ def main():
 
     args = parser.parse_args()
 
-    # Determine test path based on arguments
-    if args.behaviour:
-        test_path = "scraper/behaviour"
-    elif getattr(args, "end_to_end"):  # Use getattr because of the hyphen
-        test_path = "scraper/end_to_end"
-    else:
+    # Determine test path based on arguments (priority order)
+    if args.path:
+        # Explicit path provided - use it directly
         test_path = args.path
+    elif args.behaviour:
+        # Behaviour tests flag
+        test_path = "scraper/initiatives/behaviour"
+    elif getattr(args, "end_to_end"):
+        # End-to-end tests flag
+        test_path = "scraper/initiatives/end_to_end"
+    elif args.scraper:
+        # All scraper tests
+        test_path = "scraper"
+    else:
+        # Default - run all tests
+        test_path = "."
 
     exit_code = run_tests(
         test_path=test_path,

@@ -53,7 +53,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 # Local
-program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..") # \ECI_initiatives
 sys.path.append(program_dir)
 
 # Safe imports (don't trigger logger creation)
@@ -143,7 +143,7 @@ class TestCreatedFiles:
         cls.timestamp = timestamp
         
         # Get the real script directory (where ECI_initiatives project is located)
-        script_dir = Path(__file__).parent.parent.parent.parent.absolute()  # Go up to ECI_initiatives/
+        script_dir = Path(__file__).parent.parent.parent.parent.parent.absolute()  # Go up to ECI_initiatives/
         real_data_dir = script_dir / "data"
         
         cls.data_path = real_data_dir / timestamp

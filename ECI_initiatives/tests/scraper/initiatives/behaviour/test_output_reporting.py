@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch, mock_open, MagicMock
 import pytest
 
 # Local
-program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..") # \ECI_initiatives
 sys.path.append(program_dir)
 
 # Safe imports (don't trigger logger creation)

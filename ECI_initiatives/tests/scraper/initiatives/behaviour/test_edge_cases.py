@@ -18,7 +18,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 
 # Local
-program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..") # \ECI_initiatives
 sys.path.append(program_dir)
 
 # Safe imports (don't trigger logger creation)

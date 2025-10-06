@@ -24,7 +24,7 @@ from unittest.mock import patch, MagicMock, mock_open, call
 
 
 # Local
-program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+program_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "..") # \ECI_initiatives
 
 sys.path.append(program_dir)
 
