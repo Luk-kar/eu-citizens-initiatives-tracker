@@ -85,9 +85,9 @@ class TestCreatedFiles:
         """
 
         # Import scraper modules at setup time
-        from ECI_initiatives.scraper.__main__ import scrape_eci_initiatives
-        from ECI_initiatives.scraper.data_parser import parse_initiatives_list_data
-        from ECI_initiatives.scraper.crawler import (
+        from ECI_initiatives.scraper.initiatives.__main__ import scrape_eci_initiatives
+        from ECI_initiatives.scraper.initiatives.data_parser import parse_initiatives_list_data
+        from ECI_initiatives.scraper.initiatives.crawler import (
             scrape_all_initiatives_on_all_pages,
             navigate_to_next_page,
         )
@@ -127,11 +127,11 @@ class TestCreatedFiles:
 
         # Apply mocks and run scraping - using REAL directories
         with patch.object(
-            sys.modules["ECI_initiatives.scraper.crawler"],
+            sys.modules["ECI_initiatives.scraper.initiatives.crawler"],
             "parse_initiatives_list_data",
             side_effect=mock_parse_initiatives_limited,
         ), patch.object(
-            sys.modules["ECI_initiatives.scraper.crawler"],
+            sys.modules["ECI_initiatives.scraper.initiatives.crawler"],
             "navigate_to_next_page",
             side_effect=mock_navigate_to_next_page_first_only,
         ):

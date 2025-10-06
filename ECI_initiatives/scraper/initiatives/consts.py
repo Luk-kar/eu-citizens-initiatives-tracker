@@ -15,7 +15,7 @@ DATA_DIR_NAME = "data"
 LOG_DIR_NAME = "logs"
 LISTINGS_DIR_NAME = "listings"
 PAGES_DIR_NAME = "initiative_pages"
-SCRIPT_DIR = Path(__file__).parent.parent.absolute()
+SCRIPT_DIR = Path(__file__).parent.parent.parent.absolute()
 LOG_DIR = os.path.join(SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, LOG_DIR_NAME)
 
 # Timing Configuration (in seconds)

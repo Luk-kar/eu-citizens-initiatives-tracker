@@ -49,13 +49,13 @@ class TestPaginationHandling:
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
-        from ECI_initiatives.scraper.crawler import (
+        from ECI_initiatives.scraper.initiatives.crawler import (
             navigate_to_next_page,
             wait_for_listing_page_content,
             scrape_single_listing_page,
             scrape_all_initiatives_on_all_pages,
         )
-        from ECI_initiatives.scraper.file_ops import save_listing_page
+        from ECI_initiatives.scraper.initiatives.file_ops import save_listing_page
         
         cls.navigate_to_next_page = staticmethod(navigate_to_next_page)
         cls.wait_for_listing_page_content = staticmethod(wait_for_listing_page_content)
@@ -96,9 +96,9 @@ class TestPaginationHandling:
                 return f.read()
         return '<html><body><div class="card">Last page content</div></body></html>'
 
-    @patch("ECI_initiatives.scraper.crawler.logger")
-    @patch("ECI_initiatives.scraper.crawler.time.sleep")
-    @patch("ECI_initiatives.scraper.crawler.random.uniform", return_value=1.0)
+    @patch("ECI_initiatives.scraper.initiatives.crawler.logger")
+    @patch("ECI_initiatives.scraper.initiatives.crawler.time.sleep")
+    @patch("ECI_initiatives.scraper.initiatives.crawler.random.uniform", return_value=1.0)
     def test_multiple_pages_handling(
         self, mock_uniform, mock_sleep, mock_logger, mock_driver, sample_listing_html
     ):
@@ -123,7 +123,7 @@ class TestPaginationHandling:
         # Verify execute_script was called for the first page
         mock_driver.execute_script.assert_called_once()
 
-    @patch("ECI_initiatives.scraper.crawler.logger")
+    @patch("ECI_initiatives.scraper.initiatives.crawler.logger")
     def test_stops_at_last_page(self, mock_logger, mock_driver):
         """Verify that scraping stops correctly when reaching the last page."""
 
@@ -136,9 +136,9 @@ class TestPaginationHandling:
         # Ensure execute_script was not called since no button was found
         mock_driver.execute_script.assert_not_called()
 
-    @patch("ECI_initiatives.scraper.file_ops.logger")
-    @patch("ECI_initiatives.scraper.file_ops.time.sleep")
-    @patch("ECI_initiatives.scraper.file_ops.random.uniform", return_value=1.0)
+    @patch("ECI_initiatives.scraper.initiatives.file_ops.logger")
+    @patch("ECI_initiatives.scraper.initiatives.file_ops.time.sleep")
+    @patch("ECI_initiatives.scraper.initiatives.file_ops.random.uniform", return_value=1.0)
     def test_page_numbering_correspondence(
         self, mock_uniform, mock_sleep, mock_logger, mock_driver, tmp_path
     ):
@@ -157,9 +157,9 @@ class TestPaginationHandling:
             assert expected_filename in page_path
             assert os.path.exists(page_path)
 
-    @patch("ECI_initiatives.scraper.__main__.logger")
+    @patch("ECI_initiatives.scraper.initiatives.__main__.logger")
     @patch(
-        "ECI_initiatives.scraper.crawler.parse_initiatives_list_data",
+        "ECI_initiatives.scraper.initiatives.crawler.parse_initiatives_list_data",
         return_value=[
             {
                 REQUIRED_CSV_COLUMNS.URL: "test",
@@ -167,8 +167,8 @@ class TestPaginationHandling:
             }
         ],
     )
-    @patch("ECI_initiatives.scraper.crawler.wait_for_listing_page_content")
-    @patch("ECI_initiatives.scraper.crawler.save_listing_page")
+    @patch("ECI_initiatives.scraper.initiatives.crawler.wait_for_listing_page_content")
+    @patch("ECI_initiatives.scraper.initiatives.crawler.save_listing_page")
     def test_all_pages_processed_without_skipping(
         self, mock_save, mock_wait, mock_parse, mock_logger, mock_driver
     ):
@@ -189,7 +189,7 @@ class TestPaginationHandling:
         ]
 
         with patch(
-            "ECI_initiatives.scraper.crawler.navigate_to_next_page",
+            "ECI_initiatives.scraper.initiatives.crawler.navigate_to_next_page",
             side_effect=[True, True, False],
         ):
             all_data, saved_paths = self.scrape_all_initiatives_on_all_pages(
@@ -201,8 +201,8 @@ class TestPaginationHandling:
         assert len(all_data) == 3  # Each page returns 1 initiative
         assert mock_save.call_count == 3
 
-    @patch("ECI_initiatives.scraper.crawler.logger")
-    @patch("ECI_initiatives.scraper.crawler.time.sleep")
+    @patch("ECI_initiatives.scraper.initiatives.crawler.logger")
+    @patch("ECI_initiatives.scraper.initiatives.crawler.time.sleep")
     def test_navigate_to_next_page_functionality(
         self, mock_sleep, mock_logger, mock_driver
     ):
@@ -235,12 +235,12 @@ class TestErrorRecoveryAndResilience:
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
-        from ECI_initiatives.scraper.downloader import (
+        from ECI_initiatives.scraper.initiatives.downloader import (
             download_single_initiative,
             download_initiative_pages,
             check_rate_limiting,
         )
-        from ECI_initiatives.scraper.browser import initialize_browser
+        from ECI_initiatives.scraper.initiatives.browser import initialize_browser
         
         cls.download_single_initiative = staticmethod(download_single_initiative)
         cls.download_initiative_pages = staticmethod(download_initiative_pages)
@@ -252,7 +252,7 @@ class TestErrorRecoveryAndResilience:
         """Create a mock driver for testing."""
         return Mock(spec=webdriver.Chrome)
 
-    @patch("ECI_initiatives.scraper.downloader.logger")
+    @patch("ECI_initiatives.scraper.initiatives.downloader.logger")
     def test_individual_page_download_failure_handling(
         self, mock_logger, mock_driver, tmp_path
     ):
@@ -270,11 +270,11 @@ class TestErrorRecoveryAndResilience:
         assert result is False
         mock_driver.get.assert_called_with(url)
 
-    @patch("ECI_initiatives.scraper.downloader.logger")
-    @patch("ECI_initiatives.scraper.downloader.download_single_initiative")
-    @patch("ECI_initiatives.scraper.downloader.initialize_browser")
-    @patch("ECI_initiatives.scraper.downloader.time.sleep")
-    @patch("ECI_initiatives.scraper.downloader.random.uniform", return_value=1.0)
+    @patch("ECI_initiatives.scraper.initiatives.downloader.logger")
+    @patch("ECI_initiatives.scraper.initiatives.downloader.download_single_initiative")
+    @patch("ECI_initiatives.scraper.initiatives.downloader.initialize_browser")
+    @patch("ECI_initiatives.scraper.initiatives.downloader.time.sleep")
+    @patch("ECI_initiatives.scraper.initiatives.downloader.random.uniform", return_value=1.0)
     def test_failed_downloads_recorded_properly(
         self, mock_uniform, mock_sleep, mock_init_browser, mock_download, mock_logger
     ):
@@ -312,9 +312,9 @@ class TestErrorRecoveryAndResilience:
         assert "http://test4.com" in failed_urls
         assert len(updated_data) == 4
 
-    @patch("ECI_initiatives.scraper.downloader.logger")
-    @patch("ECI_initiatives.scraper.downloader.time.sleep")
-    @patch("ECI_initiatives.scraper.downloader.random.uniform", return_value=1.0)
+    @patch("ECI_initiatives.scraper.initiatives.downloader.logger")
+    @patch("ECI_initiatives.scraper.initiatives.downloader.time.sleep")
+    @patch("ECI_initiatives.scraper.initiatives.downloader.random.uniform", return_value=1.0)
     def test_rate_limiting_handling(self, mock_uniform, mock_sleep, mock_driver):
         """Check that rate limiting is handled gracefully with appropriate retries."""
 
@@ -324,7 +324,7 @@ class TestErrorRecoveryAndResilience:
         url = f"{FULL_FIND_INITIATIVE_URL}/details/2024/000001_en"
 
         with patch(
-            "ECI_initiatives.scraper.downloader.check_rate_limiting"
+            "ECI_initiatives.scraper.initiatives.downloader.check_rate_limiting"
         ) as mock_check:
             mock_check.side_effect = Exception(
                 f"{RATE_LIMIT_INDICATORS.RATE_LIMITED} (HTML response)"
@@ -333,15 +333,15 @@ class TestErrorRecoveryAndResilience:
             result = self.download_single_initiative(mock_driver, "/tmp", url, max_retries=1)
             assert result is False
 
-    @patch("ECI_initiatives.scraper.crawler.logger")
+    @patch("ECI_initiatives.scraper.initiatives.crawler.logger")
     def test_continues_after_non_critical_errors(self, mock_driver):
         """Ensure scraping continues after encountering non-critical errors."""
 
         # Import needed for this specific test
-        from ECI_initiatives.scraper.crawler import wait_for_listing_page_content
+        from ECI_initiatives.scraper.initiatives.crawler import wait_for_listing_page_content
 
         # Test that timeout on waiting for elements doesn't stop the process
-        with patch("ECI_initiatives.scraper.crawler.WebDriverWait") as mock_wait:
+        with patch("ECI_initiatives.scraper.initiatives.crawler.WebDriverWait") as mock_wait:
 
             mock_wait.return_value.until.side_effect = TimeoutException()
 
@@ -351,8 +351,8 @@ class TestErrorRecoveryAndResilience:
             # The method should complete without raising an exception
             assert True
 
-    @patch("ECI_initiatives.scraper.downloader.logger")
-    @patch("ECI_initiatives.scraper.downloader.time.sleep")
+    @patch("ECI_initiatives.scraper.initiatives.downloader.logger")
+    @patch("ECI_initiatives.scraper.initiatives.downloader.time.sleep")
     def test_retry_logic_for_failed_requests(self, mock_sleep, mock_driver, tmp_path):
         """Test the retry mechanism for failed requests."""
 
@@ -364,12 +364,12 @@ class TestErrorRecoveryAndResilience:
         ]
         mock_driver.page_source = "<html><body>Success</body></html>"
 
-        with patch("ECI_initiatives.scraper.downloader.check_rate_limiting"):
+        with patch("ECI_initiatives.scraper.initiatives.downloader.check_rate_limiting"):
 
-            with patch("ECI_initiatives.scraper.downloader.wait_for_page_content"):
+            with patch("ECI_initiatives.scraper.initiatives.downloader.wait_for_page_content"):
 
                 with patch(
-                    "ECI_initiatives.scraper.downloader.save_initiative_page",
+                    "ECI_initiatives.scraper.initiatives.downloader.save_initiative_page",
                     return_value="test.html",
                 ):
                     url = "https://test.com/details/2024/000001_en"
@@ -394,12 +394,12 @@ class TestScrapingProcessFlow:
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
-        from ECI_initiatives.scraper.crawler import (
+        from ECI_initiatives.scraper.initiatives.crawler import (
             wait_for_listing_page_content,
             scrape_single_listing_page,
             scrape_all_initiatives_on_all_pages,
         )
-        from ECI_initiatives.scraper.downloader import (
+        from ECI_initiatives.scraper.initiatives.downloader import (
             wait_for_page_content,
             check_rate_limiting,
         )
@@ -416,8 +416,8 @@ class TestScrapingProcessFlow:
 
         return Mock(spec=webdriver.Chrome)
 
-    @patch("ECI_initiatives.scraper.crawler.logger")
-    @patch("ECI_initiatives.scraper.crawler.WebDriverWait")
+    @patch("ECI_initiatives.scraper.initiatives.crawler.logger")
+    @patch("ECI_initiatives.scraper.initiatives.crawler.WebDriverWait")
     def test_wait_for_listing_page_content(
         self, mock_wait_class, mock_logger, mock_driver
     ):
@@ -432,8 +432,8 @@ class TestScrapingProcessFlow:
         mock_wait_class.assert_called_with(mock_driver, DEFAULT_WEBDRIVER_TIMEOUT)
         mock_wait.until.assert_called_once()
 
-    @patch("ECI_initiatives.scraper.downloader.logger")
-    @patch("ECI_initiatives.scraper.downloader.WebDriverWait")
+    @patch("ECI_initiatives.scraper.initiatives.downloader.logger")
+    @patch("ECI_initiatives.scraper.initiatives.downloader.WebDriverWait")
     def test_wait_for_page_content(self, mock_wait_class, mock_logger, mock_driver):
         """Test waiting for individual page content to load."""
 
