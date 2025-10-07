@@ -41,8 +41,10 @@ class TestRegistrationNumberExtraction:
 
         expected_reg_number = '2024/000005'
         
-        filename = expected_reg_number + "_en.html"
+        filename = expected_reg_number.replace("/", "_") + "_en.html"
+
         reg_number = self.parser._extract_registration_number(filename)
+
         assert reg_number == expected_reg_number, \
             f"Expected '{expected_reg_number}', got '{reg_number}'"
     

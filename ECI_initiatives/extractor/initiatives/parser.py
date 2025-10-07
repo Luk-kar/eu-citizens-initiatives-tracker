@@ -336,9 +336,12 @@ class ECIHTMLParser:
 
         pattern = r'(\d{4})_(\d{6})_en\.html'
         match = re.match(pattern, filename)
+
         if match:
+
             year, number = match.groups()
             return f"{year}/{number}"
+            
         return ""
 
     def _extract_title(self, soup: BeautifulSoup) -> str:
