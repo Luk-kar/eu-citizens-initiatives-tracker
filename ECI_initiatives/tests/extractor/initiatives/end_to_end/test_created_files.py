@@ -43,6 +43,7 @@ class TestCreatedFiles:
         
         Imports are done here to avoid premature module loading.
         """
+
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from ECI_initiatives.extractor.initiatives.initiatives_logger import InitiativesExtractorLogger
         
@@ -77,6 +78,7 @@ class TestCreatedFiles:
         
         # Check log file was created
         log_files = list(self.logs_dir.glob("processor_initiatives_*.log"))
+        
         assert len(log_files) > 0, "Log file should be created"
         assert log_files[0].exists(), "Log file should exist"
     
@@ -91,19 +93,23 @@ class TestCreatedFiles:
         
         # Check naming pattern: processor_initiatives_YYYY-MM-DD_HH-MM-SS.log
         log_filename = log_files[0].name
+
         assert log_filename.startswith("processor_initiatives_"), \
             f"Log filename should start with 'processor_initiatives_', got: {log_filename}"
+
         assert log_filename.endswith(".log"), \
             f"Log filename should end with '.log', got: {log_filename}"
         
         # Extract timestamp part
         timestamp_part = log_filename.replace("processor_initiatives_", "").replace(".log", "")
+
         # Pattern: YYYY-MM-DD_HH-MM-SS
         assert len(timestamp_part) == 19, \
             f"Timestamp should be 19 characters (YYYY-MM-DD_HH-MM-SS), got: {timestamp_part}"
     
     def test_log_file_contains_entries(self, program_root_dir):
         """Test that log file contains entries after processing."""
+
         from unittest.mock import patch
         from datetime import datetime
         
@@ -143,9 +149,11 @@ class TestCreatedFiles:
         
         # Check log file has content
         log_files = list(logs_dir.glob("processor_initiatives_*.log"))
+
         assert len(log_files) > 0, "Log file should be created"
         
         log_content = log_files[0].read_text(encoding='utf-8')
+
         assert len(log_content) > 0, "Log file should contain entries"
         assert "Starting ECI data processing" in log_content or \
             "Processing" in log_content, \
@@ -156,6 +164,7 @@ class TestCreatedFiles:
 
     def test_csv_file_is_created(self, program_root_dir):
         """Test that CSV file is created in output directory."""
+
         from unittest.mock import patch
         from datetime import datetime
         
@@ -171,6 +180,7 @@ class TestCreatedFiles:
         logs_dir.mkdir(parents=True, exist_ok=True)
         
         example_file = test_data_dir / "2024_000004_en.html"
+
         if example_file.exists():
             shutil.copy(example_file, year_dir / "2024_000004_en.html")
         
@@ -197,6 +207,7 @@ class TestCreatedFiles:
 
     def test_csv_contains_correct_headers(self, program_root_dir):
         """Test that CSV contains all required column headers."""
+
         from unittest.mock import patch
         from datetime import datetime
         
@@ -245,6 +256,7 @@ class TestCreatedFiles:
 
     def test_csv_row_count_matches_processed_files(self, program_root_dir):
         """Test that CSV row count matches number of processed HTML files."""
+
         from unittest.mock import patch
         from datetime import datetime
         
@@ -260,16 +272,19 @@ class TestCreatedFiles:
         logs_dir.mkdir(parents=True, exist_ok=True)
         
         # Copy multiple files
-        test_files = [
+        eci_files = [
             "2024_000004_en.html",
             "2024_000005_en.html",
             "2024_000007_en.html"
         ]
         
         copied_count = 0
-        for filename in test_files:
+        for filename in eci_files:
+
             example_file = test_data_dir / filename
+
             if example_file.exists():
+
                 shutil.copy(example_file, year_dir / filename)
                 copied_count += 1
         
@@ -291,6 +306,7 @@ class TestCreatedFiles:
         assert len(csv_files) > 0, "CSV file should exist"
         
         with open(csv_files[0], 'r', encoding='utf-8') as f:
+            
             reader = csv.DictReader(f)
             row_count = sum(1 for _ in reader)
             
@@ -302,6 +318,7 @@ class TestCreatedFiles:
 
     def test_csv_encoding_is_utf8(self, program_root_dir):
         """Test that CSV file is encoded in UTF-8."""
+        
         from unittest.mock import patch
         from datetime import datetime
         
@@ -348,6 +365,7 @@ class TestCreatedFiles:
 
     def test_csv_created_with_zero_initiatives(self):
         """Test that CSV handling when no initiatives are processed."""
+
         from unittest.mock import patch
         from datetime import datetime
         
@@ -380,18 +398,24 @@ class TestCreatedFiles:
         # Current implementation: CSV is created but empty when no initiatives
         # This documents the actual behavior - the processor logs warning and doesn't write CSV
         if len(csv_files) > 0:
+
             # If CSV file exists, check if it's empty or has headers
             csv_file = csv_files[0]
             file_size = csv_file.stat().st_size
             
             # Empty file (0 bytes) or has some content
             if file_size == 0:
+
                 # CSV file created but empty - acceptable behavior
                 pass
+
             else:
+
                 # Has content - should have headers at minimum
                 with open(csv_file, 'r', encoding='utf-8') as f:
+
                     content = f.read()
+
                     # Check if it has at least one line (headers)
                     lines = content.strip().split('\n')
                     assert len(lines) >= 1, "CSV should have at least header line"
@@ -402,8 +426,11 @@ class TestCreatedFiles:
         
         # Verify log contains the warning
         log_files = list(logs_dir.glob("processor_initiatives_*.log"))
+
         if len(log_files) > 0:
+
             log_content = log_files[0].read_text(encoding='utf-8')
+            
             assert "No initiatives to save" in log_content, \
                 "Log should contain warning about no initiatives"
         
