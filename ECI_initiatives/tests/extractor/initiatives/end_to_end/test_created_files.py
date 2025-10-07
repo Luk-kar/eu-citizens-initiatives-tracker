@@ -113,6 +113,8 @@ class TestCreatedFiles:
         from unittest.mock import patch
         from datetime import datetime
         
+        eci_file = "2024_000004_en.html"
+        
         # Create a proper session directory with timestamp
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         session_dir = self.temp_session_path / session_name
@@ -129,9 +131,9 @@ class TestCreatedFiles:
         logs_dir.mkdir(parents=True, exist_ok=True)
         
         # Copy one example file
-        example_file = test_data_dir / "2024_000004_en.html"
+        example_file = test_data_dir / eci_file
         if example_file.exists():
-            shutil.copy(example_file, year_dir / "2024_000004_en.html")
+            shutil.copy(example_file, year_dir / eci_file)
         
         # Run processor with mock
         processor = self.ECIDataProcessor(
@@ -168,6 +170,8 @@ class TestCreatedFiles:
         from unittest.mock import patch
         from datetime import datetime
         
+        eci_file = "2024_000004_en.html"
+        
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         session_dir = self.temp_session_path / session_name
         
@@ -179,10 +183,10 @@ class TestCreatedFiles:
         logs_dir = session_dir / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        example_file = test_data_dir / "2024_000004_en.html"
+        example_file = test_data_dir / eci_file
 
         if example_file.exists():
-            shutil.copy(example_file, year_dir / "2024_000004_en.html")
+            shutil.copy(example_file, year_dir / eci_file)
         
         # Run processor with mock
         processor = self.ECIDataProcessor(
@@ -211,6 +215,8 @@ class TestCreatedFiles:
         from unittest.mock import patch
         from datetime import datetime
         
+        eci_file = "2024_000004_en.html"
+        
         # Create session directory with timestamp
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         session_dir = self.temp_session_path / session_name
@@ -223,9 +229,9 @@ class TestCreatedFiles:
         logs_dir = session_dir / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        example_file = test_data_dir / "2024_000004_en.html"
+        example_file = test_data_dir / eci_file
         if example_file.exists():
-            shutil.copy(example_file, year_dir / "2024_000004_en.html")
+            shutil.copy(example_file, year_dir / eci_file)
         
         processor = self.ECIDataProcessor(
             data_root=str(self.temp_session_path),
@@ -279,13 +285,13 @@ class TestCreatedFiles:
         ]
         
         copied_count = 0
-        for filename in eci_files:
+        for eci_file in eci_files:
 
-            example_file = test_data_dir / filename
+            example_file = test_data_dir / eci_file
 
             if example_file.exists():
 
-                shutil.copy(example_file, year_dir / filename)
+                shutil.copy(example_file, year_dir / eci_file)
                 copied_count += 1
         
         # Run processor
@@ -322,6 +328,8 @@ class TestCreatedFiles:
         from unittest.mock import patch
         from datetime import datetime
         
+        eci_file = "2024_000004_en.html"
+        
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         session_dir = self.temp_session_path / session_name
         
@@ -333,9 +341,9 @@ class TestCreatedFiles:
         logs_dir = session_dir / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        example_file = test_data_dir / "2024_000004_en.html"
+        example_file = test_data_dir / eci_file
         if example_file.exists():
-            shutil.copy(example_file, year_dir / "2024_000004_en.html")
+            shutil.copy(example_file, year_dir / eci_file)
         
         processor = self.ECIDataProcessor(
             data_root=str(self.temp_session_path),
