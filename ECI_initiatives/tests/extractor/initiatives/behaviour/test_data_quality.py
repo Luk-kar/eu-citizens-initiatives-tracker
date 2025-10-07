@@ -29,6 +29,7 @@ class TestRequiredFieldValidation:
     
     def test_registration_number_never_none(self, program_root_dir):
         """Test that registration_number is never None in CSV."""
+
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
@@ -50,9 +51,12 @@ class TestRequiredFieldValidation:
         
         if test_file.exists():
             shutil.copy(test_file, pages_dir / "2024_000004_en.html")
+        else:
+            raise FileNotFoundError(f"Test data file not found: {test_file}")
         
         # Mock find_latest_scrape_session to return our test session
         with patch.object(ECIDataProcessor, 'find_latest_scrape_session', return_value=session_dir):
+
             # Run processor
             processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
             processor.run()
@@ -62,7 +66,9 @@ class TestRequiredFieldValidation:
         assert len(csv_files) > 0, "CSV should be created"
         
         with open(csv_files[0], 'r', encoding='utf-8') as f:
+
             reader = csv.DictReader(f)
+
             for row in reader:
                 assert row['registration_number'], "registration_number should not be None or empty"
                 assert row['registration_number'] != "None", "registration_number should not be literal 'None'"
@@ -72,6 +78,7 @@ class TestRequiredFieldValidation:
     
     def test_title_never_none(self, program_root_dir):
         """Test that title is never None in CSV."""
+
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
@@ -82,19 +89,25 @@ class TestRequiredFieldValidation:
         
         pages_dir = session_dir / "initiatives" / "pages" / "2024"
         logs_dir = session_dir / "logs"
+
         pages_dir.mkdir(parents=True, exist_ok=True)
         logs_dir.mkdir(parents=True, exist_ok=True)
         
         test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / "2024_000004_en.html"
         if test_file.exists():
             shutil.copy(test_file, pages_dir / "2024_000004_en.html")
+        else:
+            raise FileNotFoundError(f"Test data file not found: {test_file}")
         
         with patch.object(ECIDataProcessor, 'find_latest_scrape_session', return_value=session_dir):
+
             processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
             processor.run()
         
         csv_files = list(session_dir.glob("eci_initiatives_*.csv"))
+
         with open(csv_files[0], 'r', encoding='utf-8') as f:
+
             reader = csv.DictReader(f)
             for row in reader:
                 assert row['title'], "title should not be None or empty"
@@ -103,6 +116,7 @@ class TestRequiredFieldValidation:
     
     def test_url_never_none(self, program_root_dir):
         """Test that url is never None in CSV."""
+
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
@@ -115,15 +129,20 @@ class TestRequiredFieldValidation:
         pages_dir.mkdir(parents=True, exist_ok=True)
         
         test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / "2024_000004_en.html"
+
         if test_file.exists():
             shutil.copy(test_file, pages_dir / "2024_000004_en.html")
-        
+        else:
+            raise FileNotFoundError(f"Test data file not found: {test_file}")
+
         with patch.object(ECIDataProcessor, 'find_latest_scrape_session', return_value=session_dir):
             processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
             processor.run()
         
         csv_files = list(session_dir.glob("eci_initiatives_*.csv"))
+
         with open(csv_files[0], 'r', encoding='utf-8') as f:
+
             reader = csv.DictReader(f)
             for row in reader:
                 assert row['url'], "url should not be None or empty"
@@ -132,6 +151,7 @@ class TestRequiredFieldValidation:
     
     def test_timestamps_never_none(self, program_root_dir):
         """Test that timestamps are never None."""
+
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
@@ -144,14 +164,18 @@ class TestRequiredFieldValidation:
         pages_dir.mkdir(parents=True, exist_ok=True)
         
         test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / "2024_000004_en.html"
+
         if test_file.exists():
             shutil.copy(test_file, pages_dir / "2024_000004_en.html")
-        
+        else:
+            raise FileNotFoundError(f"Test data file not found: {test_file}")
+
         with patch.object(ECIDataProcessor, 'find_latest_scrape_session', return_value=session_dir):
             processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
             processor.run()
         
         csv_files = list(session_dir.glob("eci_initiatives_*.csv"))
+
         with open(csv_files[0], 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
@@ -166,6 +190,7 @@ class TestJSONFieldValidation:
     
     def test_json_fields_are_valid_or_none(self, program_root_dir):
         """Test that JSON fields are either valid JSON or empty."""
+
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
@@ -178,9 +203,12 @@ class TestJSONFieldValidation:
         pages_dir.mkdir(parents=True, exist_ok=True)
         
         test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / "2024_000004_en.html"
+
         if test_file.exists():
             shutil.copy(test_file, pages_dir / "2024_000004_en.html")
-        
+        else:
+            raise FileNotFoundError(f"Test data file not found: {test_file}")
+
         with patch.object(ECIDataProcessor, 'find_latest_scrape_session', return_value=session_dir):
             processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
             processor.run()
@@ -188,14 +216,21 @@ class TestJSONFieldValidation:
         json_fields = ['signatures_collected_by_country', 'funding_by', 'organizer_representative']
         
         csv_files = list(session_dir.glob("eci_initiatives_*.csv"))
+
         with open(csv_files[0], 'r', encoding='utf-8') as f:
+
             reader = csv.DictReader(f)
+
             for row in reader:
+
                 for field in json_fields:
                     value = row.get(field, '')
+
                     if value and value != 'None':
+
                         try:
                             json.loads(value)
+
                         except json.JSONDecodeError:
                             pytest.fail(f"Field {field} contains invalid JSON: {value}")
         
@@ -219,6 +254,7 @@ class TestCSVStructure:
         # Fix: Use correct directory name - initiative_pages not initiatives/pages
         pages_dir = session_dir / "initiative_pages" / "2024"
         logs_dir = session_dir / "logs"
+
         pages_dir.mkdir(parents=True, exist_ok=True)
         logs_dir.mkdir(parents=True, exist_ok=True)
         
@@ -227,10 +263,14 @@ class TestCSVStructure:
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives"
         
         for filename in test_files:
+
             test_file = test_data_dir / filename
+
             if test_file.exists():
                 shutil.copy(test_file, pages_dir / filename)
-        
+            else:
+                raise FileNotFoundError(f"Test data file not found: {test_file}")
+
         # Create processor
         processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
         
@@ -246,6 +286,7 @@ class TestCSVStructure:
         assert len(csv_files) > 0, "CSV should be created"
         
         with open(csv_files[0], 'r', encoding='utf-8') as f:
+
             reader = csv.DictReader(f)
             header_count = len(reader.fieldnames)
             
@@ -261,6 +302,7 @@ class TestCSVStructure:
     
     def test_no_duplicate_registration_numbers(self, program_root_dir):
         """Test that no duplicate registration numbers appear in CSV."""
+
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
@@ -272,6 +314,7 @@ class TestCSVStructure:
         # Fix: Use correct directory name
         pages_dir = session_dir / "initiative_pages" / "2024"
         logs_dir = session_dir / "logs"
+
         pages_dir.mkdir(parents=True, exist_ok=True)
         logs_dir.mkdir(parents=True, exist_ok=True)
         
@@ -279,10 +322,14 @@ class TestCSVStructure:
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives"
         
         for filename in test_files:
+
             test_file = test_data_dir / filename
+
             if test_file.exists():
                 shutil.copy(test_file, pages_dir / filename)
-        
+            else:
+                raise FileNotFoundError(f"Test data file not found: {test_file}")
+                
         # Create processor
         processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
         
