@@ -33,6 +33,8 @@ class TestRequiredFieldValidation:
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
+        eci_name = "2024_000004_en.html"
+        
         # Setup temp environment
         temp_dir = tempfile.mkdtemp(prefix="eci_test_")
         temp_path = Path(temp_dir)
@@ -47,10 +49,10 @@ class TestRequiredFieldValidation:
         logs_dir.mkdir(parents=True, exist_ok=True)
         
         # Copy test file
-        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / "2024_000004_en.html"
+        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / eci_name
         
         if test_file.exists():
-            shutil.copy(test_file, pages_dir / "2024_000004_en.html")
+            shutil.copy(test_file, pages_dir / eci_name)
         else:
             raise FileNotFoundError(f"Test data file not found: {test_file}")
         
@@ -82,6 +84,8 @@ class TestRequiredFieldValidation:
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
+        eci_name = "2024_000004_en.html"
+        
         temp_dir = tempfile.mkdtemp(prefix="eci_test_")
         temp_path = Path(temp_dir)
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -93,9 +97,9 @@ class TestRequiredFieldValidation:
         pages_dir.mkdir(parents=True, exist_ok=True)
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / "2024_000004_en.html"
+        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / eci_name
         if test_file.exists():
-            shutil.copy(test_file, pages_dir / "2024_000004_en.html")
+            shutil.copy(test_file, pages_dir / eci_name)
         else:
             raise FileNotFoundError(f"Test data file not found: {test_file}")
         
@@ -120,6 +124,8 @@ class TestRequiredFieldValidation:
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
+        eci_name = "2024_000004_en.html"
+        
         temp_dir = tempfile.mkdtemp(prefix="eci_test_")
         temp_path = Path(temp_dir)
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -128,10 +134,10 @@ class TestRequiredFieldValidation:
         pages_dir = session_dir / "initiatives" / "pages" / "2024"
         pages_dir.mkdir(parents=True, exist_ok=True)
         
-        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / "2024_000004_en.html"
+        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / eci_name
 
         if test_file.exists():
-            shutil.copy(test_file, pages_dir / "2024_000004_en.html")
+            shutil.copy(test_file, pages_dir / eci_name)
         else:
             raise FileNotFoundError(f"Test data file not found: {test_file}")
 
@@ -155,6 +161,8 @@ class TestRequiredFieldValidation:
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
+        eci_name = "2024_000004_en.html"
+        
         temp_dir = tempfile.mkdtemp(prefix="eci_test_")
         temp_path = Path(temp_dir)
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -163,10 +171,10 @@ class TestRequiredFieldValidation:
         pages_dir = session_dir / "initiatives" / "pages" / "2024"
         pages_dir.mkdir(parents=True, exist_ok=True)
         
-        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / "2024_000004_en.html"
+        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / eci_name
 
         if test_file.exists():
-            shutil.copy(test_file, pages_dir / "2024_000004_en.html")
+            shutil.copy(test_file, pages_dir / eci_name)
         else:
             raise FileNotFoundError(f"Test data file not found: {test_file}")
 
@@ -194,6 +202,8 @@ class TestJSONFieldValidation:
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
+        eci_name = "2024_000004_en.html"
+        
         temp_dir = tempfile.mkdtemp(prefix="eci_test_")
         temp_path = Path(temp_dir)
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -202,10 +212,10 @@ class TestJSONFieldValidation:
         pages_dir = session_dir / "initiatives" / "pages" / "2024"
         pages_dir.mkdir(parents=True, exist_ok=True)
         
-        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / "2024_000004_en.html"
+        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / eci_name
 
         if test_file.exists():
-            shutil.copy(test_file, pages_dir / "2024_000004_en.html")
+            shutil.copy(test_file, pages_dir / eci_name)
         else:
             raise FileNotFoundError(f"Test data file not found: {test_file}")
 
@@ -246,6 +256,8 @@ class TestCSVStructure:
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
+        eci_names = ["2024_000004_en.html", "2024_000005_en.html"]
+        
         temp_dir = tempfile.mkdtemp(prefix="eci_test_")
         temp_path = Path(temp_dir)
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -259,10 +271,9 @@ class TestCSVStructure:
         logs_dir.mkdir(parents=True, exist_ok=True)
         
         # Copy multiple test files
-        test_files = ["2024_000004_en.html", "2024_000005_en.html"]
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives"
         
-        for filename in test_files:
+        for filename in eci_names:
 
             test_file = test_data_dir / filename
 
@@ -306,6 +317,8 @@ class TestCSVStructure:
         from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
         from datetime import datetime
         
+        eci_names = ["2024_000004_en.html", "2024_000005_en.html", "2024_000007_en.html"]
+        
         temp_dir = tempfile.mkdtemp(prefix="eci_test_")
         temp_path = Path(temp_dir)
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -318,10 +331,9 @@ class TestCSVStructure:
         pages_dir.mkdir(parents=True, exist_ok=True)
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        test_files = ["2024_000004_en.html", "2024_000005_en.html", "2024_000007_en.html"]
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives"
         
-        for filename in test_files:
+        for filename in eci_names:
 
             test_file = test_data_dir / filename
 
@@ -354,4 +366,3 @@ class TestCSVStructure:
                 "CSV contains duplicate registration numbers"
         
         shutil.rmtree(temp_path)
-
