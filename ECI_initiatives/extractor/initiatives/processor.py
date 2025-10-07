@@ -40,6 +40,7 @@ class ECIDataProcessor:
 
     def find_latest_scrape_session(self) -> Optional[Path]:
         """Find the most recent scraping session directory"""
+
         try:
             session_dirs = [d for d in self.data_root.iterdir() 
                            if d.is_dir() and re.match(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}', d.name)]
@@ -58,6 +59,7 @@ class ECIDataProcessor:
 
     def process_initiative_pages(self, session_path: Path) -> List[ECIInitiative]:
         """Process all initiative HTML pages in a session"""
+
         initiatives = []
         initiative_pages_dir = session_path / "initiative_pages"
 
@@ -83,6 +85,7 @@ class ECIDataProcessor:
 
     def save_to_csv(self, initiatives: List[ECIInitiative], output_path: Path) -> None:
         """Save initiatives data to CSV file"""
+        
         try:
             with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
                 if not initiatives:

@@ -1,1209 +1,1169 @@
-`./ECI_initiatives/extractor/initiatives/initiatives_logger.py`:
+`./ECI_initiatives/scraper/initiatives/browser.py`:
 ```
-"""
-Unified Logger for ECI initiatives extractor
-"""
+# Browser initialization and management
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
+# Local
+from .consts import CHROME_OPTIONS, LOG_MESSAGES
+from .scraper_logger import logger
+
+
+def initialize_browser() -> webdriver.Chrome:
+    """Initialize Chrome WebDriver with headless options."""
+
+    chrome_options = Options()
+    for option in CHROME_OPTIONS:
+        chrome_options.add_argument(option)
+
+    logger.info(LOG_MESSAGES["browser_init"])
+    driver = webdriver.Chrome(options=chrome_options)
+    logger.debug(LOG_MESSAGES["browser_success"])
+
+    return driver
+
+```
+
+`./ECI_initiatives/scraper/initiatives/consts.py`:
+```
 # python
-import logging
+import datetime
+import os
 from pathlib import Path
-from datetime import datetime
-from typing import Optional
+
+# The program is so small that we can treat it as init during running it
+START_SCRAPING = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+# URLs and Routes
+BASE_URL = "https://citizens-initiative.europa.eu"
+ROUTE_FIND_INITIATIVE = "/find-initiative_en"
+
+# Directory Structure
+DATA_DIR_NAME = "data"
+LOG_DIR_NAME = "logs"
+LISTINGS_DIR_NAME = "listings"
+PAGES_DIR_NAME = "initiative_pages"
+SCRIPT_DIR = Path(__file__).parent.parent.parent.absolute()
+LOG_DIR = os.path.join(SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, LOG_DIR_NAME)
+
+# Timing Configuration (in seconds)
+WAIT_DYNAMIC_CONTENT = (1.5, 1.9)
+WAIT_BETWEEN_PAGES = (1.0, 2.0)
+WAIT_BETWEEN_DOWNLOADS = (0.5, 1.5)
+RETRY_WAIT_BASE = (1.0, 1.2)
+
+# Timeout Configuration (in seconds)
+WEBDRIVER_TIMEOUT_DEFAULT = 30
+WEBDRIVER_TIMEOUT_CONTENT = 15
+
+# Browser Configuration
+CHROME_OPTIONS = ["--headless", "--no-sandbox", "--disable-dev-shm-usage"]
+
+# File Naming Patterns
+LISTING_PAGE_FILENAME_PATTERN = (
+    "Find_initiative_European_Citizens_Initiative_page_{:03d}.html"
+)
+LISTING_PAGE_MAIN_FILENAME = "Find_initiative_European_Citizens_Initiative.html"
+INITIATIVE_PAGE_FILENAME_PATTERN = "{year}_{number}.html"
+
+CSV_FIELDNAMES = [
+    "url",
+    "current_status",
+    "registration_number",
+    "signature_collection",
+    "datetime",
+]
+CSV_FILENAME = "initiatives_list.csv"
+
+DEFAULT_MAX_RETRIES = 5
+
+MIN_HTML_LENGTH = 50
+
+RATE_LIMIT_INDICATORS = [
+    "Server inaccessibility",
+    "429 - Too Many Requests",
+    "429",
+    "Too Many Requests",
+    "Rate limited",
+]
+
+LOG_MESSAGES = {
+    "scraping_start": "Starting scraping at: {timestamp}",
+    "browser_init": "Initializing browser...",
+    "browser_success": "Browser initialized successfully",
+    "browser_closed": "Browser closed",
+    "page_loaded": "Initiatives loaded successfully on page {page}",
+    "page_saved": "Page {page} saved to: {path}",
+    "next_button_found": "Found 'Next' button on page {page}, navigating to page {next_page}",
+    "last_page": "No 'Next' button found on page {page}. This appears to be the last page.",
+    "download_success": "✅ Successfully downloaded: {filename}",
+    "rate_limit_retry": "⚠️  Received rate limiting. Retrying {retry}/{max_retries} in {wait_time:.1f} seconds...",
+    "pages_browser_closed": "Individual pages browser closed",
+    "summary_scraping": {
+        "scraping_complete": "🎉 SCRAPING FINISHED! 🎉",
+        "completion_timestamp": "Scraping completed at: {timestamp}",
+        "start_time": "Start time: {start_scraping}",
+        "total_pages_scraped": "Total pages scraped: {page_count}",
+        "total_initiatives_found": "Total initiatives found: {total_initiatives}",
+        "initiatives_by_category": "Initiatives by category (current_status):",
+        "registered_status": "- Registered: {count}",
+        "collection_ongoing_status": "- Collection ongoing: {count}",
+        "valid_initiative_status": "- Valid initiative: {count}",
+        "pages_downloaded": "Pages downloaded: {downloaded_count}/{total_initiatives}",
+        "failed_downloads": "Failed downloads: {failed_count}",
+        "failed_url": " - {failed_url}",
+        "all_downloads_successful": "✅ All downloads successful!",
+        "files_saved_in": "Files saved in: initiatives/{start_scraping}",
+        "main_page_sources": "Main page sources:",
+        "page_source": "  Page {page_num}: {path}",
+        "divider_line": "=" * 60,
+    },
+}
+```
+
+`./ECI_initiatives/scraper/initiatives/crawler.py`:
+```
+# Python Standard Library
+import random
+import time
+from typing import Dict, Tuple
+
+# Third-party
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+# Local
+from .browser import initialize_browser
+from .file_ops import save_listing_page
+from .data_parser import parse_initiatives_list_data
+from .css_selectors import ECIlistingSelectors
+from .consts import (
+    ROUTE_FIND_INITIATIVE,
+    WAIT_DYNAMIC_CONTENT,
+    WAIT_BETWEEN_PAGES,
+    WEBDRIVER_TIMEOUT_DEFAULT,
+    LOG_MESSAGES,
+)
+from .scraper_logger import logger
 
 
-class InitiativesExtractorLogger:
-    """Centralized logger for ECI initiatives data processing"""
+def scrape_all_initiatives_on_all_pages(
+    driver: webdriver.Chrome, base_url: str, list_dir: str
+) -> Tuple[list, list]:
+    """Scrape all pages of initiatives on the listings by iterating through pagination.
 
-    _instance = None
-    _logger = None
+    Args:
+        driver: Chrome WebDriver instance
+        base_url: Base URL of the site
+        list_dir: Directory to save page HTML files
 
-    def __new__(cls):
-        """Singleton pattern to ensure only one logger instance exists"""
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
+    Returns:
+        Tuple containing:
+        - List of all initiative data from all pages
+        - List of paths to saved HTML files
+    """
+    url_find_initiative = base_url + ROUTE_FIND_INITIATIVE
+    all_initiative_pages = []
+    saved_page_paths = []
+    current_page = 1
 
-        return cls._instance
+    logger.info(f"Starting pagination scraping from: {url_find_initiative}")
 
-    def __init__(self):
-        """Initialize logger only once"""
-        if self._logger is None:
+    # Load the first page
+    logger.info(f"Loading page {current_page}: {url_find_initiative}")
+    driver.get(url_find_initiative)
 
-            self._logger = logging.getLogger('eci_initiatives_extractor')
-            self._logger.setLevel(logging.INFO)
+    while True:
 
-            # Prevent duplicate handlers if __init__ is called multiple times
-            self._logger.handlers = []
-
-    def setup(self, log_dir: Optional[Path] = None) -> logging.Logger:
-        """
-        Configure logging with file and console handlers
-
-        Args:
-            log_dir: Directory for log files. If None, only console logging is used.
-
-        Returns:
-            Configured logger instance
-        """
-        # Clear existing handlers to prevent duplicates
-        self._logger.handlers = []
-
-        # Formatter
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        # Scrape current page
+        page_initiative_data, page_path = scrape_single_listing_page(
+            driver, base_url, list_dir, current_page
         )
 
-        # Console handler (always active)
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(formatter)
-        self._logger.addHandler(console_handler)
+        # Add to accumulated data
+        all_initiative_pages.extend(page_initiative_data)
+        saved_page_paths.append(page_path)
 
-        # File handler (optional, only if log_dir is provided)
-        if log_dir:
+        # Try to navigate to next page
+        if navigate_to_next_page(driver, current_page):
+            current_page += 1
+        else:
+            break
 
-            log_dir.mkdir(parents=True, exist_ok=True)
-
-            log_file = log_dir / f"processor_initiatives_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
-
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setLevel(logging.INFO)
-            file_handler.setFormatter(formatter)
-
-            self._logger.addHandler(file_handler)
-
-        return self._logger
-
-    def get_logger(self) -> logging.Logger:
-        """Get the configured logger instance"""
-
-        if self._logger is None:
-            raise RuntimeError("Logger not initialized. Call setup() first.")
-
-        return self._logger
-
-```
-
-`./ECI_initiatives/extractor/initiatives/__init__.py`:
-```
-
-```
-
-`./ECI_initiatives/extractor/initiatives/__main__.py`:
-```
-#!/usr/bin/env python3
-"""
-ECI Data Scraper - European Citizens' Initiative HTML Parser
-Processes scraped HTML files and extracts structured data to CSV
-"""
-
-# python
-import os
-import csv
-import re
-import logging
-import json
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Optional, Union, Tuple
-from dataclasses import dataclass, asdict
-
-# third-party
-from bs4 import BeautifulSoup
-
-# initiatives extractor
-from initiatives_logger import InitiativesExtractorLogger
-from processor import ECIDataProcessor
+    logger.info(
+        f"Completed scraping {current_page} pages with total of "
+        f"{len(all_initiative_pages)} initiatives"
+    )
+    return all_initiative_pages, saved_page_paths
 
 
-def main():
-    """Main entry point"""
+def scrape_single_listing_page(
+    driver: webdriver.Chrome, base_url: str, list_dir: str, current_page: int
+) -> Tuple[list, str]:
+    """Scrape a single listing page and return initiative data and saved page path."""
 
-    processor = ECIDataProcessor()
-    processor.run()
+    # Wait for page elements to load
+    wait_for_listing_page_content(driver, current_page)
 
+    # Save page source
+    page_source, page_path = save_listing_page(driver, list_dir, current_page)
 
-if __name__ == "__main__":
-    main()
+    # Parse initiatives from current page
+    page_initiative_data = parse_initiatives_list_data(page_source, base_url)
 
-```
-
-`./ECI_initiatives/extractor/initiatives/model.py`:
-```
-#!/usr/bin/env python3
-"""
-ECI Data Models
-Data structures for ECI initiative information
-"""
-
-from dataclasses import dataclass
-from typing import Optional
+    return page_initiative_data, page_path
 
 
-@dataclass
-class ECIInitiative:
-    """Data structure for ECI initiative information"""
+def wait_for_listing_page_content(driver: webdriver.Chrome, current_page: int) -> None:
+    """Wait for listing page elements to load."""
 
-    registration_number: str
-    title: str
-    objective: str
-    annex: Optional[str]
-    current_status: str
-    url: str
+    wait = WebDriverWait(driver, WEBDRIVER_TIMEOUT_DEFAULT)
+    try:
+        cards_initiative_selector = ECIlistingSelectors.INITIATIVE_CARDS
+        wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, cards_initiative_selector))
+        )
+        logger.info(LOG_MESSAGES["page_loaded"].format(page=current_page))
+    except Exception as e:
+        logger.warning(
+            f"No initiatives found or timeout on page {current_page}: "
+            f"{e} - continuing with current content"
+        )
 
-    timeline_registered: Optional[str]
-    timeline_collection_start_date: Optional[str]
-    timeline_collection_closed: Optional[str] 
-    timeline_verification_start: Optional[str]
-    timeline_verification_end: Optional[str]
-    timeline_response_commission_date:  Optional[str]
 
-    timeline: Optional[str]
+def navigate_to_next_page(driver: webdriver.Chrome, current_page: int) -> bool:
+    """Check for next button and navigate to next page.
 
-    organizer_representative: Optional[str]  # JSON with representative data
-    organizer_entity: Optional[str]         # JSON with legal entity data
-    organizer_others: Optional[str]         # JSON with members, substitutes, others, DPO data
+    Returns:
+        bool: True if successfully navigated to next page, False if no more pages
+    """
+    next_button_selector = ECIlistingSelectors.NEXT_BUTTON
 
-    funding_total: Optional[str]
-    funding_by: Optional[str]
+    try:
 
-    signatures_collected: Optional[str]
-    signatures_collected_by_country: Optional[str]
-    signatures_threshold_met: Optional[str]
+        next_button = driver.find_element(By.CSS_SELECTOR, next_button_selector)
+        logger.info(
+            LOG_MESSAGES["next_button_found"].format(
+                page=current_page, next_page=current_page + 1
+            )
+        )
+        # Click the next button
+        driver.execute_script("arguments[0].click();", next_button)
+        # Wait a bit for the page to start loading
+        time.sleep(random.uniform(*WAIT_BETWEEN_PAGES))
+        return True
 
-    response_commission_url: Optional[str]
+    except Exception:
+        logger.info(LOG_MESSAGES["last_page"].format(page=current_page))
+        return False
 
-    final_outcome: Optional[str]
-    languages_available: Optional[str]
-    created_timestamp: str
-    last_updated: str
+
+def scrape_initiatives_page(
+    driver: webdriver.Chrome, base_url: str, list_dir: str
+) -> Tuple[str, str]:
+    """Load page, wait for elements, and save HTML source."""
+
+    url_find_initiative = base_url + ROUTE_FIND_INITIATIVE
+
+    logger.info(f"Loading page: {url_find_initiative}")
+    driver.get(url_find_initiative)
+
+    wait = WebDriverWait(driver, WEBDRIVER_TIMEOUT_DEFAULT)
+
+    try:
+        cards_initiative_selector = ECIlistingSelectors.INITIATIVE_CARDS
+        wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, cards_initiative_selector))
+        )
+
+        pagination_for_other_cards = ECIlistingSelectors.PAGINATION_LINKS
+        wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, pagination_for_other_cards)
+            )
+        )
+        logger.info("Initiatives loaded successfully")
+    except Exception as e:
+        logger.warning(
+            f"No initiatives found or timeout: {e} - continuing with current content"
+        )
+
+    # Additional wait to ensure all dynamic content is loaded
+    random_time = random.uniform(*WAIT_DYNAMIC_CONTENT)
+    logger.debug(f"Waiting {random_time:.1f}s for dynamic content...")
+    time.sleep(random_time)
+
+    page_source = driver.page_source
+    main_page_path = os.path.join(list_dir, LISTING_PAGE_MAIN_FILENAME)
+
+    with open(main_page_path, "w", encoding="utf-8") as f:
+        pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
+        f.write(pretty_html)
+
+    logger.info(f"Main page saved to: {main_page_path}")
+    return page_source, main_page_path
 
 ```
 
-`./ECI_initiatives/extractor/initiatives/parser.py`:
+`./ECI_initiatives/scraper/initiatives/css_selectors.py`:
 ```
-#!/usr/bin/env python3
-"""
-ECI HTML Parser
-Parses ECI initiative HTML pages and extracts structured data
-"""
+class ECIinitiativeSelectors:
+    """
+    CSS selectors for European Citizens' Initiative (ECI) individual page elements
+    """
 
-# Standard library
-import re
-import json
-import logging
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+    # Page structure and timeline
+    INITIATIVE_PROGRESS = "ol.ecl-timeline"
+
+    # Content section headings
+    OBJECTIVES = "//h2[@class='ecl-u-type-heading-2' and text()='Objectives']"
+    ANNEX = "//h2[@class='ecl-u-type-heading-2' and text()='Annex']"
+    SOURCES_OF_FUNDING = (
+        "//h2[@class='ecl-u-type-heading-2' and text()='Sources of funding']"
+    )
+
+    # Organizational information
+    ORGANISERS = "//h2[@class='ecl-u-type-heading-2' and text()='Organisers']"
+    REPRESENTATIVE = "//h3[@class='ecl-u-type-heading-3' and text()='Representative']"
+
+    # UI elements
+    SOCIAL_SHARE = "div.ecl-social-media-share"
+
+    # Error handling
+    PAGE_HEADER_TITLE = "h1.ecl-page-header-core__title"
+
+
+class ECIlistingSelectors:
+
+    # Navigation and pagination
+    NEXT_BUTTON = 'li.ecl-pagination__item--next a[aria-label="Go to next page"]'
+    PAGINATION_LINKS = (
+        "ul.ecl-pagination__list li.ecl-pagination__item a.ecl-pagination__link"
+    )
+
+    # Content parsing
+    CONTENT_BLOCKS = "div.ecl-content-block.ecl-content-item__content-block"
+    INITIATIVE_CARDS = "div.ecl-content-block__title a.ecl-link"  # Same as TITLE_LINKS
+    META_LABELS = "span.ecl-content-block__secondary-meta-label"
+
+```
+
+`./ECI_initiatives/scraper/initiatives/data_parser.py`:
+```
+# Python Standard Library
+from collections import Counter
+from typing import Dict, List
 
 # Third-party
 from bs4 import BeautifulSoup
 
 # Local
-from model import ECIInitiative
-
-
-class ECIHTMLParser:
-    """Parser for ECI initiative HTML pages"""
-
-    def __init__(self, logger: logging.Logger):
-        """
-        Initialize parser with shared logger
-        
-        Args:
-            logger: Shared logger instance from InitiativesExtractorLogger
-        """
-        self.logger = logger
-
-    def parse_html_file(self, file_path: Path) -> Optional[ECIInitiative]:
-        """Parse a single ECI HTML file and extract initiative data"""
-
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-
-            soup = BeautifulSoup(content, 'html.parser')
-
-            reg_number = self._extract_registration_number(file_path.name)
-            timeline_data = self._extract_timeline_data(soup)
-            title = self._extract_title(soup)
-            url = self._construct_url(reg_number)
-
-            # Extract organiser data and split into separate fields
-            organiser_data = self.extract_organisers_data(soup)
-            organizer_representative, organizer_entity, organizer_others = self._split_organiser_data(
-                organiser_data, file_path, title, url
-            )
-
-            initiative_data = ECIInitiative(
-                registration_number=reg_number,
-                title=self._extract_title(soup),
-                objective=self._extract_objective(soup),
-                annex=self._extract_annex(soup),
-                current_status=self._extract_current_status(soup),
-                url=self._construct_url(reg_number),
-
-                timeline_registered=timeline_data.get('timeline_registered'),
-                timeline_collection_start_date=timeline_data.get('timeline_collection_start_date'),
-                timeline_collection_closed=timeline_data.get('timeline_collection_closed'),
-                timeline_verification_start=timeline_data.get('timeline_verification_start'),
-                timeline_verification_end=timeline_data.get('timeline_verification_end'),
-                timeline_response_commission_date=timeline_data.get('timeline_response_commission_date'),
-                timeline=timeline_data.get('timeline'),
-
-                organizer_representative=organizer_representative,
-                organizer_entity=organizer_entity,
-                organizer_others=organizer_others,
-
-                signatures_collected=self._extract_signatures_collected(soup),
-                signatures_collected_by_country=self._extract_signatures_by_country(soup, file_path, title, url),
-                signatures_threshold_met=self._extract_signatures_threshold_met(soup),
-
-                funding_total=self._extract_funding_total(soup),
-                funding_by=self._extract_funding_by(soup, file_path, title, url), 
-
-                response_commission_url=self._extract_response_commission_url(soup),
-                final_outcome=self._extract_final_outcome(soup),
-                languages_available=self._extract_languages_available(soup),
-                created_timestamp=datetime.now().isoformat(),
-                last_updated=self._extract_last_updated(soup)
-            )
-
-            self.logger.info(f"Successfully parsed {file_path.name}")
-            return initiative_data
-
-        except Exception as e:
-            raise ValueError(f"Error parsing {file_path}:\n{str(e)}") from e
-            # self.logger.error(f"Error parsing {file_path}: {str(e)}")
-            return None
-
-    def _find_signatures_table(self, soup: BeautifulSoup) -> Optional[BeautifulSoup]:
-        """Common inner function to find the signatures table with zebra styling"""
-        # Look for table with specific classes
-        signatures_table = soup.find('table', class_='ecl-table ecl-table--zebra ecl-u-type-paragraph')
-
-        # Fallback to basic ecl-table if not found
-        if not signatures_table:
-            signatures_table = soup.find('table', class_='ecl-table')
-
-        return signatures_table
-
-    def _get_signature_table_rows(self, soup: BeautifulSoup, skip_total: bool = True) -> List[Tuple]:
-        """
-        Extract rows from the signature collection table.
-        
-        Each row contains: country name, number of signatures, required threshold, and percentage achieved.
-        
-        Args:
-            soup: BeautifulSoup parsed HTML document
-            skip_total: If True, exclude the "Total number of signatories" summary row
-            
-        Returns:
-            List of tuples, each containing (country_name, signatures_count, threshold_required, percentage_achieved)
-        """
-        
-        # Find the signatures table in the HTML
-        signatures_table = self._find_signatures_table(soup)
-        if not signatures_table:
-            return []
-        
-        # Store extracted data from each country row
-        country_data = []
-        
-        # Find all table rows in the signatures table
-        table_rows = signatures_table.find_all('tr', class_='ecl-table__row')
-
-        for row in table_rows:
-
-            cells = row.find_all('td', class_='ecl-table__cell')
-            
-            # Validate that row has exactly 4 columns (country, signatures, threshold, percentage)
-            if len(cells) != 4:
-                continue
-            
-            # Extract the country name from the first column
-            country_name = cells[0].get_text().strip()
-            
-            # Skip the total summary row if requested
-            if skip_total and 'total number of signatories' in country_name.lower():
-                continue
-            
-            # Skip rows with empty country names
-            if not country_name:
-                continue
-            
-            # Extract signature collection data from the remaining columns
-            signatures_count = cells[1].get_text().strip()
-            threshold_required = cells[2].get_text().strip()
-            percentage_achieved = cells[3].get_text().strip()
-            
-            # Add this country's data to our results
-            country_data.append((country_name, signatures_count, threshold_required, percentage_achieved))
-        
-        return country_data
-
-    def _extract_response_commission_url(self, soup: BeautifulSoup) -> Optional[str]:
-        """
-        Extract the Commission's answer and follow-up page URL.
-        
-        Finds the <a> tag containing text "Commission's answer and follow-up"
-        and returns its href attribute.
-        
-        Returns:
-            URL to the initiative's follow-up page, or None if not found
-        """
-        
-        # Find the link with text containing "Commission's answer and follow-up"
-        link = soup.find('a', string=re.compile(r"Commission['\u2019]s answer and follow-up", re.I))
-        
-        if link and link.get('href'):
-            return link.get('href')
-        
-        return None
-
-
-    def extract_organisers_data(self, soup: BeautifulSoup) -> Optional[Dict]:
-        """Extract organiser data from the HTML including representatives, substitutes, members, etc."""
-
-        # Find the Organisers section
-        organisers_h2 = soup.find('h2', string=re.compile(r'\s*Organisers\s*$', re.I))
-        if not organisers_h2:
-            return None
-
-        result = {}
-
-        # Helper function to extract text from next element after a heading
-        def get_text_after_heading(heading_text: str) -> List[str]:
-            heading = soup.find('h3', string=re.compile(rf'\s*{heading_text}\s*$', re.I))
-            if not heading:
-                return []
-
-            next_element = heading.find_next_sibling()
-            if not next_element or next_element.name != 'ul':
-                return []
-
-            items = []
-            for li in next_element.find_all('li'):
-                text = li.get_text(strip=True)
-                if text:
-                    items.append(text)
-            return items
-
-        # Extract Legal Entity information
-        # Look for the exact heading "Legal entity created for the purpose of managing the initiative"
-        legal_entity_heading = soup.find('h3', string=re.compile(r'^\s*Legal entity created for the purpose of managing the initiative\s*$', re.I))
-
-        result['legal_entity'] = {
-            'name': None,
-            'country_of_residence': None
-        }
-
-        if legal_entity_heading:
-            # Find the next sibling which should be a <ul> element
-            next_element = legal_entity_heading.find_next_sibling()
-            if next_element and next_element.name == 'ul':
-                # Find the <li> element within the <ul>
-                li_element = next_element.find('li')
-                if li_element:
-                    # Get the full text content
-                    full_text = li_element.get_text(separator=' ', strip=True)
-
-                    # Split on "Country of the seat:" to separate name and country
-                    if 'Country of the seat:' in full_text:
-                        parts = full_text.split('Country of the seat:', 1)
-                        if len(parts) == 2:
-                            result['legal_entity']['name'] = parts[0].strip()
-                            result['legal_entity']['country_of_residence'] = parts[1].strip()
-                    else:
-                        # Fallback: use the entire text as name if no country pattern found
-                        result['legal_entity']['name'] = full_text
-
-        # Extract Representative information
-        representatives = get_text_after_heading('Representative')
-        result['representative'] = {
-            'number_of_people': len(representatives),
-            'countries_of_residence': {}
-        }
-
-        for rep in representatives:
-            # Extract country information from the representative text
-            # Pattern: "Name - email Country of residence: CountryName"
-            country_match = re.search(r'Country of residence[:\s]+([A-Za-z\s]+)', rep)
-            if country_match:
-                country = country_match.group(1).strip()
-                if country in result['representative']['countries_of_residence']:
-                    result['representative']['countries_of_residence'][country] += 1
-                else:
-                    result['representative']['countries_of_residence'][country] = 1
-
-        # Extract Substitute information
-        substitutes = get_text_after_heading('Substitute')
-        result['substitute'] = {
-            'number_of_people': len(substitutes)
-        }
-
-        # Extract Members information
-        members = get_text_after_heading('Members')
-        result['members'] = {
-            'number_of_people': len(members)
-        }
-
-        # Extract Others information
-        others = get_text_after_heading('Others')
-        result['others'] = {
-            'number_of_people': len(others)
-        }
-
-        # Extract DPO information (Data Protection Officer)
-        dpo = get_text_after_heading('DPO')
-        if not dpo:
-            # Also try alternative headings
-            dpo = get_text_after_heading('Data Protection Officer')
-
-        result['dpo'] = {
-            'number_of_people': len(dpo)
-        }
-
-        return result
-
-    def _split_organiser_data(self, organisers_data: Optional[Dict], file_path: Path, title: str, url: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
-        """Split organiser data into three separate JSON fields"""
-
-        if not organisers_data:
-            return None, None, None
-
-        try:
-            # Extract representative data
-            organizer_representative = None
-            if 'representative' in organisers_data:
-                organizer_representative = json.dumps(
-                    organisers_data['representative'], 
-                    ensure_ascii=False, 
-                    separators=(',', ':')
-                )
-
-            # Extract legal entity data
-            organizer_entity = None
-            if 'legal_entity' in organisers_data:
-                organizer_entity = json.dumps(
-                    organisers_data['legal_entity'], 
-                    ensure_ascii=False, 
-                    separators=(',', ':')
-                )
-
-            # Extract others data (substitute, members, others, dpo)
-            organizer_others = None
-            others_data = {}
-            for key in ['substitute', 'members', 'others', 'dpo']:
-                if key in organisers_data:
-                    others_data[key] = organisers_data[key]
-
-            if others_data:
-                organizer_others = json.dumps(
-                    others_data, 
-                    ensure_ascii=False, 
-                    separators=(',', ':')
-                )
-
-            return organizer_representative, organizer_entity, organizer_others
-
-        except Exception as e:
-            self.logger.error(
-                f"Error splitting organiser data - "
-                f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
-                f"Error: {str(e)}"
-            )
-            return None, None, None
-
-    def _extract_registration_number(self, filename: str) -> str:
-        """Extract registration number from filename pattern YYYY_NNNNNN_en.html"""
-
-        pattern = r'(\d{4})_(\d{6})_en\.html'
-        match = re.match(pattern, filename)
-        if match:
-            year, number = match.groups()
-            return f"{year}/{number}"
-        return ""
-
-    def _extract_title(self, soup: BeautifulSoup) -> str:
-        """Extract initiative title"""
-
-        # Try meta tag first
-        meta_title = soup.find('meta', {'name': 'dcterms.title'})
-        if meta_title and meta_title.get('content'):
-            return meta_title['content'].strip()
-
-        # Fall back to h1 tag
-        h1_title = soup.find('h1', class_='ecl-page-header-core__title')
-        if h1_title:
-            return h1_title.get_text().strip()
-
-        return ""
-
-    def _extract_objective(self, soup: BeautifulSoup) -> str:
-        """Extract initiative objectives (max 1,100 characters)"""
-
-        # Find objectives section
-        objectives_section = soup.find('h2', string=re.compile(r'Objectives?', re.I))
-        if objectives_section:
-            objective_text = ""
-            next_element = objectives_section.find_next_sibling()
-            while next_element and next_element.name != 'h2':
-                if next_element.name == 'p':
-                    objective_text += next_element.get_text().strip() + " "
-                next_element = next_element.find_next_sibling()
-
-            return objective_text.strip()[:1100]
-
-        return ""
-
-    def _extract_current_status(self, soup: BeautifulSoup) -> str:
-        """Extract current initiative current_status"""
-
-        # Find the currently active timeline item
-        current_status_element = soup.find(class_='ecl-timeline__item--current')
-        
-        if current_status_element:
-            # Extract the status title from the timeline item
-            status_title = current_status_element.find(class_='ecl-timeline__title')
-            
-            if status_title:
-                # Return the raw status text without any mapping
-                return status_title.get_text().strip()
-        
-        # No current status found in timeline
-        return ""
-
-    def _construct_url(self, reg_number: str) -> str:
-        """Construct English URL from registration number"""
-
-        if reg_number:
-            year, number = reg_number.split('/')
-            return f"https://citizens-initiative.europa.eu/initiatives/details/{year}/{number}_en"
-        return ""
-
-    def _extract_signatures_collected(self, soup: BeautifulSoup) -> Optional[str]:
-        """
-        Extract the total number of signatures collected for the initiative.
-    
-        This function attempts to find the total signature count using two methods:
-        1. Primary: Searches for the "Total number of signatories" row in the signatures table
-        2. Fallback: Looks for a standalone counter element on the page
-        
-        Note:
-            The returned string preserves commas for readability but removes spaces.
-            This matches the format displayed on the ECI website.
-        """
-
-        # Use common function to get table
-        signatures_table = self._find_signatures_table(soup)
-
-        if signatures_table:
-
-            # Find all table rows
-            rows = signatures_table.find_all('tr', class_='ecl-table__row')
-
-            for row in rows:
-
-                first_cell = row.find('td', class_='ecl-table__cell')
-                if first_cell and 'total number of signatories' in first_cell.get_text().lower():
-
-                    cells = row.find_all('td', class_='ecl-table__cell')
-
-                    if len(cells) >= 2:
-
-                        # Second cell contains the number
-                        signatures_text = cells[1].get_text().strip()
-                        if signatures_text and re.match(r'^[\d,\s]+$', signatures_text):
-                            return signatures_text.replace(' ', '')  # Keep commas for readability
-
-        # Fallback to original counter method
-        signatures_element = soup.find(class_='ecl-counter__value')
-
-        if signatures_element:
-            signatures_text = signatures_element.get_text().strip()
-            numbers = re.findall(r'\d+', signatures_text.replace(',', '').replace(' ', ''))
-
-            if numbers:
-                return ''.join(numbers)
-
-        return None
-
-    def _extract_signatures_threshold_met(self, soup: BeautifulSoup) -> Optional[str]:
-        """
-        Extract number of countries with threshold met (percentage >= 100%)
-        Uses common inner function to extract signature table data
-        """
-        try:
-            # Get all rows from signature table
-            rows_data = self._get_signature_table_rows(soup, skip_total=True)
-
-            if not rows_data:
-                return None
-
-            # Count countries with percentage >= 100%
-            countries_met_threshold = 0
-
-            for country, statements, threshold, percentage in rows_data:
-
-                # Extract numeric percentage value
-                percentage_match = re.search(r'([\d.]+)%', percentage)
-
-                if percentage_match:
-
-                    percentage_value = float(percentage_match.group(1))
-
-                    if percentage_value >= 100.0:
-                        countries_met_threshold += 1
-
-            return str(countries_met_threshold) if countries_met_threshold > 0 else "0"
-
-        except Exception as e:
-
-            self.logger.error(f"Error extracting threshold met countries: {str(e)}")
-            return None
-
-    def _extract_final_outcome(self, soup: BeautifulSoup) -> Optional[str]:
-        """
-        Extract the final outcome of the initiative based on the timeline progress.
-        
-        Determines if an initiative has reached a final state and categorizes the outcome.
-        
-        Possible outcomes:
-        - "Unsuccessful Collection": Failed to collect required signatures
-        - "Withdrawn": Initiative was withdrawn by organizers
-        - "Commission Response": Initiative received official Commission answer
-        - None: Initiative is still in progress (not in final state)
-            
-        Raises:
-            ValueError: If the Initiative progress timeline is not found in the HTML
-        """
-        
-        # Find the timeline container (Initiative progress)
-        timeline = soup.find('ol', class_='ecl-timeline')
-        
-        if not timeline:
-            raise ValueError(
-                "Initiative progress timeline not found. "
-                "Expected element: <ol class='ecl-timeline'>"
-            )
-        
-        # Extract all timeline items
-        timeline_items = timeline.find_all('li', class_='ecl-timeline__item')
-        
-        if not timeline_items:
-            raise ValueError(
-                "No timeline items found in Initiative progress. "
-                "Expected elements: <li class='ecl-timeline__item'>"
-            )
-        
-        # Find the current (final) status from the timeline
-        current_status = None
-        for item in timeline_items:
-
-            # Check if this is the current/active item
-            if 'ecl-timeline__item--current' in item.get('class', []):
-
-                title_element = item.find('div', class_='ecl-timeline__title')
-
-                if title_element:
-                    current_status = title_element.get_text().strip()
-                    break
-        
-        if not current_status:
-            # No current status marked - initiative may be in progress
-            return None
-        
-        # Map timeline status to final outcome categories
-        status_lower = current_status.lower()
-        
-        # Check for "Answered initiative" - maps to Commission Response
-        if 'answered' in status_lower and 'initiative' in status_lower:
-            return "Commission Response"
-        
-        # Check for "Withdrawn" status
-        if 'withdrawn' in status_lower:
-            return "Withdrawn"
-        
-        # Check for "Unsuccessful collection" status
-        if 'unsuccessful' in status_lower and 'collection' in status_lower:
-            return "Unsuccessful Collection"
-        
-        # Ongoing statuses (not final outcomes)
-        ongoing_statuses = [
-            'collection ongoing',
-            'collection start date',
-            'registered',
-            'registration',
-            'verification',
-            'valid initiative',
-            'open'
-        ]
-        
-        # If current status is in ongoing list, return None (not final)
-        if any(ongoing in status_lower for ongoing in ongoing_statuses):
-            return None
-        
-        # Unknown status - fail fast
-        raise ValueError(
-            f"Unknown timeline status encountered: '{current_status}'. "
-            f"Treating as ongoing (not final outcome)."
+from .css_selectors import ECIlistingSelectors
+from .scraper_logger import logger
+
+# Consts
+from .consts import (
+    BASE_URL,
+    ROUTE_FIND_INITIATIVE,
+    DATA_DIR_NAME,
+    LOG_DIR_NAME,
+    LISTINGS_DIR_NAME,
+    PAGES_DIR_NAME,
+    WAIT_DYNAMIC_CONTENT,
+    WAIT_BETWEEN_PAGES,
+    WAIT_BETWEEN_DOWNLOADS,
+    RETRY_WAIT_BASE,
+    WEBDRIVER_TIMEOUT_DEFAULT,
+    WEBDRIVER_TIMEOUT_CONTENT,
+    CHROME_OPTIONS,
+    LISTING_PAGE_FILENAME_PATTERN,
+    LISTING_PAGE_MAIN_FILENAME,
+    CSV_FIELDNAMES,
+    CSV_FILENAME,
+    DEFAULT_MAX_RETRIES,
+    MIN_HTML_LENGTH,
+    RATE_LIMIT_INDICATORS,
+    LOG_MESSAGES,
+)
+
+
+def parse_initiatives_list_data(
+    page_source: str, base_url: str
+) -> list[Dict[str, str]]:
+    """Parse HTML page source and extract initiatives data."""
+
+    logger.info("Parsing saved listing page for initiatives links...")
+
+    soup = BeautifulSoup(page_source, "html.parser")
+    initiative_data = []
+
+    for content_block in soup.select(ECIlistingSelectors.CONTENT_BLOCKS):
+
+        title_link = content_block.select_one(ECIlistingSelectors.INITIATIVE_CARDS)
+        if not title_link or not title_link.get("href"):
+            continue
+
+        href = title_link.get("href")
+        if not href.startswith("/initiatives/details/"):
+            continue
+
+        full_url = base_url + href
+
+        current_status = ""
+        registration_number = ""
+        signature_collection = ""
+
+        meta_labels = content_block.select(ECIlistingSelectors.META_LABELS)
+
+        for label in meta_labels:
+
+            text = label.get_text(strip=True)
+
+            if text.startswith("Current status:"):
+                current_status = text.replace("Current status:", "").strip()
+
+            elif text.startswith("Registration number:"):
+                registration_number = text.replace("Registration number:", "").strip()
+
+            elif "signature collection" in text.lower():
+                signature_collection = text.strip()
+
+        initiative_data.append(
+            {
+                "url": full_url,
+                "current_status": current_status,
+                "registration_number": registration_number,
+                "signature_collection": signature_collection,
+                "datetime": "",
+            }
         )
 
-        return None
-
-
-    def _extract_languages_available(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract available languages"""
-
-        language_links = soup.find_all(class_='ecl-site-header__language-link')
-        if language_links:
-            languages = []
-            for link in language_links:
-                href = link.get('href', '')
-                if '_' in href:
-                    lang_code = href.split('_')[-1]
-                    if len(lang_code) == 2:
-                        languages.append(lang_code)
-            return ','.join(sorted(set(languages))) if languages else None
-        return None
-
-    def _extract_last_updated(self, soup: BeautifulSoup) -> str:
-        """Extract last updated timestamp"""
-
-        meta_modified = soup.find('meta', {'name': 'dcterms.modified'})
-        if meta_modified and meta_modified.get('content'):
-            return meta_modified['content']
-        return datetime.now().isoformat()
-
-    def _extract_timeline_data(self, soup: BeautifulSoup) -> Dict[str, Optional[str]]:
-        """Extract timeline information from ECL timeline"""
-
-        timeline_data = {}
-
-        # Find the timeline container
-        timeline = soup.find('ol', class_='ecl-timeline')
-        if not timeline:
-            return timeline_data
-
-        # Extract all timeline items
-        timeline_items = timeline.find_all('li', class_='ecl-timeline__item')
-
-        # Track timeline order for verification end logic AND for full timeline JSON
-        timeline_sequence = []
-        timeline_json_data = []
-        
-        for item in timeline_items:
-            # Extract title
-            title_element = item.find('div', class_='ecl-timeline__title')
-            if not title_element:
-                continue
-
-            title = title_element.get_text().strip()
-            # Remove red asterisk marker if present
-            title = re.sub(r'<span[^>]*>.*?</span>', '', title)
-            title = title.replace('*', '').strip()
-
-            # Extract content (date) if available
-            content_element = item.find('div', class_='ecl-timeline__content')
-            content = content_element.get_text().strip() if content_element else None
-
-            # Store sequence for verification end processing
-            timeline_sequence.append((title, content))
-            
-            # NEW: Store for full timeline JSON
-            timeline_json_data.append({
-                "step": title,
-                "date": content
-            })
-
-            # Normalize title to match our field names
-            normalized_title = self._normalize_timeline_title(title)
-
-            if normalized_title:
-                timeline_data[normalized_title] = content
-
-        # Post-process timeline_verification_end based on sequence
-        timeline_data = self._process_verification_end(timeline_sequence, timeline_data)
-        
-        # Add full timeline as JSON string
-        if timeline_json_data:
-            timeline_data['timeline'] = json.dumps(timeline_json_data, ensure_ascii=False, separators=(',', ':'))
-
-        return timeline_data
-
-
-    def _process_verification_end(self, timeline_sequence: List[Tuple[str, Optional[str]]], 
-                                timeline_data: Dict[str, Optional[str]]) -> Dict[str, Optional[str]]:
-        """
-        Determine timeline_verification_end based on sequence rules:
-        - Accept 'Valid initiative'
-        - Accept any step containing 'initiative' that comes after 'Verification' 
-        and is last OR comes before 'Answered initiative'
-        """
-        
-        # Find indices in timeline
-        verification_idx = None
-        answered_idx = None
-        verification_end_candidate = None
-        
-        for idx, (title, date) in enumerate(timeline_sequence):
-            title_lower = title.lower()
-            
-            # Track Verification position
-            if title == 'Verification':
-                verification_idx = idx
-            
-            # Track Answered initiative position
-            if title == 'Answered initiative':
-                answered_idx = idx
-            
-            # Check for any title containing 'initiative' after verification
-            if verification_idx is not None and 'initiative' in title_lower:
-
-                # Only consider if it's after Verification
-                if idx > verification_idx:
-
-                    # Check if it's before Answered or is the last item
-                    if answered_idx is None or idx < answered_idx or idx == len(timeline_sequence) - 1:
-                        verification_end_candidate = (title, date)
-        
-        # Set timeline_verification_end if we found a valid candidate
-        if verification_end_candidate:
-            timeline_data['timeline_verification_end'] = verification_end_candidate[1]
-        
-        return timeline_data
-
-    def _normalize_timeline_title(self, title: str) -> Optional[str]:
-        """Normalize timeline titles to standard field names"""
-
-        # Add more mappings as needed
-        title_mapping = {
-            'Registered': 'timeline_registered',
-            'Collection start date': 'timeline_collection_start_date',
-            'Collection closed': 'timeline_collection_closed',
-            'Verification': 'timeline_verification_start',
-            'Answered initiative': 'timeline_response_commission_date',
-            'Collection ongoing': 'timeline_collection_start_date',  # Map ongoing to start date
-            'Registration': 'timeline_registered',
-        }
-
-        return title_mapping.get(title)
-
-    def _extract_signatures_by_country(self, soup: BeautifulSoup, file_path: Path, title: str, url: str) -> Optional[str]:
-        """Extract country-level signature data as JSON using common function"""
-
-        try:
-            # Use common function to get table rows
-            rows_data = self._get_signature_table_rows(soup, skip_total=True)
-
-            if not rows_data:
-                return None
-
-            country_data = {}
-
-            for country_text, statements_of_support, threshold, percentage in rows_data:
-                # Check for missing data and log warnings
-                missing_fields = []
-                if not statements_of_support:
-                    missing_fields.append("statements_of_support")
-                if not threshold:
-                    missing_fields.append("threshold")
-                if not percentage:
-                    missing_fields.append("percentage")
-
-                if missing_fields:
-                    self.logger.warning(
-                        f"Missing signature data - Country: {country_text}, "
-                        f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
-                        f"Missing fields: {', '.join(missing_fields)}"
-                    )
-
-                # Add country data (even if some fields are missing)
-                country_data[country_text] = {
-                    "statements_of_support": statements_of_support,
-                    "threshold": threshold,
-                    "percentage": percentage
-                }
-
-            # Return JSON string if we have data
-            if country_data:
-                return json.dumps(country_data, ensure_ascii=False, separators=(',', ':'))
-
-        except Exception as e:
-            self.logger.error(
-                f"Error serializing country data to JSON - "
-                f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
-                f"Error: {str(e)}"
-            )
-
-        return None
-
-    def _extract_funding_total(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract total funding amount from paragraph"""
-
-        # Look for paragraph containing total funding text
-        funding_paragraph = soup.find('p', string=re.compile(r'Total amount of support and funding:', re.I))
-        if not funding_paragraph:
-            # Try alternative search in paragraph content
-            paragraphs = soup.find_all('p', class_='ecl-u-type-paragraph')
-            for p in paragraphs:
-                if 'total amount of support and funding' in p.get_text().lower():
-                    funding_paragraph = p
-                    break
-
-        if funding_paragraph:
-            text = funding_paragraph.get_text()
-            # Extract amount using regex - matches €followed by numbers, commas, dots
-            amount_match = re.search(r'€([\d,]+\.?\d*)', text)
-            if amount_match:
-                return amount_match.group(1)  # Return just the number part without €
-
-        return None
-
-    def _extract_funding_by(self, soup: BeautifulSoup, file_path: Path, title: str, url: str) -> Optional[str]:
-        """Extract funding sponsors data as JSON"""
-
-        # Find funding table - look for table with sponsor headers
-        funding_tables = soup.find_all('table', class_='ecl-table')
-        funding_table = None
-
-        for table in funding_tables:
-            headers = table.find_all('th', class_='ecl-table__header')
-            header_texts = [h.get_text().strip().lower() for h in headers]
-
-            # Check if this is the funding table by looking for expected headers
-            if ('name of sponsor' in ' '.join(header_texts) and 
-                'amount in eur' in ' '.join(header_texts)):
-                funding_table = table
-                break
-
-        if not funding_table:
-            return None
-
-        sponsors_data = []
-
-        # Extract table rows (skip header)
-        rows = funding_table.find_all('tr', class_='ecl-table__row')
-
-        for row in rows:
-            cells = row.find_all('td', class_='ecl-table__cell')
-
-            if len(cells) != 3:  # Should have 3 cells: Name, Date, Amount
-                continue
-
-            sponsor_name = cells[0].get_text().strip()
-            date = cells[1].get_text().strip()
-            amount = cells[2].get_text().strip()
-
-            # Check for missing data and log warnings
-            missing_fields = []
-            if not sponsor_name:
-                missing_fields.append("name_of_sponsor")
-            if not date:
-                missing_fields.append("date")
-            if not amount:
-                missing_fields.append("amount_in_eur")
-
-            if missing_fields:
-                self.logger.warning(
-                    f"Missing funding data - Sponsor: {sponsor_name or 'UNKNOWN'}, "
-                    f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
-                    f"Missing fields: {', '.join(missing_fields)}"
-                )
-
-            # Clean sponsor name (remove superscript references)
-            clean_sponsor_name = re.sub(r'<sup>.*?</sup>', '', sponsor_name)
-            clean_sponsor_name = re.sub(r'\s*\[\d+\]\s*', '', clean_sponsor_name).strip()
-
-            # Add sponsor data (even if some fields are missing)
-            sponsor_entry = {
-                "name_of_sponsor": clean_sponsor_name,
-                "date": date,
-                "amount_in_eur": amount
-            }
-
-            sponsors_data.append(sponsor_entry)
-
-        # Return JSON string if we have data
-        if sponsors_data:
-            try:
-                return json.dumps(sponsors_data, ensure_ascii=False, separators=(',', ':'))
-            except Exception as e:
-                self.logger.error(
-                    f"Error serializing funding data to JSON - "
-                    f"URL: {url}, Initiative: {title}, File: {file_path.name}, "
-                    f"Error: {str(e)}"
-                )
-                return None
-
-        return None
-
-    def _extract_annex(self, soup: BeautifulSoup) -> Optional[str]:
-        """Return full Annex text (concatenated paragraphs) or None."""
-
-        # Find the Annex h2 header (case insensitive)
-        annex_h2 = soup.find('h2', string=re.compile(r'^\s*Annex\s*$', re.I))
-
-        if not annex_h2:
-            return None
-
-        texts: List[str] = []
-        node = annex_h2.find_next_sibling()
-
-        while node and not (node.name == 'h2'):
-            # grab paragraph–level text, skip empty / whitespace nodes
-            if node.name in {'p', 'ul', 'ol'}:
-                txt = node.get_text(' ', strip=True)
-
-                if txt:
-                    texts.append(txt)
-
-            node = node.find_next_sibling()
-
-        joined = ' '.join(texts).strip()
-        return joined or None
+    logger.info(f"Found {len(initiative_data)} initiative entries")
+    return initiative_data
 
 ```
 
-`./ECI_initiatives/extractor/initiatives/processor.py`:
+`./ECI_initiatives/scraper/initiatives/downloader.py`:
 ```
-"""
-ECI Data Processor
-Main processor for ECI data extraction and CSV generation
-"""
+# Python Standard Library
+import datetime
+import os
+import random
+import time
+from typing import Tuple
 
-# Standard library
-import re
-import csv
-from pathlib import Path
-from datetime import datetime
-from typing import List, Optional
-from dataclasses import asdict
-import logging
+# Third-party
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 # Local
-from model import ECIInitiative
-from parser import ECIHTMLParser
-from initiatives_logger import InitiativesExtractorLogger
+from .browser import initialize_browser
+from .css_selectors import ECIinitiativeSelectors
+from .consts import (
+    WAIT_DYNAMIC_CONTENT,
+    WAIT_BETWEEN_DOWNLOADS,
+    RETRY_WAIT_BASE,
+    WEBDRIVER_TIMEOUT_CONTENT,
+    DEFAULT_MAX_RETRIES,
+    MIN_HTML_LENGTH,
+    RATE_LIMIT_INDICATORS,
+    LOG_MESSAGES,
+)
+from .file_ops import save_initiative_page
+from .scraper_logger import logger
 
 
-class ECIDataProcessor:
-    """Main processor for ECI data extraction"""
+def download_initiative_pages(
+    pages_dir: str, initiative_data: list
+) -> Tuple[list, list]:
+    """Download individual initiative pages using Selenium.
 
-    def __init__(self, data_root: str = "/initiatives/data", logger: Optional[logging.Logger] = None):
-        """
-        Initialize the data processor
-        
-        Args:
-            data_root: Root directory for ECI data
-            logger: Optional logger instance. If None, will be initialized in run()
-        """
-        current_file = Path(__file__)
-        project_root = current_file.parent.parent.parent.parent  # Move 4 directories up
-        self.data_root = project_root / data_root.lstrip('/')
-        self.last_session_scraping_dir = None
+    Args:
+        pages_dir: Directory path for saving HTML pages
+        initiative_data: List of initiative dictionaries
 
-        # Logger can be passed or initialized later
-        self.logger = logger
-        self.parser = None
+    Returns:
+        Tuple containing updated data list and list of failed URLs
+    """
+    updated_data = []
+    failed_urls = []
 
-    def find_latest_scrape_session(self) -> Optional[Path]:
-        """Find the most recent scraping session directory"""
-        try:
-            session_dirs = [d for d in self.data_root.iterdir() 
-                           if d.is_dir() and re.match(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}', d.name)]
+    driver = initialize_browser()
 
-            if session_dirs:
-                last_session = max(session_dirs, key=lambda x: x.name)
-                self.last_session_scraping_dir = last_session
-                return last_session
+    try:
 
-        except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error finding scrape sessions: {e}")
+        for i, row in enumerate(initiative_data):
+
+            url = row["url"]
+            logger.info(f"Processing {i+1}/{len(initiative_data)}: {url}")
+
+            success = download_single_initiative(driver, pages_dir, url)
+
+            if success:
+
+                row["datetime"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                time.sleep(random.uniform(*WAIT_BETWEEN_DOWNLOADS))
+
             else:
-                print(f"Error finding scrape sessions: {e}")
+                failed_urls.append(url)
 
-        return None
+            updated_data.append(row)
 
-    def process_initiative_pages(self, session_path: Path) -> List[ECIInitiative]:
-        """Process all initiative HTML pages in a session"""
-        initiatives = []
-        initiative_pages_dir = session_path / "initiative_pages"
+    finally:
+        driver.quit()
+        logger.info(LOG_MESSAGES["pages_browser_closed"])
 
-        if not initiative_pages_dir.exists():
-            self.logger.error(f"Initiative pages directory not found: {initiative_pages_dir}")
-            return initiatives
+    logger.info(f"Download completed. Failed URLs: {len(failed_urls)}")
+    return updated_data, failed_urls
 
-        # Process each year directory
-        for year_dir in sorted(initiative_pages_dir.iterdir()):
-            if not year_dir.is_dir():
-                continue
 
-            self.logger.info(f"Processing year: {year_dir.name}")
+def download_single_initiative(
+    driver: webdriver.Chrome,
+    pages_dir: str,
+    url: str,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+) -> bool:
+    """Download a single initiative page with retry logic.
 
-            # Process each HTML file in the year directory
-            for html_file in sorted(year_dir.glob("*.html")):
-                initiative = self.parser.parse_html_file(html_file)
-                if initiative:
-                    initiatives.append(initiative)
+    Returns:
+        bool: True if successful, False if failed
+    """
 
-        self.logger.info(f"Successfully processed {len(initiatives)} initiatives")
-        return initiatives
+    retry_wait_base = 1 * random.uniform(*RETRY_WAIT_BASE)
+    retry_count = 0
 
-    def save_to_csv(self, initiatives: List[ECIInitiative], output_path: Path) -> None:
-        """Save initiatives data to CSV file"""
+    while retry_count <= max_retries:
         try:
-            with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
-                if not initiatives:
-                    self.logger.warning("No initiatives to save")
-                    return
+            logger.info("Downloading the html file...")
+            driver.get(url)
 
-                fieldnames = list(asdict(initiatives[0]).keys())
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            # Check for rate limiting
+            check_rate_limiting(driver)
 
-                writer.writeheader()
-                for initiative in initiatives:
-                    writer.writerow(asdict(initiative))
+            # Wait for page content to load
+            wait_for_page_content(driver)
 
-            self.logger.info(f"Saved {len(initiatives)} initiatives to {output_path}")
+            # Additional wait for dynamic content
+            time.sleep(random.uniform(*WAIT_DYNAMIC_CONTENT))
+
+            # Get page source and save
+            page_source = driver.page_source
+            file_name = save_initiative_page(pages_dir, url, page_source)
+
+            logger.info(LOG_MESSAGES["download_success"].format(filename=file_name))
+            return True
 
         except Exception as e:
-            self.logger.error(f"Error saving CSV: {e}")
 
-    def run(self, output_filename: str = None) -> None:
-        """Main processing pipeline"""
-        
-        # Find latest scraping session
-        session_path = self.find_latest_scrape_session()
-        
-        if not session_path:
-            print("No scraping session found in:\n" + str(self.data_root))
+            error_msg = str(e)
+            is_rate_limited = any(
+                indicator in error_msg for indicator in RATE_LIMIT_INDICATORS
+            )
+
+            logger.debug(
+                f"🔍 Exception details for {url}: {type(e).__name__}: {error_msg}"
+            )
+
+            if is_rate_limited:
+
+                retry_count += 1
+
+                if retry_count <= max_retries:
+
+                    wait_time = retry_wait_base * (retry_count**2)
+                    logger.warning(
+                        LOG_MESSAGES["rate_limit_retry"].format(
+                            retry=retry_count,
+                            max_retries=max_retries,
+                            wait_time=wait_time,
+                        )
+                    )
+                    time.sleep(wait_time)
+
+                else:
+
+                    error_type = type(e).__name__
+
+                    # Categorize different types of errors for better logging
+                    if (
+                        "chrome not reachable" in error_msg.lower()
+                        or "session not created" in error_msg.lower()
+                    ):
+                        logger.error(
+                            f"❌ Browser crash/connection error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
+                    elif "timeout" in error_msg.lower():
+                        logger.error(
+                            f"❌ Timeout error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
+                    elif (
+                        "permission" in error_msg.lower()
+                        or "access" in error_msg.lower()
+                    ):
+                        logger.error(
+                            f"❌ Permission/access error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
+                    elif (
+                        "network" in error_msg.lower()
+                        or "connection" in error_msg.lower()
+                    ):
+                        logger.error(
+                            f"❌ Network error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
+                    elif "disk" in error_msg.lower() or "space" in error_msg.lower():
+                        logger.error(
+                            f"❌ Disk space error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
+                    else:
+                        logger.error(
+                            f"❌ Error downloading:\n{url}:\n{error_type}:\n{error_msg}"
+                        )
+
+                    return False
+
+            else:
+                logger.error(f"❌ Error downloading:\n{url}:\n{e}")
+                return False
+
+    logger.error(f"❌ Exhausted all {max_retries} retries for: {url}")
+    return False
+
+
+def check_rate_limiting(driver: webdriver.Chrome) -> None:
+    """Check if the current page shows rate limiting errors."""
+
+    try:
+        rate_limit_title = driver.find_element(
+            By.CSS_SELECTOR, ECIinitiativeSelectors.PAGE_HEADER_TITLE
+        )
+
+        if rate_limit_title and any(
+            indicator in rate_limit_title.text for indicator in RATE_LIMIT_INDICATORS
+        ):
+            raise Exception("429 - Rate limited (HTML response)")
+
+    except Exception as rate_check_error:
+
+        if any(
+            indicator in str(rate_check_error) for indicator in RATE_LIMIT_INDICATORS
+        ):
+            raise rate_check_error
+
+        # If it's not a rate limit check error, continue normally
+        pass
+
+
+def wait_for_page_content(driver: webdriver.Chrome) -> None:
+    """Wait for initiative page content to load."""
+
+    wait = WebDriverWait(driver, WEBDRIVER_TIMEOUT_CONTENT)
+
+    # Wait for initiative progress timeline
+    try:
+        wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, ECIinitiativeSelectors.INITIATIVE_PROGRESS)
+            )
+        )
+        logger.debug("Initiative progress timeline loaded")
+    except:
+        logger.warning(
+            "Initiative progress timeline not found, "
+            "Should be in all initiatives."
+            "\ncontinuing..."
+        )
+
+    # Wait for at least one of the main content sections
+    content_selectors_to_wait = [
+        ECIinitiativeSelectors.OBJECTIVES,
+        ECIinitiativeSelectors.ANNEX,
+        ECIinitiativeSelectors.ORGANISERS,
+        ECIinitiativeSelectors.REPRESENTATIVE,
+        ECIinitiativeSelectors.SOURCES_OF_FUNDING,
+        ECIinitiativeSelectors.SOCIAL_SHARE,
+    ]
+
+    element_found = False
+
+    for selector in content_selectors_to_wait:
+
+        try:
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector)))
+            logger.debug(f"Content loaded: {selector}")
+            element_found = True
+
+            break
+
+        except:
+            continue
+
+    if not element_found:
+        logger.warning("No main content other elements found, but proceeding...")
+
+```
+
+`./ECI_initiatives/scraper/initiatives/file_ops.py`:
+```
+# Python Standard Library
+import csv
+import os
+import random
+import time
+from typing import Dict, List, Tuple
+
+# Third-party
+from bs4 import BeautifulSoup
+from selenium import webdriver
+
+# Local
+from .consts import (
+    WAIT_DYNAMIC_CONTENT,
+    CSV_FIELDNAMES,
+    MIN_HTML_LENGTH,
+    RATE_LIMIT_INDICATORS,
+    LISTING_PAGE_FILENAME_PATTERN,
+    LOG_MESSAGES,
+)
+from .scraper_logger import logger
+
+
+def setup_scraping_dirs(list_dir: str, pages_dir: str) -> None:
+    """Create necessary directories for scraping output."""
+
+    os.makedirs(list_dir, exist_ok=True)
+    os.makedirs(pages_dir, exist_ok=True)
+    logger.debug(f"Created directories: {list_dir}, {pages_dir}")
+
+
+def save_listing_page(
+    driver: webdriver.Chrome, list_dir: str, current_page: int
+) -> Tuple[str, str]:
+    """Save listing page source and return page source and file path."""
+
+    # Additional wait for dynamic content
+    random_time = random.uniform(*WAIT_DYNAMIC_CONTENT)
+    logger.debug(f"Waiting {random_time:.1f}s for dynamic content...")
+    time.sleep(random_time)
+
+    # Get page source and save it
+    page_source = driver.page_source
+    page_filename = LISTING_PAGE_FILENAME_PATTERN.format(current_page)
+    page_path = os.path.join(list_dir, page_filename)
+
+    with open(page_path, "w", encoding="utf-8") as f:
+        pretty_html = BeautifulSoup(page_source, "html.parser").prettify()
+        f.write(pretty_html)
+
+    logger.info(LOG_MESSAGES["page_saved"].format(page=current_page, path=page_path))
+    return page_source, page_path
+
+
+def save_initiative_page(pages_dir: str, url: str, page_source: str) -> str:
+    """Save initiative page source to file and return filename."""
+
+    # Double-check page source for rate limiting content
+    if any(indicator in page_source for indicator in RATE_LIMIT_INDICATORS[:2]):
+        raise Exception("429 - Rate limited (found in page source)")
+
+    # Extract year and number from URL for filename
+    parts = url.rstrip("/").split("/")
+    year = parts[-2]
+    number = parts[-1]
+
+    # Generate directory under pages_dir for year
+    year_dir = os.path.join(pages_dir, year)
+    os.makedirs(year_dir, exist_ok=True)
+
+    # Create filename with year and number to avoid overwriting
+    file_name = f"{year}_{number}.html"
+    file_path = os.path.join(year_dir, file_name)
+
+    try:
+        # Check for obvious signs of malformed HTML
+        original_length = len(page_source)
+
+        # Common malformed HTML indicators
+        malformed_indicators = [
+            page_source.count("<") != page_source.count(">"),  # Unmatched brackets
+            page_source.count('"') % 2 != 0,  # Unmatched quotes
+            "</html>" not in page_source.lower()
+            and "<html" in page_source.lower(),  # Missing closing html tag
+            original_length < MIN_HTML_LENGTH,  # Suspiciously short HTML
+        ]
+
+        if any(malformed_indicators):
+            logger.warning(
+                f"⚠️  Potential malformed HTML detected in {file_name}: "
+                f"length={original_length}, unmatched_brackets={malformed_indicators[0]}, "
+                f"unmatched_quotes={malformed_indicators[1]}"
+            )
+
+        # Parse with BeautifulSoup and detect if it had to fix issues
+        soup = BeautifulSoup(page_source, "html.parser")
+        pretty_html = soup.prettify()
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(pretty_html)
+
+    except Exception as e:
+        # BeautifulSoup rarely throws exceptions, but if it does, the HTML is severely malformed
+        logger.warning(
+            f"⚠️  Failed to parse HTML for {file_name}: {str(e)}. "
+            f"Saving raw HTML without prettification."
+        )
+
+        # Save raw HTML as fallback
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(page_source)
+
+    return file_name
+
+
+def write_initiatives_csv(
+    file_path: str, initiative_data: list[Dict[str, str]]
+) -> None:
+    """Write initiative data to CSV file.
+
+    Args:
+        file_path: Full path to the CSV file
+        initiative_data: List of initiative dictionaries to write
+    """
+    with open(file_path, "w", encoding="utf-8", newline="") as f:
+
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(initiative_data)
+
+```
+
+`./ECI_initiatives/scraper/initiatives/__main__.py`:
+```
+# Python Standard Library
+import datetime
+from typing import Dict, Tuple
+import os
+
+# Local
+from .crawler import scrape_all_initiatives_on_all_pages
+from .downloader import download_initiative_pages
+from .file_ops import setup_scraping_dirs, write_initiatives_csv
+from .statistics import display_completion_summary, gather_scraping_statistics
+from .browser import initialize_browser
+from .consts import (
+    START_SCRAPING,
+    SCRIPT_DIR,
+    BASE_URL,
+    DATA_DIR_NAME,
+    LISTINGS_DIR_NAME,
+    PAGES_DIR_NAME,
+    CSV_FILENAME,
+    LOG_MESSAGES,
+)
+from .scraper_logger import logger
+
+
+def scrape_eci_initiatives() -> str:
+    """Main function to scrape European Citizens' Initiative data.
+
+    Returns:
+        str: Timestamp string of when scraping started
+    """
+
+
+    logger.info(LOG_MESSAGES["scraping_start"].format(timestamp=START_SCRAPING))
+
+    base_url = BASE_URL
+
+    # Create directories relative to script location
+    list_dir = os.path.join(
+        SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, LISTINGS_DIR_NAME
+    )
+    pages_dir = os.path.join(SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, PAGES_DIR_NAME)
+    setup_scraping_dirs(list_dir, pages_dir)
+
+    driver = initialize_browser()
+
+    try:
+        # Scrape all pages and get accumulated initiative data
+        all_initiative_pages_catalog, saved_page_listing_paths = (
+            scrape_all_initiatives_on_all_pages(driver, base_url, list_dir)
+        )
+    finally:
+        driver.quit()
+        logger.info(LOG_MESSAGES["browser_closed"])
+
+    if all_initiative_pages_catalog:
+        failed_urls = save_and_download_initiatives(
+            list_dir, pages_dir, all_initiative_pages_catalog
+        )
+    else:
+        logger.warning("No initiatives found to classify or download")
+        failed_urls = []
+
+    display_completion_summary(
+        START_SCRAPING,
+        all_initiative_pages_catalog,
+        saved_page_listing_paths,
+        failed_urls,
+    )
+
+    return START_SCRAPING
+
+
+def save_and_download_initiatives(
+    list_dir: str, pages_dir: str, initiative_data: list[Dict[str, str]]
+) -> Tuple[int, list]:
+    """Save initiative data to CSV and download individual pages.
+
+    Args:
+        list_dir: Directory path for saving CSV files
+        pages_dir: Directory path for saving HTML pages
+        initiative_data: List of initiative dictionaries
+
+    Returns:
+        Tuple containing number of successful downloads and list of failed URLs
+    """
+
+    url_list_file = os.path.join(list_dir, CSV_FILENAME)
+
+    # Save initial data to CSV
+    write_initiatives_csv(url_list_file, initiative_data)
+    logger.info(f"Initiative data saved to: {url_list_file}")
+
+    logger.info("Starting individual initiative pages download...")
+    updated_data, failed_urls = download_initiative_pages(pages_dir, initiative_data)
+
+    # Update CSV with download timestamps
+    write_initiatives_csv(url_list_file, updated_data)
+    logger.info(f"Updated CSV with download timestamps: {url_list_file}")
+
+    return failed_urls
+
+
+if __name__ == "__main__":
+    scrape_eci_initiatives()
+```
+
+`./ECI_initiatives/scraper/initiatives/scraper_logger.py`:
+```
+# python
+import logging
+import os
+import datetime
+
+# scraper
+from .consts import LOG_DIR
+
+class ScraperLogger:
+    """
+    Logger class for ECI scraper with file and console output.
+    (Singleton) - ensures only one logger instance exists across the application.
+    """
+    _instance = None
+    _initialized = False
+
+    def __new__(cls, log_dir: str = None):
+        if cls._instance is None:
+            cls._instance = super(ScraperLogger, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self, log_dir: str = None):
+        # Prevent re-initialization of singleton
+        if ScraperLogger._initialized:
             return
-        
-        # Initialize unified logger if not already provided
-        if self.logger is None:
+            
+        self.logger = logging.getLogger("ECIScraper")
+        self.logger.setLevel(logging.DEBUG)
+        self.log_dir = log_dir or LOG_DIR
 
-            log_dir = self.last_session_scraping_dir / "logs"
-            eci_logger = InitiativesExtractorLogger()
-            self.logger = eci_logger.setup(log_dir=log_dir)
+        # Clear existing handlers to avoid duplicates
+        if self.logger.hasHandlers():
+            self.logger.handlers.clear()
+
+        # Console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+
+        os.makedirs(self.log_dir, exist_ok=True)
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        log_file = os.path.join(self.log_dir, f"scraper_initiatives{timestamp}.log")
+
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setLevel(logging.DEBUG)
+
+        # File formatter (more detailed)
+        file_formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
+        )
+        file_handler.setFormatter(file_formatter)
+        self.logger.addHandler(file_handler)
+
+        # Console formatter (simpler)
+        console_formatter = logging.Formatter(
+            "%(asctime)s - %(levelname)s - %(message)s"
+        )
+        console_handler.setFormatter(console_formatter)
+        self.logger.addHandler(console_handler)
         
-        # Initialize parser with shared logger
-        self.parser = ECIHTMLParser(logger=self.logger)
-        
-        self.logger.info("Starting ECI data processing")
-        self.logger.info(f"Processing session: {session_path.name}")
-        
-        # Process all initiative pages
-        initiatives = self.process_initiative_pages(session_path)
-        
-        # Save to CSV
-        if not output_filename:
-            output_filename = f"eci_initiatives_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
-        
-        output_path = session_path / output_filename
-        self.save_to_csv(initiatives, output_path)
-        
-        self.logger.info("Processing completed successfully")
+        # Mark as initialized
+        ScraperLogger._initialized = True
+
+    def debug(self, message: str):
+        self.logger.debug(message)
+
+    def info(self, message: str):
+        self.logger.info(message)
+
+    def warning(self, message: str):
+        self.logger.warning(message)
+
+    def error(self, message: str):
+        self.logger.error(message)
+
+    def critical(self, message: str):
+        self.logger.critical(message)
+
+logger = ScraperLogger(LOG_DIR)
+```
+
+`./ECI_initiatives/scraper/initiatives/statistics.py`:
+```
+# Python Standard Library
+import csv
+import datetime
+import os
+from collections import Counter
+from typing import Dict, List
+
+# Local modules
+from .consts import CSV_FILENAME, LOG_MESSAGES
+from .scraper_logger import logger
+
+
+def display_completion_summary(
+    start_scraping: str,
+    initiative_data: list[Dict[str, str]],
+    saved_page_paths: list,
+    failed_urls: list,
+) -> None:
+    """Display final completion summary with statistics."""
+    stats = gather_scraping_statistics(start_scraping, initiative_data, failed_urls)
+    display_summary_info(start_scraping, saved_page_paths, stats)
+    display_results_and_files(start_scraping, saved_page_paths, failed_urls, stats)
+
+
+LOG_SUMMARY = LOG_MESSAGES["summary_scraping"]
+
+
+def gather_scraping_statistics(
+    start_scraping: str, initiative_data: list, failed_urls: list
+) -> dict:
+    """Gather all statistics needed for the completion summary."""
+
+    # Count initiatives by status from CSV
+    current_status_counter = Counter()
+    url_list_file = f"initiatives/{start_scraping}/list/{CSV_FILENAME}"
+
+    if os.path.exists(url_list_file):
+
+        with open(url_list_file, "r", encoding="utf-8") as file:
+
+            reader = csv.DictReader(file)
+
+            for row in reader:
+                if row["current_status"]:
+                    current_status_counter[row["current_status"]] += 1
+
+    # Count downloaded files
+    pages_dir = f"initiatives/{start_scraping}/initiative_pages"
+
+    downloaded_files_count = 0
+
+    if os.path.exists(pages_dir):
+
+        # Iterate through year directories and count HTML files
+        for year_dir in os.listdir(pages_dir):
+
+            year_path = os.path.join(pages_dir, year_dir)
+
+            if os.path.isdir(year_path):
+
+                html_files = [f for f in os.listdir(year_path) if f.endswith(".html")]
+                downloaded_files_count += len(html_files)
+
+    return {
+        "status_counter": current_status_counter,
+        "downloaded_count": downloaded_files_count,
+        "total_initiatives": len(initiative_data) if initiative_data else 0,
+        "failed_count": len(failed_urls),
+    }
+
+
+def display_summary_info(
+    start_scraping: str, saved_page_paths: list, stats: dict
+) -> None:
+    """Display the main summary information and statistics."""
+    logger.info(LOG_SUMMARY["divider_line"])
+    logger.info(LOG_SUMMARY["scraping_complete"])
+    logger.info(LOG_SUMMARY["divider_line"])
+
+    logger.info(
+        LOG_SUMMARY["completion_timestamp"].format(
+            timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+    )
+    logger.info(LOG_SUMMARY["start_time"].format(start_scraping=start_scraping))
+    logger.info(
+        LOG_SUMMARY["total_pages_scraped"].format(page_count=len(saved_page_paths))
+    )
+    logger.info(
+        LOG_SUMMARY["total_initiatives_found"].format(
+            total_initiatives=stats["total_initiatives"]
+        )
+    )
+
+    logger.info(LOG_SUMMARY["initiatives_by_category"])
+    for status, count in stats["status_counter"].items():
+        logger.info(f"- {status}: {count}")
+
+
+def display_results_and_files(
+    start_scraping: str, saved_page_paths: list, failed_urls: list, stats: dict
+) -> None:
+    """Display download results and file location information."""
+    logger.info(
+        LOG_SUMMARY["pages_downloaded"].format(
+            downloaded_count=stats["downloaded_count"],
+            total_initiatives=stats["total_initiatives"],
+        )
+    )
+
+    if stats["failed_count"]:
+        logger.error(
+            LOG_SUMMARY["failed_downloads"].format(failed_count=stats["failed_count"])
+        )
+        for failed_url in failed_urls:
+            logger.error(LOG_SUMMARY["failed_url"].format(failed_url=failed_url))
+    else:
+        logger.info(LOG_SUMMARY["all_downloads_successful"])
+
+    logger.info(LOG_SUMMARY["files_saved_in"].format(start_scraping=start_scraping))
+    logger.info(LOG_SUMMARY["main_page_sources"])
+    for i, path in enumerate(saved_page_paths, 1):
+        logger.info(LOG_SUMMARY["page_source"].format(page_num=i, path=path))
+
+    logger.info(LOG_SUMMARY["divider_line"])
+
 ```
 

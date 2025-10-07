@@ -215,18 +215,24 @@ class ECIHTMLParser:
         }
 
         if legal_entity_heading:
+
             # Find the next sibling which should be a <ul> element
             next_element = legal_entity_heading.find_next_sibling()
+
             if next_element and next_element.name == 'ul':
+
                 # Find the <li> element within the <ul>
                 li_element = next_element.find('li')
+
                 if li_element:
                     # Get the full text content
                     full_text = li_element.get_text(separator=' ', strip=True)
 
                     # Split on "Country of the seat:" to separate name and country
                     if 'Country of the seat:' in full_text:
+
                         parts = full_text.split('Country of the seat:', 1)
+
                         if len(parts) == 2:
                             result['legal_entity']['name'] = parts[0].strip()
                             result['legal_entity']['country_of_residence'] = parts[1].strip()
@@ -236,18 +242,24 @@ class ECIHTMLParser:
 
         # Extract Representative information
         representatives = get_text_after_heading('Representative')
+
         result['representative'] = {
             'number_of_people': len(representatives),
             'countries_of_residence': {}
         }
 
         for rep in representatives:
+
             # Extract country information from the representative text
             # Pattern: "Name - email Country of residence: CountryName"
             country_match = re.search(r'Country of residence[:\s]+([A-Za-z\s]+)', rep)
+
             if country_match:
+
                 country = country_match.group(1).strip()
+
                 if country in result['representative']['countries_of_residence']:
+                    
                     result['representative']['countries_of_residence'][country] += 1
                 else:
                     result['representative']['countries_of_residence'][country] = 1
