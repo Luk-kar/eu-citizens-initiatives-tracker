@@ -26,8 +26,8 @@ RESPONSES_DIR = os.path.join(SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, RESPONSE
 
 # Timing Configuration (in seconds)
 WAIT_DYNAMIC_CONTENT = (1.5, 1.9)
-WAIT_BETWEEN_DOWNLOADS = (0.5, 1.5)
-RETRY_WAIT_BASE = (1.0, 1.2)
+WAIT_BETWEEN_DOWNLOADS = (1.5, 1.9)
+RETRY_WAIT_BASE = (2.0, 2.5)
 
 # Timeout Configuration (in seconds)
 WEBDRIVER_TIMEOUT_DEFAULT = 30
@@ -37,21 +37,21 @@ WEBDRIVER_TIMEOUT_CONTENT = 15
 CHROME_OPTIONS = [
     "--headless",
     "--no-sandbox",
-    "--disable-dev-shm-usage"
+    "--disable-dev-shm-usage",
 ]
 
 # File Naming Patterns
 RESPONSE_PAGE_FILENAME_PATTERN = "{year}/{number}_en.html"
 
 # Retry and validation
-DEFAULT_MAX_RETRIES = 5
+DEFAULT_MAX_RETRIES = 3
 MIN_HTML_LENGTH = 50
 
 # Rate limiting indicators
 RATE_LIMIT_INDICATORS = [
     "Server inaccessibility",
     "429 - Too Many Requests",
-    "429",
+    "HTTP 429",
     "Too Many Requests",
     "Rate limited"
 ]

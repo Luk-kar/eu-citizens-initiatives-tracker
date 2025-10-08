@@ -91,8 +91,20 @@ class FileOperations:
         if len(page_source) < MIN_HTML_LENGTH:
             raise Exception(f"HTML content too short: {len(page_source)} characters")
         
-        # Check for rate limiting indicators
+        # Check for error page (multilingual "Sorry" page)
+        error_page_indicators = [
+            "We apologise for any inconvenience",
+            "Veuillez nous excuser pour ce désagrément",
+            "Ci scusiamo per il disagio arrecato"
+        ]
+        
         page_lower = page_source.lower()
+        
+        for indicator in error_page_indicators:
+            if indicator.lower() in page_lower:
+                raise Exception(f"Error page detected: {indicator}")
+        
+        # Check for rate limiting indicators
         for indicator in RATE_LIMIT_INDICATORS:
             if indicator.lower() in page_lower:
                 raise Exception(f"Rate limiting detected in content: {indicator}")

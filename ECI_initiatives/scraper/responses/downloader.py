@@ -37,48 +37,52 @@ class ResponseDownloader:
         Args:
             responses_dir: Base directory for saving response HTML files
         """
+
         self.responses_dir = responses_dir
         self.driver = None
 
     def download_all_responses(self, response_links: List[Dict[str, str]]) -> Tuple[int, List[str]]:
         """
-        Download all Commission response pages.
-
+        Download all Commission response pages with retry logic for failures.
+        
         Args:
             response_links: List of dictionaries with 'url', 'year', 'reg_number'
-
+            
         Returns:
             Tuple of (downloaded_count, failed_urls_list)
         """
         downloaded_count = 0
-        failed_urls = []
-
+        failed_items = []
+        
         try:
             # Initialize browser once for all downloads
             self._initialize_driver()
-
-            # Download each response page
+            
+            # First pass: Download each response page
+            logger.info("Starting first download pass...")
             for link_data in response_links:
+                
                 url = link_data['url']
                 year = link_data['year']
                 reg_number = link_data['reg_number']
-
+                
                 success = self.download_single_response(url, year, reg_number)
-
+                
                 if success:
                     downloaded_count += 1
                 else:
-                    failed_urls.append(url)
-
+                    # Store full link_data for retry
+                    failed_items.append(link_data)
+                
                 # Wait between downloads to avoid rate limiting
                 wait_time = random.uniform(*WAIT_BETWEEN_DOWNLOADS)
                 time.sleep(wait_time)
-
+            
         finally:
             # Clean up browser
             self._close_driver()
 
-        return downloaded_count, failed_urls
+        return downloaded_count, failed_items
 
     def download_single_response(
         self, 
@@ -99,10 +103,25 @@ class ResponseDownloader:
         Returns:
             True if successful, False if failed
         """
+
+        actual_url = url
+
         for attempt in range(max_retries):
+
             try:
-                # Navigate to URL
-                self.driver.get(url)
+
+                # On first attempt, check if URL redirects
+                if attempt == 0:
+                    self.driver.get(url)
+                    time.sleep(1)  # Wait for redirect
+                    actual_url = self.driver.current_url
+                    
+                    # Log redirect if it occurred
+                    if actual_url != url:
+                        logger.info(f"URL redirected: {url} -> {actual_url}")
+                else:
+                    # Use actual URL for retry attempts
+                    self.driver.get(actual_url)
 
                 # Wait for page content to load
                 self._wait_for_page_content()
@@ -127,6 +146,7 @@ class ResponseDownloader:
                 logger.warning(f"Download attempt {attempt + 1}/{max_retries} failed for {url}: {str(e)}")
 
                 if attempt < max_retries - 1:
+
                     # Calculate exponential backoff wait time
                     base_wait = random.uniform(*RETRY_WAIT_BASE)
                     wait_time = base_wait * (2 ** attempt)
@@ -147,6 +167,7 @@ class ResponseDownloader:
         Raises:
             Exception: If rate limiting is detected
         """
+
         page_source = self.driver.page_source.lower()
 
         for indicator in RATE_LIMIT_INDICATORS:
@@ -156,24 +177,44 @@ class ResponseDownloader:
     def _wait_for_page_content(self) -> None:
         """
         Wait for response page content to load.
-
-        Uses explicit waits for specific page elements.
+        
+        Uses explicit waits for specific page elements with fallback selectors.
         """
+        
         try:
-            # Wait for main content container
-            WebDriverWait(self.driver, WEBDRIVER_TIMEOUT_CONTENT).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ResponsePageSelectors.MAIN_CONTENT))
-            )
+            # Try multiple selectors in order of preference
+            selectors_to_try = [
+                ResponsePageSelectors.MAIN_CONTENT,  # div.ecl-container
+                ResponsePageSelectors.PAGE_HEADER_TITLE,  # h1.ecl-page-header__title  
+                "main#main-content",  # Main content area
+                "body"  # Last resort fallback
+            ]
+            
+            for selector in selectors_to_try:
+                try:
+                    WebDriverWait(self.driver, WEBDRIVER_TIMEOUT_CONTENT).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                    )
+                    logger.debug(f"Page loaded - found element: {selector}")
+                    return  # Success - exit method
+                except Exception:
+                    continue  # Try next selector
+            
+            # If we get here, no selectors worked but page might still be loaded
+            logger.warning("Could not verify page load with expected selectors, proceeding anyway")
+            
         except Exception as e:
             logger.warning(f"Timeout waiting for page content: {str(e)}")
 
     def _initialize_driver(self) -> None:
         """Initialize the WebDriver if not already initialized."""
+
         if self.driver is None:
             self.driver = initialize_browser()
 
     def _close_driver(self) -> None:
         """Close the WebDriver and clean up resources."""
+
         if self.driver:
             try:
                 self.driver.quit()

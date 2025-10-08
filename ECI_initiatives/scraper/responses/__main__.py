@@ -2,6 +2,7 @@
 Main entry point for Commission responses scraper.
 """
 import os
+import time
 from typing import List, Tuple
 from pathlib import Path
 
@@ -50,11 +51,11 @@ def scrape_commission_responses() -> str:
     logger.info(LOG_MESSAGES["links_found"].format(count=len(response_links)))
     
     # Download response pages
-    downloaded_count, failed_urls = _download_responses(responses_dir, response_links)
-    
+    downloaded_count, failed_items = _download_responses(responses_dir, response_links)
+
     # Display completion summary
-    display_completion_summary(START_SCRAPING, response_links, failed_urls, downloaded_count)
-    
+    display_completion_summary(START_SCRAPING, response_links, failed_items, downloaded_count)
+        
     return START_SCRAPING
 
 
@@ -130,7 +131,6 @@ def _download_responses(
     """
     downloader = ResponseDownloader(responses_dir)
     return downloader.download_all_responses(response_links)
-
 
 if __name__ == "__main__":
     scrape_commission_responses()
