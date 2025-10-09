@@ -17,13 +17,13 @@ class ResponseLinkExtractor:
     
     def extract_links_from_file(self, file_path: str) -> Optional[Dict[str, str]]:
         """
-        Extract Commission response link from a single initiative HTML file.
+        Extract Commission response link and title from a single initiative HTML file.
         
         Args:
             file_path: Path to the initiative HTML file
             
         Returns:
-            Dictionary with 'url', 'year', 'reg_number' or None if no link found
+            Dictionary with 'url', 'year', 'reg_number', 'title' or None if no link found
         """
 
         try:
@@ -31,11 +31,17 @@ class ResponseLinkExtractor:
             with open(file_path, 'r', encoding='utf-8') as f:
                 html_content = f.read()
             
-            # Parse HTML for link
-            url = self._parse_html_for_link(html_content, file_path)
+            # Parse HTML
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # Extract response link
+            url = self._extract_response_commission_url(soup)
             
             if not url:
                 return None
+            
+            # Extract title
+            title = self._extract_title(soup)
             
             # Extract metadata from file path
             metadata = self._extract_metadata_from_path(file_path)
@@ -43,13 +49,39 @@ class ResponseLinkExtractor:
             return {
                 'url': url,
                 'year': metadata['year'],
-                'reg_number': metadata['reg_number']
+                'reg_number': metadata['reg_number'],
+                'title': title,
+                'datetime': ''  # Will be filled during download
             }
             
         except Exception as e:
             self.logger.error(f"Error extracting link from {file_path}: {str(e)}")
             return None
-    
+
+    def _extract_title(self, soup: BeautifulSoup) -> str:
+        """
+        Extract initiative title from the page.
+        
+        Args:
+            soup: BeautifulSoup parsed HTML
+            
+        Returns:
+            Title string or empty string if not found
+        """
+        
+        # Try to find the page header title
+        title_element = soup.select_one('h1.ecl-page-header-core__title')
+        
+        if title_element:
+            return title_element.get_text(strip=True)
+        
+        # Fallback to first h1
+        h1_element = soup.find('h1')
+        if h1_element:
+            return h1_element.get_text(strip=True)
+        
+        return ""
+
     def extract_links_from_directory(self, base_dir: str) -> List[Dict[str, str]]:
         """
         Extract all Commission response links from initiative pages directory.

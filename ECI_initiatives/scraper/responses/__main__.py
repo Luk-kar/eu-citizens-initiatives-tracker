@@ -18,7 +18,8 @@ from .consts import (
     RESPONSES_DIR_NAME,
     INITIATIVE_PAGES_DIR_NAME,
     LOG_DIR_NAME,
-    LOG_MESSAGES
+    LOG_MESSAGES,
+    CSV_FILENAME,
 )
 
 
@@ -33,6 +34,7 @@ def scrape_commission_responses() -> str:
     # Step 1: Find the last timestamp directory FIRST
     try:
         timestamp_dir = _find_latest_timestamp_directory()
+        
     except FileNotFoundError as e:
         print(f"ERROR: {e}")
         raise
@@ -68,13 +70,75 @@ def scrape_commission_responses() -> str:
     
     logger.info(LOG_MESSAGES["links_found"].format(count=len(response_links)))
     
-    # Step 6: Download response pages
-    downloaded_count, failed_items = _download_responses(responses_dir, response_links)
-
-    # Step 7: Display completion summary
+    # Step 6: Create initial CSV file
+    csv_file_path = os.path.join(responses_dir, CSV_FILENAME)
+    _save_initial_csv(csv_file_path, response_links)
+    
+    # Step 7: Download response pages and update CSV
+    updated_data, failed_items = _download_responses(responses_dir, response_links)
+    
+    # Step 8: Update CSV with download timestamps
+    _save_updated_csv(csv_file_path, updated_data, failed_items)
+    
+    # Step 9: Display completion summary
+    downloaded_count = len(updated_data)
     display_completion_summary(START_SCRAPING, response_links, failed_items, downloaded_count, responses_dir)
         
     return START_SCRAPING
+
+def _save_initial_csv(csv_path: str, response_links: List[dict]) -> None:
+    """
+    Save initial CSV file with response links before downloading.
+    
+    Args:
+        csv_path: Path to CSV file
+        response_links: List of response link dictionaries
+    """
+    from .file_operations import write_responses_csv
+    
+    # Convert response_links to CSV format
+    csv_data = [
+        {
+            'url_find_initiative': link['url'],
+            'registration_number': link['reg_number'],
+            'title': link.get('title', ''),
+            'datetime': ''
+        }
+        for link in response_links
+    ]
+    
+    write_responses_csv(csv_path, csv_data)
+    
+    logger = logging.getLogger("ECIResponsesScraper")
+    logger.info(f"Initial CSV created: {csv_path}")
+
+def _save_updated_csv(csv_path: str, updated_data: List[dict], failed_items: List[dict]) -> None:
+    """
+    Update CSV file with download timestamps, including failed items.
+    
+    Args:
+        csv_path: Path to CSV file
+        updated_data: List of successfully downloaded items with timestamps
+        failed_items: List of failed download items
+    """
+    from .file_operations import write_responses_csv
+    
+    # Add failed items with empty timestamp
+    failed_csv_data = [
+        {
+            'url_find_initiative': item['url'],
+            'registration_number': item['reg_number'],
+            'title': item.get('title', ''),
+            'datetime': ''
+        }
+        for item in failed_items
+    ]
+    
+    all_data = updated_data + failed_csv_data
+    write_responses_csv(csv_path, all_data)
+    
+    logger = logging.getLogger("ECIResponsesScraper")
+    logger.info(f"CSV updated with download timestamps: {csv_path}")
 
 
 def _find_latest_timestamp_directory() -> str:
@@ -143,7 +207,7 @@ def _extract_response_links(initiative_pages_dir: str) -> List[dict]:
 def _download_responses(
     responses_dir: str,
     response_links: List[dict]
-) -> Tuple[int, List[str]]:
+) -> Tuple[List[dict], List[dict]]:
     """
     Download all Commission response pages.
     
@@ -152,7 +216,7 @@ def _download_responses(
         response_links: List of response link dictionaries
         
     Returns:
-        Tuple of (downloaded_count, failed_urls)
+        Tuple of (updated_data, failed_items)
     """
     downloader = ResponseDownloader(responses_dir)
     return downloader.download_all_responses(response_links)

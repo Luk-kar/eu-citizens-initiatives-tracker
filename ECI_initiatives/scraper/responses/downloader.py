@@ -42,49 +42,56 @@ class ResponseDownloader:
         self.driver = None
         self.logger = logging.getLogger("ECIResponsesScraper")
     
-    def download_all_responses(self, response_links: List[Dict[str, str]]) -> Tuple[int, List[str]]:
+    def download_all_responses(self, response_links: List[Dict[str, str]]) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
         """
         Download all Commission response pages with retry logic for failures.
         
         Args:
-            response_links: List of dictionaries with 'url', 'year', 'reg_number'
+            response_links: List of dictionaries with 'url', 'year', 'reg_number', 'title'
             
         Returns:
-            Tuple of (downloaded_count, failed_urls_list)
+            Tuple of (updated_response_data, failed_items)
         """
-
-        downloaded_count = 0
+        updated_data = []
         failed_items = []
         
         try:
             # Initialize browser once for all downloads
             self._initialize_driver()
             
-            # First pass: Download each response page
-            self.logger.info("Starting first download pass...")
+            # Download each response page
+            self.logger.info("Starting download pass...")
+            
             for link_data in response_links:
 
                 url = link_data['url']
                 year = link_data['year']
                 reg_number = link_data['reg_number']
                 
-                success = self.download_single_response(url, year, reg_number)
+                success, timestamp = self.download_single_response(url, year, reg_number)
+                
+                # Update data with timestamp
+                updated_item = {
+                    'url_find_initiative': url,
+                    'registration_number': reg_number,
+                    'title': link_data.get('title', ''),
+                    'datetime': timestamp if success else ''
+                }
                 
                 if success:
-                    downloaded_count += 1
+                    updated_data.append(updated_item)
                 else:
-                    # Store full link_data for retry
                     failed_items.append(link_data)
                 
-                # Wait between downloads to avoid rate limiting
+                # Wait between downloads
                 wait_time = random.uniform(*WAIT_BETWEEN_DOWNLOADS)
                 time.sleep(wait_time)
             
         finally:
-            # Clean up browser
             self._close_driver()
         
-        return downloaded_count, failed_items
+        return updated_data, failed_items
+
     
     def download_single_response(
         self, 
@@ -92,7 +99,7 @@ class ResponseDownloader:
         year: str, 
         reg_number: str,
         max_retries: int = DEFAULT_MAX_RETRIES
-    ) -> bool:
+    ) -> Tuple[bool, str]:
         """
         Download a single Commission response page with retry logic.
         
@@ -103,24 +110,23 @@ class ResponseDownloader:
             max_retries: Maximum number of retry attempts
         
         Returns:
-            True if successful, False if failed
+            Tuple of (success: bool, timestamp: str)
         """
-
         actual_url = url
         
         for attempt in range(max_retries):
             try:
                 # On first attempt, check if URL redirects
                 if attempt == 0:
+
                     self.driver.get(url)
-                    time.sleep(1)  # Wait for redirect
+                    time.sleep(1)
                     actual_url = self.driver.current_url
                     
-                    # Log redirect if it occurred
                     if actual_url != url:
+
                         self.logger.info(f"URL redirected: {url} -> {actual_url}")
                 else:
-                    # Use actual URL for retry attempts
                     self.driver.get(actual_url)
                 
                 # Wait for page content to load
@@ -139,15 +145,16 @@ class ResponseDownloader:
                 # Save to file
                 filename = save_response_page(self.responses_dir, year, reg_number, page_source)
                 
+                # Get current timestamp
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
                 self.logger.info(LOG_MESSAGES["download_success"].format(filename=filename))
-                return True
+                return True, timestamp
                 
             except Exception as e:
                 self.logger.warning(f"Download attempt {attempt + 1}/{max_retries} failed for {url}: {str(e)}")
                 
                 if attempt < max_retries - 1:
-
-                    # Calculate exponential backoff wait time
                     base_wait = random.uniform(*RETRY_WAIT_BASE)
                     wait_time = base_wait * (2 ** attempt)
                     self.logger.info(LOG_MESSAGES["rate_limit_retry"].format(
@@ -158,8 +165,8 @@ class ResponseDownloader:
                     time.sleep(wait_time)
         
         self.logger.error(LOG_MESSAGES["download_failed"].format(url=url))
-        return False
-    
+        return False, ""
+
     def _check_rate_limiting(self) -> None:
         """
         Check if the current page shows rate limiting errors.

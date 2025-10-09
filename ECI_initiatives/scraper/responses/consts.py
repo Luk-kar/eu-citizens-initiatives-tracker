@@ -19,6 +19,15 @@ INITIATIVE_PAGES_DIR_NAME = "initiative_pages"
 # Script directory (3 levels up from this file: responses -> scraper -> ECI_initiatives)
 SCRIPT_DIR = Path(__file__).parent.parent.parent.absolute()
 
+# CSV Configuration
+CSV_FILENAME = "responses_list.csv"
+CSV_FIELDNAMES = [
+    "url_find_initiative",
+    "registration_number", 
+    "title",
+    "datetime"
+]
+
 # Timing Configuration (in seconds)
 WAIT_DYNAMIC_CONTENT = (1.5, 1.9)
 WAIT_BETWEEN_DOWNLOADS = (1.5, 1.9)
