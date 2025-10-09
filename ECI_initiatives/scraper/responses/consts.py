@@ -1,11 +1,7 @@
 """
 Constants and configuration for Commission responses scraper.
 """
-import datetime
 from pathlib import Path
-
-# Timing - start of scraping session
-START_SCRAPING = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 # URLs and Routes
 BASE_URL = "https://citizens-initiative.europa.eu"

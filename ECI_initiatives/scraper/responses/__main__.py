@@ -1,6 +1,7 @@
 """
 Main entry point for Commission responses scraper.
 """
+import datetime
 import os
 import time
 from typing import List, Tuple
@@ -12,7 +13,6 @@ from .downloader import ResponseDownloader
 from .file_operations import FileOperations
 from .statistics import display_completion_summary
 from .consts import (
-    START_SCRAPING,
     SCRIPT_DIR,
     DATA_DIR_NAME,
     RESPONSES_DIR_NAME,
@@ -48,13 +48,14 @@ def scrape_commission_responses() -> str:
     logger = initialize_logger(log_dir)
     
     logger.info(LOG_MESSAGES["scraping_start"].format(timestamp=timestamp_dir))
+    start_scraping = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     
     # Step 3: Find latest initiative pages directory using the timestamp_dir
     initiative_pages_dir = _find_latest_initiative_pages_directory(timestamp_dir)
     
     if not initiative_pages_dir:
         logger.error("No initiative pages directory found in the timestamp directory.")
-        return START_SCRAPING
+        return start_scraping
     
     # Step 4: Setup responses output directory
     responses_dir = os.path.join(timestamp_dir, RESPONSES_DIR_NAME)
@@ -66,7 +67,7 @@ def scrape_commission_responses() -> str:
     
     if not response_links:
         logger.warning(LOG_MESSAGES["no_links_found"])
-        return START_SCRAPING
+        return start_scraping
     
     logger.info(LOG_MESSAGES["links_found"].format(count=len(response_links)))
     
@@ -82,9 +83,9 @@ def scrape_commission_responses() -> str:
     
     # Step 9: Display completion summary
     downloaded_count = len(updated_data)
-    display_completion_summary(START_SCRAPING, response_links, failed_items, downloaded_count, responses_dir)
+    display_completion_summary(start_scraping, response_links, failed_items, downloaded_count, responses_dir)
         
-    return START_SCRAPING
+    return start_scraping
 
 def _save_initial_csv(csv_path: str, response_links: List[dict]) -> None:
     """
