@@ -8,6 +8,7 @@ from typing import List, Tuple
 from pathlib import Path
 import logging
 
+from .errors import MissingDataDirectoryError
 from .html_parser import ResponseLinkExtractor
 from .downloader import ResponseDownloader
 from .file_operations import FileOperations
@@ -36,8 +37,10 @@ def scrape_commission_responses() -> str:
         timestamp_dir = _find_latest_timestamp_directory()
         
     except FileNotFoundError as e:
-        print(f"ERROR: {e}")
-        raise
+        raise MissingDataDirectoryError(
+            expected_path=os.path.join(SCRIPT_DIR, DATA_DIR_NAME),
+            hint="Run the initiatives scraper first to create the timestamp directory."
+        ) from e
     
     # Step 2: Setup log directory and initialize logger
     log_dir = os.path.join(timestamp_dir, LOG_DIR_NAME)
