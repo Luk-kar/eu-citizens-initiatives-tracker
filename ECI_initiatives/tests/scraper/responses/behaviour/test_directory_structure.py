@@ -28,3 +28,11 @@ class TestDirectoryStructure:
         initiatives scraper should run first.
         """
         pass
+
+    def test_uses_most_recent_initiatives_timestamp():
+        """
+        When running the full scraper workflow, verify 
+        that files are created in the most recent timestamp directory 
+        from the initiatives scraper.
+        """
+        pass
