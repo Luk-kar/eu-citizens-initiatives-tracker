@@ -1,17 +1,15 @@
 """
 File operations for saving Commission response pages.
 """
-import csv
 import os
 import logging
-from typing import Optional, List, Dict
 
 from bs4 import BeautifulSoup
 
-from .consts import CSV_FIELDNAMES, MIN_HTML_LENGTH, RATE_LIMIT_INDICATORS
+from ..consts import MIN_HTML_LENGTH, RATE_LIMIT_INDICATORS
 
 
-class FileOperations:
+class PageFileManager:
     """Handle file and directory operations for response pages."""
     
     def __init__(self, base_dir: str):
@@ -145,26 +143,7 @@ class FileOperations:
 
         return f"{year}/{reg_number}_en.html"
 
-def write_responses_csv(file_path: str, response_data: List[Dict[str, str]]) -> None:
-    """
-    Write response data to CSV file.
-    
-    Args:
-        file_path: Full path to the CSV file
-        response_data: List of response dictionaries to write
-    """
-    from .consts import CSV_FIELDNAMES
-    
-    with open(file_path, "w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(response_data)
-    
-    logger = logging.getLogger("ECIResponsesScraper")
-    logger.debug(f"CSV file written: {file_path}")
-
-
-def save_response_page(responses_dir: str, year: str, reg_number: str, page_source: str) -> str:
+def save_response_html_file(responses_dir: str, year: str, reg_number: str, page_source: str) -> str:
     """
     Convenience function to save response page.
     
@@ -178,5 +157,5 @@ def save_response_page(responses_dir: str, year: str, reg_number: str, page_sour
         Filename of saved file
     """
 
-    file_ops = FileOperations(responses_dir)
+    file_ops = PageFileManager(responses_dir)
     return file_ops.save_response_page(page_source, year, reg_number)

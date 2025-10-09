@@ -11,7 +11,7 @@ import logging
 from .errors import MissingDataDirectoryError
 from .html_parser import ResponseLinkExtractor
 from .downloader import ResponseDownloader
-from .file_operations import FileOperations
+from .file_operations.page import PageFileManager
 from .statistics import display_completion_summary
 from .consts import (
     SCRIPT_DIR,
@@ -62,7 +62,7 @@ def scrape_commission_responses() -> str:
     
     # Step 4: Setup responses output directory
     responses_dir = os.path.join(timestamp_dir, RESPONSES_DIR_NAME)
-    file_ops = FileOperations(responses_dir)
+    file_ops = PageFileManager(responses_dir)
     file_ops.setup_directories()
     
     # Step 5: Extract Commission response links from initiative pages
@@ -98,7 +98,7 @@ def _save_initial_csv(csv_path: str, response_links: List[dict]) -> None:
         csv_path: Path to CSV file
         response_links: List of response link dictionaries
     """
-    from .file_operations import write_responses_csv
+    from .file_operations.csv import write_responses_csv
     
     # Convert response_links to CSV format
     csv_data = [
@@ -125,7 +125,7 @@ def _save_updated_csv(csv_path: str, updated_data: List[dict], failed_items: Lis
         updated_data: List of successfully downloaded items with timestamps
         failed_items: List of failed download items
     """
-    from .file_operations import write_responses_csv
+    from .file_operations.csv import write_responses_csv
     
     # Add failed items with empty timestamp
     failed_csv_data = [

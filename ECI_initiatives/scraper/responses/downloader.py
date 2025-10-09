@@ -24,7 +24,7 @@ from .consts import (
     RATE_LIMIT_INDICATORS,
     LOG_MESSAGES
 )
-from .file_operations import save_response_page
+from .file_operations.page import save_response_html_file
 
 
 class ResponseDownloader:
@@ -61,7 +61,7 @@ class ResponseDownloader:
             
             # Download each response page
             self.logger.info("Starting download pass...")
-            
+
             for link_data in response_links:
 
                 url = link_data['url']
@@ -143,7 +143,7 @@ class ResponseDownloader:
                 page_source = self.driver.page_source
                 
                 # Save to file
-                filename = save_response_page(self.responses_dir, year, reg_number, page_source)
+                filename = save_response_html_file(self.responses_dir, year, reg_number, page_source)
                 
                 # Get current timestamp
                 timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

@@ -150,7 +150,7 @@ class ResponseLinkExtractor:
         path = Path(file_path)
         year = path.parent.name  # Get year from directory name
         reg_number = path.stem.replace('_en', '')  # Get reg number from filename
-        
+
         return {
             'year': year,
             'reg_number': reg_number
