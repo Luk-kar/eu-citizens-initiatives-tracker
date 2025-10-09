@@ -6,7 +6,7 @@ initiative HTML files.
 class TestLinkExtraction:
     """Test extraction of response links from initiative pages."""
     
-    def test_only_initiatives_with_response_links_included():
+    def test_only_initiatives_with_response_links_included(self):
         """
         When processing initiative HTML files, verify 
         that only initiatives with "Commission's answer and follow-up" 
@@ -14,7 +14,7 @@ class TestLinkExtraction:
         """
         pass
     
-    def test_registration_number_and_year_extracted():
+    def test_registration_number_and_year_extracted(self):
         """
         When extracting links from initiative pages, 
         verify that the registration number and year are correctly 
@@ -22,7 +22,7 @@ class TestLinkExtraction:
         """
         pass
     
-    def test_missing_response_link_skipped():
+    def test_missing_response_link_skipped(self):
         """
         When an initiative HTML file contains no 
         Commission response link, verify that it is silently skipped 
@@ -30,7 +30,7 @@ class TestLinkExtraction:
         """
         pass
     
-    def test_all_year_directories_processed():
+    def test_all_year_directories_processed(self):
         """
         When extracting response links from a directory 
         with multiple year subdirectories, verify that all years are 

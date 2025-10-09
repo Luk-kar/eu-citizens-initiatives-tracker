@@ -5,7 +5,7 @@ Test suite for downloading and saving Commission response HTML pages.
 class TestHTMLDownload:
     """Test HTML page download functionality."""
     
-    def test_downloaded_html_contains_valid_content():
+    def test_downloaded_html_contains_valid_content(self):
         """
         When downloading response pages, verify that 
         each successfully downloaded HTML file contains the expected 
@@ -14,7 +14,7 @@ class TestHTMLDownload:
         """
         pass
     
-    def test_short_html_not_saved():
+    def test_short_html_not_saved(self):
         """
         When HTML content is too short (below minimum 
         threshold), verify that the file is not saved and the download 
@@ -22,7 +22,7 @@ class TestHTMLDownload:
         """
         pass
     
-    def test_rate_limit_retry_with_backoff():
+    def test_rate_limit_retry_with_backoff(self):
         """
         When a rate limiting error page is detected, 
         verify that the scraper retries the download with exponential 
@@ -30,7 +30,7 @@ class TestHTMLDownload:
         """
         pass
     
-    def test_server_error_page_marked_failed():
+    def test_server_error_page_marked_failed(self):
         """
         When a server error page is detected 
         (multilingual "Sorry" messages), verify that the download 
@@ -38,7 +38,7 @@ class TestHTMLDownload:
         """
         pass
     
-    def test_max_retries_marks_as_failed():
+    def test_max_retries_marks_as_failed(self):
         """
         When a download fails multiple times (exceeding 
         max retries), verify that the item is marked as failed and 
@@ -46,14 +46,14 @@ class TestHTMLDownload:
         """
         pass
     
-    def test_html_files_prettified():
+    def test_html_files_prettified(self):
         """
         When saving HTML files, verify that the content 
         is prettified (well-formatted) for readability.
         """
         pass
     
-    def test_html_files_utf8_encoded():
+    def test_html_files_utf8_encoded(self):
         """
         When saving HTML files, verify that UTF-8 
         encoding is used to preserve special characters in multilingual 
@@ -61,7 +61,7 @@ class TestHTMLDownload:
         """
         pass
     
-    def test_browser_cleanup_after_errors():
+    def test_browser_cleanup_after_errors(self):
         """
         When the browser is closed after downloading, 
         verify that resources are properly cleaned up even if errors 

@@ -5,7 +5,7 @@ Test suite for CSV output file creation and content validation.
 class TestCSVOutput:
     """Test CSV file generation and content."""
     
-    def test_registration_numbers_normalized_to_slash_format():
+    def test_registration_numbers_normalized_to_slash_format(self):
         """
         When creating the CSV file, verify that 
         registration numbers are normalized to slash format 
@@ -13,21 +13,21 @@ class TestCSVOutput:
         """
         pass
     
-    def test_csv_timestamps_for_successful_downloads():
+    def test_csv_timestamps_for_successful_downloads(self):
         """
         When downloads complete, verify that the CSV 
         contains timestamps only for successfully downloaded pages.
         """
         pass
     
-    def test_csv_empty_timestamps_for_failed_downloads():
+    def test_csv_empty_timestamps_for_failed_downloads(self):
         """
         When some downloads fail, verify that failed 
         items appear in the CSV with empty timestamp fields.
         """
         pass
     
-    def test_csv_contains_required_columns():
+    def test_csv_contains_required_columns(self):
         """
         When the CSV is written, verify that it 
         contains all required columns: url_find_initiative, 

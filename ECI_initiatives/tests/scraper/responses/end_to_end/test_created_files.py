@@ -47,32 +47,32 @@ class TestCreatedFiles:
         """
         pass
     
-    def test_debug_fixture():
+    def test_debug_fixture(self):
         """Debug test to verify setup output."""
         pass
     
-    def test_responses_directory_structure_created():
+    def test_responses_directory_structure_created(self):
         """
         Verify responses directory and year-based 
         subdirectories are created, along with CSV file.
         """
         pass
     
-    def test_response_links_extracted_correctly():
+    def test_response_links_extracted_correctly(self):
         """
         Verify only initiatives with response links 
         are processed and all year directories are scanned.
         """
         pass
     
-    def test_csv_file_structure_and_content():
+    def test_csv_file_structure_and_content(self):
         """
         Verify CSV contains required columns and 
         registration numbers are in slash format.
         """
         pass
     
-    def test_response_html_files_downloaded():
+    def test_response_html_files_downloaded(self):
         """
         Verify HTML files contain valid 
         Commission response content, are prettified, and use UTF-8 
@@ -80,14 +80,14 @@ class TestCreatedFiles:
         """
         pass
     
-    def test_completion_summary_accuracy():
+    def test_completion_summary_accuracy(self):
         """
         Verify completion summary shows correct 
         counts and file paths.
         """
         pass
     
-    def test_integration_with_initiatives_scraper():
+    def test_integration_with_initiatives_scraper(self):
         """
         Verify responses scraper uses the most recent 
         timestamp directory from initiatives scraper.
