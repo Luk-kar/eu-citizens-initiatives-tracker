@@ -136,3 +136,25 @@ REQUIRED_EXTRACTOR_CSV_COLUMNS = [
     'created_timestamp',
     'last_updated'
 ]
+
+# ===============================
+#       SCRAPER RESPONSES
+# ===============================
+
+# Directory names
+RESPONSES_DIR_NAME = "responses"
+
+# CSV configuration
+RESPONSES_CSV_FILENAME = "responseslist.csv"
+RESPONSES_CSV_FIELDNAMES = [
+    "url_find_initiative",
+    "registration_number", 
+    "title",
+    "datetime"
+]
+
+# Test limits
+MAX_RESPONSE_DOWNLOADS_E2E_TEST = 3  # Only download first 3 responses
+
+# File naming patterns
+RESPONSE_PAGE_FILENAME_PATTERN = r"\d{4}_\d+_en\.html"
