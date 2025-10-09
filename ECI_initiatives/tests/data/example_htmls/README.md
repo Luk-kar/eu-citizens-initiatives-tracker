@@ -101,3 +101,5 @@ Complete categorization of Commission responses including:
 - Commission response summary
 
 **Note**: Always verify scraper logic against live data before production deployment.
+
+**⚠️ SECURITY WARNING**: Intentionally attempting to trigger rate limiting (429 errors) by making excessive requests to scrape error pages is **highly inadvisable** and may be treated by legal authorities as a **Distributed Denial of Service (DDoS) attack**. The error page included in this test data was created for legitimate testing purposes. Never deliberately attempt to overload the ECI servers.
