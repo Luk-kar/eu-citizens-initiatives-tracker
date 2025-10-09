@@ -2,11 +2,10 @@
 HTML parser for extracting Commission response links from initiative pages.
 """
 import re
+import logging
 from typing import List, Dict, Optional
 from pathlib import Path
 from bs4 import BeautifulSoup
-
-from .scraper_logger import logger
 
 
 class ResponseLinkExtractor:
@@ -14,7 +13,7 @@ class ResponseLinkExtractor:
     
     def __init__(self):
         """Initialize the link extractor."""
-        pass
+        self.logger = logging.getLogger("ECIResponsesScraper")
     
     def extract_links_from_file(self, file_path: str) -> Optional[Dict[str, str]]:
         """
@@ -48,7 +47,7 @@ class ResponseLinkExtractor:
             }
             
         except Exception as e:
-            logger.error(f"Error extracting link from {file_path}: {str(e)}")
+            self.logger.error(f"Error extracting link from {file_path}: {str(e)}")
             return None
     
     def extract_links_from_directory(self, base_dir: str) -> List[Dict[str, str]]:
@@ -67,13 +66,11 @@ class ResponseLinkExtractor:
         
         # Traverse all year directories
         for year_dir in base_path.iterdir():
-
             if not year_dir.is_dir():
                 continue
             
             # Process all HTML files in year directory
             for html_file in year_dir.glob("*_en.html"):
-
                 link_data = self.extract_links_from_file(str(html_file))
                 if link_data:
                     response_links.append(link_data)
@@ -91,7 +88,7 @@ class ResponseLinkExtractor:
         Returns:
             Full URL to Commission response page or None
         """
-        
+
         try:
             soup = BeautifulSoup(html_content, 'html.parser')
             
@@ -99,12 +96,12 @@ class ResponseLinkExtractor:
             url = self._extract_response_commission_url(soup)
             
             if url:
-                logger.debug(f"Found Commission response link in {file_path}: {url}")
+                self.logger.debug(f"Found Commission response link in {file_path}: {url}")
             
             return url
             
         except Exception as e:
-            logger.error(f"Error parsing HTML from {file_path}: {str(e)}")
+            self.logger.error(f"Error parsing HTML from {file_path}: {str(e)}")
             return None
     
     def _extract_metadata_from_path(self, file_path: str) -> Dict[str, str]:
@@ -117,6 +114,7 @@ class ResponseLinkExtractor:
         Returns:
             Dictionary with 'year' and 'reg_number'
         """
+        
         path = Path(file_path)
         year = path.parent.name  # Get year from directory name
         reg_number = path.stem.replace('_en', '')  # Get reg number from filename

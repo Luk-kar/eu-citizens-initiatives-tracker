@@ -2,12 +2,12 @@
 File operations for saving Commission response pages.
 """
 import os
+import logging
 from typing import Optional
 
 from bs4 import BeautifulSoup
 
 from .consts import MIN_HTML_LENGTH, RATE_LIMIT_INDICATORS
-from .scraper_logger import logger
 
 
 class FileOperations:
@@ -21,14 +21,17 @@ class FileOperations:
             base_dir: Base directory for saving files
         """
         self.base_dir = base_dir
+        self.logger = logging.getLogger("ECIResponsesScraper")
     
     def setup_directories(self) -> None:
         """
         Create necessary directory structure for responses.
         Creates: base_dir/ and subdirectories as needed.
+        Logs only when directory is actually created.
         """
-        os.makedirs(self.base_dir, exist_ok=True)
-        logger.debug(f"Created responses directory: {self.base_dir}")
+        if not os.path.exists(self.base_dir):
+            os.makedirs(self.base_dir, exist_ok=True)
+            self.logger.info(f"Created responses directory: {self.base_dir}")
     
     def save_response_page(
         self, 
@@ -50,7 +53,7 @@ class FileOperations:
         Raises:
             Exception: If rate limiting content detected or save fails
         """
-
+        
         # Validate HTML
         self._validate_html(page_source)
         
@@ -69,7 +72,7 @@ class FileOperations:
         with open(full_path, 'w', encoding='utf-8') as f:
             f.write(pretty_html)
         
-        logger.debug(f"Saved response page: {filename}")
+        self.logger.debug(f"Saved response page: {filename}")
         
         return filename
     
@@ -124,7 +127,7 @@ class FileOperations:
 
         year_dir = os.path.join(self.base_dir, year)
         os.makedirs(year_dir, exist_ok=True)
-
+        
         return year_dir
     
     def _generate_filename(self, year: str, reg_number: str) -> str:
@@ -155,6 +158,6 @@ def save_response_page(responses_dir: str, year: str, reg_number: str, page_sour
     Returns:
         Filename of saved file
     """
-    
+
     file_ops = FileOperations(responses_dir)
     return file_ops.save_response_page(page_source, year, reg_number)

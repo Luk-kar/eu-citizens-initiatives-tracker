@@ -2,7 +2,6 @@
 Constants and configuration for Commission responses scraper.
 """
 import datetime
-import os
 from pathlib import Path
 
 # Timing - start of scraping session
@@ -19,10 +18,6 @@ INITIATIVE_PAGES_DIR_NAME = "initiative_pages"
 
 # Script directory (3 levels up from this file: responses -> scraper -> ECI_initiatives)
 SCRIPT_DIR = Path(__file__).parent.parent.parent.absolute()
-
-# Output directories
-LOG_DIR = os.path.join(SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, LOG_DIR_NAME)
-RESPONSES_DIR = os.path.join(SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, RESPONSES_DIR_NAME)
 
 # Timing Configuration (in seconds)
 WAIT_DYNAMIC_CONTENT = (1.5, 1.9)
@@ -59,7 +54,7 @@ RATE_LIMIT_INDICATORS = [
 # Log messages
 LOG_MESSAGES = {
     # Scraping lifecycle
-    "scraping_start": "Starting Commission responses scraping at {timestamp}",
+    "scraping_start": "Starting Commission responses scraping at {timestamp} directory",
     "scraping_complete": "COMMISSION RESPONSES SCRAPING FINISHED!",
 
     # Browser
