@@ -21,36 +21,22 @@ class TestHTMLDownload:
     """Test HTML page download functionality."""
 
     @pytest.fixture
-    def temp_responses_dir(self):
-        """Create temporary responses directory."""
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
-
+    def test_data_dir(self):
+        """Get path to test data directory."""
+        return Path(__file__).parent.parent.parent.parent / "data" / "example_htmls" / "responses"
+    
     @pytest.fixture
-    def valid_response_html(self):
-        """Valid Commission response HTML content."""
-
-        return """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <title>Commission Response</title>
-        </head>
-        <body>
-            <div class="commission-response">
-                <h1>Commission's Response to European Citizens' Initiative</h1>
-                <h2>Executive Summary</h2>
-                <p>The European Commission has carefully examined this initiative...</p>
-                <h2>Detailed Analysis</h2>
-                <p>After thorough consideration of the points raised...</p>
-                <h2>Conclusion</h2>
-                <p>The Commission concludes that...</p>
-            </div>
-        </body>
-        </html>
-        """ * 10  # Ensure it's long enough
+    def temp_responses_dir(self, tmp_path):
+        """Create temporary responses directory for testing."""
+        return tmp_path / "responses"
+    
+    @pytest.fixture
+    def valid_response_html(self, test_data_dir):
+        """Valid Commission response HTML content from actual file."""
+        # Use strong_legislative_success example
+        html_file = test_data_dir / "strong_legislative_success" / "2012" / "2012_000003_en.html"
+        with open(html_file, "r", encoding="utf-8") as f:
+            return f.read()
 
     @pytest.fixture
     def rate_limit_html(self):
