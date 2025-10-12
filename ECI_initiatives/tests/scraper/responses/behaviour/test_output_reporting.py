@@ -219,7 +219,10 @@ class TestCompletionSummary:
         # (exact message depends on LOG_MESSAGES constants)
         assert mock_logger.info.called
         assert mock_logger.warning.call_count == 0
-        assert LOG_MESSAGES["download_success"] in info_calls
+        # Check for the actual success message from constants
+        success_message = LOG_MESSAGES["all_downloads_successful"]
+        assert any(success_message in str(call) for call in info_calls), \
+            f"Should log '{success_message}' message"
 
     def test_statistics_display_header_with_timestamps(self):
         """
