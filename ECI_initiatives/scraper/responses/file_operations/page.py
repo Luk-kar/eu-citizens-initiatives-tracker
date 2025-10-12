@@ -29,6 +29,7 @@ class PageFileManager:
         Logs only when directory is actually created.
         """
         if not os.path.exists(self.base_dir):
+            
             os.makedirs(self.base_dir, exist_ok=True)
             self.logger.info(f"Created responses directory: {self.base_dir}")
     

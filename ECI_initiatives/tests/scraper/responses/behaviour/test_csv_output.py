@@ -1,6 +1,15 @@
 """
 Test suite for CSV output file creation and content validation.
+
+This test suite verifies that the Commission responses scraper correctly generates CSV files 
+with proper structure, required columns, and accurate content based on download outcomes. 
+
+It validates registration number normalization from underscore to slash format, 
+ensures timestamps are populated only for successful downloads 
+while failed downloads have empty timestamps, 
+and confirms proper UTF-8 encoding for multilingual content.
 """
+
 
 # Standard library
 import csv
