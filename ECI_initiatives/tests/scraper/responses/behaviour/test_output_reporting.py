@@ -14,9 +14,7 @@ from ECI_initiatives.scraper.responses.statistics import (
     ScrapingStatistics,
     display_completion_summary
 )
-from ECI_initiatives.scraper.responses.consts import (
-    LOG_MESSAGES
-)
+from ECI_initiatives.scraper.responses.consts import LOG_MESSAGES
 
 
 class TestCompletionSummary:
@@ -36,7 +34,6 @@ class TestCompletionSummary:
     @pytest.fixture
     def sample_response_links_mixed(self) -> List[Dict[str, str]]:
         """Sample response links for mixed success/failure scenario."""
-
         return [
             {'url': f'https://example.com/{i}', 'year': '2020', 'reg_number': f'00000{i}', 'title': f'Initiative {i}'}
             for i in range(1, 11)
@@ -45,7 +42,6 @@ class TestCompletionSummary:
     @pytest.fixture
     def sample_failed_urls(self) -> List[str]:
         """Sample failed URLs."""
-
         return [
             "https://citizens-initiative.europa.eu/initiatives/details/2020/000001_en",
             "https://citizens-initiative.europa.eu/initiatives/details/2021/000003_en",
@@ -57,7 +53,6 @@ class TestCompletionSummary:
         When all downloads succeed, verify that the completion summary reports
         zero failures.
         """
-
         # Arrange
         mock_logger = Mock()
         stats = ScrapingStatistics(
@@ -74,13 +69,16 @@ class TestCompletionSummary:
         )
 
         # Assert - Verify logger was called with success messages
-        log_calls = [str(call) for call in mock_logger.info.call_args_list]
-        log_output = ' '.join(log_calls)
+        info_calls = [str(call) for call in mock_logger.info.call_args_list]
 
-        # Check for success indicators
-        assert mock_logger.info.called, "Logger should be called"
-        assert any("5" in str(call) for call in log_calls), "Should log total count of 5"
-        
+        # Check that scraping completion message is logged
+        assert any(LOG_MESSAGES["scraping_complete"] in str(call) for call in info_calls), \
+            f"Should log '{LOG_MESSAGES['scraping_complete']}' message"
+
+        # Check that "all downloads successful" message is logged
+        assert any(LOG_MESSAGES["all_downloads_successful"] in str(call) for call in info_calls), \
+            f"Should log '{LOG_MESSAGES['all_downloads_successful']}' message"
+
         # Verify no failure warnings
         assert mock_logger.warning.call_count == 0, "Should not log warnings for successful run"
 
@@ -89,7 +87,6 @@ class TestCompletionSummary:
         When scraping completes, verify that the summary shows correct counts
         of total links found, successfully downloaded pages, and failed downloads.
         """
-
         # Arrange
         mock_logger = Mock()
         stats = ScrapingStatistics(
@@ -113,14 +110,20 @@ class TestCompletionSummary:
         info_calls = [str(call) for call in mock_logger.info.call_args_list]
         warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
 
-        # Verify total count
-        assert any("10" in str(call) for call in info_calls), "Should log total count of 10"
-        
-        # Verify successful count
-        assert any("7" in str(call) for call in info_calls), "Should log successful count of 7"
-        
-        # Verify failed count in warnings
-        assert any("3" in str(call) for call in warning_calls), "Should log 3 failures"
+        # Verify total count message format
+        expected_total_msg = LOG_MESSAGES["total_links_found"].format(count=total_links)
+        assert any(expected_total_msg in str(call) for call in info_calls), \
+            f"Should log '{expected_total_msg}'"
+
+        # Verify pages downloaded message format
+        expected_pages_msg_partial = f"{successful}/{total_links}"
+        assert any(expected_pages_msg_partial in str(call) for call in info_calls), \
+            f"Should log download count '{expected_pages_msg_partial}'"
+
+        # Verify failed downloads warning
+        expected_failed_msg = LOG_MESSAGES["failed_downloads"].format(failed_count=failed_count)
+        assert any(expected_failed_msg in str(call) for call in warning_calls), \
+            f"Should log '{expected_failed_msg}'"
 
         # Verify counts are consistent
         assert successful + failed_count == total_links
@@ -130,7 +133,6 @@ class TestCompletionSummary:
         When scraping completes, verify that the summary includes the path
         where response files were saved.
         """
-
         # Arrange
         mock_logger = Mock()
         save_path = "/data/2024-10-09_14-30-00/responses"
@@ -148,10 +150,12 @@ class TestCompletionSummary:
             downloaded_count=5
         )
 
-        # Assert - Verify save path is logged
-        log_calls = [str(call) for call in mock_logger.info.call_args_list]
-        assert any(save_path in str(call) for call in log_calls), \
-            f"Should log save path: {save_path}"
+        # Assert - Verify save path is logged using LOG_MESSAGES format
+        info_calls = [str(call) for call in mock_logger.info.call_args_list]
+        
+        expected_path_msg = LOG_MESSAGES["files_saved_in"].format(path=save_path)
+        assert any(expected_path_msg in str(call) for call in info_calls), \
+            f"Should log '{expected_path_msg}'"
 
     def test_failed_urls_listed_in_summary(
         self, 
@@ -177,12 +181,18 @@ class TestCompletionSummary:
             downloaded_count=7
         )
 
-        # Assert - Verify all failed URLs are logged as warnings
+        # Assert - Verify all failed URLs are logged using LOG_MESSAGES format
         warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
         
         for failed_url in sample_failed_urls:
-            assert any(failed_url in str(call) for call in warning_calls), \
-                f"Failed URL should be logged: {failed_url}"
+            expected_url_msg = LOG_MESSAGES["failed_url"].format(failed_url=failed_url)
+            assert any(expected_url_msg in str(call) for call in warning_calls), \
+                f"Failed URL should be logged with message: '{expected_url_msg}'"
+
+        # Verify failed downloads summary message is logged
+        expected_failed_msg = LOG_MESSAGES["failed_downloads"].format(failed_count=len(sample_failed_urls))
+        assert any(expected_failed_msg in str(call) for call in warning_calls), \
+            f"Should log '{expected_failed_msg}'"
 
         # Verify warning count includes failure summary + each URL
         # Should be: 1 (failure count message) + 3 (individual URLs) = 4
@@ -196,7 +206,6 @@ class TestCompletionSummary:
         """
         Verify that when all downloads succeed, a success message is logged.
         """
-
         # Arrange
         mock_logger = Mock()
         stats = ScrapingStatistics(
@@ -215,10 +224,12 @@ class TestCompletionSummary:
         # Assert - Check for success message in logs
         info_calls = [str(call) for call in mock_logger.info.call_args_list]
         
-        # Should contain some indication of all successful
-        # (exact message depends on LOG_MESSAGES constants)
-        assert mock_logger.info.called
-        assert mock_logger.warning.call_count == 0
+        # Verify logger was called
+        assert mock_logger.info.called, "Logger info should be called"
+        
+        # Verify no warnings
+        assert mock_logger.warning.call_count == 0, "Should not log warnings for all successful"
+        
         # Check for the actual success message from constants
         success_message = LOG_MESSAGES["all_downloads_successful"]
         assert any(success_message in str(call) for call in info_calls), \
@@ -249,14 +260,20 @@ class TestCompletionSummary:
                 downloaded_count=0
             )
 
-        # Assert - Verify timestamps in logs
-        log_calls = [str(call) for call in mock_logger.info.call_args_list]
+        # Assert - Verify timestamps in logs using LOG_MESSAGES format
+        info_calls = [str(call) for call in mock_logger.info.call_args_list]
         
-        # Should log start time
-        assert any(start_time in str(call) for call in log_calls), \
-            "Should log start timestamp"
+        # Verify start time message
+        expected_start_msg = LOG_MESSAGES["start_time"].format(start_scraping=start_time)
+        assert any(expected_start_msg in str(call) for call in info_calls), \
+            f"Should log start time message: '{expected_start_msg}'"
         
-        # Should log completion time
-        assert any("2024-10-09 15:00:00" in str(call) or "15:00:00" in str(call) 
-                  for call in log_calls), \
-            "Should log completion timestamp"
+        # Verify completion time message
+        expected_completion_msg = LOG_MESSAGES["completion_timestamp"].format(timestamp=completion_time)
+        assert any(expected_completion_msg in str(call) for call in info_calls), \
+            f"Should log completion time message: '{expected_completion_msg}'"
+
+        # Verify divider lines are logged
+        divider = LOG_MESSAGES["divider_line"]
+        divider_count = sum(1 for call in info_calls if divider in str(call))
+        assert divider_count >= 2, "Should log at least 2 divider lines (header and footer)"
