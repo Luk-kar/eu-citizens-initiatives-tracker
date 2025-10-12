@@ -19,34 +19,24 @@ from ECI_initiatives.scraper.responses.file_operations.page import (
 
 
 class TestDirectoryStructure:
-    """Test directory and file creation for responses scraper."""
-
+    
     @pytest.fixture
-    def temp_base_dir(self):
-        """Create a temporary base directory for testing."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
-
+    def test_data_dir(self):
+        """Get path to test data directory."""
+        return Path(__file__).parent.parent.parent.parent / "data" / "example_htmls" / "responses"
+    
     @pytest.fixture
-    def sample_html_content(self):
-        """Provide sample HTML content for testing."""
-
-        return """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <title>Commission Response</title>
-        </head>
-        <body>
-            <h1>Commission's Response</h1>
-            <div class="response-content">
-                <p>This is the Commission's detailed response to the initiative.</p>
-                <p>The Commission has carefully examined the initiative and provides the following feedback...</p>
-            </div>
-        </body>
-        </html>
-        """
+    def temp_base_dir(self, tmp_path):
+        """Create temporary base directory for testing."""
+        return tmp_path / "responses"  # Changed: return Path object, not string
+    
+    @pytest.fixture
+    def sample_html_content(self, test_data_dir):
+        """Provide sample HTML content for testing from actual file."""
+        
+        html_file = test_data_dir / "partial_success" / "2019" / "2019_000016_en.html"
+        with open(html_file, "r", encoding="utf-8") as f:
+            return f.read()
 
     def test_response_files_in_year_subdirectories(
         self, temp_base_dir, sample_html_content
@@ -185,7 +175,8 @@ class TestDirectoryStructure:
         
         # Create multiple timestamp directories
         data_dir = temp_base_dir / "data"
-        data_dir.mkdir()
+        data_dir.mkdir(parents=True)  # Changed: added parents=True
+
 
         timestamps = [
             "2024-10-01_10-00-00",
@@ -194,19 +185,23 @@ class TestDirectoryStructure:
             "2024-10-03_08-15-00",
         ]
 
+
         for timestamp in timestamps:
             timestamp_dir = data_dir / timestamp
             timestamp_dir.mkdir()
 
+
         # Act - Patch SCRIPT_DIR and call the actual function
         with patch('ECI_initiatives.scraper.responses.__main__.SCRIPT_DIR', str(temp_base_dir)):
             most_recent_path = _find_latest_timestamp_directory()
+
 
         # Assert - Verify the function selected the most recent timestamp
         most_recent = Path(most_recent_path)
         assert most_recent.name == "2024-10-09_16-45-00", "Did not select most recent timestamp"
         assert most_recent.parent == data_dir, "Timestamp directory not in data directory"
         assert most_recent.exists(), "Selected timestamp directory does not exist"
+
         
     def test_responses_directory_creation(self, temp_base_dir):
         """
