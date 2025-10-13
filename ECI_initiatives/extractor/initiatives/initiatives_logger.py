@@ -61,7 +61,7 @@ class InitiativesExtractorLogger:
 
             log_dir.mkdir(parents=True, exist_ok=True)
 
-            log_file = log_dir / f"processor_initiatives_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+            log_file = log_dir / f"extractor_initiatives_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
 
             file_handler = logging.FileHandler(log_file)
             file_handler.setLevel(logging.INFO)

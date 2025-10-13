@@ -77,7 +77,7 @@ class TestCreatedFiles:
         logger.info("Test log message")
         
         # Check log file was created
-        log_files = list(self.logs_dir.glob("processor_initiatives_*.log"))
+        log_files = list(self.logs_dir.glob("extractor_initiatives_*.log"))
         
         assert len(log_files) > 0, "Log file should be created"
         assert log_files[0].exists(), "Log file should exist"
@@ -88,20 +88,20 @@ class TestCreatedFiles:
         logger_instance = self.InitiativesExtractorLogger()
         logger = logger_instance.setup(log_dir=self.logs_dir)
         
-        log_files = list(self.logs_dir.glob("processor_initiatives_*.log"))
+        log_files = list(self.logs_dir.glob("extractor_initiatives_*.log"))
         assert len(log_files) > 0, "At least one log file should exist"
         
-        # Check naming pattern: processor_initiatives_YYYY-MM-DD_HH-MM-SS.log
+        # Check naming pattern: extractor_initiatives_YYYY-MM-DD_HH-MM-SS.log
         log_filename = log_files[0].name
 
-        assert log_filename.startswith("processor_initiatives_"), \
-            f"Log filename should start with 'processor_initiatives_', got: {log_filename}"
+        assert log_filename.startswith("extractor_initiatives_"), \
+            f"Log filename should start with 'extractor_initiatives_', got: {log_filename}"
 
         assert log_filename.endswith(".log"), \
             f"Log filename should end with '.log', got: {log_filename}"
         
         # Extract timestamp part
-        timestamp_part = log_filename.replace("processor_initiatives_", "").replace(".log", "")
+        timestamp_part = log_filename.replace("extractor_initiatives_", "").replace(".log", "")
 
         # Pattern: YYYY-MM-DD_HH-MM-SS
         assert len(timestamp_part) == 19, \
@@ -150,7 +150,7 @@ class TestCreatedFiles:
             processor.run()
         
         # Check log file has content
-        log_files = list(logs_dir.glob("processor_initiatives_*.log"))
+        log_files = list(logs_dir.glob("extractor_initiatives_*.log"))
 
         assert len(log_files) > 0, "Log file should be created"
         
@@ -441,7 +441,7 @@ class TestCreatedFiles:
             pass
         
         # Verify log contains the warning
-        log_files = list(logs_dir.glob("processor_initiatives_*.log"))
+        log_files = list(logs_dir.glob("extractor_initiatives_*.log"))
 
         if len(log_files) > 0:
 
