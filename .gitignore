@@ -3,5 +3,5 @@ __pycache__
 ECI_initiatives/data/*
 ECI_initiatives/dev/extract.ipynb
 ECI_initiatives/dev/missing_data_report_*
-# read_files_and_content.sh - output
+# read_files_and_content.sh - output:
 collected.md
