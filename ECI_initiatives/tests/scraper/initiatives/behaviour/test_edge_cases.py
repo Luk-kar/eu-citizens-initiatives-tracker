@@ -78,11 +78,11 @@ class TestResourceCleanup:
         fixture to properly track and clean up test artifacts.
         """
         from ECI_initiatives.scraper.initiatives.downloader import (
-            download_initiative_pages,
+            download_initiatives,
             download_single_initiative,
         )
         
-        cls.download_initiative_pages = staticmethod(download_initiative_pages)
+        cls.download_initiatives = staticmethod(download_initiatives)
         cls.download_single_initiative = staticmethod(download_single_initiative)
 
     @patch("ECI_initiatives.scraper.initiatives.downloader.logger")
@@ -96,7 +96,7 @@ class TestResourceCleanup:
         mock_driver = Mock()
         mock_init_browser.return_value = mock_driver
 
-        # Test data for download_initiative_pages
+        # Test data for download_initiatives
         test_initiative_data = [
             {
                 REQUIRED_CSV_COLUMNS.URL: "http://test1.com",
@@ -118,7 +118,7 @@ class TestResourceCleanup:
         mock_download_single.side_effect = KeyboardInterrupt("User interrupted")
 
         with pytest.raises(KeyboardInterrupt):
-            self.download_initiative_pages("/tmp", test_initiative_data)
+            self.download_initiatives("/tmp", test_initiative_data)
 
         # Verify driver.quit() was called even though KeyboardInterrupt was raised
         mock_driver.quit.assert_called_once()
@@ -132,7 +132,7 @@ class TestResourceCleanup:
         mock_download_single.side_effect = SystemExit("System shutdown")
 
         with pytest.raises(SystemExit):
-            self.download_initiative_pages("/tmp", test_initiative_data)
+            self.download_initiatives("/tmp", test_initiative_data)
 
         # Verify driver.quit() was called even though SystemExit was raised
         mock_driver.quit.assert_called_once()
@@ -150,7 +150,7 @@ class TestResourceCleanup:
         mock_download_single.side_effect = None
         mock_download_single.return_value = False
 
-        updated_data, failed_urls = self.download_initiative_pages(
+        updated_data, failed_urls = self.download_initiatives(
             "/tmp", test_initiative_data
         )
 

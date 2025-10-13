@@ -90,7 +90,7 @@ class TestCsvFileOperations:
         
         cls.save_and_download_initiatives = staticmethod(save_and_download_initiatives)
 
-    @patch("ECI_initiatives.scraper.initiatives.__main__.download_initiative_pages")
+    @patch("ECI_initiatives.scraper.initiatives.__main__.download_initiatives")
     @patch("ECI_initiatives.scraper.initiatives.__main__.logger")
     def test_csv_created_with_correct_headers(self, mock_logger, mock_download_pages):
         """
@@ -109,7 +109,7 @@ class TestCsvFileOperations:
             }
         ]
 
-        # Mock download_initiative_pages to return the same data with updated datetime
+        # Mock download_initiatives to return the same data with updated datetime
         updated_data = copy.deepcopy(test_initiative_data)
         updated_data[0][REQUIRED_CSV_COLUMNS.DATETIME] = "2025-09-21 11:24:00"
 
@@ -167,7 +167,7 @@ class TestCsvFileOperations:
                 ), "URL not correctly written to CSV:\n" + str(data_row[0])
 
     @patch("ECI_initiatives.scraper.initiatives.__main__.logger")
-    @patch("ECI_initiatives.scraper.initiatives.__main__.download_initiative_pages")
+    @patch("ECI_initiatives.scraper.initiatives.__main__.download_initiatives")
     def test_no_duplicate_initiatives(self, mock_download_pages, mock_logger):
         """Ensure no duplicate initiatives are recorded in the CSV when scraping produces duplicates."""
 
@@ -196,7 +196,7 @@ class TestCsvFileOperations:
             },
         ]
 
-        # Mock download_initiative_pages to return data without duplicates
+        # Mock download_initiatives to return data without duplicates
         unique_data = []
         seen_urls = set()
 

@@ -61,7 +61,7 @@ class ECIDataProcessor:
         """Process all initiative HTML pages in a session"""
 
         initiatives = []
-        initiative_pages_dir = session_path / "initiative_pages"
+        initiative_pages_dir = session_path / "initiatives"
 
         if not initiative_pages_dir.exists():
             self.logger.error(f"Initiative pages directory not found: {initiative_pages_dir}")

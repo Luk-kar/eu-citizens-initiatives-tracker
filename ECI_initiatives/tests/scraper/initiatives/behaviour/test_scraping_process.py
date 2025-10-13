@@ -233,13 +233,13 @@ class TestErrorRecoveryAndResilience:
         """
         from ECI_initiatives.scraper.initiatives.downloader import (
             download_single_initiative,
-            download_initiative_pages,
+            download_initiatives,
             check_rate_limiting,
         )
         from ECI_initiatives.scraper.initiatives.browser import initialize_browser
         
         cls.download_single_initiative = staticmethod(download_single_initiative)
-        cls.download_initiative_pages = staticmethod(download_initiative_pages)
+        cls.download_initiatives = staticmethod(download_initiatives)
         cls.check_rate_limiting = staticmethod(check_rate_limiting)
         cls.initialize_browser = staticmethod(initialize_browser)
 
@@ -301,7 +301,7 @@ class TestErrorRecoveryAndResilience:
             },
         ]
 
-        updated_data, failed_urls = self.download_initiative_pages("/tmp", test_data)
+        updated_data, failed_urls = self.download_initiatives("/tmp", test_data)
 
         assert len(failed_urls) == 2
         assert "http://test2.com" in failed_urls

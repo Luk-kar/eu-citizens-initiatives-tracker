@@ -5,7 +5,7 @@ import os
 
 # Local
 from .crawler import scrape_all_initiatives_on_all_pages
-from .downloader import download_initiative_pages
+from .downloader import download_initiatives
 from .file_ops import setup_scraping_dirs, write_initiatives_csv
 from .statistics import display_completion_summary, gather_scraping_statistics
 from .browser import initialize_browser
@@ -45,16 +45,16 @@ def scrape_eci_initiatives() -> str:
 
     try:
         # Scrape all pages and get accumulated initiative data
-        all_initiative_pages_catalog, saved_page_listing_paths = (
+        all_initiatives_catalog, saved_page_listing_paths = (
             scrape_all_initiatives_on_all_pages(driver, base_url, list_dir)
         )
     finally:
         driver.quit()
         logger.info(LOG_MESSAGES["browser_closed"])
 
-    if all_initiative_pages_catalog:
+    if all_initiatives_catalog:
         failed_urls = save_and_download_initiatives(
-            list_dir, pages_dir, all_initiative_pages_catalog
+            list_dir, pages_dir, all_initiatives_catalog
         )
     else:
         logger.warning("No initiatives found to classify or download")
@@ -62,7 +62,7 @@ def scrape_eci_initiatives() -> str:
 
     display_completion_summary(
         START_SCRAPING,
-        all_initiative_pages_catalog,
+        all_initiatives_catalog,
         saved_page_listing_paths,
         failed_urls,
     )
@@ -91,7 +91,7 @@ def save_and_download_initiatives(
     logger.info(f"Initiative data saved to: {url_list_file}")
 
     logger.info("Starting individual initiative pages download...")
-    updated_data, failed_urls = download_initiative_pages(pages_dir, initiative_data)
+    updated_data, failed_urls = download_initiatives(pages_dir, initiative_data)
 
     # Update CSV with download timestamps
     write_initiatives_csv(url_list_file, updated_data)

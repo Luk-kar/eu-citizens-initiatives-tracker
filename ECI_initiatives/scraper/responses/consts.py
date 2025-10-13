@@ -10,7 +10,7 @@ BASE_URL = "https://citizens-initiative.europa.eu"
 DATA_DIR_NAME = "data"
 LOG_DIR_NAME = "logs"
 RESPONSES_DIR_NAME = "responses"
-INITIATIVE_PAGES_DIR_NAME = "initiative_pages"
+INITIATIVE_PAGES_DIR_NAME = "initiatives"
 
 # Script directory (3 levels up from this file: responses -> scraper -> ECI_initiatives)
 SCRIPT_DIR = Path(__file__).parent.parent.parent.absolute()

@@ -123,7 +123,7 @@ class TestCreatedFiles:
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives"
         
         # Create year directory structure with correct path: initiative_pages (not initiatives/pages)
-        year_dir = session_dir / "initiative_pages" / "2019"
+        year_dir = session_dir / "initiatives" / "2019"
         year_dir.mkdir(parents=True, exist_ok=True)
         
         # Create logs directory
@@ -177,7 +177,7 @@ class TestCreatedFiles:
         
         # Setup test data with correct directory name
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives"
-        year_dir = session_dir / "initiative_pages" / "2025"
+        year_dir = session_dir / "initiatives" / "2025"
         year_dir.mkdir(parents=True, exist_ok=True)
         
         logs_dir = session_dir / "logs"
@@ -223,7 +223,7 @@ class TestCreatedFiles:
         
         # Setup and run processor
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives"
-        year_dir = session_dir / "initiative_pages" / "2023"
+        year_dir = session_dir / "initiatives" / "2023"
         year_dir.mkdir(parents=True, exist_ok=True)
         
         logs_dir = session_dir / "logs"
@@ -273,10 +273,10 @@ class TestCreatedFiles:
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives"
         
         # Create year directories for multiple years
-        year_2024_dir = session_dir / "initiative_pages" / "2024"
+        year_2024_dir = session_dir / "initiatives" / "2024"
         year_2024_dir.mkdir(parents=True, exist_ok=True)
         
-        year_2025_dir = session_dir / "initiative_pages" / "2025"
+        year_2025_dir = session_dir / "initiatives" / "2025"
         year_2025_dir.mkdir(parents=True, exist_ok=True)
         
         logs_dir = session_dir / "logs"
@@ -295,7 +295,7 @@ class TestCreatedFiles:
         for year, eci_file in eci_files:
 
             example_file = test_data_dir / eci_file
-            year_dir = session_dir / "initiative_pages" / year
+            year_dir = session_dir / "initiatives" / year
 
             if example_file.exists():
 
@@ -343,7 +343,7 @@ class TestCreatedFiles:
         
         # Setup and run
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives"
-        year_dir = session_dir / "initiative_pages" / "2025"
+        year_dir = session_dir / "initiatives" / "2025"
         year_dir.mkdir(parents=True, exist_ok=True)
         
         logs_dir = session_dir / "logs"
@@ -389,7 +389,7 @@ class TestCreatedFiles:
         session_dir = self.temp_session_path / session_name
         
         # Create empty directory structure (no HTML files)
-        year_dir = session_dir / "initiative_pages" / "2024"
+        year_dir = session_dir / "initiatives" / "2024"
         year_dir.mkdir(parents=True, exist_ok=True)
         
         logs_dir = session_dir / "logs"

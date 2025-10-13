@@ -264,7 +264,7 @@ class TestCSVStructure:
         session_dir = temp_path / session_name
         
         # Fix: Use correct directory name - initiative_pages not initiatives/pages
-        pages_dir = session_dir / "initiative_pages"
+        pages_dir = session_dir / "initiatives"
         logs_dir = session_dir / "logs"
 
         logs_dir.mkdir(parents=True, exist_ok=True)
@@ -337,7 +337,7 @@ class TestCSVStructure:
         session_dir = temp_path / session_name
         
         # Fix: Use correct directory name
-        pages_dir = session_dir / "initiative_pages"
+        pages_dir = session_dir / "initiatives"
         logs_dir = session_dir / "logs"
 
         logs_dir.mkdir(parents=True, exist_ok=True)

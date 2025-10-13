@@ -33,12 +33,12 @@ class TestBrowserInitializationAndCleanup:
             scrape_all_initiatives_on_all_pages,
         )
         from ECI_initiatives.scraper.initiatives.downloader import (
-            download_initiative_pages,
+            download_initiatives,
         )
         
         cls.initialize_browser = staticmethod(initialize_browser)
         cls.scrape_all_initiatives_on_all_pages = staticmethod(scrape_all_initiatives_on_all_pages)
-        cls.download_initiative_pages = staticmethod(download_initiative_pages)
+        cls.download_initiatives = staticmethod(download_initiatives)
 
     @patch("ECI_initiatives.scraper.initiatives.browser.webdriver.Chrome")
     @patch("ECI_initiatives.scraper.initiatives.browser.logger")
@@ -141,7 +141,7 @@ class TestBrowserInitializationAndCleanup:
             initiative_data = [SAMPLE_INITIATIVE_DATA.copy()]
 
             # Act
-            updated_data, failed_urls = self.download_initiative_pages(
+            updated_data, failed_urls = self.download_initiatives(
                 "/test/dir", initiative_data
             )
 

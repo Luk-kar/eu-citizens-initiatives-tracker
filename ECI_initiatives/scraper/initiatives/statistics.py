@@ -45,7 +45,7 @@ def gather_scraping_statistics(
                     current_status_counter[row["current_status"]] += 1
 
     # Count downloaded files
-    pages_dir = f"initiatives/{start_scraping}/initiative_pages"
+    pages_dir = f"initiatives/{start_scraping}/initiatives"
 
     downloaded_files_count = 0
 

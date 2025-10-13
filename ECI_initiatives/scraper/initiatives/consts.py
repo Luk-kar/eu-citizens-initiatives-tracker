@@ -14,7 +14,7 @@ ROUTE_FIND_INITIATIVE = "/find-initiative_en"
 DATA_DIR_NAME = "data"
 LOG_DIR_NAME = "logs"
 LISTINGS_DIR_NAME = "listings"
-PAGES_DIR_NAME = "initiative_pages"
+PAGES_DIR_NAME = "initiatives"
 SCRIPT_DIR = Path(__file__).parent.parent.parent.absolute()
 LOG_DIR = os.path.join(SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, LOG_DIR_NAME)
 

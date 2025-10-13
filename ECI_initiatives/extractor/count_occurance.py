@@ -30,7 +30,7 @@ def count_annex_occurrences():
         "..", 
         "data", 
         "2025-09-18_16-33-57", 
-        "initiative_pages"
+        "initiatives"
     )
     
     # Normalize the path

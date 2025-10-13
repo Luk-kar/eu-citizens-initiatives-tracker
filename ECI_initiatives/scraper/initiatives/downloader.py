@@ -29,7 +29,7 @@ from .file_ops import save_initiative_page
 from .scraper_logger import logger
 
 
-def download_initiative_pages(
+def download_initiatives(
     pages_dir: str, initiative_data: list
 ) -> Tuple[list, list]:
     """Download individual initiative pages using Selenium.

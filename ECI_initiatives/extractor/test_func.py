@@ -123,7 +123,7 @@ def test_extract_annex():
         "..", 
         "data", 
         "2025-09-18_16-33-57", 
-        "initiative_pages", 
+        "initiatives", 
         "2024", 
         "2024_000004_en.html"
     )
