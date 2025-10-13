@@ -169,13 +169,15 @@ class TestHTMLDownload:
         """
         # Arrange
         from ECI_initiatives.scraper.responses.downloader import ResponseDownloader
-        from unittest.mock import Mock, patch, MagicMock
+        from unittest.mock import Mock, MagicMock, patch
         import tempfile
         
         with tempfile.TemporaryDirectory() as tmpdir:
+            
+            # Create downloader instance
             downloader = ResponseDownloader(tmpdir)
             
-            # Mock the WebDriver to always raise an exception
+            # Mock the driver directly on the downloader instance
             mock_driver = MagicMock()
             mock_driver.get.side_effect = Exception("Connection timeout")
             downloader.driver = mock_driver
@@ -183,30 +185,33 @@ class TestHTMLDownload:
             # Mock logger to prevent actual logging
             downloader.logger = Mock()
             
-            # Test parameters
-            test_url = "https://citizens-initiative.europa.eu/initiatives/response/2019/000007"
-            test_year = "2019"
-            test_reg_number = "000007"
-            max_retries = 3
-            
-            # Act - Call the actual download method
-            success, timestamp = downloader.download_single_response(
-                url=test_url,
-                year=test_year,
-                reg_number=test_reg_number,
-                max_retries=max_retries
-            )
-            
-            # Assert
-            assert success is False, "Download should fail after max retries"
-            assert timestamp == "", "Timestamp should be empty for failed download"
-            
-            # Verify driver.get was called max_retries times
-            assert mock_driver.get.call_count == max_retries, \
-                f"Expected {max_retries} retry attempts, but got {mock_driver.get.call_count}"
-            
-            # Verify error was logged
-            downloader.logger.error.assert_called_once()
+            # Mock time.sleep to avoid actual delays between retries
+            with patch('time.sleep'):
+                
+                # Test parameters
+                test_url = "https://citizens-initiative.europa.eu/initiatives/response/2019/000007"
+                test_year = "2019"
+                test_reg_number = "2019_000007"
+                max_retries = 3
+                
+                # Act - Call the actual download method
+                success, timestamp = downloader.download_single_response(
+                    url=test_url,
+                    year=test_year,
+                    reg_number=test_reg_number,
+                    max_retries=max_retries
+                )
+                
+                # Assert
+                assert success is False, "Download should fail after max retries"
+                assert timestamp == "", "Timestamp should be empty for failed download"
+                
+                # Verify driver.get was called max_retries times
+                assert mock_driver.get.call_count == max_retries, \
+                    f"Expected {max_retries} retry attempts, but got {mock_driver.get.call_count}"
+                
+                # Verify error was logged
+                downloader.logger.error.assert_called_once()
 
 
     def test_html_files_prettified(self, temp_responses_dir):
