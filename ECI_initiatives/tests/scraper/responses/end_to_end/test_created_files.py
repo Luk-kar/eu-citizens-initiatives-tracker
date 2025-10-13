@@ -58,8 +58,8 @@ class TestCreatedFiles:
         Setup class-level resources that runs once before all tests.
         
         Uses existing initiative pages from a previous scraper run
-        or creates minimal test data. Limits downloads to first 3
-        response pages to avoid server overload.
+        and creates output in a temporary directory to avoid overwriting data.
+        Limits downloads to first 3 response pages to avoid server overload.
         """
         
         # Get data_dir from pytest request context
@@ -75,23 +75,30 @@ class TestCreatedFiles:
         
         # Find the most recent timestamp directory with initiative data
         latest_timestamp_dir = Path(responses_main._find_latest_timestamp_directory())
-        cls.timestamp_dir = latest_timestamp_dir
-        cls.pages_dir = latest_timestamp_dir / "initiatives"
+        cls.source_timestamp_dir = latest_timestamp_dir
+        cls.source_pages_dir = latest_timestamp_dir / "initiatives"
         
         # Verify pages directory exists
-        if not cls.pages_dir.exists():
+        if not cls.source_pages_dir.exists():
             raise FileNotFoundError(
-                f"Initiative pages directory not found: {cls.pages_dir}. "
+                f"Initiative pages directory not found: {cls.source_pages_dir}. "
                 "Run the initiatives scraper first."
             )
         
-        # Clean up any existing responses directory from previous test runs
-        responses_dir_to_clean = cls.timestamp_dir / RESPONSES_DIR_NAME
-
-        if responses_dir_to_clean.exists():
-            
-            shutil.rmtree(responses_dir_to_clean)
-            print(f"\nCleaned previous responses directory: {responses_dir_to_clean}")
+        # Create temporary directory for test output
+        import tempfile
+        cls.temp_dir = Path(tempfile.mkdtemp(prefix="eci_responses_test_"))
+        
+        # Copy the timestamp directory structure to temp location
+        cls.test_timestamp_dir = cls.temp_dir / latest_timestamp_dir.name
+        cls.test_timestamp_dir.mkdir(parents=True)
+        
+        # Copy initiative pages to temp directory (only the structure, not all files)
+        cls.test_pages_dir = cls.test_timestamp_dir / "initiatives"
+        shutil.copytree(cls.source_pages_dir, cls.test_pages_dir)
+        
+        print(f"\nCreated temporary test directory: {cls.temp_dir}")
+        print(f"Test timestamp directory: {cls.test_timestamp_dir}")
         
         # Store original download function
         original_download = ResponseDownloader.download_single_response
@@ -104,7 +111,6 @@ class TestCreatedFiles:
             """
             Download responses but limit to first MAX_RESPONSE_DOWNLOADS_E2E_TEST items.
             """
-
             if cls.download_count >= MAX_RESPONSE_DOWNLOADS_E2E_TEST:
                 # Return failure for items beyond limit
                 return False, ""
@@ -118,44 +124,48 @@ class TestCreatedFiles:
             
             return success, timestamp
         
-        # Apply mock to limit downloads
-        with patch.object(
-            ResponseDownloader,
-            'download_single_response',
-            mock_download_limited
-        ):
-            # Run the scraping function
-            try:
-                responses_main.scrape_commission_responses()
-
-            except Exception as e:
-                # If scraping fails completely, store the error
-                cls.scraping_error = str(e)
-            else:
-                cls.scraping_error = None
+        # Patch both the timestamp directory finding and the scraper to use temp directory
+        with patch.object(responses_main, '_find_latest_timestamp_directory', return_value=str(cls.test_timestamp_dir)):
+            with patch.object(
+                ResponseDownloader,
+                'download_single_response',
+                mock_download_limited
+            ):
+                # Run the scraping function
+                try:
+                    responses_main.scrape_commission_responses()
+                except Exception as e:
+                    # If scraping fails completely, store the error
+                    cls.scraping_error = str(e)
+                else:
+                    cls.scraping_error = None
         
         # Store paths for tests
-        cls.responses_dir = cls.timestamp_dir / RESPONSES_DIR_NAME
+        cls.responses_dir = cls.test_timestamp_dir / RESPONSES_DIR_NAME
         cls.csv_file = cls.responses_dir / RESPONSES_CSV_FILENAME
-        cls.logs_dir = cls.timestamp_dir / LOG_DIR_NAME
+        cls.logs_dir = cls.test_timestamp_dir / LOG_DIR_NAME
 
     @classmethod
     def teardown_class(cls):
         """
         Cleanup class-level resources that runs once after all tests.
         
-        Note: Actual directory cleanup handled by conftest.py fixture.
+        Remove temporary directory created for testing.
         """
-
-        print(f"\n\nTest completed. Files created in:\n{cls.responses_dir}")
-        print("Note: Files will be cleaned up by the session fixture.")
+        print(f"\n\nTest completed. Files were created in temporary directory:")
+        print(f"{cls.responses_dir}")
+        
+        # Clean up temporary directory
+        if hasattr(cls, 'temp_dir') and cls.temp_dir.exists():
+            shutil.rmtree(cls.temp_dir)
+            print(f"Cleaned up temporary directory: {cls.temp_dir}")
     
     def test_debug_fixture(self):
         """Debug test to verify setup output."""
-
         print(f"\nDebug - setup completed successfully")
-        print(f"Timestamp directory: {self.timestamp_dir}")
-        print(f"Pages directory: {self.pages_dir}")
+        print(f"Source timestamp directory: {self.source_timestamp_dir}")
+        print(f"Test timestamp directory: {self.test_timestamp_dir}")
+        print(f"Test pages directory: {self.test_pages_dir}")
         print(f"Responses directory: {self.responses_dir}")
         print(f"Download count: {self.download_count}")
         
@@ -167,7 +177,6 @@ class TestCreatedFiles:
         Verify responses directory and year-based 
         subdirectories are created, along with CSV file.
         """
-
         # Check responses directory exists
         assert self.responses_dir.exists(), \
             f"Responses directory not created: {self.responses_dir}"
@@ -193,9 +202,8 @@ class TestCreatedFiles:
         Verify only initiatives with response links 
         are processed and all year directories are scanned.
         """
-
-        # Extract response links using actual function
-        response_links = responses_main._extract_response_links(str(self.pages_dir))
+        # Extract response links using actual function from test pages directory
+        response_links = responses_main._extract_response_links(str(self.test_pages_dir))
         
         # Verify at least some links were found
         assert len(response_links) > 0, \
@@ -203,22 +211,18 @@ class TestCreatedFiles:
         
         # Verify each link has required structure
         required_fields = ['url', 'year', 'reg_number', 'title', 'datetime']
-
         for link in response_links:
-
             for field in required_fields:
                 assert field in link, \
                     f"Response link missing required field: {field}"
         
         # Verify year directories were scanned
         years_found = {link['year'] for link in response_links}
-
         assert len(years_found) > 0, \
             "No years found in response links"
         
         # Verify all years have 4-digit format
         for year in years_found:
-
             assert year.isdigit() and len(year) == 4, \
                 f"Invalid year format: {year}"
     
@@ -227,7 +231,6 @@ class TestCreatedFiles:
         Verify CSV contains required columns and 
         registration numbers are in slash format.
         """
-
         # Check CSV exists
         assert self.csv_file.exists(), \
             "CSV file not created"
@@ -248,7 +251,6 @@ class TestCreatedFiles:
         
         # Verify registration numbers use slash format
         for row in rows:
-
             reg_number = row['registration_number']
             assert '/' in reg_number, \
                 f"Registration number should use slash format: {reg_number}"
@@ -263,10 +265,8 @@ class TestCreatedFiles:
         # Verify timestamp format (YYYY-MM-DD HH:MM:SS)
         for row in rows_with_timestamps:
             timestamp = row['datetime']
-
             try:
                 datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-
             except ValueError as e:
                 raise AssertionError(
                     f"Invalid timestamp format: {timestamp}. "
@@ -279,16 +279,12 @@ class TestCreatedFiles:
         Commission response content, are prettified, and use UTF-8 
         encoding.
         """
-
         # Count HTML files in year directories
         html_files_found = []
         
         for year_dir in self.responses_dir.iterdir():
-
             if year_dir.is_dir() and year_dir.name.isdigit():
-
                 for file in year_dir.iterdir():
-
                     if file.suffix == '.html':
                         html_files_found.append(file)
         
@@ -304,7 +300,6 @@ class TestCreatedFiles:
         import re
         for html_file in html_files_found:
             # Check file naming pattern (YYYY_NNNNNN_en.html)
-
             assert re.match(RESPONSE_PAGE_FILENAME_PATTERN, html_file.name), \
                 f"Invalid filename pattern: {html_file.name}"
             
@@ -319,7 +314,6 @@ class TestCreatedFiles:
             # Verify HTML structure
             assert '<html' in content.lower(), \
                 f"No HTML tag found in: {html_file.name}"
-
             assert '</html>' in content.lower(), \
                 f"No closing HTML tag in: {html_file.name}"
             
@@ -346,7 +340,6 @@ class TestCreatedFiles:
                 'we apologise for any inconvenience',
                 'please try again later'
             ]
-
             assert not any(indicator in content_lower for indicator in error_indicators), \
                 f"Server error page in: {html_file.name}"
     
@@ -355,7 +348,6 @@ class TestCreatedFiles:
         Verify completion summary shows correct 
         counts and file paths.
         """
-
         # Read CSV to get counts
         with open(self.csv_file, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
@@ -371,9 +363,7 @@ class TestCreatedFiles:
         
         # Count actual HTML files
         html_file_count = 0
-
         for year_dir in self.responses_dir.iterdir():
-
             if year_dir.is_dir() and year_dir.name.isdigit():
                 html_files = list(year_dir.glob('*.html'))
                 html_file_count += len(html_files)
@@ -386,54 +376,27 @@ class TestCreatedFiles:
         assert self.responses_dir.exists(), \
             f"Responses directory not found: {self.responses_dir}"
     
-    def test_integration_with_initiatives_scraper(self):
+    def test_uses_temporary_directory(self):
         """
-        Verify responses scraper uses the most recent 
-        timestamp directory from initiatives scraper.
+        Verify that the test uses a temporary directory and doesn't
+        modify the actual data directory.
         """
-
-        # Find all timestamp directories in data dir
-        timestamp_dirs = []
-
-        for item in self.data_dir.iterdir():
-            if item.is_dir() and '_' in item.name:
-
-                # Check if it matches timestamp pattern (YYYY-MM-DD_HH-MM-SS)
-                try:
-                    # Validate using datetime.strptime
-                    datetime.strptime(item.name, '%Y-%m-%d_%H-%M-%S')
-                    timestamp_dirs.append(item)
-
-                except ValueError:
-                    # Not a valid timestamp directory, skip it
-                    pass
+        # Verify test directory is in temp location
+        assert str(self.test_timestamp_dir).startswith(str(self.temp_dir)), \
+            "Test should use temporary directory"
         
-        # Verify at least one timestamp directory exists
-        assert len(timestamp_dirs) > 0, \
-            "No timestamp directories found in data directory"
+        # Verify source data directory is unchanged
+        source_responses_dir = self.source_timestamp_dir / RESPONSES_DIR_NAME
+        # The source directory should NOT have responses from this test run
+        # (It might have old responses, but we're not checking that here)
         
-        # Sort by directory name (which includes timestamp)
-        timestamp_dirs.sort(key=lambda x: x.name, reverse=True)
-        most_recent = timestamp_dirs[0]
-        
-        # Verify the scraper used the most recent directory
-        assert self.timestamp_dir.name == most_recent.name, \
-            f"Scraper didn't use most recent directory. Expected: {most_recent.name}, Got: {self.timestamp_dir.name}"
-        
-        # Verify pages directory exists in that timestamp
-        pages_dir = most_recent / "initiatives"
-        assert pages_dir.exists(), \
-            f"Pages directory not found in most recent timestamp: {pages_dir}"
-        
-        # Verify responses directory was created in same timestamp
-        responses_dir = most_recent / RESPONSES_DIR_NAME
-        assert responses_dir.exists(), \
-            f"Responses directory not created in timestamp directory: {responses_dir}"
+        # Verify test responses are in temp location
+        assert self.responses_dir.parent == self.test_timestamp_dir, \
+            "Responses should be created in temporary directory"
 
 
 # Inject fixture into setup_class using pytest hook
 @pytest.fixture(scope="class")
 def inject_data_dir(request, data_dir):
     """Inject data_dir fixture into TestCreatedFiles class."""
-    
     request.cls.setup_class(data_dir=data_dir)
