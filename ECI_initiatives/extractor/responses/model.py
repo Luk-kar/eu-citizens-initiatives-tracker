@@ -1,0 +1,68 @@
+"""
+ECI Responses Data Models
+Data structures for ECI Commission responses information
+"""
+
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class ECIResponse:
+    """Data structure for ECI Commission response information"""
+    
+    # Basic Initiative Metadata
+    response_url: str
+    initiative_url: str
+    initiative_title: str
+    registration_number: str
+    
+    # Submission and Verification Data
+    submission_date: Optional[str]
+    verified_signatures_count: Optional[str]
+    number_member_states_threshold: Optional[str]
+    submission_news_url: Optional[str]
+    
+    # Procedural Timeline Milestones
+    commission_meeting_date: Optional[str]
+    commission_officials_met: Optional[str]
+    parliament_hearing_date: Optional[str]
+    parliament_hearing_recording_url: Optional[str]
+    plenary_debate_date: Optional[str]
+    plenary_debate_recording_url: Optional[str]
+    commission_communication_date: Optional[str]
+    commission_communication_url: Optional[str]
+    commission_response_news_url: Optional[str]
+    
+    # Commission Response Content
+    communication_main_conclusion: Optional[str]
+    legislative_proposal_status: Optional[str]
+    commission_response_summary: Optional[str]
+    
+    # Follow-up Activities Section
+    has_followup_section: Optional[bool]
+    followup_meeting_date: Optional[str]
+    followup_meeting_officials: Optional[str]
+    roadmap_launched: Optional[bool]
+    roadmap_description: Optional[str]
+    roadmap_completion_target: Optional[str]
+    workshop_conference_dates: Optional[str]  # JSON array
+    partnership_programs: Optional[str]
+    court_cases_referenced: Optional[str]
+    court_judgment_dates: Optional[str]
+    court_judgment_summary: Optional[str]
+    latest_update_date: Optional[str]
+    
+    # Multimedia and Documentation Links
+    factsheet_url: Optional[str]
+    video_recording_count: Optional[int]
+    dedicated_website: bool
+    
+    # Structural Analysis Flags
+    related_eu_legislation: Optional[str]
+    petition_platforms_used: Optional[str]
+    follow_up_duration_months: Optional[int]
+    
+    # Metadata
+    created_timestamp: str
+    last_updated: str
