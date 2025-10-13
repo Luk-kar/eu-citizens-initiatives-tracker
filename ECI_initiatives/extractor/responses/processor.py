@@ -69,14 +69,24 @@ class ECIResponseDataProcessor:
         return None
     
     def run(self):
-        """Main execution method"""
+        """Main execution method
+        
+        Raises:
+            FileNotFoundError: If session_path, html_dir, or responses_list_csv do not exist
+        """
         # Find latest scraping session
         session_path = self.find_latest_scrape_session()
         self.last_session_scraping_dir = session_path
         
         if not session_path:
-            print(f"No scraping session found in:\n{self.data_root}")
-            return
+            raise FileNotFoundError(
+                f"No scraping session found in: {self.data_root}\n"
+                f"Expected directory format: YYYY-MM-DD_HH-MM-SS"
+            )
+        
+        # Validate session path exists
+        if not session_path.exists():
+            raise FileNotFoundError(f"Session directory does not exist: {session_path}")
         
         # Initialize unified logger if not already provided
         if self.logger is None:
@@ -95,12 +105,29 @@ class ECIResponseDataProcessor:
         responses_list_csv = html_dir / self.responses_list_csv_name
         output_csv = session_path / self.output_csv_name
         
+        # Validate html_dir exists
+        if not html_dir.exists():
+            raise FileNotFoundError(
+                f"HTML responses directory does not exist: {html_dir}\n"
+                f"Expected location: {session_path}/responses"
+            )
+        
+        if not html_dir.is_dir():
+            raise NotADirectoryError(f"Path is not a directory: {html_dir}")
+        
+        # Validate responses_list.csv exists
+        if not responses_list_csv.exists():
+            raise FileNotFoundError(
+                f"Responses list CSV file does not exist: {responses_list_csv}\n"
+                f"Expected file: {html_dir}/{self.responses_list_csv_name}"
+            )
+        
         # Load responses_list.csv metadata
         responses_metadata = self._load_responses_metadata(responses_list_csv)
         self.logger.info(f"Loaded metadata for {len(responses_metadata)} responses")
         
         # Find all HTML files
-        html_files = sorted(html_dir.glob("*_en.html")) if html_dir.exists() else []
+        html_files = sorted(html_dir.glob("*_en.html"))
         self.logger.info(f"Found {len(html_files)} HTML files to process")
         
         # Process each file
@@ -136,10 +163,6 @@ class ECIResponseDataProcessor:
             Dictionary mapping registration_number to metadata dict
         """
         metadata = {}
-        
-        if not responses_list_csv.exists():
-            self.logger.warning(f"responses_list.csv not found at {responses_list_csv}")
-            return metadata
         
         with open(responses_list_csv, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
