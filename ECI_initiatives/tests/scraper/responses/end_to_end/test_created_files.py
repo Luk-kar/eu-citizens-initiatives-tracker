@@ -23,17 +23,18 @@ Expected execution time: 30-60 seconds
 
 # Standard library
 import csv
+import shutil
 from datetime import datetime
-import os
-import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch
 
 # Third party
 import pytest
+from bs4 import BeautifulSoup
 
 # Local imports
+from ECI_initiatives.scraper.responses import __main__ as responses_main
+from ECI_initiatives.scraper.responses.downloader import ResponseDownloader
 from ECI_initiatives.tests.consts import (
     DATA_DIR_NAME,
     LOG_DIR_NAME,
@@ -60,19 +61,6 @@ class TestCreatedFiles:
         or creates minimal test data. Limits downloads to first 3
         response pages to avoid server overload.
         """
-
-        # Import scraper modules at setup time
-        from ECI_initiatives.scraper.responses.__main__ import (
-            scrape_commission_responses,
-            _extract_response_links,
-            _find_latest_timestamp_directory,
-        )
-        from ECI_initiatives.scraper.responses.downloader import ResponseDownloader
-        
-        # Store as class attributes for use in tests
-        cls.scrape_commission_responses = staticmethod(scrape_commission_responses)
-        cls._extract_response_links = staticmethod(_extract_response_links)
-        cls._find_latest_timestamp_directory = staticmethod(_find_latest_timestamp_directory)
         
         # Get data_dir from pytest request context
         request = pytest._current_request if hasattr(pytest, '_current_request') else None
@@ -86,7 +74,7 @@ class TestCreatedFiles:
         cls.data_dir = real_data_dir
         
         # Find the most recent timestamp directory with initiative data
-        latest_timestamp_dir = Path(_find_latest_timestamp_directory())
+        latest_timestamp_dir = Path(responses_main._find_latest_timestamp_directory())
         cls.timestamp_dir = latest_timestamp_dir
         cls.pages_dir = latest_timestamp_dir / "initiatives"
         
@@ -99,13 +87,11 @@ class TestCreatedFiles:
         
         # Clean up any existing responses directory from previous test runs
         responses_dir_to_clean = cls.timestamp_dir / RESPONSES_DIR_NAME
+
         if responses_dir_to_clean.exists():
-            import shutil
+            
             shutil.rmtree(responses_dir_to_clean)
             print(f"\nCleaned previous responses directory: {responses_dir_to_clean}")
-        
-        # Extract response links (this will be limited in the scraper)
-        response_links = _extract_response_links(str(cls.pages_dir))
         
         # Store original download function
         original_download = ResponseDownloader.download_single_response
@@ -140,7 +126,8 @@ class TestCreatedFiles:
         ):
             # Run the scraping function
             try:
-                scrape_commission_responses()
+                responses_main.scrape_commission_responses()
+
             except Exception as e:
                 # If scraping fails completely, store the error
                 cls.scraping_error = str(e)
@@ -208,7 +195,7 @@ class TestCreatedFiles:
         """
 
         # Extract response links using actual function
-        response_links = self._extract_response_links(str(self.pages_dir))
+        response_links = responses_main._extract_response_links(str(self.pages_dir))
         
         # Verify at least some links were found
         assert len(response_links) > 0, \
@@ -314,10 +301,10 @@ class TestCreatedFiles:
             f"Too many files downloaded. Expected max {MAX_RESPONSE_DOWNLOADS_E2E_TEST}, got {len(html_files_found)}"
         
         # Verify each HTML file
+        import re
         for html_file in html_files_found:
             # Check file naming pattern (YYYY_NNNNNN_en.html)
 
-            import re
             assert re.match(RESPONSE_PAGE_FILENAME_PATTERN, html_file.name), \
                 f"Invalid filename pattern: {html_file.name}"
             
@@ -341,9 +328,6 @@ class TestCreatedFiles:
                 f"No Commission content found in: {html_file.name}"
             
             # Verify prettification by comparing with BeautifulSoup's prettify output
-            from bs4 import BeautifulSoup
-            
-            # Parse the content and prettify it
             soup = BeautifulSoup(content, 'html.parser')
             prettified_content = soup.prettify()
             
