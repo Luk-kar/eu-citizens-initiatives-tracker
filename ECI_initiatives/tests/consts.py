@@ -145,7 +145,7 @@ REQUIRED_EXTRACTOR_CSV_COLUMNS = [
 RESPONSES_DIR_NAME = "responses"
 
 # CSV configuration
-RESPONSES_CSV_FILENAME = "responseslist.csv"
+RESPONSES_CSV_FILENAME = "responses_list.csv"
 RESPONSES_CSV_FIELDNAMES = [
     "url_find_initiative",
     "registration_number", 

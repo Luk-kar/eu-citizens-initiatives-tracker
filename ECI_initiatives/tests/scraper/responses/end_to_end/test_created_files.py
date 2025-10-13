@@ -88,14 +88,21 @@ class TestCreatedFiles:
         # Find the most recent timestamp directory with initiative data
         latest_timestamp_dir = Path(_find_latest_timestamp_directory())
         cls.timestamp_dir = latest_timestamp_dir
-        cls.pages_dir = latest_timestamp_dir / "pages"
+        cls.pages_dir = latest_timestamp_dir / "initiatives"
         
         # Verify pages directory exists
         if not cls.pages_dir.exists():
             raise FileNotFoundError(
-                f"Pages directory not found: {cls.pages_dir}. "
+                f"Initiative pages directory not found: {cls.pages_dir}. "
                 "Run the initiatives scraper first."
             )
+        
+        # Clean up any existing responses directory from previous test runs
+        responses_dir_to_clean = cls.timestamp_dir / RESPONSES_DIR_NAME
+        if responses_dir_to_clean.exists():
+            import shutil
+            shutil.rmtree(responses_dir_to_clean)
+            print(f"\nCleaned previous responses directory: {responses_dir_to_clean}")
         
         # Extract response links (this will be limited in the scraper)
         response_links = _extract_response_links(str(cls.pages_dir))
@@ -144,7 +151,7 @@ class TestCreatedFiles:
         cls.responses_dir = cls.timestamp_dir / RESPONSES_DIR_NAME
         cls.csv_file = cls.responses_dir / RESPONSES_CSV_FILENAME
         cls.logs_dir = cls.timestamp_dir / LOG_DIR_NAME
-    
+
     @classmethod
     def teardown_class(cls):
         """
@@ -430,7 +437,7 @@ class TestCreatedFiles:
             f"Scraper didn't use most recent directory. Expected: {most_recent.name}, Got: {self.timestamp_dir.name}"
         
         # Verify pages directory exists in that timestamp
-        pages_dir = most_recent / "pages"
+        pages_dir = most_recent / "initiatives"
         assert pages_dir.exists(), \
             f"Pages directory not found in most recent timestamp: {pages_dir}"
         
