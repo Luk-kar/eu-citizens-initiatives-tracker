@@ -27,7 +27,7 @@ class ECIResponseHTMLParser:
         """
         pass
     
-    def parse_html_file(self, file_path: Path, responses_list_data: Dict) -> Optional[ECIResponse]:
+    def parse_file(self, file_path: Path, responses_list_data: Dict) -> Optional[ECIResponse]:
         """
         Parse a single ECI response HTML file and extract data
         

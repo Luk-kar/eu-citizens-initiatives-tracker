@@ -127,7 +127,13 @@ class ECIResponseDataProcessor:
         self.logger.info(f"Loaded metadata for {len(responses_metadata)} responses")
         
         # Find all HTML files
-        html_files = sorted(html_dir.glob("*_en.html"))
+        html_files = sorted(html_dir.glob("**/*_en.html"))
+        if not html_files:
+            raise FileNotFoundError(
+                f"No HTML response files found in: {html_dir}\n"
+                f"Expected files matching pattern: *_en.html"
+            )
+
         self.logger.info(f"Found {len(html_files)} HTML files to process")
         
         # Process each file
