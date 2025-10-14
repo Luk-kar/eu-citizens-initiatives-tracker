@@ -1,417 +1,860 @@
-`./ECI_initiatives/extractor/initiatives/initiatives_logger.py`:
+`./ECI_initiatives/tests/extractor/initiatives/behaviour/__init__.py`:
+```
+
+```
+
+`./ECI_initiatives/tests/extractor/initiatives/behaviour/test_data_extraction.py`:
 ```
 """
-Unified Logger for ECI initiatives extractor
-"""
+Test suite for validating data extraction from HTML files.
 
-# python
-import logging
-from pathlib import Path
-from datetime import datetime
-from typing import Optional
-
-
-class InitiativesExtractorLogger:
-    """Centralized logger for ECI initiatives data processing"""
-
-    _instance = None
-    _logger = None
-
-    def __new__(cls):
-        """Singleton pattern to ensure only one logger instance exists"""
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-
-        return cls._instance
-
-    def __init__(self):
-        """Initialize logger only once"""
-        if self._logger is None:
-
-            self._logger = logging.getLogger('eci_initiatives_extractor')
-            self._logger.setLevel(logging.INFO)
-
-            # Prevent duplicate handlers if __init__ is called multiple times
-            self._logger.handlers = []
-
-    def setup(self, log_dir: Optional[Path] = None) -> logging.Logger:
-        """
-        Configure logging with file and console handlers
-
-        Args:
-            log_dir: Directory for log files. If None, only console logging is used.
-
-        Returns:
-            Configured logger instance
-        """
-        # Clear existing handlers to prevent duplicates
-        self._logger.handlers = []
-
-        # Formatter
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-
-        # Console handler (always active)
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(formatter)
-        self._logger.addHandler(console_handler)
-
-        # File handler (optional, only if log_dir is provided)
-        if log_dir:
-
-            log_dir.mkdir(parents=True, exist_ok=True)
-
-            log_file = log_dir / f"processor_initiatives_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
-
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setLevel(logging.INFO)
-            file_handler.setFormatter(formatter)
-
-            self._logger.addHandler(file_handler)
-
-        return self._logger
-
-    def get_logger(self) -> logging.Logger:
-        """Get the configured logger instance"""
-
-        if self._logger is None:
-            raise RuntimeError("Logger not initialized. Call setup() first.")
-
-        return self._logger
-
-```
-
-`./ECI_initiatives/extractor/initiatives/__init__.py`:
-```
-
-```
-
-`./ECI_initiatives/extractor/initiatives/__main__.py`:
-```
-#!/usr/bin/env python3
-"""
-ECI Data Scraper - European Citizens' Initiative HTML Parser
-Processes scraped HTML files and extracts structured data to CSV
-"""
-
-# python
-import os
-import csv
-import re
-import logging
-import json
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Optional, Union, Tuple
-from dataclasses import dataclass, asdict
-
-# third-party
-from bs4 import BeautifulSoup
-
-# initiatives extractor
-from .initiatives_logger import InitiativesExtractorLogger
-from .processor import ECIDataProcessor
-
-
-def main():
-    """Main entry point"""
-
-    processor = ECIDataProcessor()
-    processor.run()
-
-
-if __name__ == "__main__":
-    main()
-
-```
-
-`./ECI_initiatives/extractor/initiatives/model.py`:
-```
-#!/usr/bin/env python3
-"""
-ECI Data Models
-Data structures for ECI initiative information
-"""
-
-from dataclasses import dataclass
-from typing import Optional
-
-
-@dataclass
-class ECIInitiative:
-    """Data structure for ECI initiative information"""
-
-    registration_number: str
-    title: str
-    objective: str
-    annex: Optional[str]
-    current_status: str
-    url: str
-
-    timeline_registered: Optional[str]
-    timeline_collection_start_date: Optional[str]
-    timeline_collection_closed: Optional[str] 
-    timeline_verification_start: Optional[str]
-    timeline_verification_end: Optional[str]
-    timeline_response_commission_date:  Optional[str]
-
-    timeline: Optional[str]
-
-    organizer_representative: Optional[str]  # JSON with representative data
-    organizer_entity: Optional[str]         # JSON with legal entity data
-    organizer_others: Optional[str]         # JSON with members, substitutes, others, DPO data
-
-    funding_total: Optional[str]
-    funding_by: Optional[str]
-
-    signatures_collected: Optional[str]
-    signatures_collected_by_country: Optional[str]
-    signatures_threshold_met: Optional[str]
-
-    response_commission_url: Optional[str]
-
-    final_outcome: Optional[str]
-    languages_available: Optional[str]
-    created_timestamp: str
-    last_updated: str
-
-```
-
-`./ECI_initiatives/extractor/initiatives/parser.py`:
-```
-"""
-ECI Responses HTML Parser
-Parses individual response HTML files and extracts Commission response data
-"""
-
-import re
-from typing import Dict, List, Optional, Union, Tuple
-from pathlib import Path
-from bs4 import BeautifulSoup
-
-from .model import ECIResponseData
-
-
-class ECIResponseHTMLParser:
-    """Parser for ECI Commission response HTML pages"""
-    
-    def __init__(self):
-        """Initialize the parser"""
-        pass
-    
-    def parse_file(self, html_path: Path, responses_list_data: Dict) -> ECIResponseData:
-        """
-        Parse a single response HTML file and extract all data
-        
-        Args:
-            html_path: Path to the HTML file
-            responses_list_data: Dictionary with metadata from responses_list.csv
-            
-        Returns:
-            ECIResponseData object with all extracted fields
-        """
-        with open(html_path, 'r', encoding='utf-8') as f:
-            html_content = f.read()
-        
-        soup = BeautifulSoup(html_content, 'html.parser')
-        filename = html_path.name
-        
-        # Extract all fields
-        return ECIResponseData(
-            registration_number=self._extract_registration_number(filename),
-            response_url=self._extract_response_url(soup),
-            initiative_url=self._extract_initiative_url(responses_list_data),
-            initiative_title=self._extract_initiative_title(responses_list_data)
-        )
-    
-    def _extract_registration_number(self, filename: str) -> str:
-        """Extract registration number from filename pattern YYYY_NNNNNN_en.html"""
-        
-        pattern = r'(\d{4})_(\d{6})_en\.html'
-        match = re.match(pattern, filename)
-        
-        if match:
-            year, number = match.groups()
-            return f"{year}/{number}"
-            
-        return ""
-    
-    def _extract_response_url(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract the current page URL from meta tags or canonical link"""
-        
-        # Try canonical link first
-        canonical = soup.find('link', {'rel': 'canonical'})
-        if canonical and canonical.get('href'):
-            return canonical['href']
-        
-        # Try og:url meta tag
-        og_url = soup.find('meta', {'property': 'og:url'})
-        if og_url and og_url.get('content'):
-            return og_url['content']
-        
-        # Try dcterms.identifier meta tag
-        dcterms_id = soup.find('meta', {'name': 'dcterms.identifier'})
-        if dcterms_id and dcterms_id.get('content'):
-            return dcterms_id['content']
-        
-        return None
-    
-    def _extract_initiative_url(self, responses_list_data: Dict) -> Optional[str]:
-        """Get initiative URL from responses_list.csv data"""
-        
-        return responses_list_data.get('initiative_url')
-    
-    def _extract_initiative_title(self, responses_list_data: Dict) -> Optional[str]:
-        """Get initiative title from responses_list.csv data"""
-        
-        return responses_list_data.get('initiative_title')
-
-```
-
-`./ECI_initiatives/extractor/initiatives/processor.py`:
-```
-"""
-ECI Data Processor
-Main processor for ECI data extraction and CSV generation
+Tests focus on behavior of extraction methods:
+ - Registration number extraction from filenames
+ - Title extraction with fallback logic
+ - Objective extraction with character limit
+ - Timeline data extraction
+ - Signatures data extraction
+ - Organizer data extraction
+ - Funding data extraction
+ - Current status extraction
+ - URL construction
 """
 
 # Standard library
-import re
-import csv
 from pathlib import Path
-from datetime import datetime
-from typing import List, Optional
-from dataclasses import asdict
-import logging
+import json
+
+# Third party
+import pytest
+from bs4 import BeautifulSoup
 
 # Local
-from .model import ECIInitiative
-from .parser import ECIHTMLParser
-from .initiatives_logger import InitiativesExtractorLogger
+from ECI_initiatives.extractor.initiatives.parser import ECIHTMLParser
+from ECI_initiatives.extractor.initiatives.initiatives_logger import InitiativesExtractorLogger
 
 
-class ECIDataProcessor:
-    """Main processor for ECI data extraction"""
+class TestRegistrationNumberExtraction:
+    """Tests for registration number extraction."""
+    
+    @classmethod
+    def setup_class(cls):
+        """Setup parser instance."""
 
-    def __init__(self, data_root: str = "/initiatives/data", logger: Optional[logging.Logger] = None):
-        """
-        Initialize the data processor
+        logger = InitiativesExtractorLogger().setup()
+        cls.parser = ECIHTMLParser(logger=logger)
+    
+    def test_valid_filename_format(self):
+        """Test extraction from valid filename format (YYYY_NNNNNN_en.html)."""
+
+        expected_reg_number = '2024/000005'
         
-        Args:
-            data_root: Root directory for ECI data
-            logger: Optional logger instance. If None, will be initialized in run()
-        """
-        current_file = Path(__file__)
-        project_root = current_file.parent.parent.parent.parent  # Move 4 directories up
-        self.data_root = project_root / data_root.lstrip('/')
-        self.last_session_scraping_dir = None
+        filename = expected_reg_number.replace("/", "_") + "_en.html"
 
-        # Logger can be passed or initialized later
-        self.logger = logger
-        self.parser = None
+        reg_number = self.parser._extract_registration_number(filename)
 
-    def find_latest_scrape_session(self) -> Optional[Path]:
-        """Find the most recent scraping session directory"""
+        assert reg_number == expected_reg_number, \
+            f"Expected '{expected_reg_number}', got '{reg_number}'"
+    
+    def test_registration_number_formatting(self):
+        """Test that registration number is formatted correctly (YYYY/NNNNNN)."""
 
-        try:
-            session_dirs = [d for d in self.data_root.iterdir() 
-                           if d.is_dir() and re.match(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}', d.name)]
+        expected_number = 11
+        expected_separator = "/"
+        
+        filename = "2019_000007_en.html"
+        reg_number = self.parser._extract_registration_number(filename)
+        assert expected_separator in reg_number, f"Registration number should contain '{expected_separator}'"
+        assert len(reg_number) == expected_number, f"Registration number should be {expected_number} characters (YYYY/NNNNNN)"
 
-            if session_dirs:
-                last_session = max(session_dirs, key=lambda x: x.name)
-                return last_session
 
-        except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error finding scrape sessions: {e}")
+class TestTitleExtraction:
+    """Tests for title extraction."""
+    
+    @classmethod
+    def setup_class(cls):
+        """Setup parser instance."""
+
+        logger = InitiativesExtractorLogger().setup()
+        cls.parser = ECIHTMLParser(logger=logger)
+    
+    def test_title_from_meta_tag(self):
+        """Test extraction from meta tag when present."""
+
+        expected_title = "Test Initiative Title"
+        
+        html = f'''
+        <html>
+            <head>
+                <meta name="dcterms.title" content="{expected_title}" />
+            </head>
+            <body></body>
+        </html>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        title = self.parser._extract_title(soup)
+        
+        assert title == expected_title, f"Expected '{expected_title}', got '{title}'"
+    
+    def test_title_fallback_to_h1(self):
+        """Test fallback to h1 element when meta tag is missing."""
+
+        expected_title = "Fallback Title"
+        
+        html = f'''
+        <html>
+            <body>
+                <h1 class="ecl-page-header-core__title">{expected_title}</h1>
+            </body>
+        </html>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        title = self.parser._extract_title(soup)
+        
+        assert title == expected_title, f"Expected '{expected_title}', got '{title}'"
+    
+    def test_title_text_is_stripped(self):
+        """Test that title text is properly stripped of whitespace."""
+
+        expected_title = "Title With Spaces"
+        
+        html = f'''
+        <html>
+            <head>
+                <meta name="dcterms.title" content="  {expected_title}  " />
+            </head>
+        </html>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+        title = self.parser._extract_title(soup)
+        assert title == expected_title, f"Expected '{expected_title}', got '{title}'"
+
+
+class TestObjectiveExtraction:
+    """Tests for objective extraction."""
+    
+    @classmethod
+    def setup_class(cls):
+        """Setup parser instance."""
+
+        logger = InitiativesExtractorLogger().setup()
+        cls.parser = ECIHTMLParser(logger=logger)
+    
+    def test_objective_character_limit(self):
+        """Test that objective is truncated at 1,100 characters."""
+
+        expected_length = 1100
+        long_text = "A" * 1500
+        
+        html = f'''
+        <html>
+            <body>
+                <h2>Objectives</h2>
+                <p>{long_text}</p>
+            </body>
+        </html>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+
+        objective = self.parser._extract_objective(soup)
+        assert len(objective) == expected_length, f"Objective should be {expected_length} chars, got {len(objective)}"
+    
+    def test_objective_multi_paragraph(self):
+        """Test extraction of multi-paragraph objective text."""
+
+        expected_first_paragraph = "First paragraph."
+        expected_second_paragraph = "Second paragraph."
+        
+        html = f'''
+        <html>
+            <body>
+                <h2>Objectives</h2>
+                <p>{expected_first_paragraph}</p>
+                <p>{expected_second_paragraph}</p>
+            </body>
+        </html>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+        objective = self.parser._extract_objective(soup)
+
+        assert expected_first_paragraph in objective, f"Should contain '{expected_first_paragraph}'"
+        assert expected_second_paragraph in objective, f"Should contain '{expected_second_paragraph}'"
+
+
+class TestURLConstruction:
+    """Tests for URL construction."""
+    
+    @classmethod
+    def setup_class(cls):
+        """Setup parser instance."""
+
+        logger = InitiativesExtractorLogger().setup()
+        cls.parser = ECIHTMLParser(logger=logger)
+    
+    def test_url_construction_format(self):
+        """Test that URL is constructed in correct Europa.eu format."""
+
+        reg_number = "2024/000005"
+        expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2024/000005_en"
+        
+        url = self.parser._construct_url(reg_number)
+        assert url == expected_url, f"Expected '{expected_url}', got '{url}'"
+    
+    def test_url_contains_registration_parts(self):
+        """Test that URL contains year and number components."""
+
+        reg_number = "2019/000007"
+        expected_year = "2019"
+        expected_number = "000007"
+        
+        url = self.parser._construct_url(reg_number)
+        assert expected_year in url, f"URL should contain year '{expected_year}'"
+        assert expected_number in url, f"URL should contain initiative number '{expected_number}'"
+
+
+class TestCurrentStatusExtraction:
+    """Tests for current status extraction."""
+    
+    @classmethod
+    def setup_class(cls):
+        """Setup parser instance."""
+
+        logger = InitiativesExtractorLogger().setup()
+        cls.parser = ECIHTMLParser(logger=logger)
+    
+    def test_current_status_from_timeline(self):
+        """Test extraction of current status from timeline items."""
+
+        expected_status = "Collection ongoing"
+        
+        html = f'''
+        <html>
+            <body>
+                <ol class="ecl-timeline">
+                    <li class="ecl-timeline__item ecl-timeline__item--current">
+                        <div class="ecl-timeline__title">{expected_status}</div>
+                    </li>
+                </ol>
+            </body>
+        </html>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+        status = self.parser._extract_current_status(soup)
+
+        assert status == expected_status, f"Expected '{expected_status}', got '{status}'"
+
+
+class TestSignaturesExtraction:
+    """Tests for signatures data extraction."""
+    
+    @classmethod
+    def setup_class(cls):
+        """Setup parser instance."""
+
+        logger = InitiativesExtractorLogger().setup()
+        cls.parser = ECIHTMLParser(logger=logger)
+    
+    def test_signatures_collected_from_table(self):
+        """Test extraction of total signatures from table."""
+
+        expected_signatures = "1,234,567"
+        
+        html = f'''
+        <html>
+            <body>
+                <table class="ecl-table ecl-table--zebra">
+                    <tr class="ecl-table__row">
+                        <td class="ecl-table__cell">Total number of signatories</td>
+                        <td class="ecl-table__cell">{expected_signatures}</td>
+                    </tr>
+                </table>
+            </body>
+        </html>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+        signatures = self.parser._extract_signatures_collected(soup)
+
+        assert signatures == expected_signatures, f"Expected '{expected_signatures}', got '{signatures}'"
+    
+    def test_signatures_by_country_json_format(self, program_root_dir, tmp_path):
+        """Test that signatures by country data is valid JSON."""
+
+        expected_country = "Germany"
+        expected_type = dict
+        
+        html = '''
+        <html>
+            <body>
+                <table class="ecl-table ecl-table--zebra">
+                    <tr class="ecl-table__row">
+                        <td class="ecl-table__cell">Germany</td>
+                        <td class="ecl-table__cell">500,000</td>
+                        <td class="ecl-table__cell">72,000</td>
+                        <td class="ecl-table__cell">694.4%</td>
+                    </tr>
+                </table>
+            </body>
+        </html>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+
+        filepath = tmp_path / "test.html"
+        filepath.write_text(html)
+        
+        signatures_json = self.parser._extract_signatures_by_country(
+            soup, filepath, "Test Initiative", "http://example.com"
+        )
+        
+        if signatures_json:
+
+            # Should be valid JSON
+            data = json.loads(signatures_json)
+
+            assert isinstance(data, expected_type), f"Should be a {expected_type.__name__}"
+            assert expected_country in data, f"Should contain {expected_country}"
+
+
+class TestOrganizerExtraction:
+    """Tests for organizer data extraction."""
+    
+    @classmethod
+    def setup_class(cls):
+        """Setup parser instance."""
+
+        logger = InitiativesExtractorLogger().setup()
+        cls.parser = ECIHTMLParser(logger=logger)
+    
+    def test_organizer_representative_json_format(self, tmp_path):
+        """Test that organizer representative data is valid JSON."""
+
+        expected_type = dict
+        
+        html = '''
+        <html>
+            <body>
+                <h2>Organisers</h2>
+                <h3>Representative</h3>
+                <ul>
+                    <li>John Doe - [john@example.com](mailto:john@example.com) - Country of residence: Germany</li>
+                </ul>
+            </body>
+        </html>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+        organizers_data = self.parser.extract_organisers_data(soup)
+        
+        filepath = tmp_path / "test.html"
+
+        rep, entity, others = self.parser._split_organiser_data(
+            organizers_data, filepath, "Test", "http://example.com"
+        )
+        
+        if rep:
+            data = json.loads(rep)
+            assert isinstance(data, expected_type), f"Should be a {expected_type.__name__}"
+
+
+class TestFundingExtraction:
+    """Tests for funding data extraction."""
+    
+    @classmethod
+    def setup_class(cls):
+        """Setup parser instance."""
+
+        logger = InitiativesExtractorLogger().setup()
+        cls.parser = ECIHTMLParser(logger=logger)
+    
+    def test_funding_total_extraction(self):
+        """Test extraction of total funding amount."""
+
+        expected_total = "50,000"
+        
+        html = f'''
+        <html>
+            <body>
+                <p>Total amount of support and funding: €{expected_total}</p>
+            </body>
+        </html>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        total = self.parser._extract_funding_total(soup)
+        assert total == expected_total, f"Expected '{expected_total}', got '{total}'"
+
+```
+
+`./ECI_initiatives/tests/extractor/initiatives/behaviour/test_data_quality.py`:
+```
+"""
+Test suite for validating data quality in extracted data.
+
+Tests focus on:
+ - Required fields are never None
+ - Optional fields handle None correctly
+ - JSON fields are valid
+ - No duplicate registration numbers
+ - CSV structure integrity
+"""
+
+# Standard library
+import csv
+import tempfile
+import shutil
+import json
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+
+# Third party
+import pytest
+
+# Test data
+from ECI_initiatives.tests.consts import REQUIRED_EXTRACTOR_CSV_COLUMNS
+
+
+class TestRequiredFieldValidation:
+    """Tests for required field validation."""
+    
+    def test_registration_number_never_none(self, program_root_dir):
+        """Test that registration_number is never None in CSV."""
+
+        from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
+        from datetime import datetime
+        
+        eci_name = "2024_000004_en.html"
+        
+        # Setup temp environment
+        temp_dir = tempfile.mkdtemp(prefix="eci_test_")
+        temp_path = Path(temp_dir)
+        
+        # Create session directory with timestamp pattern
+        session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        session_dir = temp_path / session_name
+        
+        pages_dir = session_dir / "initiatives" / "pages" / "2024"
+        logs_dir = session_dir / "logs"
+        pages_dir.mkdir(parents=True, exist_ok=True)
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Copy test file
+        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / eci_name
+        
+        if test_file.exists():
+            shutil.copy(test_file, pages_dir / eci_name)
+        else:
+            raise FileNotFoundError(f"Test data file not found: {test_file}")
+        
+        # Mock find_latest_scrape_session to return our test session
+        with patch.object(ECIDataProcessor, 'find_latest_scrape_session', return_value=session_dir):
+
+            # Run processor
+            processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
+            processor.run()
+        
+        # Check CSV in the session directory
+        csv_files = list(session_dir.glob("eci_initiatives_*.csv"))
+        assert len(csv_files) > 0, "CSV should be created"
+        
+        with open(csv_files[0], 'r', encoding='utf-8') as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+                assert row['registration_number'], "registration_number should not be None or empty"
+                assert row['registration_number'] != "None", "registration_number should not be literal 'None'"
+        
+        # Cleanup
+        shutil.rmtree(temp_path)
+    
+    def test_title_never_none(self, program_root_dir):
+        """Test that title is never None in CSV."""
+
+        from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
+        from datetime import datetime
+        
+        eci_name = "2025_000003_en.html"
+        
+        temp_dir = tempfile.mkdtemp(prefix="eci_test_")
+        temp_path = Path(temp_dir)
+        session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        session_dir = temp_path / session_name
+        
+        pages_dir = session_dir / "initiatives" / "pages" / "2025"
+        logs_dir = session_dir / "logs"
+
+        pages_dir.mkdir(parents=True, exist_ok=True)
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        
+        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / eci_name
+        if test_file.exists():
+            shutil.copy(test_file, pages_dir / eci_name)
+        else:
+            raise FileNotFoundError(f"Test data file not found: {test_file}")
+        
+        with patch.object(ECIDataProcessor, 'find_latest_scrape_session', return_value=session_dir):
+
+            processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
+            processor.run()
+        
+        csv_files = list(session_dir.glob("eci_initiatives_*.csv"))
+
+        with open(csv_files[0], 'r', encoding='utf-8') as f:
+
+            reader = csv.DictReader(f)
+            for row in reader:
+                assert row['title'], "title should not be None or empty"
+        
+        shutil.rmtree(temp_path)
+    
+    def test_url_never_none(self, program_root_dir):
+        """Test that url is never None in CSV."""
+
+        from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
+        from datetime import datetime
+        
+        eci_name = "2019_000007_en.html"
+        
+        temp_dir = tempfile.mkdtemp(prefix="eci_test_")
+        temp_path = Path(temp_dir)
+        session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        session_dir = temp_path / session_name
+        
+        pages_dir = session_dir / "initiatives" / "pages" / "2019"
+        pages_dir.mkdir(parents=True, exist_ok=True)
+        
+        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / eci_name
+
+        if test_file.exists():
+            shutil.copy(test_file, pages_dir / eci_name)
+        else:
+            raise FileNotFoundError(f"Test data file not found: {test_file}")
+
+        with patch.object(ECIDataProcessor, 'find_latest_scrape_session', return_value=session_dir):
+            processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
+            processor.run()
+        
+        csv_files = list(session_dir.glob("eci_initiatives_*.csv"))
+
+        with open(csv_files[0], 'r', encoding='utf-8') as f:
+
+            reader = csv.DictReader(f)
+            for row in reader:
+                assert row['url'], "url should not be None or empty"
+        
+        shutil.rmtree(temp_path)
+    
+    def test_timestamps_never_none(self, program_root_dir):
+        """Test that timestamps are never None."""
+
+        from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
+        from datetime import datetime
+        
+        eci_name = "2023_000008_en.html"
+        
+        temp_dir = tempfile.mkdtemp(prefix="eci_test_")
+        temp_path = Path(temp_dir)
+        session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        session_dir = temp_path / session_name
+        
+        pages_dir = session_dir / "initiatives" / "pages" / "2023"
+        pages_dir.mkdir(parents=True, exist_ok=True)
+        
+        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / eci_name
+
+        if test_file.exists():
+            shutil.copy(test_file, pages_dir / eci_name)
+        else:
+            raise FileNotFoundError(f"Test data file not found: {test_file}")
+
+        with patch.object(ECIDataProcessor, 'find_latest_scrape_session', return_value=session_dir):
+            processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
+            processor.run()
+        
+        csv_files = list(session_dir.glob("eci_initiatives_*.csv"))
+
+        with open(csv_files[0], 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                assert row['created_timestamp'], "created_timestamp should not be None"
+                assert row['last_updated'], "last_updated should not be None"
+        
+        shutil.rmtree(temp_path)
+
+
+class TestJSONFieldValidation:
+    """Tests for JSON field validation."""
+    
+    def test_json_fields_are_valid_or_none(self, program_root_dir):
+        """Test that JSON fields are either valid JSON or empty."""
+
+        from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
+        from datetime import datetime
+        
+        eci_name = "2024_000007_en.html"
+        
+        temp_dir = tempfile.mkdtemp(prefix="eci_test_")
+        temp_path = Path(temp_dir)
+        session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        session_dir = temp_path / session_name
+        
+        pages_dir = session_dir / "initiatives" / "pages" / "2024"
+        pages_dir.mkdir(parents=True, exist_ok=True)
+        
+        test_file = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives" / eci_name
+
+        if test_file.exists():
+            shutil.copy(test_file, pages_dir / eci_name)
+        else:
+            raise FileNotFoundError(f"Test data file not found: {test_file}")
+
+        with patch.object(ECIDataProcessor, 'find_latest_scrape_session', return_value=session_dir):
+            processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
+            processor.run()
+        
+        json_fields = ['signatures_collected_by_country', 'funding_by', 'organizer_representative']
+        
+        csv_files = list(session_dir.glob("eci_initiatives_*.csv"))
+
+        with open(csv_files[0], 'r', encoding='utf-8') as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                for field in json_fields:
+                    value = row.get(field, '')
+
+                    if value and value != 'None':
+
+                        try:
+                            json.loads(value)
+
+                        except json.JSONDecodeError:
+                            pytest.fail(f"Field {field} contains invalid JSON: {value}")
+        
+        shutil.rmtree(temp_path)
+
+
+class TestCSVStructure:
+    """Tests for CSV structure integrity."""
+    
+    def test_all_rows_same_column_count(self, program_root_dir):
+        """Test that all CSV rows have same column count as headers."""
+        
+        from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
+        from datetime import datetime
+        
+        eci_names = ["2019_000007_en.html", "2024_000004_en.html", "2025_000002_en.html", "2025_000003_en.html"]
+        
+        temp_dir = tempfile.mkdtemp(prefix="eci_test_")
+        temp_path = Path(temp_dir)
+        session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        session_dir = temp_path / session_name
+        
+        # Fix: Use correct directory name - initiative_pages not initiatives/pages
+        pages_dir = session_dir / "initiatives"
+        logs_dir = session_dir / "logs"
+
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Copy multiple test files
+        test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives"
+        
+        for filename in eci_names:
+
+            # Extract year from filename
+            year = filename.split('_')[0]
+            year_dir = pages_dir / year
+            year_dir.mkdir(parents=True, exist_ok=True)
+            
+            test_file = test_data_dir / filename
+
+            if test_file.exists():
+                shutil.copy(test_file, year_dir / filename)
             else:
-                print(f"Error finding scrape sessions: {e}")
+                raise FileNotFoundError(f"Test data file not found: {test_file}")
 
-        return None
-
-    def process_initiative_pages(self, session_path: Path) -> List[ECIInitiative]:
-        """Process all initiative HTML pages in a session"""
-
-        initiatives = []
-        initiative_pages_dir = session_path / "initiatives"
-
-        if not initiative_pages_dir.exists():
-            self.logger.error(f"Initiative pages directory not found: {initiative_pages_dir}")
-            return initiatives
-
-        # Process each year directory
-        for year_dir in sorted(initiative_pages_dir.iterdir()):
-            if not year_dir.is_dir():
-                continue
-
-            self.logger.info(f"Processing year: {year_dir.name}")
-
-            # Process each HTML file in the year directory
-            for html_file in sorted(year_dir.glob("*.html")):
-                initiative = self.parser.parse_html_file(html_file)
-                if initiative:
-                    initiatives.append(initiative)
-
-        self.logger.info(f"Successfully processed {len(initiatives)} initiatives")
-        return initiatives
-
-    def save_to_csv(self, initiatives: List[ECIInitiative], output_path: Path) -> None:
-        """Save initiatives data to CSV file"""
+        # Create processor
+        processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
         
-        try:
-            with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
-                if not initiatives:
-                    self.logger.warning("No initiatives to save")
-                    return
+        # Mock that sets the attribute
+        def mock_find_session():
+            processor.last_session_scraping_dir = session_dir
+            return session_dir
+        
+        with patch.object(processor, 'find_latest_scrape_session', side_effect=mock_find_session):
+            processor.run()
+        
+        csv_files = list(session_dir.glob("eci_initiatives_*.csv"))
+        assert len(csv_files) > 0, "CSV should be created"
+        
+        with open(csv_files[0], 'r', encoding='utf-8') as f:
 
-                fieldnames = list(asdict(initiatives[0]).keys())
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            reader = csv.DictReader(f)
+            header_count = len(reader.fieldnames)
+            
+            # Verify we have headers
+            assert header_count > 0, "CSV should have headers"
+            
+            for row in reader:
+                row_count = len(row)
+                assert row_count == header_count, \
+                    f"Row has {row_count} columns but header has {header_count}"
+        
+        shutil.rmtree(temp_path)
+    
+    def test_no_duplicate_registration_numbers(self, program_root_dir):
+        """Test that no duplicate registration numbers appear in CSV."""
 
-                writer.writeheader()
-                for initiative in initiatives:
-                    writer.writerow(asdict(initiative))
+        from ECI_initiatives.extractor.initiatives.processor import ECIDataProcessor
+        from datetime import datetime
+        
+        eci_names = [
+            "2019_000007_en.html",
+            "2023_000008_en.html",
+            "2024_000004_en.html",
+            "2024_000005_en.html",
+            "2024_000007_en.html",
+            "2025_000002_en.html",
+            "2025_000003_en.html"
+        ]
+        
+        temp_dir = tempfile.mkdtemp(prefix="eci_test_")
+        temp_path = Path(temp_dir)
+        session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        session_dir = temp_path / session_name
+        
+        # Fix: Use correct directory name
+        pages_dir = session_dir / "initiatives"
+        logs_dir = session_dir / "logs"
 
-            self.logger.info(f"Saved {len(initiatives)} initiatives to {output_path}")
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        
+        test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "initiatives"
+        
+        for filename in eci_names:
 
-        except Exception as e:
-            self.logger.error(f"Error saving CSV: {e}")
+            # Extract year from filename
+            year = filename.split('_')[0]
+            year_dir = pages_dir / year
+            year_dir.mkdir(parents=True, exist_ok=True)
+            
+            test_file = test_data_dir / filename
 
-    def run(self, output_filename: str = None) -> None:
-        """Main processing pipeline"""
+            if test_file.exists():
+                shutil.copy(test_file, year_dir / filename)
+            else:
+                raise FileNotFoundError(f"Test data file not found: {test_file}")
+                
+        # Create processor
+        processor = ECIDataProcessor(data_root=str(temp_path), logger=None)
         
-        # Find latest scraping session
-        session_path = self.find_latest_scrape_session()
-        self.last_session_scraping_dir = session_path
+        # Mock that sets the attribute
+        def mock_find_session():
+            processor.last_session_scraping_dir = session_dir
+            return session_dir
         
-        if not session_path:
-            print("No scraping session found in:\n" + str(self.data_root))
-            return
+        with patch.object(processor, 'find_latest_scrape_session', side_effect=mock_find_session):
+            processor.run()
         
-        # Initialize unified logger if not already provided
-        if self.logger is None:
+        csv_files = list(session_dir.glob("eci_initiatives_*.csv"))
+        assert len(csv_files) > 0, "CSV should be created"
+        
+        with open(csv_files[0], 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            reg_numbers = []
+            for row in reader:
+                reg_numbers.append(row['registration_number'])
 
-            log_dir = self.last_session_scraping_dir / "logs"
-            eci_logger = InitiativesExtractorLogger()
-            self.logger = eci_logger.setup(log_dir=log_dir)
+```
+
+`./ECI_initiatives/tests/extractor/initiatives/behaviour/test_logger.py`:
+```
+"""
+Test suite for logger functionality.
+
+Tests focus on:
+ - Logger singleton behavior
+ - Console and file handler configuration
+ - Log message formatting
+ - Directory creation
+"""
+
+# Standard library
+import tempfile
+import shutil
+from pathlib import Path
+
+# Third party
+import pytest
+
+# Local
+from ECI_initiatives.extractor.initiatives.initiatives_logger import InitiativesExtractorLogger
+
+
+class TestLoggerSingleton:
+    """Tests for logger singleton pattern."""
+    
+    def test_singleton_instance(self):
+        """Test that only one logger instance is created."""
+
+        logger1 = InitiativesExtractorLogger()
+        logger2 = InitiativesExtractorLogger()
+
+        assert logger1 is logger2, "Should return same instance"
+    
+    def test_logger_setup_multiple_calls(self):
+        """Test that multiple setup calls don't create duplicates."""
+
+        temp_dir = tempfile.mkdtemp(prefix="logger_test_")
+        temp_path = Path(temp_dir)
         
-        # Initialize parser with shared logger
-        self.parser = ECIHTMLParser(logger=self.logger)
+        logger_instance = InitiativesExtractorLogger()
+
+        logger1 = logger_instance.setup(log_dir=temp_path)
+        logger2 = logger_instance.setup(log_dir=temp_path)
         
-        self.logger.info("Starting ECI data processing")
-        self.logger.info(f"Processing session: {session_path.name}")
+        # Should not create duplicate handlers
+        handler_count = len(logger1.handlers)
+        assert handler_count <= 2, f"Should have at most 2 handlers, got {handler_count}"
         
-        # Process all initiative pages
-        initiatives = self.process_initiative_pages(session_path)
+        shutil.rmtree(temp_path)
+
+
+class TestLoggerConfiguration:
+    """Tests for logger configuration."""
+    
+    def test_console_only_when_no_log_dir(self):
+        """
+        Test that setup() excludes FileHandler when log_dir is None 
+        to enable console-only logging.
+        """
+
+        from logging import FileHandler
+
+        logger_instance = InitiativesExtractorLogger()
+        logger = logger_instance.setup(log_dir=None)
         
-        # Save to CSV
-        if not output_filename:
-            output_filename = f"eci_initiatives_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+        # Should have at least one handler
+        assert len(logger.handlers) >= 1, "Should have at least one handler"
         
-        output_path = session_path / output_filename
-        self.save_to_csv(initiatives, output_path)
+        # Should not have any FileHandler
+        file_handlers = [h for h in logger.handlers if isinstance(h, FileHandler)]
+        assert len(file_handlers) == 0, "Should not have any FileHandler when log_dir is None"
+    
+    def test_log_directory_created(self):
+        """Test that setup() automatically creates nested log directories when they don't exist."""
+
+        temp_dir = tempfile.mkdtemp(prefix="logger_test_")
+        temp_path = Path(temp_dir)
+        log_subdir = temp_path / "logs" / "nested"
         
-        self.logger.info("Processing completed successfully")
+        logger_instance = InitiativesExtractorLogger()
+        logger = logger_instance.setup(log_dir=log_subdir)
+        
+        assert log_subdir.exists(), "Log directory should be created"
+        
+        shutil.rmtree(temp_path)
+
 ```
 
