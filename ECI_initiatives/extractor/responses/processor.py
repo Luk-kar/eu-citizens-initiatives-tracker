@@ -5,6 +5,7 @@ Main orchestration class for processing response HTML files
 
 import re
 import csv
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 import logging
@@ -21,7 +22,6 @@ class ECIResponseDataProcessor:
         self,
         data_root: str = "ECI_initiatives/data",
         responses_list_csv: str = "responses_list.csv",
-        output_csv: str = "eci_responses_date.csv",
         logger: Optional[logging.Logger] = None
     ):
         """
@@ -30,7 +30,7 @@ class ECIResponseDataProcessor:
         Args:
             data_root: Root directory for ECI data (contains date-time session directories)
             responses_list_csv: Path to responses_list.csv with metadata (relative to session dir)
-            output_csv: Path to output CSV file (relative to session dir)
+            output_csv: Path to output CSV file (relative to session dir). 
             logger: Optional logger instance. If None, will be initialized in run()
         """
         # Determine project root (4 directories up from current file)
@@ -39,9 +39,12 @@ class ECIResponseDataProcessor:
 
         self.data_root = project_root / data_root.lstrip('/')
         
-        print("root", project_root)
         self.responses_list_csv_name = responses_list_csv
-        self.output_csv_name = output_csv
+        
+        # Generate output filename with timestamp if not provided
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.output_csv_name = f"eci_responses_{timestamp}.csv"
+
         self.last_session_scraping_dir = None
         
         # Logger can be passed or initialized later

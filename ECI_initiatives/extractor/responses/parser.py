@@ -25,7 +25,7 @@ class ECIResponseHTMLParser:
         Args:
             logger: Shared logger instance from ResponsesExtractorLogger
         """
-        pass
+        self.logger = logger
     
     def parse_file(self, html_path: Path, responses_list_data: Dict) -> Optional[ECIResponse]:
         """
@@ -38,7 +38,95 @@ class ECIResponseHTMLParser:
         Returns:
             ECIResponse object or None if parsing fails
         """
-        pass
+
+        try:
+            self.logger.info(f"Parsing response file: {html_path.name}")
+            
+            # Read and parse HTML file
+            with open(html_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # Get current timestamp for metadata
+            current_timestamp = datetime.now().isoformat()
+            
+            # Extract commission communication date for follow-up calculation
+            commission_communication_date = self._extract_commission_communication_date(soup)
+            latest_update_date = self._extract_latest_update_date(soup)
+            
+            # Create and return ECIResponse object
+            response = ECIResponse(
+                # Basic Initiative Metadata
+                response_url=self._extract_response_url(soup),
+                initiative_url=self._extract_initiative_url(responses_list_data),
+                initiative_title=self._extract_initiative_title(responses_list_data),
+                registration_number=self._extract_registration_number(html_path.name),
+                
+                # Submission and Verification Data
+                submission_date=self._extract_submission_date(soup),
+                verified_signatures_count=self._extract_verified_signatures_count(soup),
+                number_member_states_threshold=self._extract_number_member_states_threshold(soup),
+                submission_news_url=self._extract_submission_news_url(soup),
+                
+                # Procedural Timeline Milestones
+                commission_meeting_date=self._extract_commission_meeting_date(soup),
+                commission_officials_met=self._extract_commission_officials_met(soup),
+                parliament_hearing_date=self._extract_parliament_hearing_date(soup),
+                parliament_hearing_recording_url=self._extract_parliament_hearing_recording_url(soup),
+                plenary_debate_date=self._extract_plenary_debate_date(soup),
+                plenary_debate_recording_url=self._extract_plenary_debate_recording_url(soup),
+                commission_communication_date=commission_communication_date,
+                commission_communication_url=self._extract_commission_communication_url(soup),
+                commission_response_news_url=self._extract_commission_response_news_url(soup),
+                
+                # Commission Response Content
+                communication_main_conclusion=self._extract_communication_main_conclusion(soup),
+                legislative_proposal_status=self._extract_legislative_proposal_status(soup),
+                commission_response_summary=self._extract_commission_response_summary(soup),
+                
+                # Follow-up Activities Section
+                has_followup_section=self._extract_has_followup_section(soup),
+                followup_meeting_date=self._extract_followup_meeting_date(soup),
+                followup_meeting_officials=self._extract_followup_meeting_officials(soup),
+                roadmap_launched=self._extract_roadmap_launched(soup),
+                roadmap_description=self._extract_roadmap_description(soup),
+                roadmap_completion_target=self._extract_roadmap_completion_target(soup),
+                workshop_conference_dates=self._extract_workshop_conference_dates(soup),
+                partnership_programs=self._extract_partnership_programs(soup),
+                court_cases_referenced=self._extract_court_cases_referenced(soup),
+                court_judgment_dates=self._extract_court_judgment_dates(soup),
+                court_judgment_summary=self._extract_court_judgment_summary(soup),
+                latest_update_date=latest_update_date,
+                
+                # Multimedia and Documentation Links
+                factsheet_url=self._extract_factsheet_url(soup),
+                video_recording_count=self._extract_video_recording_count(soup),
+                dedicated_website=self._extract_has_dedicated_website(soup),
+                
+                # Structural Analysis Flags
+                related_eu_legislation=self._extract_related_eu_legislation(soup),
+                petition_platforms_used=self._extract_petition_platforms_used(soup),
+                follow_up_duration_months=self._calculate_follow_up_duration_months(
+                    commission_communication_date, 
+                    latest_update_date
+                ),
+                
+                # Metadata
+                created_timestamp=current_timestamp,
+                last_updated=current_timestamp
+            )
+            
+            self.logger.info(f"Successfully parsed response: {response.registration_number}")
+            return response
+            
+        except FileNotFoundError:
+            self.logger.error(f"File not found: {html_path}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error parsing {html_path.name}: {str(e)}", exc_info=True)
+            return None
+
     
     # Basic Metadata Extraction
     def _extract_registration_number(self, filename: str) -> str:
@@ -47,15 +135,15 @@ class ECIResponseHTMLParser:
     
     def _extract_response_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract the current page URL from meta tags or canonical link"""
-        pass
+        return ""
     
     def _extract_initiative_url(self, responses_list_data: Dict) -> Optional[str]:
         """Get initiative URL from responses_list.csv data"""
-        pass
+        return ""
     
     def _extract_initiative_title(self, responses_list_data: Dict) -> Optional[str]:
         """Get initiative title from responses_list.csv data"""
-        pass
+        return ""
     
     # Submission and Verification Section
     def _extract_submission_date(self, soup: BeautifulSoup) -> Optional[str]:
@@ -184,7 +272,7 @@ class ECIResponseHTMLParser:
     
     def _extract_has_dedicated_website(self, soup: BeautifulSoup) -> Optional[bool]:
         """Check if organizers maintained campaign website"""
-        pass
+        return False
     
     # Structural Analysis
     def _extract_related_eu_legislation(self, soup: BeautifulSoup) -> Optional[str]:

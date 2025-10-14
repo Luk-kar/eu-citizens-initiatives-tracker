@@ -30,7 +30,7 @@ class ECIDataProcessor:
             logger: Optional logger instance. If None, will be initialized in run()
         """
         current_file = Path(__file__)
-        project_root = current_file.parent.parent.parent  # Move 4 directories up
+        project_root = current_file.parent.parent.parent  # Move 3 directories up
         self.data_root = project_root / data_root.lstrip('/')
         self.last_session_scraping_dir = None
 

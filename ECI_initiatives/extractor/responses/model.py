@@ -3,7 +3,7 @@ ECI Responses Data Models
 Data structures for ECI Commission responses information
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Optional
 
 
@@ -66,3 +66,12 @@ class ECIResponse:
     # Metadata
     created_timestamp: str
     last_updated: str
+
+    def to_dict(self) -> dict:
+        """
+        Convert ECIResponse object to dictionary
+        
+        Returns:
+            Dictionary representation of the ECIResponse object
+        """
+        return asdict(self)
