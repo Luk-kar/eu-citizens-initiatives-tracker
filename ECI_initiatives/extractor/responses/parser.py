@@ -139,7 +139,7 @@ class ECIResponseHTMLParser:
             self.logger.error(f"Error parsing {html_path.name}: {str(e)}", exc_info=True)
             return None
 
-    def _extract_response_url(self, soup: BeautifulSoup, initiative_url: str = '') -> str:
+    def _extract_response_url(self, soup: BeautifulSoup) -> str:
         """Extract the response page URL from HTML
         
         Tries multiple methods to find the URL:
@@ -147,11 +147,9 @@ class ECIResponseHTMLParser:
         2. Link with hreflang="en"
         3. Canonical link from head
         4. og:url meta tag
-        5. Use provided initiative_url as fallback (already correct format)
         
         Args:
             soup: BeautifulSoup object containing parsed HTML
-            initiative_url: Initiative URL from responses_list.csv (fallback)
             
         Returns:
             Full response page URL
@@ -202,6 +200,7 @@ class ECIResponseHTMLParser:
             # Method 4: Try og:url meta tag
             og_url = soup.find('meta', attrs={'property': 'og:url'})
             if og_url and og_url.get('content'):
+                
                 response_url = og_url['content']
                 if response_url.startswith('http'):
                     return response_url
@@ -210,19 +209,15 @@ class ECIResponseHTMLParser:
                 else:
                     return f"https://citizens-initiative.europa.eu/{response_url}"
 
-                        
-            # Method 6: Fallback to initiative_url from responses_list.csv
-            if initiative_url:
-                self.logger.warning(f"Using initiative_url from responses_list.csv as response_url fallback")
-                return initiative_url
-            
+
             raise ValueError(
-                "Response URL not found. Expected active language link, hreflang='en' link, "
-                "canonical link, og:url meta tag, or initiative_url from responses_list.csv"
+                "Response URL not found in HTML. Expected one of: "
+                "active language link (class='ecl-site-header__language-link--active'), "
+                "link with hreflang='en', "
+                "canonical link tag (<link rel='canonical'>), "
+                "or og:url meta tag (<meta property='og:url'>)"
             )
-            
-        except ValueError:
-            raise
+
         except Exception as e:
             raise ValueError(f"Error extracting response URL: {str(e)}") from e
             
@@ -282,7 +277,7 @@ class ECIResponseHTMLParser:
                 # Check if href matches the pattern
                 # Pattern: /initiatives/details/YYYY/NNNNNN_en (specifically English version)
                 if re.search(r'/initiatives/details/\d{4}/\d{6}_en$', href):
-                    
+
                     if href.startswith('http'):
                         self.logger.info(f"Found initiative URL in page link with text '{link_text}': {href}")
                         return href
