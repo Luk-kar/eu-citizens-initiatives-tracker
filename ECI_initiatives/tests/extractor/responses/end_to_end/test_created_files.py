@@ -62,13 +62,11 @@ class TestCreatedFiles:
     @classmethod
     def teardown_class(cls):
         """Cleanup temporary directories after all tests."""
-
         if cls.temp_session_path.exists():
             shutil.rmtree(cls.temp_session_path)
     
     def test_log_file_is_created(self):
         """Test that log file is created when log_dir is provided."""
-
         logger_instance = self.ResponsesExtractorLogger()
         logger = logger_instance.setup(log_dir=self.logs_dir)
         
@@ -83,7 +81,6 @@ class TestCreatedFiles:
     
     def test_log_file_naming_pattern(self):
         """Test that log filename follows the correct pattern."""
-
         logger_instance = self.ResponsesExtractorLogger()
         logger = logger_instance.setup(log_dir=self.logs_dir)
         
@@ -110,7 +107,6 @@ class TestCreatedFiles:
     
     def test_log_file_contains_entries(self, program_root_dir):
         """Test that log file contains entries after processing."""
-
         from unittest.mock import patch
         from datetime import datetime
         
@@ -131,9 +127,8 @@ class TestCreatedFiles:
         logs_dir = session_dir / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create responses_list.csv
-        responses_list_path = session_dir / "responses_list.csv"
-
+        # Create responses_list.csv in responses directory
+        responses_list_path = year_dir.parent / "responses_list.csv"
         with open(responses_list_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=["url_find_initiative", "registration_number", "title", "datetime"])
             writer.writeheader()
@@ -144,13 +139,12 @@ class TestCreatedFiles:
                 "datetime": "2024-10-09 14:00:00"
             })
         
-        # Copy one example file
+        # Copy one example file from rejection subdirectory
         example_file = test_data_dir / "rejection" / "2019" / eci_file
-
         if example_file.exists():
             shutil.copy(example_file, year_dir / eci_file)
         else:
-            raise FileExistsError(f"There is no an example file:\n{str(example_file)}")
+            raise FileNotFoundError(f"Example file not found:\n{str(example_file)}")
         
         # Run processor with mock
         processor = self.ECIResponseDataProcessor(
@@ -172,7 +166,7 @@ class TestCreatedFiles:
         
         log_content = log_files[0].read_text(encoding='utf-8')
         assert len(log_content) > 0, "Log file should contain entries"
-        assert "Starting ECI responses processing" in log_content or \
+        assert "Starting ECI responses" in log_content or \
                "Processing" in log_content, \
                "Log should contain processing messages"
         
@@ -181,7 +175,6 @@ class TestCreatedFiles:
 
     def test_csv_file_is_created(self, program_root_dir):
         """Test that CSV file is created in output directory."""
-
         from unittest.mock import patch
         from datetime import datetime
         
@@ -198,8 +191,8 @@ class TestCreatedFiles:
         logs_dir = session_dir / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create responses_list.csv
-        responses_list_path = session_dir / "responses_list.csv"
+        # Create responses_list.csv in responses directory
+        responses_list_path = year_dir.parent / "responses_list.csv"
         with open(responses_list_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=["url_find_initiative", "registration_number", "title", "datetime"])
             writer.writeheader()
@@ -210,12 +203,13 @@ class TestCreatedFiles:
                 "datetime": "2024-10-09 14:00:00"
             })
         
-        example_file = test_data_dir / "rejection" / "2019" / eci_file
+        # Copy example file from partial_success subdirectory
+        example_file = test_data_dir / "partial_success" / "2020" / eci_file
         if example_file.exists():
             shutil.copy(example_file, year_dir / eci_file)
         else:
-            raise FileExistsError(f"There is no an example file:\n{str(example_file)}")
-
+            raise FileNotFoundError(f"Example file not found:\n{str(example_file)}")
+        
         # Run processor with mock
         processor = self.ECIResponseDataProcessor(
             data_root=str(self.temp_session_path),
@@ -226,7 +220,7 @@ class TestCreatedFiles:
             processor.last_session_scraping_dir = session_dir
             return session_dir
         
-        with patch.object(processor, 'find_latest_scraping_session', side_effect=mock_find_session):
+        with patch.object(processor, 'find_latest_scrape_session', side_effect=mock_find_session):
             processor.run()
         
         # Check CSV file was created in session directory
@@ -239,11 +233,10 @@ class TestCreatedFiles:
 
     def test_csv_contains_correct_headers(self, program_root_dir):
         """Test that CSV contains all required column headers."""
-
         from unittest.mock import patch
         from datetime import datetime
         
-        eci_file = "2019_000007_en.html"
+        eci_file = "2012_000003_en.html"
         
         # Create session directory with timestamp
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -251,28 +244,30 @@ class TestCreatedFiles:
         
         # Setup and run processor
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "responses"
-        year_dir = session_dir / "responses" / "2019"
+        year_dir = session_dir / "responses" / "2012"
         year_dir.mkdir(parents=True, exist_ok=True)
         
         logs_dir = session_dir / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create responses_list.csv
-        responses_list_path = session_dir / "responses_list.csv"
-
+        # Create responses_list.csv in responses directory
+        responses_list_path = year_dir.parent / "responses_list.csv"
         with open(responses_list_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=["url_find_initiative", "registration_number", "title", "datetime"])
             writer.writeheader()
             writer.writerow({
-                "url_find_initiative": "https://example.com/2019/000007",
-                "registration_number": "2019/000007",
+                "url_find_initiative": "https://example.com/2012/000003",
+                "registration_number": "2012/000003",
                 "title": "Test Initiative",
                 "datetime": "2024-10-09 14:00:00"
             })
         
-        example_file = test_data_dir / "rejection" / "2019" / eci_file
+        # Copy example file from strong_legislative_success subdirectory
+        example_file = test_data_dir / "strong_legislative_success" / "2012" / eci_file
         if example_file.exists():
             shutil.copy(example_file, year_dir / eci_file)
+        else:
+            raise FileNotFoundError(f"Example file not found:\n{str(example_file)}")
         
         processor = self.ECIResponseDataProcessor(
             data_root=str(self.temp_session_path),
@@ -303,7 +298,6 @@ class TestCreatedFiles:
 
     def test_csv_row_count_matches_processed_files(self, program_root_dir):
         """Test that CSV row count matches number of processed HTML files."""
-
         from unittest.mock import patch
         from datetime import datetime
         
@@ -314,44 +308,44 @@ class TestCreatedFiles:
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "responses"
         
         # Create year directories for multiple years
-        year_2019_dir = session_dir / "responses" / "2019"
-        year_2019_dir.mkdir(parents=True, exist_ok=True)
+        year_2017_dir = session_dir / "responses" / "2017"
+        year_2017_dir.mkdir(parents=True, exist_ok=True)
         
-        year_2020_dir = session_dir / "responses" / "2020"
-        year_2020_dir.mkdir(parents=True, exist_ok=True)
+        year_2018_dir = session_dir / "responses" / "2018"
+        year_2018_dir.mkdir(parents=True, exist_ok=True)
         
         logs_dir = session_dir / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create responses_list.csv with multiple entries
-        responses_list_path = session_dir / "responses_list.csv"
+        # Create responses_list.csv with multiple entries in responses directory
+        responses_list_path = year_2017_dir.parent / "responses_list.csv"
         with open(responses_list_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=["url_find_initiative", "registration_number", "title", "datetime"])
             writer.writeheader()
             writer.writerows([
                 {
-                    "url_find_initiative": "https://example.com/2019/000007",
-                    "registration_number": "2019/000007",
+                    "url_find_initiative": "https://example.com/2017/000002",
+                    "registration_number": "2017/000002",
                     "title": "Test Initiative 1",
                     "datetime": "2024-10-09 14:00:00"
                 },
                 {
-                    "url_find_initiative": "https://example.com/2020/000001",
-                    "registration_number": "2020/000001",
+                    "url_find_initiative": "https://example.com/2018/000004",
+                    "registration_number": "2018/000004",
                     "title": "Test Initiative 2",
                     "datetime": "2024-10-09 14:05:00"
                 }
             ])
         
-        # Copy multiple files from different years
+        # Copy multiple files from different categories
         eci_files = [
-            ("2019", "2019_000007_en.html"),
-            ("2020", "2020_000001_en.html")
+            ("partial_success", "2017", "2017_000002_en.html"),
+            ("strong_commitment_delayed", "2018", "2018_000004_en.html")
         ]
         
         copied_count = 0
-        for year, eci_file in eci_files:
-            example_file = test_data_dir / eci_file
+        for category, year, eci_file in eci_files:
+            example_file = test_data_dir / category / year / eci_file
             year_dir = session_dir / "responses" / year
             
             if example_file.exists():
@@ -387,38 +381,40 @@ class TestCreatedFiles:
 
     def test_csv_encoding_is_utf8(self, program_root_dir):
         """Test that CSV file is encoded in UTF-8."""
-
         from unittest.mock import patch
         from datetime import datetime
         
-        eci_file = "2019_000007_en.html"
+        eci_file = "2021_000006_en.html"
         
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         session_dir = self.temp_session_path / session_name
         
         # Setup and run
         test_data_dir = program_root_dir / "tests" / "data" / "example_htmls" / "responses"
-        year_dir = session_dir / "responses" / "2019"
+        year_dir = session_dir / "responses" / "2021"
         year_dir.mkdir(parents=True, exist_ok=True)
         
         logs_dir = session_dir / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create responses_list.csv
-        responses_list_path = session_dir / "responses_list.csv"
+        # Create responses_list.csv in responses directory
+        responses_list_path = year_dir.parent / "responses_list.csv"
         with open(responses_list_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=["url_find_initiative", "registration_number", "title", "datetime"])
             writer.writeheader()
             writer.writerow({
-                "url_find_initiative": "https://example.com/2019/000007",
-                "registration_number": "2019/000007",
+                "url_find_initiative": "https://example.com/2021/000006",
+                "registration_number": "2021/000006",
                 "title": "Test Initiative",
                 "datetime": "2024-10-09 14:00:00"
             })
         
-        example_file = test_data_dir / eci_file
+        # Copy example file from partial_success subdirectory
+        example_file = test_data_dir / "partial_success" / "2021" / eci_file
         if example_file.exists():
             shutil.copy(example_file, year_dir / eci_file)
+        else:
+            raise FileNotFoundError(f"Example file not found:\n{str(example_file)}")
         
         processor = self.ECIResponseDataProcessor(
             data_root=str(self.temp_session_path),
@@ -446,9 +442,13 @@ class TestCreatedFiles:
         # Cleanup
         shutil.rmtree(session_dir)
 
-    def test_csv_created_with_zero_responses(self):
-        """Test CSV handling when no responses are processed."""
-
+    def test_processor_raises_error_with_zero_responses(self):
+        """Test that processor raises FileNotFoundError when no response HTML files exist.
+        
+        This validates the processor's actual behavior: it should fail fast with a clear
+        error message when the responses directory is empty, rather than creating an
+        empty CSV file.
+        """
         from unittest.mock import patch
         from datetime import datetime
         
@@ -462,8 +462,8 @@ class TestCreatedFiles:
         logs_dir = session_dir / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create empty responses_list.csv
-        responses_list_path = session_dir / "responses_list.csv"
+        # Create empty responses_list.csv in responses directory
+        responses_list_path = year_dir.parent / "responses_list.csv"
         with open(responses_list_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=["url_find_initiative", "registration_number", "title", "datetime"])
             writer.writeheader()
@@ -478,31 +478,29 @@ class TestCreatedFiles:
             processor.last_session_scraping_dir = session_dir
             return session_dir
         
+        # The processor should raise FileNotFoundError when no HTML files are found
         with patch.object(processor, 'find_latest_scrape_session', side_effect=mock_find_session):
-            processor.run()
+            with pytest.raises(FileNotFoundError) as exc_info:
+                processor.run()
         
-        # Check CSV handling with zero responses
+        # Verify the error message is informative
+        assert "No HTML response files found" in str(exc_info.value), \
+            "Error message should clearly state no HTML files were found"
+        
+        # Verify no CSV was created (correct behavior - fail fast instead of creating empty file)
         csv_files = list(session_dir.glob("eci_responses_*.csv"))
+        assert len(csv_files) == 0, \
+            "No CSV should be created when there are no HTML files to process"
         
-        # Document actual behavior - processor may or may not create CSV with no data
-        if len(csv_files) > 0:
-            # If CSV file exists, verify it's properly formatted
-            csv_file = csv_files[0]
-            file_size = csv_file.stat().st_size
-            
-            if file_size > 0:
-                with open(csv_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    lines = content.strip().split('\n')
-                    assert len(lines) >= 1, "CSV should have at least header line"
-        
-        # Verify log contains appropriate message
+        # Verify log was created and contains processing start messages
         log_files = list(logs_dir.glob("extractor_responses_*.log"))
-        if len(log_files) > 0:
-            log_content = log_files[0].read_text(encoding='utf-8')
-            assert "No responses to save" in log_content or \
-                   "No responses found" in log_content, \
-                   "Log should contain message about no responses"
+        assert len(log_files) > 0, "Log file should be created even when processing fails"
+        
+        log_content = log_files[0].read_text(encoding='utf-8')
+        assert "Starting ECI responses" in log_content, \
+            "Log should contain processing start message"
+        assert "Processing session:" in log_content, \
+            "Log should contain session information"
         
         # Cleanup
         shutil.rmtree(session_dir)
