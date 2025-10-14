@@ -61,7 +61,7 @@ class ECIResponseHTMLParser:
                 response_url=self._extract_response_url(soup),
                 initiative_url=self._extract_initiative_url(soup),
                 initiative_title=self._extract_initiative_title(soup),
-                registration_number=self._extract_registration_number(html_path.name),
+                registration_number=self._extract_registration_number(soup),
                 
                 # Submission and Verification Data
                 submission_date=self._extract_submission_date(soup),
@@ -129,67 +129,120 @@ class ECIResponseHTMLParser:
 
     
     # Basic Metadata Extraction
-    def _extract_registration_number(self, filename: str) -> str:
-        """Extract registration number from filename pattern YYYY_NNNNNN_en.html"""
-
-        pattern = r'(\d{4})_(\d{6})_en\.html'
-        match = re.match(pattern, filename)
-        
-        if not match:
-            raise ValueError(
-                f"Filename '{filename}' does not match expected pattern YYYY_NNNNNN_en.html"
-            )
-        
-        year, number = match.groups()
-        return f"{year}/{number}"
-        
-    def _extract_response_url(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_registration_number(self, soup: BeautifulSoup) -> str:
+        """Extract registration number from URLs in HTML head section
+       s 
+        Returns:
+            Registration number in format YYYY/NNNNNN
+            
+        Raises:
+            ValueError: If registration number cannot be found
         """
-        Extract the response page URL from HTML
-        
-        Note: The canonical URL in response pages points to the initiative detail page.
-        To get the actual response page URL, we need to construct it or find it in the page.
-        """
-
         try:
-            # The canonical URL points to the initiative page, not the response page
-            # We need to construct the response URL from the canonical URL
+            # Try canonical link first
             canonical_link = soup.find('link', attrs={'rel': 'canonical'})
-            
+
             if canonical_link and canonical_link.get('href'):
-                initiative_url = canonical_link['href']
-                
-                # Check if this is already a response page URL (unlikely but possible)
-                if '/commission-response' in initiative_url:
-                    return initiative_url
-                
-                # Construct response page URL by replacing the last part
-                # From: .../2012/000003/water-and-sanitation..._en
-                # To:   .../2012/000003/commission-response_en
-                
-                # Extract the base path and language code
-                import re
-                pattern = r'^(.*?/\d{4}/\d{6})/.*?(_[a-z]{2})$'
-                match = re.match(pattern, initiative_url)
-                
+                url = canonical_link['href']
+                match = re.search(r'/(\d{4})/(\d{6})/', url)
                 if match:
-                    base_path, lang_code = match.groups()
-                    response_url = f"{base_path}/commission-response{lang_code}"
-                    return response_url
-                
-                raise ValueError(
-                    f"Cannot construct response URL from canonical URL: {initiative_url}"
-                )
+                    return f"{match.group(1)}/{match.group(2)}"
+            
+            # Try og:url meta tag
+            og_url = soup.find('meta', attrs={'property': 'og:url'})
+
+            if og_url and og_url.get('content'):
+                url = og_url['content']
+                match = re.search(r'/(\d{4})/(\d{6})/', url)
+                if match:
+                    return f"{match.group(1)}/{match.group(2)}"
             
             raise ValueError(
-                "Canonical link not found in HTML head section"
+                "Registration number not found in HTML head URLs"
+            )
+            
+        except ValueError:
+            raise
+
+        except Exception as e:
+            raise ValueError(f"Error extracting registration number from head: {str(e)}") from e
+
+        
+    def _extract_response_url(self, soup: BeautifulSoup) -> str:
+        """Extract initiative URL from breadcrumb link or construct from registration number
+        
+        Tries multiple methods:
+        1. Breadcrumb link with text "Initiative detail"
+        2. Extract from response URL by removing trailing slug
+        3. Construct from registration number in URL
+        
+        Args:
+            soup: BeautifulSoup object containing parsed HTML
+            
+        Returns:
+            Full initiative URL
+            
+        Raises:
+            ValueError: If initiative URL cannot be determined
+        """
+        try:
+            # Method 1: Find the breadcrumb link with text "Initiative detail"
+            breadcrumb_link = soup.find(
+                'a', 
+                class_='ecl-breadcrumb__link', 
+                string=lambda text: text and text.strip() == 'Initiative detail'
+            )
+            
+            if breadcrumb_link and breadcrumb_link.get('href'):
+                relative_url = breadcrumb_link['href']
+                # Prepend the base URL if needed
+                if relative_url.startswith('http'):
+                    return relative_url
+                base_url = "https://citizens-initiative.europa.eu"
+                return base_url + relative_url
+            
+            # Method 2: Try to extract from canonical or response URL
+            # Get the response URL first
+            canonical_link = soup.find('link', attrs={'rel': 'canonical'})
+            if canonical_link and canonical_link.get('href'):
+                response_url = canonical_link['href']
+                
+                # Check if URL contains /initiatives/details/YYYY/NNNNNN/ pattern
+                import re
+                match = re.search(r'(https?://[^/]+/initiatives/details/\d{4}/\d{6})', response_url)
+                if match:
+                    # Return the base initiative URL
+                    return match.group(1) + "_en"
+                
+                # For shorter URLs like /cohesion-policy-equality_en
+                # Try to find a related "initiatives" link in the page
+                initiatives_links = soup.find_all('a', href=re.compile(r'/initiatives/details/\d{4}/\d{6}/'))
+                if initiatives_links:
+                    first_link = initiatives_links[0]['href']
+                    if first_link.startswith('http'):
+                        return first_link
+                    return "https://citizens-initiative.europa.eu" + first_link
+            
+            # Method 3: Try og:url
+            og_url = soup.find('meta', attrs={'property': 'og:url'})
+            if og_url and og_url.get('content'):
+                response_url = og_url['content']
+                
+                import re
+                match = re.search(r'(https?://[^/]+/initiatives/details/\d{4}/\d{6})', response_url)
+                if match:
+                    return match.group(1) + "_en"
+            
+            raise ValueError(
+                "Breadcrumb link with class 'ecl-breadcrumb__link' and text 'Initiative detail' not found in HTML, "
+                "and could not construct initiative URL from page metadata"
             )
             
         except ValueError:
             raise
         except Exception as e:
-            raise ValueError(f"Error extracting response URL: {str(e)}") from e
-    
+            raise ValueError(f"Error extracting initiative URL: {str(e)}") from e
+
     def _extract_initiative_url(self, soup: BeautifulSoup) -> str:
         """Extract initiative URL from breadcrumb link in HTML
         

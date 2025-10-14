@@ -34,62 +34,232 @@ class TestRegistrationNumberExtraction:
         logger = ResponsesExtractorLogger().setup()
         cls.parser = ECIResponseHTMLParser(logger=logger)
     
-    def test_valid_filename_format(self):
-        """Test extraction from valid filename format (YYYY_NNNNNN_en.html)."""
-        expected_reg_number = '2024/000005'
-        filename = expected_reg_number.replace("/", "_") + "_en.html"
+    def test_extract_registration_number_from_canonical_link(self):
+        """Test extraction of registration number from canonical link in head."""
         
-        reg_number = self.parser._extract_registration_number(filename)
+        html = '''
+        <html>
+            <head>
+                <link rel="canonical" href="https://citizens-initiative.europa.eu/initiatives/details/2012/000003/water-and-sanitation_en" />
+            </head>
+        </html>
+        '''
         
-        assert reg_number == expected_reg_number, \
-            f"Expected '{expected_reg_number}', got '{reg_number}'"
+        soup = BeautifulSoup(html, 'html.parser')
+        reg_number = self.parser._extract_registration_number(soup)
+        
+        assert reg_number == "2012/000003", \
+            f"Expected '2012/000003', got '{reg_number}'"
 
 
-    def test_registration_number_formatting(self):
-        """Test that registration number is formatted correctly (YYYY/NNNNNN)."""
-        import re
+    def test_extract_registration_number_from_og_url(self):
+        """Test extraction from og:url meta tag when canonical is missing."""
         
-        expected_length = 11
-        expected_separator = "/"
-        expected_pattern = r'^\d{4}/\d{6}$'  # YYYY/NNNNNN format
+        html = '''
+        <html>
+            <head>
+                <meta property="og:url" content="https://citizens-initiative.europa.eu/initiatives/details/2019/000007/commission-response_en" />
+            </head>
+        </html>
+        '''
         
-        filename = "2019_000007_en.html"
-        reg_number = self.parser._extract_registration_number(filename)
+        soup = BeautifulSoup(html, 'html.parser')
+        reg_number = self.parser._extract_registration_number(soup)
         
-        # Check separator present
-        assert expected_separator in reg_number, \
-            f"Registration number should contain '{expected_separator}'"
-        
-        # Check length
-        assert len(reg_number) == expected_length, \
-            f"Registration number should be {expected_length} characters (YYYY/NNNNNN)"
-        
-        # Check format with regex: exactly 4 digits, slash, 6 digits
-        assert re.match(expected_pattern, reg_number), \
-            f"Registration number '{reg_number}' should match pattern YYYY/NNNNNN"
+        assert reg_number == "2019/000007", \
+            f"Expected '2019/000007', got '{reg_number}'"
 
 
-    def test_registration_number_invalid_filename(self):
-        """Test that ValueError is raised for invalid filename format."""
-        invalid_filenames = [
-            "2019_00007_en.html",      # Wrong number length (5 digits instead of 6)
-            "19_000007_en.html",        # Wrong year length (2 digits instead of 4)
-            "2019_000007.html",         # Missing _en
-            "2019_000007_en.txt",       # Wrong extension
-            "2019-000007_en.html",      # Wrong separator (dash instead of underscore)
-            "abc_000007_en.html",       # Non-numeric year
-            "2019_abcdef_en.html",      # Non-numeric number
-            "invalid.html",             # Completely wrong format
+    def test_extract_registration_number_prefers_canonical(self):
+        """Test that canonical link is preferred over og:url."""
+        
+        html = '''
+        <html>
+            <head>
+                <link rel="canonical" href="https://citizens-initiative.europa.eu/initiatives/details/2020/000001/initiative_en" />
+                <meta property="og:url" content="https://citizens-initiative.europa.eu/initiatives/details/2021/000002/different_en" />
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        reg_number = self.parser._extract_registration_number(soup)
+        
+        # Should use canonical link (2020/000001), not og:url (2021/000002)
+        assert reg_number == "2020/000001", \
+            "Should prefer canonical link over og:url meta tag"
+
+
+    def test_extract_registration_number_various_formats(self):
+        """Test extraction with various registration numbers."""
+        
+        test_cases = [
+            ("2012/000003", "https://citizens-initiative.europa.eu/initiatives/details/2012/000003/page_en"),
+            ("2019/000007", "https://citizens-initiative.europa.eu/initiatives/details/2019/000007/response_en"),
+            ("2024/999999", "https://citizens-initiative.europa.eu/initiatives/details/2024/999999/initiative_en"),
+            ("2025/000001", "https://citizens-initiative.europa.eu/initiatives/details/2025/000001/detail_en"),
         ]
         
-        for invalid_filename in invalid_filenames:
-            with pytest.raises(ValueError, match="does not match expected pattern"):
-                self.parser._extract_registration_number(invalid_filename)
+        for expected_reg_number, url in test_cases:
+            html = f'''
+            <html>
+                <head>
+                    <link rel="canonical" href="{url}" />
+                </head>
+            </html>
+            '''
+            
+            soup = BeautifulSoup(html, 'html.parser')
+            reg_number = self.parser._extract_registration_number(soup)
+            
+            assert reg_number == expected_reg_number, \
+                f"For URL '{url}': expected '{expected_reg_number}', got '{reg_number}'"
 
-    def test_registration_number_empty_filename(self):
-        """Test that ValueError is raised for empty filename."""
-        with pytest.raises(ValueError, match="does not match expected pattern"):
-            self.parser._extract_registration_number("")
+
+    def test_extract_registration_number_preserves_leading_zeros(self):
+        """Test that leading zeros are preserved."""
+        
+        html = '''
+        <html>
+            <head>
+                <link rel="canonical" href="https://citizens-initiative.europa.eu/initiatives/details/2020/000001/page_en" />
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        reg_number = self.parser._extract_registration_number(soup)
+        
+        assert reg_number == "2020/000001", \
+            "Should preserve leading zeros in registration number"
+        
+        number_part = reg_number.split("/")[1]
+        assert len(number_part) == 6, \
+            f"Number part should be exactly 6 digits, got {len(number_part)}"
+
+
+    def test_extract_registration_number_missing_canonical(self):
+        """Test that ValueError is raised when canonical link is missing."""
+        
+        html = '''
+        <html>
+            <head>
+                <title>Some page</title>
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        with pytest.raises(ValueError, match="Registration number not found"):
+            self.parser._extract_registration_number(soup)
+
+
+    def test_extract_registration_number_missing_href(self):
+        """Test that ValueError is raised when canonical link has no href."""
+        
+        html = '''
+        <html>
+            <head>
+                <link rel="canonical" />
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        with pytest.raises(ValueError, match="Registration number not found"):
+            self.parser._extract_registration_number(soup)
+
+
+    def test_extract_registration_number_invalid_url_format(self):
+        """Test that ValueError is raised when URL doesn't contain registration number."""
+        
+        html = '''
+        <html>
+            <head>
+                <link rel="canonical" href="https://citizens-initiative.europa.eu/some/other/page" />
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        with pytest.raises(ValueError, match="Registration number not found"):
+            self.parser._extract_registration_number(soup)
+
+
+    def test_extract_registration_number_wrong_number_format(self):
+        """Test that ValueError is raised when number format is wrong in URL."""
+        
+        invalid_urls = [
+            "https://citizens-initiative.europa.eu/initiatives/details/2019/00007/page_en",  # 5 digits
+            "https://citizens-initiative.europa.eu/initiatives/details/19/000007/page_en",   # 2 digit year
+            "https://citizens-initiative.europa.eu/initiatives/details/2019-000007/page_en", # Wrong separator
+        ]
+        
+        for invalid_url in invalid_urls:
+            html = f'''
+            <html>
+                <head>
+                    <link rel="canonical" href="{invalid_url}" />
+                </head>
+            </html>
+            '''
+            
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            with pytest.raises(ValueError, match="Registration number not found"):
+                self.parser._extract_registration_number(soup)
+
+
+    def test_extract_registration_number_empty_head(self):
+        """Test that ValueError is raised when head section is empty."""
+        
+        html = '<html><head></head></html>'
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        with pytest.raises(ValueError, match="Registration number not found"):
+            self.parser._extract_registration_number(soup)
+
+
+    def test_extract_registration_number_relative_url(self):
+        """Test extraction from relative URL in canonical link."""
+        
+        html = '''
+        <html>
+            <head>
+                <link rel="canonical" href="/initiatives/details/2018/000004/page_en" />
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        reg_number = self.parser._extract_registration_number(soup)
+        
+        assert reg_number == "2018/000004", \
+            "Should extract registration number from relative URL"
+
+
+    def test_extract_registration_number_matches_pattern(self):
+        """Test that extracted registration number matches expected pattern."""
+        import re
+        
+        html = '''
+        <html>
+            <head>
+                <link rel="canonical" href="https://citizens-initiative.europa.eu/initiatives/details/2017/000002/page_en" />
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        reg_number = self.parser._extract_registration_number(soup)
+        
+        # Should match YYYY/NNNNNN pattern
+        pattern = r'^\d{4}/\d{6}$'
+        assert re.match(pattern, reg_number), \
+            f"Registration number '{reg_number}' should match pattern YYYY/NNNNNN"
 
 
 class TestBasicMetadataExtraction:
@@ -103,20 +273,25 @@ class TestBasicMetadataExtraction:
         cls.parser = ECIResponseHTMLParser(logger=logger)
     
     def test_extract_response_url(self):
-        """Test construction of response URL from canonical initiative URL."""
+        """Test extraction of response URL from active language link."""
         
         html = '''
         <html>
-            <head>
-                <link rel="canonical" href="https://citizens-initiative.europa.eu/initiatives/details/2012/000003/water-and-sanitation-are-human-right-water-public-good-not-commodity_en" />
-            </head>
+            <header>
+                <a href="https://citizens-initiative.europa.eu/initiatives/details/2012/000003/water-and-sanitation-are-human-right-water-public-good-not-commodity_en" 
+                class="ecl-link ecl-link--standalone ecl-site-header__language-link ecl-site-header__language-link--active" 
+                hreflang="en">
+                    <span class="ecl-site-header__language-link-code">en</span>
+                    <span class="ecl-site-header__language-link-label" lang="en">English</span>
+                </a>
+            </header>
         </html>
         '''
         
         soup = BeautifulSoup(html, 'html.parser')
         url = self.parser._extract_response_url(soup)
         
-        expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2012/000003/commission-response_en"
+        expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2012/000003/water-and-sanitation-are-human-right-water-public-good-not-commodity_en"
         assert url == expected_url, \
             f"Expected '{expected_url}', got '{url}'"
     
