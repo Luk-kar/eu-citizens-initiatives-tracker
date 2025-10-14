@@ -36,7 +36,6 @@ class TestRegistrationNumberExtraction:
     
     def test_valid_filename_format(self):
         """Test extraction from valid filename format (YYYY_NNNNNN_en.html)."""
-
         expected_reg_number = '2024/000005'
         filename = expected_reg_number.replace("/", "_") + "_en.html"
         
@@ -44,7 +43,8 @@ class TestRegistrationNumberExtraction:
         
         assert reg_number == expected_reg_number, \
             f"Expected '{expected_reg_number}', got '{reg_number}'"
-    
+
+
     def test_registration_number_formatting(self):
         """Test that registration number is formatted correctly (YYYY/NNNNNN)."""
         import re
@@ -69,6 +69,28 @@ class TestRegistrationNumberExtraction:
             f"Registration number '{reg_number}' should match pattern YYYY/NNNNNN"
 
 
+    def test_registration_number_invalid_filename(self):
+        """Test that ValueError is raised for invalid filename format."""
+        invalid_filenames = [
+            "2019_00007_en.html",      # Wrong number length (5 digits instead of 6)
+            "19_000007_en.html",        # Wrong year length (2 digits instead of 4)
+            "2019_000007.html",         # Missing _en
+            "2019_000007_en.txt",       # Wrong extension
+            "2019-000007_en.html",      # Wrong separator (dash instead of underscore)
+            "abc_000007_en.html",       # Non-numeric year
+            "2019_abcdef_en.html",      # Non-numeric number
+            "invalid.html",             # Completely wrong format
+        ]
+        
+        for invalid_filename in invalid_filenames:
+            with pytest.raises(ValueError, match="does not match expected pattern"):
+                self.parser._extract_registration_number(invalid_filename)
+
+    def test_registration_number_empty_filename(self):
+        """Test that ValueError is raised for empty filename."""
+        with pytest.raises(ValueError, match="does not match expected pattern"):
+            self.parser._extract_registration_number("")
+
 
 class TestBasicMetadataExtraction:
     """Tests for basic metadata extraction."""
@@ -85,16 +107,89 @@ class TestBasicMetadataExtraction:
         # Placeholder - implement based on actual HTML structure
         pass
     
-    def test_initiative_url_from_metadata(self):
-        """Test extraction of initiative URL from responses_list.csv data."""
-
-        test_metadata = {
-            'initiative_url': 'https://example.com/initiative'
-        }
+    def test_extract_initiative_url(self):
+        """Test extraction of initiative URL from breadcrumb link."""
         
-        url = self.parser._extract_initiative_url(test_metadata)
-        assert url == "", "Should return empty string from current implementation"
-    
+        # HTML with breadcrumb link
+        html = '''
+        <nav class="ecl-breadcrumb">
+            <ol class="ecl-breadcrumb__container">
+                <li class="ecl-breadcrumb__segment">
+                    <a href="/initiatives/details/2012/000003_en" 
+                    class="ecl-link ecl-link--standalone ecl-link--no-visited ecl-breadcrumb__link">
+                    Initiative detail
+                    </a>
+                </li>
+            </ol>
+        </nav>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Extract URL
+        url = self.parser._extract_initiative_url(soup)
+        
+        # Validate
+        expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2012/000003_en"
+        assert url == expected_url, \
+            f"Expected URL '{expected_url}', got '{url}'"
+        
+        # Verify base URL is prepended
+        assert url.startswith("https://citizens-initiative.europa.eu"), \
+            "URL should start with base URL"
+        
+        # Verify relative path is preserved
+        assert "/initiatives/details/2012/000003_en" in url, \
+            "URL should contain the relative path"
+
+
+    def test_extract_initiative_url_missing_link(self):
+        """Test extraction raises ValueError when breadcrumb link is missing."""
+        
+        html = '<div>No breadcrumb here</div>'
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        with pytest.raises(ValueError, match="Breadcrumb link.*not found"):
+            self.parser._extract_initiative_url(soup)
+
+
+    def test_extract_initiative_url_missing_href(self):
+        """Test extraction raises ValueError when href attribute is missing."""
+        
+        html = '''
+        <a class="ecl-breadcrumb__link">Initiative detail</a>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        with pytest.raises(ValueError, match="href.*missing or empty"):
+            self.parser._extract_initiative_url(soup)
+
+
+    def test_extract_initiative_url_with_whitespace(self):
+        """Test extraction works with whitespace in link text."""
+        
+        # HTML with extra whitespace (common in formatted HTML)
+        html = '''
+        <a href="/initiatives/details/2019/000007_en" 
+        class="ecl-breadcrumb__link">
+        
+        Initiative detail
+        
+        </a>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Should still work despite whitespace
+        url = self.parser._extract_initiative_url(soup)
+        
+        expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2019/000007_en"
+        assert url == expected_url, \
+            f"Should handle whitespace correctly. Expected '{expected_url}', got '{url}'"
+
+
+
+        
     def test_initiative_title_from_metadata(self):
         """Test extraction of initiative title from responses_list.csv data."""
         

@@ -59,7 +59,7 @@ class ECIResponseHTMLParser:
             response = ECIResponse(
                 # Basic Initiative Metadata
                 response_url=self._extract_response_url(soup),
-                initiative_url=self._extract_initiative_url(responses_list_data),
+                initiative_url=self._extract_initiative_url(soup),
                 initiative_title=self._extract_initiative_title(responses_list_data),
                 registration_number=self._extract_registration_number(html_path.name),
                 
@@ -131,24 +131,62 @@ class ECIResponseHTMLParser:
     # Basic Metadata Extraction
     def _extract_registration_number(self, filename: str) -> str:
         """Extract registration number from filename pattern YYYY_NNNNNN_en.html"""
-        
+
         pattern = r'(\d{4})_(\d{6})_en\.html'
         match = re.match(pattern, filename)
-
-        if match:
-
-            year, number = match.groups()
-            return f"{year}/{number}"
-            
-        return ""
-    
+        
+        if not match:
+            raise ValueError(
+                f"Filename '{filename}' does not match expected pattern YYYY_NNNNNN_en.html"
+            )
+        
+        year, number = match.groups()
+        return f"{year}/{number}"
+        
     def _extract_response_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract the current page URL from meta tags or canonical link"""
         return ""
     
-    def _extract_initiative_url(self, responses_list_data: Dict) -> Optional[str]:
-        """Get initiative URL from responses_list.csv data"""
-        return ""
+    def _extract_initiative_url(self, soup: BeautifulSoup) -> str:
+        """Extract initiative URL from breadcrumb link in HTML
+        
+        Args:
+            soup: BeautifulSoup object containing parsed HTML
+            
+        Returns:
+            Full initiative URL
+            
+        Raises:
+            ValueError: If breadcrumb link is not found or missing href attribute
+        """
+        try:
+            # Find the breadcrumb link with text "Initiative detail" (accounting for whitespace)
+            breadcrumb_link = soup.find(
+                'a', 
+                class_='ecl-breadcrumb__link', 
+                string=lambda text: text and text.strip() == 'Initiative detail'
+            )
+            
+            if not breadcrumb_link:
+                raise ValueError(
+                    "Breadcrumb link with class 'ecl-breadcrumb__link' and text 'Initiative detail' not found in HTML"
+                )
+            
+            href = breadcrumb_link.get('href')
+            if not href:
+                raise ValueError(
+                    "Breadcrumb link found but 'href' attribute is missing or empty"
+                )
+            
+            # Prepend the base URL
+            base_url = "https://citizens-initiative.europa.eu"
+            full_url = base_url + href
+            return full_url
+            
+        except Exception as e:
+            # Wrap other exceptions in ValueError with context
+            raise ValueError(f"Error extracting initiative URL: {str(e)}") from e
+
     
     def _extract_initiative_title(self, responses_list_data: Dict) -> Optional[str]:
         """Get initiative title from responses_list.csv data"""
