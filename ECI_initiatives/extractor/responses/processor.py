@@ -192,8 +192,7 @@ class ECIResponseDataProcessor:
         """Write results to CSV file"""
         
         if not results:
-            self.logger.warning("No results to write")
-            return
+            raise ValueError("No results to write")
         
         # Ensure output directory exists
         output_csv.parent.mkdir(parents=True, exist_ok=True)
