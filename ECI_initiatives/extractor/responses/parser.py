@@ -144,8 +144,51 @@ class ECIResponseHTMLParser:
         return f"{year}/{number}"
         
     def _extract_response_url(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract the current page URL from meta tags or canonical link"""
-        return ""
+        """
+        Extract the response page URL from HTML
+        
+        Note: The canonical URL in response pages points to the initiative detail page.
+        To get the actual response page URL, we need to construct it or find it in the page.
+        """
+        
+        try:
+            # The canonical URL points to the initiative page, not the response page
+            # We need to construct the response URL from the canonical URL
+            canonical_link = soup.find('link', attrs={'rel': 'canonical'})
+            
+            if canonical_link and canonical_link.get('href'):
+                initiative_url = canonical_link['href']
+                
+                # Check if this is already a response page URL (unlikely but possible)
+                if '/commission-response' in initiative_url:
+                    return initiative_url
+                
+                # Construct response page URL by replacing the last part
+                # From: .../2012/000003/water-and-sanitation..._en
+                # To:   .../2012/000003/commission-response_en
+                
+                # Extract the base path and language code
+                import re
+                pattern = r'^(.*?/\d{4}/\d{6})/.*?(_[a-z]{2})$'
+                match = re.match(pattern, initiative_url)
+                
+                if match:
+                    base_path, lang_code = match.groups()
+                    response_url = f"{base_path}/commission-response{lang_code}"
+                    return response_url
+                
+                raise ValueError(
+                    f"Cannot construct response URL from canonical URL: {initiative_url}"
+                )
+            
+            raise ValueError(
+                "Canonical link not found in HTML head section"
+            )
+            
+        except ValueError:
+            raise
+        except Exception as e:
+            raise ValueError(f"Error extracting response URL: {str(e)}") from e
     
     def _extract_initiative_url(self, soup: BeautifulSoup) -> str:
         """Extract initiative URL from breadcrumb link in HTML

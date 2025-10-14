@@ -102,10 +102,23 @@ class TestBasicMetadataExtraction:
         logger = ResponsesExtractorLogger().setup()
         cls.parser = ECIResponseHTMLParser(logger=logger)
     
-    def test_response_url_extraction(self):
-        """Test extraction of response page URL."""
-        # Placeholder - implement based on actual HTML structure
-        pass
+    def test_extract_response_url(self):
+        """Test construction of response URL from canonical initiative URL."""
+        
+        html = '''
+        <html>
+            <head>
+                <link rel="canonical" href="https://citizens-initiative.europa.eu/initiatives/details/2012/000003/water-and-sanitation-are-human-right-water-public-good-not-commodity_en" />
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        url = self.parser._extract_response_url(soup)
+        
+        expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2012/000003/commission-response_en"
+        assert url == expected_url, \
+            f"Expected '{expected_url}', got '{url}'"
     
     def test_extract_initiative_url(self):
         """Test extraction of initiative URL from breadcrumb link."""
