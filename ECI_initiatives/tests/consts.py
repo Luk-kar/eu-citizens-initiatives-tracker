@@ -158,3 +158,50 @@ MAX_RESPONSE_DOWNLOADS_E2E_TEST = 3  # Only download first 3 responses
 
 # File naming patterns
 RESPONSE_PAGE_FILENAME_PATTERN = r"\d{4}_\d+_en\.html"
+
+# ===============================
+#       EXTRACTOR RESPONSES
+# ===============================
+
+REQUIRED_RESPONSES_CSV_COLUMNS = [
+    'response_url',
+    'initiative_url',
+    'initiative_title',
+    'registration_number',
+    'submission_date',
+    'verified_signatures_count',
+    'number_member_states_threshold',
+    'submission_news_url',
+    'commission_meeting_date',
+    'commission_officials_met',
+    'parliament_hearing_date',
+    'parliament_hearing_recording_url',
+    'plenary_debate_date',
+    'plenary_debate_recording_url',
+    'commission_communication_date',
+    'commission_communication_url',
+    'commission_response_news_url',
+    'communication_main_conclusion',
+    'legislative_proposal_status',
+    'commission_response_summary',
+    'has_followup_section',
+    'followup_meeting_date',
+    'followup_meeting_officials',
+    'roadmap_launched',
+    'roadmap_description',
+    'roadmap_completion_target',
+    'workshop_conference_dates',
+    'partnership_programs',
+    'court_cases_referenced',
+    'court_judgment_dates',
+    'court_judgment_summary',
+    'latest_update_date',
+    'factsheet_url',
+    'video_recording_count',
+    'dedicated_website',
+    'related_eu_legislation',
+    'petition_platforms_used',
+    'follow_up_duration_months',
+    'created_timestamp',
+    'last_updated'
+]

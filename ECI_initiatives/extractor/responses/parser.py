@@ -131,7 +131,16 @@ class ECIResponseHTMLParser:
     # Basic Metadata Extraction
     def _extract_registration_number(self, filename: str) -> str:
         """Extract registration number from filename pattern YYYY_NNNNNN_en.html"""
-        pass
+        
+        pattern = r'(\d{4})_(\d{6})_en\.html'
+        match = re.match(pattern, filename)
+
+        if match:
+
+            year, number = match.groups()
+            return f"{year}/{number}"
+            
+        return ""
     
     def _extract_response_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract the current page URL from meta tags or canonical link"""

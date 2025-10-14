@@ -47,18 +47,27 @@ class TestRegistrationNumberExtraction:
     
     def test_registration_number_formatting(self):
         """Test that registration number is formatted correctly (YYYY/NNNNNN)."""
-
+        import re
+        
         expected_length = 11
         expected_separator = "/"
+        expected_pattern = r'^\d{4}/\d{6}$'  # YYYY/NNNNNN format
         
         filename = "2019_000007_en.html"
         reg_number = self.parser._extract_registration_number(filename)
         
+        # Check separator present
         assert expected_separator in reg_number, \
             f"Registration number should contain '{expected_separator}'"
-
+        
+        # Check length
         assert len(reg_number) == expected_length, \
             f"Registration number should be {expected_length} characters (YYYY/NNNNNN)"
+        
+        # Check format with regex: exactly 4 digits, slash, 6 digits
+        assert re.match(expected_pattern, reg_number), \
+            f"Registration number '{reg_number}' should match pattern YYYY/NNNNNN"
+
 
 
 class TestBasicMetadataExtraction:
