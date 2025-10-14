@@ -63,8 +63,8 @@ class ECIResponseHTMLParser:
                 # Basic Initiative Metadata
                 response_url=self._extract_response_url(soup),
                 initiative_url=self._extract_initiative_url(soup),
-                initiative_title=responses_list_data.get('title', ''),
-                registration_number=responses_list_data.get('registration_number', ''),
+                initiative_title=responses_list_data.get('title'),
+                registration_number=responses_list_data.get('registration_number'),
 
                 
                 # Submission and Verification Data
