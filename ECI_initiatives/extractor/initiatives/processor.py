@@ -21,7 +21,7 @@ from .initiatives_logger import InitiativesExtractorLogger
 class ECIDataProcessor:
     """Main processor for ECI data extraction"""
 
-    def __init__(self, data_root: str = "/initiatives/data", logger: Optional[logging.Logger] = None):
+    def __init__(self, data_root: str = "/data", logger: Optional[logging.Logger] = None):
         """
         Initialize the data processor
         
@@ -30,7 +30,7 @@ class ECIDataProcessor:
             logger: Optional logger instance. If None, will be initialized in run()
         """
         current_file = Path(__file__)
-        project_root = current_file.parent.parent.parent.parent  # Move 4 directories up
+        project_root = current_file.parent.parent.parent  # Move 4 directories up
         self.data_root = project_root / data_root.lstrip('/')
         self.last_session_scraping_dir = None
 
