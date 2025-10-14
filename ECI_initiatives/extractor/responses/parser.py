@@ -33,12 +33,15 @@ class ECIResponseHTMLParser:
         
         Args:
             html_path: Path to HTML file
-            responses_list_data: Metadata from responses_list.csv
-            
+            responses_list_data: Metadata from responses_list.csv with keys:
+                - url_find_initiative: Initiative URL (not used)
+                - registration_number: Registration number (YYYY/NNNNNN format)
+                - title: Initiative title
+                - datetime: Scrape datetime
+                
         Returns:
             ECIResponse object or None if parsing fails
         """
-
         try:
             self.logger.info(f"Parsing response file: {html_path.name}")
             
@@ -51,6 +54,14 @@ class ECIResponseHTMLParser:
             # Get current timestamp for metadata
             current_timestamp = datetime.now().isoformat()
             
+            # Reuse data from responses_list.csv
+            registration_number = responses_list_data.get('registration_number', '')
+            initiative_title = responses_list_data.get('title', '')
+            
+            # Extract URLs from HTML
+            response_url = self._extract_response_url(soup)
+            initiative_url = self._extract_initiative_url(soup)
+            
             # Extract commission communication date for follow-up calculation
             commission_communication_date = self._extract_commission_communication_date(soup)
             latest_update_date = self._extract_latest_update_date(soup)
@@ -58,10 +69,11 @@ class ECIResponseHTMLParser:
             # Create and return ECIResponse object
             response = ECIResponse(
                 # Basic Initiative Metadata
-                response_url=self._extract_response_url(soup),
-                initiative_url=self._extract_initiative_url(soup),
-                initiative_title=self._extract_initiative_title(soup),
-                registration_number=self._extract_registration_number(soup),
+                response_url=response_url,
+                initiative_url=initiative_url,
+                initiative_title=initiative_title,
+                registration_number=registration_number,
+
                 
                 # Submission and Verification Data
                 submission_date=self._extract_submission_date(soup),
@@ -127,54 +139,99 @@ class ECIResponseHTMLParser:
             self.logger.error(f"Error parsing {html_path.name}: {str(e)}", exc_info=True)
             return None
 
-    
-    # Basic Metadata Extraction
-    def _extract_registration_number(self, soup: BeautifulSoup) -> str:
-        """Extract registration number from URLs in HTML head section
-       s 
+    def _extract_response_url(self, soup: BeautifulSoup, initiative_url: str = '') -> str:
+        """Extract the response page URL from HTML
+        
+        Tries multiple methods to find the URL:
+        1. Active language link in site header
+        2. Link with hreflang="en"
+        3. Canonical link from head
+        4. og:url meta tag
+        5. Use provided initiative_url as fallback (already correct format)
+        
+        Args:
+            soup: BeautifulSoup object containing parsed HTML
+            initiative_url: Initiative URL from responses_list.csv (fallback)
+            
         Returns:
-            Registration number in format YYYY/NNNNNN
+            Full response page URL
             
         Raises:
-            ValueError: If registration number cannot be found
+            ValueError: If response URL cannot be found
         """
         try:
-            # Try canonical link first
-            canonical_link = soup.find('link', attrs={'rel': 'canonical'})
 
-            if canonical_link and canonical_link.get('href'):
-                url = canonical_link['href']
-                match = re.search(r'/(\d{4})/(\d{6})/', url)
-                if match:
-                    return f"{match.group(1)}/{match.group(2)}"
+            # Method 1: Find the active language link in the site header
+            active_language_link = soup.find(
+                'a',
+                class_='ecl-site-header__language-link--active'
+            )
             
-            # Try og:url meta tag
+            if active_language_link and active_language_link.get('href'):
+                response_url = active_language_link['href']
+                # Ensure it's a full URL
+                if response_url.startswith('http'):
+                    return response_url
+                elif response_url.startswith('/'):
+                    return f"https://citizens-initiative.europa.eu{response_url}"
+                else:
+                    return f"https://citizens-initiative.europa.eu/{response_url}"
+            
+            # Method 2: Try finding link with hreflang="en"
+            en_language_link = soup.find('a', attrs={'hreflang': 'en'})
+            if en_language_link and en_language_link.get('href'):
+                response_url = en_language_link['href']
+                if response_url.startswith('http'):
+                    return response_url
+                elif response_url.startswith('/'):
+                    return f"https://citizens-initiative.europa.eu{response_url}"
+                else:
+                    return f"https://citizens-initiative.europa.eu/{response_url}"
+            
+            # Method 3: Try canonical link from head
+            canonical_link = soup.find('link', attrs={'rel': 'canonical'})
+            if canonical_link and canonical_link.get('href'):
+                response_url = canonical_link['href']
+                if response_url.startswith('http'):
+                    return response_url
+                elif response_url.startswith('/'):
+                    return f"https://citizens-initiative.europa.eu{response_url}"
+                else:
+                    return f"https://citizens-initiative.europa.eu/{response_url}"
+            
+            # Method 4: Try og:url meta tag
             og_url = soup.find('meta', attrs={'property': 'og:url'})
-
             if og_url and og_url.get('content'):
-                url = og_url['content']
-                match = re.search(r'/(\d{4})/(\d{6})/', url)
-                if match:
-                    return f"{match.group(1)}/{match.group(2)}"
+                response_url = og_url['content']
+                if response_url.startswith('http'):
+                    return response_url
+                elif response_url.startswith('/'):
+                    return f"https://citizens-initiative.europa.eu{response_url}"
+                else:
+                    return f"https://citizens-initiative.europa.eu/{response_url}"
+
+                        
+            # Method 6: Fallback to initiative_url from responses_list.csv
+            if initiative_url:
+                self.logger.warning(f"Using initiative_url from responses_list.csv as response_url fallback")
+                return initiative_url
             
             raise ValueError(
-                "Registration number not found in HTML head URLs"
+                "Response URL not found. Expected active language link, hreflang='en' link, "
+                "canonical link, og:url meta tag, or initiative_url from responses_list.csv"
             )
             
         except ValueError:
             raise
-
         except Exception as e:
-            raise ValueError(f"Error extracting registration number from head: {str(e)}") from e
-
+            raise ValueError(f"Error extracting response URL: {str(e)}") from e
+            
+    def _extract_initiative_url(self, soup: BeautifulSoup) -> str:
+        """Extract initiative URL from breadcrumb link or page links
         
-    def _extract_response_url(self, soup: BeautifulSoup) -> str:
-        """Extract initiative URL from breadcrumb link or construct from registration number
-        
-        Tries multiple methods:
+        Tries multiple methods to find the initiative URL:
         1. Breadcrumb link with text "Initiative detail"
-        2. Extract from response URL by removing trailing slug
-        3. Construct from registration number in URL
+        2. Any link matching /initiatives/details/YYYY/NNNNNN_en pattern with text content
         
         Args:
             soup: BeautifulSoup object containing parsed HTML
@@ -183,9 +240,15 @@ class ECIResponseHTMLParser:
             Full initiative URL
             
         Raises:
-            ValueError: If initiative URL cannot be determined
+            ValueError: If initiative URL cannot be found
+            
+        Examples:
+            Finds URLs like:
+            - https://citizens-initiative.europa.eu/initiatives/details/2017/000002_en
+            - /initiatives/details/2017/000002_en (converted to full URL)
         """
         try:
+            
             # Method 1: Find the breadcrumb link with text "Initiative detail"
             breadcrumb_link = soup.find(
                 'a', 
@@ -194,137 +257,50 @@ class ECIResponseHTMLParser:
             )
             
             if breadcrumb_link and breadcrumb_link.get('href'):
-                relative_url = breadcrumb_link['href']
-                # Prepend the base URL if needed
-                if relative_url.startswith('http'):
-                    return relative_url
-                base_url = "https://citizens-initiative.europa.eu"
-                return base_url + relative_url
-            
-            # Method 2: Try to extract from canonical or response URL
-            # Get the response URL first
-            canonical_link = soup.find('link', attrs={'rel': 'canonical'})
-            if canonical_link and canonical_link.get('href'):
-                response_url = canonical_link['href']
+                href = breadcrumb_link['href']
                 
-                # Check if URL contains /initiatives/details/YYYY/NNNNNN/ pattern
-                import re
-                match = re.search(r'(https?://[^/]+/initiatives/details/\d{4}/\d{6})', response_url)
-                if match:
-                    # Return the base initiative URL
-                    return match.group(1) + "_en"
-                
-                # For shorter URLs like /cohesion-policy-equality_en
-                # Try to find a related "initiatives" link in the page
-                initiatives_links = soup.find_all('a', href=re.compile(r'/initiatives/details/\d{4}/\d{6}/'))
-                if initiatives_links:
-                    first_link = initiatives_links[0]['href']
-                    if first_link.startswith('http'):
-                        return first_link
-                    return "https://citizens-initiative.europa.eu" + first_link
+                # Build full URL if relative
+                if href.startswith('http'):
+                    return href
+
+                elif href.startswith('/'):
+                    initiative_url = f"https://citizens-initiative.europa.eu{href}"
+                    return initiative_url
             
-            # Method 3: Try og:url
-            og_url = soup.find('meta', attrs={'property': 'og:url'})
-            if og_url and og_url.get('content'):
-                response_url = og_url['content']
-                
-                import re
-                match = re.search(r'(https?://[^/]+/initiatives/details/\d{4}/\d{6})', response_url)
-                if match:
-                    return match.group(1) + "_en"
+            # Method 2: Search for any link matching /initiatives/details/YYYY/NNNNNN_en pattern
+            # Look for links with text content (not empty/icon-only links)
+            all_links = soup.find_all('a', href=True, string=True)
             
+            for link in all_links:
+                href = link['href']
+                link_text = link.get_text(strip=True)
+                
+                # Skip if link has no meaningful text
+                if not link_text:
+                    continue
+                
+                # Check if href matches the pattern
+                # Pattern: /initiatives/details/YYYY/NNNNNN_en (specifically English version)
+                if re.search(r'/initiatives/details/\d{4}/\d{6}_en$', href):
+                    
+                    if href.startswith('http'):
+                        self.logger.info(f"Found initiative URL in page link with text '{link_text}': {href}")
+                        return href
+                    elif href.startswith('/'):
+                        initiative_url = f"https://citizens-initiative.europa.eu{href}"
+                        self.logger.info(f"Found initiative URL in page link with text '{link_text}': {initiative_url}")
+                        return initiative_url
+            
+            # If no URL found, raise error
             raise ValueError(
-                "Breadcrumb link with class 'ecl-breadcrumb__link' and text 'Initiative detail' not found in HTML, "
-                "and could not construct initiative URL from page metadata"
+                "Initiative URL not found. Expected breadcrumb link with text 'Initiative detail' "
+                "or link matching pattern /initiatives/details/YYYY/NNNNNN_en with text content"
             )
             
         except ValueError:
             raise
         except Exception as e:
             raise ValueError(f"Error extracting initiative URL: {str(e)}") from e
-
-    def _extract_initiative_url(self, soup: BeautifulSoup) -> str:
-        """Extract initiative URL from breadcrumb link in HTML
-        
-        Args:
-            soup: BeautifulSoup object containing parsed HTML
-            
-        Returns:
-            Full initiative URL
-            
-        Raises:
-            ValueError: If breadcrumb link is not found or missing href attribute
-        """
-        try:
-            # Find the breadcrumb link with text "Initiative detail" (accounting for whitespace)
-            breadcrumb_link = soup.find(
-                'a', 
-                class_='ecl-breadcrumb__link', 
-                string=lambda text: text and text.strip() == 'Initiative detail'
-            )
-            
-            if not breadcrumb_link:
-                raise ValueError(
-                    "Breadcrumb link with class 'ecl-breadcrumb__link' and text 'Initiative detail' not found in HTML"
-                )
-            
-            href = breadcrumb_link.get('href')
-            if not href:
-                raise ValueError(
-                    "Breadcrumb link found but 'href' attribute is missing or empty"
-                )
-            
-            # Prepend the base URL
-            base_url = "https://citizens-initiative.europa.eu"
-            full_url = base_url + href
-            return full_url
-            
-        except Exception as e:
-            # Wrap other exceptions in ValueError with context
-            raise ValueError(f"Error extracting initiative URL: {str(e)}") from e
-
-    
-    def _extract_initiative_title(self, soup: BeautifulSoup) -> str:
-        """Extract initiative title from HTML head section
-        
-        Tries multiple methods to find the title:
-        1. <title> tag in <head>
-        2. <meta property="og:title"> tag
-        3. <meta name="dcterms.title"> tag
-        """
-        try:
-            # Method 1: Try <title> tag
-            title_tag = soup.find('title')
-            if title_tag and title_tag.string:
-                title = title_tag.string.strip()
-                if title:
-                    return title
-            
-            # Method 2: Try Open Graph title meta tag
-            og_title = soup.find('meta', attrs={'property': 'og:title'})
-            if og_title and og_title.get('content'):
-                title = og_title['content'].strip()
-                if title:
-                    return title
-            
-            # Method 3: Try Dublin Core title meta tag
-            dc_title = soup.find('meta', attrs={'name': 'dcterms.title'})
-            if dc_title and dc_title.get('content'):
-                title = dc_title['content'].strip()
-                if title:
-                    return title
-            
-            # If no title found, raise error
-            raise ValueError(
-                "Initiative title not found in HTML. Expected <title>, "
-                "<meta property='og:title'>, or <meta name='dcterms.title'> tag."
-            )
-            
-        except ValueError:
-            raise
-        except Exception as e:
-            raise ValueError(f"Error extracting initiative title: {str(e)}") from e
-    
     # Submission and Verification Section
     def _extract_submission_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract submission date from 'Submission and examination' section"""
