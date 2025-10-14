@@ -53,15 +53,7 @@ class ECIResponseHTMLParser:
             
             # Get current timestamp for metadata
             current_timestamp = datetime.now().isoformat()
-            
-            # Reuse data from responses_list.csv
-            registration_number = responses_list_data.get('registration_number', '')
-            initiative_title = responses_list_data.get('title', '')
-            
-            # Extract URLs from HTML
-            response_url = self._extract_response_url(soup)
-            initiative_url = self._extract_initiative_url(soup)
-            
+        
             # Extract commission communication date for follow-up calculation
             commission_communication_date = self._extract_commission_communication_date(soup)
             latest_update_date = self._extract_latest_update_date(soup)
@@ -69,10 +61,10 @@ class ECIResponseHTMLParser:
             # Create and return ECIResponse object
             response = ECIResponse(
                 # Basic Initiative Metadata
-                response_url=response_url,
-                initiative_url=initiative_url,
-                initiative_title=initiative_title,
-                registration_number=registration_number,
+                response_url=self._extract_response_url(soup),
+                initiative_url=self._extract_initiative_url(soup),
+                initiative_title=responses_list_data.get('title', ''),
+                registration_number=responses_list_data.get('registration_number', ''),
 
                 
                 # Submission and Verification Data
@@ -200,7 +192,7 @@ class ECIResponseHTMLParser:
             # Method 4: Try og:url meta tag
             og_url = soup.find('meta', attrs={'property': 'og:url'})
             if og_url and og_url.get('content'):
-                
+
                 response_url = og_url['content']
                 if response_url.startswith('http'):
                     return response_url
