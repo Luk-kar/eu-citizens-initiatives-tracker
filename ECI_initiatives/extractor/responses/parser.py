@@ -60,7 +60,7 @@ class ECIResponseHTMLParser:
                 # Basic Initiative Metadata
                 response_url=self._extract_response_url(soup),
                 initiative_url=self._extract_initiative_url(soup),
-                initiative_title=self._extract_initiative_title(responses_list_data),
+                initiative_title=self._extract_initiative_title(soup),
                 registration_number=self._extract_registration_number(html_path.name),
                 
                 # Submission and Verification Data
@@ -150,7 +150,7 @@ class ECIResponseHTMLParser:
         Note: The canonical URL in response pages points to the initiative detail page.
         To get the actual response page URL, we need to construct it or find it in the page.
         """
-        
+
         try:
             # The canonical URL points to the initiative page, not the response page
             # We need to construct the response URL from the canonical URL
@@ -231,9 +231,46 @@ class ECIResponseHTMLParser:
             raise ValueError(f"Error extracting initiative URL: {str(e)}") from e
 
     
-    def _extract_initiative_title(self, responses_list_data: Dict) -> Optional[str]:
-        """Get initiative title from responses_list.csv data"""
-        return ""
+    def _extract_initiative_title(self, soup: BeautifulSoup) -> str:
+        """Extract initiative title from HTML head section
+        
+        Tries multiple methods to find the title:
+        1. <title> tag in <head>
+        2. <meta property="og:title"> tag
+        3. <meta name="dcterms.title"> tag
+        """
+        try:
+            # Method 1: Try <title> tag
+            title_tag = soup.find('title')
+            if title_tag and title_tag.string:
+                title = title_tag.string.strip()
+                if title:
+                    return title
+            
+            # Method 2: Try Open Graph title meta tag
+            og_title = soup.find('meta', attrs={'property': 'og:title'})
+            if og_title and og_title.get('content'):
+                title = og_title['content'].strip()
+                if title:
+                    return title
+            
+            # Method 3: Try Dublin Core title meta tag
+            dc_title = soup.find('meta', attrs={'name': 'dcterms.title'})
+            if dc_title and dc_title.get('content'):
+                title = dc_title['content'].strip()
+                if title:
+                    return title
+            
+            # If no title found, raise error
+            raise ValueError(
+                "Initiative title not found in HTML. Expected <title>, "
+                "<meta property='og:title'>, or <meta name='dcterms.title'> tag."
+            )
+            
+        except ValueError:
+            raise
+        except Exception as e:
+            raise ValueError(f"Error extracting initiative title: {str(e)}") from e
     
     # Submission and Verification Section
     def _extract_submission_date(self, soup: BeautifulSoup) -> Optional[str]:

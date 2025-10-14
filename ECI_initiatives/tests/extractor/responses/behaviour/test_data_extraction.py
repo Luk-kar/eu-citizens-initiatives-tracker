@@ -203,15 +203,177 @@ class TestBasicMetadataExtraction:
 
 
         
-    def test_initiative_title_from_metadata(self):
-        """Test extraction of initiative title from responses_list.csv data."""
+    def test_extract_initiative_title_from_title_tag(self):
+        """Test extraction of initiative title from <title> tag."""
         
-        test_metadata = {
-            'title': 'Test Initiative Title'
-        }
+        html = '''
+        <html>
+            <head>
+                <title>
+                    Water and sanitation are a human right! Water is a public good, not a commodity!
+                </title>
+            </head>
+        </html>
+        '''
         
-        title = self.parser._extract_initiative_title(test_metadata)
-        assert title == "", "Should return empty string from current implementation"
+        soup = BeautifulSoup(html, 'html.parser')
+        title = self.parser._extract_initiative_title(soup)
+        
+        expected_title = "Water and sanitation are a human right! Water is a public good, not a commodity!"
+        assert title == expected_title, \
+            f"Expected '{expected_title}', got '{title}'"
+
+
+    def test_extract_initiative_title_from_og_meta(self):
+        """Test extraction from Open Graph title meta tag."""
+        
+        html = '''
+        <html>
+            <head>
+                <meta property="og:title" content="Save Bees and Farmers! Towards a bee-friendly agriculture" />
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        title = self.parser._extract_initiative_title(soup)
+        
+        expected_title = "Save Bees and Farmers! Towards a bee-friendly agriculture"
+        assert title == expected_title, \
+            f"Expected '{expected_title}', got '{title}'"
+
+
+    def test_extract_initiative_title_from_dcterms_meta(self):
+        """Test extraction from Dublin Core title meta tag."""
+        
+        html = '''
+        <html>
+            <head>
+                <meta name="dcterms.title" content="Minority SafePack - one million signatures for diversity in Europe" />
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        title = self.parser._extract_initiative_title(soup)
+        
+        expected_title = "Minority SafePack - one million signatures for diversity in Europe"
+        assert title == expected_title, \
+            f"Expected '{expected_title}', got '{title}'"
+
+
+    def test_extract_initiative_title_with_whitespace(self):
+        """Test that title extraction handles whitespace correctly."""
+        
+        html = '''
+        <html>
+            <head>
+                <title>
+                
+                    End the Cage Age
+                    
+                </title>
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        title = self.parser._extract_initiative_title(soup)
+        
+        expected_title = "End the Cage Age"
+        assert title == expected_title, \
+            f"Should strip whitespace. Expected '{expected_title}', got '{title}'"
+
+
+    def test_extract_initiative_title_with_special_characters(self):
+        """Test extraction with special characters and unicode."""
+        
+        html = '''
+        <html>
+            <head>
+                <title>Right2Water – Water is a human right!</title>
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        title = self.parser._extract_initiative_title(soup)
+        
+        # Should preserve special characters
+        assert "–" in title or "-" in title, \
+            "Should preserve dash/en-dash characters"
+        assert "Right2Water" in title, \
+            "Should preserve alphanumeric combinations"
+
+
+    def test_extract_initiative_title_missing(self):
+        """Test that ValueError is raised when title cannot be found."""
+        
+        html = '<html><head></head><body>No title here</body></html>'
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        with pytest.raises(ValueError, match="Initiative title not found"):
+            self.parser._extract_initiative_title(soup)
+
+
+    def test_extract_initiative_title_empty(self):
+        """Test that ValueError is raised when title tag exists but is empty."""
+        
+        html = '''
+        <html>
+            <head>
+                <title>   </title>
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        with pytest.raises(ValueError, match="Initiative title not found"):
+            self.parser._extract_initiative_title(soup)
+
+
+    def test_extract_initiative_title_fallback_order(self):
+        """Test that extraction tries methods in correct fallback order."""
+        
+        # HTML with multiple title sources - should prefer <title> tag
+        html = '''
+        <html>
+            <head>
+                <title>Title from title tag</title>
+                <meta property="og:title" content="Title from og:title" />
+                <meta name="dcterms.title" content="Title from dcterms" />
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        title = self.parser._extract_initiative_title(soup)
+        
+        # Should prefer <title> tag
+        assert title == "Title from title tag", \
+            "Should prefer <title> tag over meta tags"
+
+
+    def test_extract_initiative_title_html_entities(self):
+        """Test that HTML entities are properly decoded."""
+        
+        html = '''
+        <html>
+            <head>
+                <meta property="og:title" content="Water &amp; sanitation are a human right!" />
+            </head>
+        </html>
+        '''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        title = self.parser._extract_initiative_title(soup)
+        
+        # BeautifulSoup automatically decodes HTML entities
+        assert "&" in title, \
+            "Should decode &amp; to &"
+        assert "&amp;" not in title, \
+            "Should not contain encoded entity"
 
 
 class TestSubmissionDataExtraction:
