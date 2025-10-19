@@ -591,7 +591,7 @@ class TestProceduralTimelineExtraction:
                 """,
                 "2025-03-25",
                 "post_2020_article_15",
-                False  # should_raise
+                False  # should not raise
             ),
             # Test case 2: Pre-2020 format with month name at end
             (
@@ -694,7 +694,7 @@ class TestProceduralTimelineExtraction:
                 with pytest.raises(ValueError) as exc_info:
                     parser._extract_commission_meeting_date(soup)
                 assert "commission meeting date" in str(exc_info.value).lower(), f"Failed for test case: {test_id}"
-                
+
             else:
                 # Normal case - should return expected value
                 result = parser._extract_commission_meeting_date(soup)
