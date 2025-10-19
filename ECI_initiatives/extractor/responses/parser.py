@@ -545,11 +545,61 @@ class ECIResponseHTMLParser:
         except Exception as e:
             raise ValueError(f"Error extracting commission officials for {self.registration_number}: {str(e)}") from e
 
-    def _extract_parliament_hearing_date(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_parliament_hearing_date(self, soup: BeautifulSoup) -> str:
         """Extract date of European Parliament public hearing"""
         try:
-            # Implementation here
-            pass
+            
+            # Get the submission text first
+            submission_text = self._extract_submission_text(soup)
+            
+            # Create month name to number mapping using calendar module
+            month_dict = {calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)}
+            
+            # Dictionary mapping format types to their regex pattern lists
+            patterns = {
+                'text': [
+                    r'(?i)A public hearing took place at the European Parliament on (\d{1,2})\s+(\w+)\s+(\d{4})',
+                    r'(?i)The presentation of this initiative in a public hearing at the European Parliament took place on (\d{1,2})\s+(\w+)\s+(\d{4})',
+                ],
+                'slash': [
+                    r'A public hearing took place at the European Parliament on (\d{1,2})/(\d{1,2})/(\d{4})',
+                    r'The presentation of this initiative in a public hearing at the European Parliament took place on (\d{1,2})/(\d{1,2})/(\d{4})',
+                ],
+            }
+            
+            for format_type, pattern_list in patterns.items():
+
+                for pattern in pattern_list:
+
+                    match = re.search(pattern, submission_text)
+
+                    if match:
+                        if format_type == 'text':
+                            # Convert "24 January 2023" to "24-01-2023"
+                            day = match.group(1).zfill(2)  # Pad with zero if needed
+                            month_name = match.group(2).lower()
+                            year = match.group(3)
+                            
+                            # Get month number from dictionary
+                            month_str = month_dict.get(month_name)
+                            
+                            if month_str is None:
+                                raise ValueError(f"Invalid month name: {month_name}")
+                            
+                            return f"{day}-{month_str}-{year}"
+                            
+                        elif format_type == 'slash':
+                            
+                            # Convert "17/02/2014" to "17-02-2014"
+                            day = match.group(1).zfill(2)
+                            month = match.group(2).zfill(2)
+                            year = match.group(3)
+                            
+                            return f"{day}-{month}-{year}"
+            
+            # If no match found, raise ValueError
+            raise ValueError(f"No parliament hearing date found in submission text for {self.registration_number}")
+            
         except Exception as e:
             raise ValueError(f"Error extracting parliament hearing date for {self.registration_number}: {str(e)}") from e
     

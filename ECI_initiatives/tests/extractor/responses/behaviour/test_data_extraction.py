@@ -919,8 +919,140 @@ class TestProceduralTimelineExtraction:
     
     def test_parliament_hearing_date(self):
         """Test extraction of Parliament hearing date."""
-        # Placeholder - implement when HTML structure is known
-        pass
+        
+        test_cases = [
+            # Test case 1: Standard format with full month name
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>A public hearing took place at the European Parliament on 24 January 2023.</p>
+                """,
+                "24-01-2023",
+                "standard_full_month",
+                False
+            ),
+            # Test case 2: Slash date format
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>A public hearing took place at the European Parliament on 17/02/2014.</p>
+                """,
+                "17-02-2014",
+                "slash_date_format",
+                False
+            ),
+            # Test case 3: New format - "The presentation of this initiative..."
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The presentation of this initiative in a public hearing at the European Parliament took place on 25 June 2025.</p>
+                """,
+                "25-06-2025",
+                "new_presentation_format",
+                False
+            ),
+            # Test case 4: Single digit day
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>A public hearing took place at the European Parliament on 5 April 2023.</p>
+                """,
+                "05-04-2023",
+                "single_digit_day",
+                False
+            ),
+            # Test case 5: Case insensitive month name
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>A public hearing took place at the European Parliament on 10 OCTOBER 2023.</p>
+                """,
+                "10-10-2023",
+                "uppercase_month",
+                False
+            ),
+            # Test case 6: Mixed case
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>A public hearing took place at the European Parliament on 15 February 2020.</p>
+                """,
+                "15-02-2020",
+                "mixed_case_month",
+                False
+            ),
+            # Test case 7: Slash format with new phrasing
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The presentation of this initiative in a public hearing at the European Parliament took place on 11/05/2015.</p>
+                """,
+                "11-05-2015",
+                "new_format_slash",
+                False
+            ),
+            # Test case 8: Multiple paragraphs, hearing in second paragraph
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The initiative was submitted on 10 January 2020.</p>
+                <p>A public hearing took place at the European Parliament on 15 October 2020.</p>
+                """,
+                "15-10-2020",
+                "multiple_paragraphs",
+                False
+            ),
+            # Test case 9: No hearing date found (raises error)
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The initiative was submitted to the Commission on 15 May 2024.</p>
+                <p>The organisers met with Commission officials on 20 June 2024.</p>
+                """,
+                None,
+                "no_hearing_date",
+                True
+            ),
+            # Test case 11: No submission section (raises error)
+            (
+                """
+                <h2 id="Other-section">Other section</h2>
+                <p>Some content here.</p>
+                """,
+                None,
+                "no_section",
+                True
+            ),
+        ]
+        
+        for html, expected, test_id, should_raise in test_cases:
+            soup = BeautifulSoup(html, 'html.parser')
+            parser = ECIResponseHTMLParser(soup)
+            parser.registration_number = "2024/000001"
+            
+            if should_raise:
+                # Expect ValueError to be raised
+                with pytest.raises(ValueError) as exc_info:
+                    parser._extract_parliament_hearing_date(soup)
+                assert "parliament hearing date" in str(exc_info.value).lower(), f"Failed for test case: {test_id}"
+            else:
+                # Normal case - should return expected value
+                try:
+                    result = parser._extract_parliament_hearing_date(soup)
+                    assert result == expected, (
+                        f"Failed for test case: {test_id}\n"
+                        f"Expected: {expected}\n"
+                        f"Got: {result}\n"
+                        f"HTML:\n{html}"
+                    )
+                except Exception as e:
+                    # Re-raise with HTML context
+                    raise AssertionError(
+                        f"Error in test case: {test_id}\n"
+                        f"Expected: {expected}\n"
+                        f"HTML:\n{html}\n"
+                        f"Error: {str(e)}\n"
+                    ) from e
     
     def test_parliament_hearing_recording_url(self):
         """Test extraction of Parliament hearing video URL."""
