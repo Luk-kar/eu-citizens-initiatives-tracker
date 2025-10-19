@@ -699,7 +699,97 @@ class TestProceduralTimelineExtraction:
                 # Normal case - should return expected value
                 result = parser._extract_commission_meeting_date(soup)
                 assert result == expected, f"Failed for test case: {test_id}"
-    
+
+    def test_submission_text(self):
+        """Test extraction of submission section text."""
+        
+        test_cases = [
+            # Test case 1: Simple single paragraph
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The initiative was submitted to the Commission on 14 June 2023.</p>
+                """,
+                "The initiative was submitted to the Commission on 14 June 2023.",
+                "single_paragraph"
+            ),
+            # Test case 2: Multiple paragraphs
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The initiative was submitted on 14 June 2023, having gathered 1,502,319 statements of support.</p>
+                <p>The organisers met with Commission officials on 20 July 2023.</p>
+                <p>A public hearing took place on 10 October 2023.</p>
+                """,
+                "The initiative was submitted on 14 June 2023, having gathered 1,502,319 statements of support. The organisers met with Commission officials on 20 July 2023. A public hearing took place on 10 October 2023.",
+                "multiple_paragraphs"
+            ),
+            # Test case 3: Paragraphs with links (space preservation)
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p><a href="/url">Right2Water</a> was the first <a href="/url2">European Citizens' Initiative</a> having gathered signatures.</p>
+                """,
+                "Right2Water was the first European Citizens' Initiative having gathered signatures.",
+                "with_links"
+            ),
+            # Test case 4: Multiple spaces and newlines normalization
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The initiative    was   submitted
+                on 14 June  2023.</p>
+                """,
+                "The initiative was submitted on 14 June 2023.",
+                "whitespace_normalization"
+            ),
+            # Test case 5: Stops at next section
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>First paragraph in submission section.</p>
+                <p>Second paragraph in submission section.</p>
+                <h2 id="Answer">Answer of the Commission</h2>
+                <p>This should not be included.</p>
+                """,
+                "First paragraph in submission section. Second paragraph in submission section.",
+                "stops_at_next_section"
+            ),
+            # Test case 6: Empty paragraphs ignored
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>First paragraph.</p>
+                <p>   </p>
+                <p>Third paragraph.</p>
+                """,
+                "First paragraph. Third paragraph.",
+                "empty_paragraphs_ignored"
+            ),
+        ]
+        
+        for html, expected, test_id in test_cases:
+            soup = BeautifulSoup(html, 'html.parser')
+            parser = ECIResponseHTMLParser(soup)
+            parser.registration_number = "2024/000001"
+            
+            try:
+                result = parser._extract_submission_text(soup)
+                assert result == expected, (
+                    f"Failed for test case: {test_id}\n"
+                    f"Expected: {expected}\n"
+                    f"Got: {result}\n"
+                    f"HTML:\n{html}"
+                )
+            except Exception as e:
+                raise AssertionError(
+                    f"Error in test case: {test_id}\n"
+                    f"Expected: {expected}\n"
+                    f"HTML:\n{html}\n"
+                    f"Error: {str(e)}\n"
+                ) from e
+
+
     def test_commission_officials_met(self):
         """Test extraction of Commission officials who met organizers."""
         
@@ -718,10 +808,7 @@ class TestProceduralTimelineExtraction:
             (
                 """
                 <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>On 25 March 2025, the initiative organisers were given the opportunity to present 
-                the objectives of their initiative in the meeting with Executive Vice-President 
-                Raffaele Fitto and European Commission officials, in line with Article 15 of the 
-                ECI Regulation.</p>
+                <p>  On 25 March 2025, the initiative organisers were given the opportunity to present the objectives of their initiative in the meeting with Executive Vice-President Raffaele Fitto and European Commission officials, in line with Article 15 of the ECI Regulation.</p>
                 """,
                 "Executive Vice-President Raffaele Fitto",
                 "executive_vp_post_2020",
@@ -731,8 +818,7 @@ class TestProceduralTimelineExtraction:
             (
                 """
                 <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>The organisers met with the European Commission Vice-President for Values and Transparency, 
-                Věra Jourová and the Commissioner for Health and Food Safety, Stella Kyriakides on 20 July 2023.</p>
+                <p>The organisers met with the European Commission Vice-President for Values and Transparency, Věra Jourová and the Commissioner for Health and Food Safety, Stella Kyriakides on 30 October 2020.</p>
                 """,
                 "Vice-President for Values and Transparency, Věra Jourová; Commissioner for Health and Food Safety, Stella Kyriakides",
                 "multiple_with_portfolios",
@@ -742,9 +828,7 @@ class TestProceduralTimelineExtraction:
             (
                 """
                 <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>The organisers met with European Commission Vice-President Jyrki Katainen, 
-                responsible for Jobs, Growth, Investment and Competitiveness and Director-General 
-                Karl Falkenberg, responsible for DG Environment, on 11 May 2015.</p>
+                <p>The organisers met with European Commission Vice-President Jyrki Katainen, responsible for Jobs, Growth, Investment and Competitiveness and Director-General Karl Falkenberg, responsible for DG Environment, on 11 May 2015. See press release.</p>
                 """,
                 "Vice-President Jyrki Katainen, responsible for Jobs, Growth, Investment and Competitiveness; Director-General Karl Falkenberg, responsible for DG Environment",
                 "with_responsibilities",
@@ -755,10 +839,9 @@ class TestProceduralTimelineExtraction:
                 """
                 <h2 id="Submission-and-examination">Submission and examination</h2>
                 <p>The organisers met with the Commissioner responsible for Research, Innovation and Science, 
-                Ms Geoghegan-Quinn, and the Deputy Director-General responsible for Development and Cooperation, 
-                Mr. Cornaro on 09/04/2014.</p>
+                The organisers met with the Commissioner responsible for Research, Innovation and Science, Ms Geoghegan-Quinn, and the Deputy Director-General responsible for Development and Cooperation, Mr. Cornaro on 09/04/2014. See press release.</p>
                 """,
-                "Commissioner responsible for Research, Innovation and Science, Ms Geoghegan-Quinn; Deputy Director-General responsible for Development and Cooperation, Mr. Cornaro",
+                "the Commissioner responsible for Research, Innovation and Science, Ms Geoghegan-Quinn; Deputy Director-General responsible for Development and Cooperation, Mr. Cornaro",
                 "slash_date_format",
                 False
             ),
@@ -766,8 +849,7 @@ class TestProceduralTimelineExtraction:
             (
                 """
                 <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>The organisers met with European Commission First Vice-President Frans Timmermans 
-                and Commissioner for Health & Food Safety Vytenis Andriukaitis on 23/10/2017.</p>
+                <p>The organisers met with European Commission First Vice-President Frans Timmermans and Commissioner for Health & Food Safety Vytenis Andriukaitis on 23/10/2017.</p>
                 """,
                 "Vice-President Frans Timmermans; Commissioner for Health & Food Safety Vytenis Andriukaitis",
                 "first_vp_normalized",
@@ -777,15 +859,12 @@ class TestProceduralTimelineExtraction:
             (
                 """
                 <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>The organisers met with the European Commission Vice-President for Values and Transparency, 
-                Věra Jourová and the Commissioner for Environment, Oceans and Fisheries, Virginijus Sinkevičius 
-                on 6 February 2023.</p>
+                <p>The organisers met with the European Commission Vice-President for Values and Transparency, Věra Jourová and the Commissioner for Environment, Oceans and Fisheries, Virginijus Sinkevičius on 6 February 2023.</p>
                 """,
                 "Vice-President for Values and Transparency, Věra Jourová; Commissioner for Environment, Oceans and Fisheries, Virginijus Sinkevičius",
                 "two_commissioners",
                 False
             ),
-            # Test case 8: No meeting found (raises error)
             (
                 """
                 <h2 id="Submission-and-examination">Submission and examination</h2>

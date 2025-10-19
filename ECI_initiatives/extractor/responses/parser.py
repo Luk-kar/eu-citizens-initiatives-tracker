@@ -69,7 +69,10 @@ class ECIResponseHTMLParser:
                 initiative_url=self._extract_initiative_url(soup),
                 initiative_title=responses_list_data.get('title'),
                 registration_number=self.registration_number,
-                
+
+                # Submission text
+                submission_text=self._extract_submission_text(soup),
+
                 # Submission and Verification Data
                 submission_date=self._extract_submission_date(soup),
                 submission_news_url=self._extract_submission_news_url(soup),
@@ -285,7 +288,43 @@ class ECIResponseHTMLParser:
             raise
         except Exception as e:
             raise ValueError(f"Error extracting initiative URL for {self.registration_number}: {str(e)}") from e
+
+    def _extract_submission_text(self, soup: BeautifulSoup) -> str:
+        """Extract normalized text from all paragraphs in the submission section"""
+        try:
+            # Find the "Submission and examination" section
+            submission_section = soup.find('h2', id='Submission-and-examination')
             
+            if not submission_section:
+                submission_section = soup.find('h2', string=re.compile(r'Submission and examination', re.IGNORECASE))
+            
+            if not submission_section:
+                raise ValueError(f"No submission section found for {self.registration_number}")
+            
+            # Get all paragraphs until the next h2 (or end of siblings)
+            paragraphs = []
+            for sibling in submission_section.find_next_siblings():
+                if sibling.name == 'h2':
+                    # Reached next section - stop
+                    break
+                if sibling.name == 'p':
+                    # Get text and normalize whitespace
+                    text = sibling.get_text(separator=' ', strip=True)
+                    text = ' '.join(text.split())  # Normalize whitespace
+                    if text:  # Only add non-empty paragraphs
+                        paragraphs.append(text)
+            
+            if not paragraphs:
+                raise ValueError(f"No paragraphs found in submission section for {self.registration_number}")
+            
+            # Join all paragraphs with a space
+            full_text = ' '.join(paragraphs)
+            
+            return full_text
+            
+        except Exception as e:
+            raise ValueError(f"Error extracting submission text for {self.registration_number}: {str(e)}") from e
+
     # Submission and Verification Section
     def _extract_submission_date(self, soup: BeautifulSoup) -> datetime.date:
         """Extract submission date from 'Submission and examination' section"""

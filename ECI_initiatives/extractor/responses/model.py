@@ -18,6 +18,7 @@ class ECICommissionResponseRecord:
     registration_number: str
     
     # Submission and Verification Data
+    submission_text: str
     submission_date: Optional[str]
     submission_news_url: Optional[str]
     

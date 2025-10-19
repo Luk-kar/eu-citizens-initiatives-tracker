@@ -36,6 +36,7 @@ class TestECIResponseDataModel:
             initiative_url="https://example.com/initiative",
             initiative_title="Test Initiative",
             registration_number="2024/000001",
+            submission_text="the sample",
             submission_date="2024-01-01",
             submission_news_url="https://example.com/news",
             commission_meeting_date=None,
@@ -118,6 +119,7 @@ class TestOptionalFieldHandling:
             initiative_url="https://example.com",
             initiative_title="Test",
             registration_number="2024/000001",
+            submission_text="the sample",
             submission_date=None,  # Optional
             submission_news_url=None,
             commission_meeting_date=None,  # Optional
@@ -212,6 +214,7 @@ class TestDataIntegrity:
             initiative_url="https://example.com",
             initiative_title="Test",
             registration_number="2024/000001",
+            submission_text="the sample",
             submission_date=None,
             submission_news_url=None,
             commission_meeting_date=None,
