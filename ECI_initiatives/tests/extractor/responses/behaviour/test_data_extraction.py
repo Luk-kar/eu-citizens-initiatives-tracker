@@ -576,8 +576,129 @@ class TestProceduralTimelineExtraction:
     
     def test_commission_meeting_date(self):
         """Test extraction of Commission meeting date."""
-        # Placeholder - implement when HTML structure is known
-        pass
+        
+        test_cases = [
+            # Test case 1: Post-2020 format with Article 15 and month name
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The initiative was submitted to the Commission on 4 March 2025.</p>
+                <p>On 25 March 2025, the initiative organisers were given the opportunity to present 
+                the objectives of their initiative in the meeting with Executive Vice-President 
+                Raffaele Fitto and European Commission officials, in line with Article 15 of the 
+                ECI Regulation. See the photo news.</p>
+                <p>A public hearing took place at the European Parliament on 25 June 2025.</p>
+                """,
+                "2025-03-25",
+                "post_2020_article_15",
+                False  # should_raise
+            ),
+            # Test case 2: Pre-2020 format with month name at end
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>Right2Water was submitted to the Commission on 20 December 2013.</p>
+                <p>The organisers met with Commission Vice-President Maroš Šefčovič on 17 February 2014. 
+                See press release.</p>
+                <p>A public hearing took place at the European Parliament on 17 February 2014.</p>
+                """,
+                "2014-02-17",
+                "pre_2020_month_name",
+                False
+            ),
+            # Test case 3: Slash format DD/MM/YYYY
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>One of us was submitted to the Commission on 28/02/2014.</p>
+                <p>The organisers met with the Commissioner responsible for Research, Innovation and Science, 
+                Ms Geoghegan-Quinn, and the Deputy Director-General responsible for Development and Cooperation, 
+                Mr. Cornaro on 09/04/2014. See press release.</p>
+                <p>A public hearing took place at the European Parliament on 10/04/2014.</p>
+                """,
+                "2014-04-09",
+                "slash_format",
+                False
+            ),
+            # Test case 4: Multiple officials mentioned
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The initiative was submitted on 6 October 2017.</p>
+                <p>The organisers met with European Commission First Vice-President Frans Timmermans 
+                and Commissioner for Health & Food Safety Vytenis Andriukaitis on 23/10/2017. 
+                See press release.</p>
+                """,
+                "2017-10-23",
+                "multiple_officials",
+                False
+            ),
+            # Test case 5: Recent format with European Commission officials
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The initiative was submitted to the Commission on 14 June 2023.</p>
+                <p>The organisers met with the European Commission Vice-President for Values and Transparency, 
+                Věra Jourová and the Commissioner for Health and Food Safety, Stella Kyriakides on 20 July 2023. 
+                See press announcement and photos.</p>
+                """,
+                "2023-07-20",
+                "recent_format",
+                False
+            ),
+            # Test case 6: No commission meeting (raises ValueError)
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The initiative was submitted to the Commission on 15 May 2024.</p>
+                <p>A public hearing took place at the European Parliament on 20 June 2024.</p>
+                """,
+                None,
+                "no_meeting",
+                True  # should_raise
+            ),
+            # Test case 7: No submission section (raises ValueError)
+            (
+                """
+                <h2 id="Other-section">Other section</h2>
+                <p>Some content here.</p>
+                """,
+                None,
+                "no_section",
+                True  # should_raise
+            ),
+            # Test case 8: Long format with responsibilities
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>Stop Vivisection was submitted to the Commission on 3 March 2015.</p>
+                <p>The organisers met with European Commission Vice-President Jyrki Katainen, 
+                responsible for Jobs, Growth, Investment and Competitiveness and Director-General 
+                Karl Falkenberg, responsible for DG Environment, on 11 May 2015. See press release.</p>
+                """,
+                "2015-05-11",
+                "long_format_with_responsibilities",
+                False
+            ),
+        ]
+        
+        for html, expected, test_id, should_raise in test_cases:
+
+            soup = BeautifulSoup(html, 'html.parser')
+            parser = ECIResponseHTMLParser(soup)
+            parser.registration_number = "2024/000001"
+            
+            if should_raise:
+
+                # Expect ValueError to be raised
+                with pytest.raises(ValueError) as exc_info:
+                    parser._extract_commission_meeting_date(soup)
+                assert "commission meeting date" in str(exc_info.value).lower(), f"Failed for test case: {test_id}"
+                
+            else:
+                # Normal case - should return expected value
+                result = parser._extract_commission_meeting_date(soup)
+                assert result == expected, f"Failed for test case: {test_id}"
     
     def test_commission_officials_met(self):
         """Test extraction of Commission officials who met organizers."""
