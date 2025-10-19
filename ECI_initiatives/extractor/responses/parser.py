@@ -61,14 +61,14 @@ class ECIResponseHTMLParser:
             # Create and return ECI Response object
             response = ECICommissionResponseRecord(
                 # Basic Initiative Metadata
-                response_url=self._extract_response_url(soup),
-                initiative_url=self._extract_initiative_url(soup),
-                initiative_title=responses_list_data.get('title'),
-                registration_number=responses_list_data.get('registration_number'),
+                response_url=self._extract_response_url(soup), #
+                initiative_url=self._extract_initiative_url(soup), #
+                initiative_title=responses_list_data.get('title'), #
+                registration_number=responses_list_data.get('registration_number'), #
 
                 
                 # Submission and Verification Data
-                submission_date=self._extract_submission_date(soup),
+                submission_date=self._extract_submission_date(soup, responses_list_data.get('registration_number')),
                 verified_signatures_count=self._extract_verified_signatures_count(soup),
                 number_member_states_threshold=self._extract_number_member_states_threshold(soup),
                 submission_news_url=self._extract_submission_news_url(soup),
@@ -106,7 +106,7 @@ class ECIResponseHTMLParser:
                 # Multimedia and Documentation Links
                 factsheet_url=self._extract_factsheet_url(soup),
                 video_recording_count=self._extract_video_recording_count(soup),
-                dedicated_website=self._extract_has_dedicated_website(soup),
+                dedicated_website=self._extract_has_dedicated_website(soup), #
                 
                 # Structural Analysis Flags
                 related_eu_legislation=self._extract_related_eu_legislation(soup),
@@ -117,8 +117,8 @@ class ECIResponseHTMLParser:
                 ),
                 
                 # Metadata
-                created_timestamp=current_timestamp,
-                last_updated=current_timestamp
+                created_timestamp=current_timestamp, #
+                last_updated=current_timestamp #
             )
             
             self.logger.info(f"Successfully parsed response: {response.registration_number}")
@@ -289,9 +289,49 @@ class ECIResponseHTMLParser:
         except Exception as e:
             raise ValueError(f"Error extracting initiative URL: {str(e)}") from e
     # Submission and Verification Section
-    def _extract_submission_date(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_submission_date(self, soup: BeautifulSoup, registration_number: str) -> Optional[str]:
         """Extract submission date from 'Submission and examination' section"""
-        pass
+
+        # Find the Submission section
+        h2 = soup.find('h2', id='Submission-and-examination')
+        
+        if h2:
+            # Get first paragraph after heading
+            first_p = h2.find_next_sibling('p')
+            
+            if first_p:
+                text = first_p.get_text()
+
+                date_time = None
+
+                # Pattern 1: DD Month YYYY format (e.g., "10 January 2020")
+                match1 = re.search(
+                    r'submitted to the (?:European )?Commission on (\d{1,2} [A-Za-z]+ \d{4})', 
+                    text, 
+                    re.IGNORECASE
+                    )
+                
+                if match1:
+                    date_str = match1.group(1)
+
+                    date_time = datetime.strptime(date_str, '%d %B %Y')
+
+                # Pattern 2: DD/MM/YYYY format (e.g., "28/02/2014")
+                match2 = re.search(
+                    r'submitted to the (?:European )?Commission on (\d{2}/\d{2}/\d{4})', 
+                    text, 
+                    re.IGNORECASE
+                )
+                
+                if match2:
+                    date_str = match2.group(1)
+
+                    date_time = datetime.strptime(date_str, '%d/%m/%Y')
+                
+                # `2023-06-14 00:00:00` -> `2023-06-14``
+                return date_time.date()
+
+        raise ValueError(f"No submission date found for initiative:\n{registration_number}")
     
     def _extract_verified_signatures_count(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract verified statements of support count"""
