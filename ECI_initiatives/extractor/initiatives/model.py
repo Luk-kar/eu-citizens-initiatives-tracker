@@ -9,7 +9,7 @@ from typing import Optional
 
 
 @dataclass
-class ECIInitiative:
+class ECIInitiativeDetailsRecord:
     """Data structure for ECI initiative information"""
 
     registration_number: str

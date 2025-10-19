@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 import logging
 
 from .parser import ECIResponseHTMLParser
-from .model import ECIResponse
+from .model import ECICommissionResponseRecord
 from .responses_logger import ResponsesExtractorLogger
 
 
@@ -191,7 +191,7 @@ class ECIResponseDataProcessor:
             return f"{year}/{number}"
         return ""
     
-    def _write_csv(self, results: List[ECIResponse], output_csv: Path):
+    def _write_csv(self, results: List[ECICommissionResponseRecord], output_csv: Path):
         """Write results to CSV file"""
         
         if not results:

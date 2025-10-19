@@ -13,7 +13,7 @@ from dataclasses import asdict
 import logging
 
 # Local
-from .model import ECIInitiative
+from .model import ECIInitiativeDetailsRecord
 from .parser import ECIHTMLParser
 from .initiatives_logger import InitiativesExtractorLogger
 
@@ -57,7 +57,7 @@ class ECIDataProcessor:
 
         return None
 
-    def process_initiative_pages(self, session_path: Path) -> List[ECIInitiative]:
+    def process_initiative_pages(self, session_path: Path) -> List[ECIInitiativeDetailsRecord]:
         """Process all initiative HTML pages in a session"""
 
         initiatives = []
@@ -83,7 +83,7 @@ class ECIDataProcessor:
         self.logger.info(f"Successfully processed {len(initiatives)} initiatives")
         return initiatives
 
-    def save_to_csv(self, initiatives: List[ECIInitiative], output_path: Path) -> None:
+    def save_to_csv(self, initiatives: List[ECIInitiativeDetailsRecord], output_path: Path) -> None:
         """Save initiatives data to CSV file"""
         
         try:

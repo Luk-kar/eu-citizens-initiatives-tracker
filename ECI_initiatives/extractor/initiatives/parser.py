@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Tuple
 from bs4 import BeautifulSoup
 
 # Local
-from .model import ECIInitiative
+from .model import ECIInitiativeDetailsRecord
 
 
 class ECIHTMLParser:
@@ -31,7 +31,7 @@ class ECIHTMLParser:
         """
         self.logger = logger
 
-    def parse_html_file(self, file_path: Path) -> Optional[ECIInitiative]:
+    def parse_html_file(self, file_path: Path) -> Optional[ECIInitiativeDetailsRecord]:
         """Parse a single ECI HTML file and extract initiative data"""
 
         try:
@@ -51,7 +51,7 @@ class ECIHTMLParser:
                 organiser_data, file_path, title, url
             )
 
-            initiative_data = ECIInitiative(
+            initiative_data = ECIInitiativeDetailsRecord(
                 registration_number=reg_number,
                 title=self._extract_title(soup),
                 objective=self._extract_objective(soup),

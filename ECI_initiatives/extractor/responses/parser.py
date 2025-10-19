@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Tuple
 
 from bs4 import BeautifulSoup
 
-from .model import ECIResponse
+from .model import ECICommissionResponseRecord
 
 
 class ECIResponseHTMLParser:
@@ -27,7 +27,7 @@ class ECIResponseHTMLParser:
         """
         self.logger = logger
     
-    def parse_file(self, html_path: Path, responses_list_data: Dict) -> Optional[ECIResponse]:
+    def parse_file(self, html_path: Path, responses_list_data: Dict) -> Optional[ECICommissionResponseRecord]:
         """
         Parse a single ECI response HTML file and extract data
         
@@ -40,7 +40,7 @@ class ECIResponseHTMLParser:
                 - datetime: Scrape datetime
                 
         Returns:
-            ECIResponse object or None if parsing fails
+            ECICommissionResponseRecord object or None if parsing fails
         """
         try:
             self.logger.info(f"Parsing response file: {html_path.name}")
@@ -58,8 +58,8 @@ class ECIResponseHTMLParser:
             commission_communication_date = self._extract_commission_communication_date(soup)
             latest_update_date = self._extract_latest_update_date(soup)
             
-            # Create and return ECIResponse object
-            response = ECIResponse(
+            # Create and return ECI Response object
+            response = ECICommissionResponseRecord(
                 # Basic Initiative Metadata
                 response_url=self._extract_response_url(soup),
                 initiative_url=self._extract_initiative_url(soup),

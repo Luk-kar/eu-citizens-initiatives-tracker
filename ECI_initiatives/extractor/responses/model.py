@@ -8,7 +8,7 @@ from typing import Optional
 
 
 @dataclass
-class ECIResponse:
+class ECICommissionResponseRecord:
     """Data structure for ECI Commission response information"""
     
     # Basic Initiative Metadata
@@ -69,9 +69,9 @@ class ECIResponse:
 
     def to_dict(self) -> dict:
         """
-        Convert ECIResponse object to dictionary
+        Convert ECI Response object to dictionary
         
         Returns:
-            Dictionary representation of the ECIResponse object
+            Dictionary representation of the ECI Response object
         """
         return asdict(self)

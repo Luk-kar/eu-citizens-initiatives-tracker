@@ -23,15 +23,15 @@ from datetime import datetime
 import pytest
 
 # Local
-from ECI_initiatives.extractor.responses.model import ECIResponse
+from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 
 
 class TestECIResponseDataModel:
-    """Tests for ECIResponse data model."""
+    """Tests for ECI Response data model."""
     
     def test_to_dict_method(self):
-        """Test that to_dict() converts ECIResponse to dictionary."""
-        response = ECIResponse(
+        """Test that to_dict() converts ECI Response to dictionary."""
+        response = ECICommissionResponseRecord(
             response_url="https://example.com/response",
             initiative_url="https://example.com/initiative",
             initiative_title="Test Initiative",
@@ -115,7 +115,7 @@ class TestOptionalFieldHandling:
     
     def test_optional_dates_can_be_none(self):
         """Test that optional date fields can be None."""
-        response = ECIResponse(
+        response = ECICommissionResponseRecord(
             response_url="https://example.com",
             initiative_url="https://example.com",
             initiative_title="Test",
@@ -191,7 +191,7 @@ class TestCSVStructure:
         pass
     
     def test_csv_headers_match_dataclass_fields(self):
-        """Test that CSV headers match ECIResponse dataclass fields."""
+        """Test that CSV headers match ECICommissionResponse dataclass fields."""
         # Placeholder - implement with actual test data when available
         pass
 
@@ -211,7 +211,7 @@ class TestDataIntegrity:
     
     def test_boolean_fields_are_boolean_type(self):
         """Test that boolean fields contain boolean values, not strings."""
-        response = ECIResponse(
+        response = ECICommissionResponseRecord(
             response_url="https://example.com",
             initiative_url="https://example.com",
             initiative_title="Test",
