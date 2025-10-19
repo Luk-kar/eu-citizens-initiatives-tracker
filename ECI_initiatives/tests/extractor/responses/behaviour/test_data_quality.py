@@ -37,8 +37,6 @@ class TestECIResponseDataModel:
             initiative_title="Test Initiative",
             registration_number="2024/000001",
             submission_date="2024-01-01",
-            verified_signatures_count="1000000",
-            number_member_states_threshold="7",
             submission_news_url="https://example.com/news",
             commission_meeting_date=None,
             commission_officials_met=None,
@@ -121,8 +119,6 @@ class TestOptionalFieldHandling:
             initiative_title="Test",
             registration_number="2024/000001",
             submission_date=None,  # Optional
-            verified_signatures_count=None,
-            number_member_states_threshold=None,
             submission_news_url=None,
             commission_meeting_date=None,  # Optional
             commission_officials_met=None,
@@ -217,8 +213,6 @@ class TestDataIntegrity:
             initiative_title="Test",
             registration_number="2024/000001",
             submission_date=None,
-            verified_signatures_count=None,
-            number_member_states_threshold=None,
             submission_news_url=None,
             commission_meeting_date=None,
             commission_officials_met=None,

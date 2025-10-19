@@ -169,8 +169,6 @@ REQUIRED_RESPONSES_CSV_COLUMNS = [
     'initiative_title',
     'registration_number',
     'submission_date',
-    'verified_signatures_count',
-    'number_member_states_threshold',
     'submission_news_url',
     'commission_meeting_date',
     'commission_officials_met',

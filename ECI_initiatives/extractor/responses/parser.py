@@ -14,7 +14,6 @@ from bs4 import BeautifulSoup
 
 from .model import ECICommissionResponseRecord
 
-
 class ECIResponseHTMLParser:
     """Parser for ECI Commission response HTML pages"""
     
@@ -26,6 +25,7 @@ class ECIResponseHTMLParser:
             logger: Shared logger instance from ResponsesExtractorLogger
         """
         self.logger = logger
+        self.registration_number = None  # Temporary state during parsing
     
     def parse_file(self, html_path: Path, responses_list_data: Dict) -> Optional[ECICommissionResponseRecord]:
         """
@@ -45,6 +45,9 @@ class ECIResponseHTMLParser:
         try:
             self.logger.info(f"Parsing response file: {html_path.name}")
             
+            # Store registration_number as instance variable for error reporting
+            self.registration_number = responses_list_data['registration_number']
+            
             # Read and parse HTML file
             with open(html_path, 'r', encoding='utf-8') as f:
                 html_content = f.read()
@@ -61,16 +64,13 @@ class ECIResponseHTMLParser:
             # Create and return ECI Response object
             response = ECICommissionResponseRecord(
                 # Basic Initiative Metadata
-                response_url=self._extract_response_url(soup), #
-                initiative_url=self._extract_initiative_url(soup), #
-                initiative_title=responses_list_data.get('title'), #
-                registration_number=responses_list_data.get('registration_number'), #
-
+                response_url=self._extract_response_url(soup),
+                initiative_url=self._extract_initiative_url(soup),
+                initiative_title=responses_list_data.get('title'),
+                registration_number=self.registration_number,
                 
                 # Submission and Verification Data
-                submission_date=self._extract_submission_date(soup, responses_list_data.get('registration_number')),
-                verified_signatures_count=self._extract_verified_signatures_count(soup),
-                number_member_states_threshold=self._extract_number_member_states_threshold(soup),
+                submission_date=self._extract_submission_date(soup),
                 submission_news_url=self._extract_submission_news_url(soup),
                 
                 # Procedural Timeline Milestones
@@ -106,7 +106,7 @@ class ECIResponseHTMLParser:
                 # Multimedia and Documentation Links
                 factsheet_url=self._extract_factsheet_url(soup),
                 video_recording_count=self._extract_video_recording_count(soup),
-                dedicated_website=self._extract_has_dedicated_website(soup), #
+                dedicated_website=self._extract_has_dedicated_website(soup),
                 
                 # Structural Analysis Flags
                 related_eu_legislation=self._extract_related_eu_legislation(soup),
@@ -117,8 +117,8 @@ class ECIResponseHTMLParser:
                 ),
                 
                 # Metadata
-                created_timestamp=current_timestamp, #
-                last_updated=current_timestamp #
+                created_timestamp=current_timestamp,
+                last_updated=current_timestamp
             )
             
             self.logger.info(f"Successfully parsed response: {response.registration_number}")
@@ -130,6 +130,8 @@ class ECIResponseHTMLParser:
         except Exception as e:
             self.logger.error(f"Error parsing {html_path.name}: {str(e)}", exc_info=True)
             return None
+        finally:
+            self.registration_number = None
 
     def _extract_response_url(self, soup: BeautifulSoup) -> str:
         """Extract the response page URL from HTML
@@ -150,7 +152,6 @@ class ECIResponseHTMLParser:
             ValueError: If response URL cannot be found
         """
         try:
-
             # Method 1: Find the active language link in the site header
             active_language_link = soup.find(
                 'a',
@@ -192,7 +193,6 @@ class ECIResponseHTMLParser:
             # Method 4: Try og:url meta tag
             og_url = soup.find('meta', attrs={'property': 'og:url'})
             if og_url and og_url.get('content'):
-
                 response_url = og_url['content']
                 if response_url.startswith('http'):
                     return response_url
@@ -201,17 +201,15 @@ class ECIResponseHTMLParser:
                 else:
                     return f"https://citizens-initiative.europa.eu/{response_url}"
 
-
             raise ValueError(
-                "Response URL not found in HTML. Expected one of: "
-                "active language link (class='ecl-site-header__language-link--active'), "
-                "link with hreflang='en', "
-                "canonical link tag (<link rel='canonical'>), "
+                f"Response URL not found for initiative {self.registration_number}. "
+                "Expected one of: active language link (class='ecl-site-header__language-link--active'), "
+                "link with hreflang='en', canonical link tag (<link rel='canonical'>), "
                 "or og:url meta tag (<meta property='og:url'>)"
             )
 
         except Exception as e:
-            raise ValueError(f"Error extracting response URL: {str(e)}") from e
+            raise ValueError(f"Error extracting response URL for initiative {self.registration_number}: {str(e)}") from e
             
     def _extract_initiative_url(self, soup: BeautifulSoup) -> str:
         """Extract initiative URL from breadcrumb link or page links
@@ -235,7 +233,6 @@ class ECIResponseHTMLParser:
             - /initiatives/details/2017/000002_en (converted to full URL)
         """
         try:
-            
             # Method 1: Find the breadcrumb link with text "Initiative detail"
             breadcrumb_link = soup.find(
                 'a', 
@@ -249,7 +246,6 @@ class ECIResponseHTMLParser:
                 # Build full URL if relative
                 if href.startswith('http'):
                     return href
-
                 elif href.startswith('/'):
                     initiative_url = f"https://citizens-initiative.europa.eu{href}"
                     return initiative_url
@@ -269,7 +265,6 @@ class ECIResponseHTMLParser:
                 # Check if href matches the pattern
                 # Pattern: /initiatives/details/YYYY/NNNNNN_en (specifically English version)
                 if re.search(r'/initiatives/details/\d{4}/\d{6}_en$', href):
-
                     if href.startswith('http'):
                         self.logger.info(f"Found initiative URL in page link with text '{link_text}': {href}")
                         return href
@@ -280,18 +275,19 @@ class ECIResponseHTMLParser:
             
             # If no URL found, raise error
             raise ValueError(
-                "Initiative URL not found. Expected breadcrumb link with text 'Initiative detail' "
+                f"Initiative URL not found for {self.registration_number}. "
+                "Expected breadcrumb link with text 'Initiative detail' "
                 "or link matching pattern /initiatives/details/YYYY/NNNNNN_en with text content"
             )
             
         except ValueError:
             raise
         except Exception as e:
-            raise ValueError(f"Error extracting initiative URL: {str(e)}") from e
+            raise ValueError(f"Error extracting initiative URL for {self.registration_number}: {str(e)}") from e
+            
     # Submission and Verification Section
-    def _extract_submission_date(self, soup: BeautifulSoup, registration_number: str) -> Optional[str]:
+    def _extract_submission_date(self, soup: BeautifulSoup) -> datetime.date:
         """Extract submission date from 'Submission and examination' section"""
-
         # Find the Submission section
         h2 = soup.find('h2', id='Submission-and-examination')
         
@@ -302,19 +298,17 @@ class ECIResponseHTMLParser:
             if first_p:
                 text = first_p.get_text()
 
-                date_time = None
-
                 # Pattern 1: DD Month YYYY format (e.g., "10 January 2020")
                 match1 = re.search(
                     r'submitted to the (?:European )?Commission on (\d{1,2} [A-Za-z]+ \d{4})', 
                     text, 
                     re.IGNORECASE
-                    )
+                )
                 
                 if match1:
                     date_str = match1.group(1)
-
                     date_time = datetime.strptime(date_str, '%d %B %Y')
+                    return date_time.date()
 
                 # Pattern 2: DD/MM/YYYY format (e.g., "28/02/2014")
                 match2 = re.search(
@@ -325,133 +319,246 @@ class ECIResponseHTMLParser:
                 
                 if match2:
                     date_str = match2.group(1)
-
                     date_time = datetime.strptime(date_str, '%d/%m/%Y')
-                
-                # `2023-06-14 00:00:00` -> `2023-06-14``
-                return date_time.date()
+                    return date_time.date()
 
-        raise ValueError(f"No submission date found for initiative:\n{registration_number}")
-    
-    def _extract_verified_signatures_count(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract verified statements of support count"""
-        pass
-    
-    def _extract_number_member_states_threshold(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract number of Member States where threshold was met"""
-        pass
+        # If no date found, raise an error
+        raise ValueError(f"No submission date found for initiative {self.registration_number}")
+
     
     def _extract_submission_news_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract Commission news announcement URL about submission"""
-        pass
-    
+        h2 = soup.find('h2', id='Submission-and-examination')
+        
+        if h2:
+            first_p = h2.find_next_sibling('p')
+            
+            if first_p:
+                links = first_p.find_all('a')
+                
+                for link in links:
+                    href = link.get('href', '')
+                    link_text = link.get_text().strip().lower()
+                    
+                    # Check if it's a press/news link
+                    if any(keyword in link_text for keyword in ['press', 'announcement', 'news']):
+                        if 'presscorner' in href or 'europa.eu/rapid' in href:
+                            return href
+        
+        # If no news URL found, raise an error
+        raise ValueError(f"No submission news URL found for initiative {self.registration_number}")
+        
     # Procedural Timeline Milestones
     def _extract_commission_meeting_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract date of meeting with Commission officials (Article 15)"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting commission meeting date for {self.registration_number}: {str(e)}") from e
     
     def _extract_commission_officials_met(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract names and titles of Commissioners/Vice-Presidents who met"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting commission officials for {self.registration_number}: {str(e)}") from e
     
     def _extract_parliament_hearing_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract date of European Parliament public hearing"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting parliament hearing date for {self.registration_number}: {str(e)}") from e
     
     def _extract_parliament_hearing_recording_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract video recording URL of Parliament hearing"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting parliament hearing recording URL for {self.registration_number}: {str(e)}") from e
     
     def _extract_plenary_debate_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract date of plenary debate in Parliament"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting plenary debate date for {self.registration_number}: {str(e)}") from e
     
     def _extract_plenary_debate_recording_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract video recording URL of plenary debate"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting plenary debate recording URL for {self.registration_number}: {str(e)}") from e
     
     def _extract_commission_communication_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract date Commission adopted official Communication"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting commission communication date for {self.registration_number}: {str(e)}") from e
     
     def _extract_commission_communication_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract link to full PDF of Commission Communication"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting commission communication URL for {self.registration_number}: {str(e)}") from e
     
     def _extract_commission_response_news_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract press release/news URL about Commission response"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting commission response news URL for {self.registration_number}: {str(e)}") from e
     
     # Commission Response Content
     def _extract_communication_main_conclusion(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract main conclusions text from Communication"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting communication main conclusion for {self.registration_number}: {str(e)}") from e
     
     def _extract_legislative_proposal_status(self, soup: BeautifulSoup) -> Optional[str]:
         """Determine if Commission proposed legislation, alternatives, or no action"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting legislative proposal status for {self.registration_number}: {str(e)}") from e
     
     def _extract_commission_response_summary(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract overall Commission position summary"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting commission response summary for {self.registration_number}: {str(e)}") from e
     
     # Follow-up Activities Section
     def _extract_has_followup_section(self, soup: BeautifulSoup) -> Optional[bool]:
         """Check if page includes follow-up activities section"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error checking followup section for {self.registration_number}: {str(e)}") from e
     
     def _extract_followup_meeting_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract date of follow-up meetings after initial response"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting followup meeting date for {self.registration_number}: {str(e)}") from e
     
     def _extract_followup_meeting_officials(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract names of officials in follow-up meetings"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting followup meeting officials for {self.registration_number}: {str(e)}") from e
     
     def _extract_roadmap_launched(self, soup: BeautifulSoup) -> Optional[bool]:
         """Check if roadmap or action plan was initiated"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error checking roadmap status for {self.registration_number}: {str(e)}") from e
     
     def _extract_roadmap_description(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract roadmap objectives description"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting roadmap description for {self.registration_number}: {str(e)}") from e
     
     def _extract_roadmap_completion_target(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract target date for roadmap completion"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting roadmap completion target for {self.registration_number}: {str(e)}") from e
     
     def _extract_workshop_conference_dates(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract dates of workshops/conferences as JSON array"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting workshop/conference dates for {self.registration_number}: {str(e)}") from e
     
     def _extract_partnership_programs(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract names of partnership programs established"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting partnership programs for {self.registration_number}: {str(e)}") from e
     
     def _extract_court_cases_referenced(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract Court of Justice case numbers"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting court cases for {self.registration_number}: {str(e)}") from e
     
     def _extract_court_judgment_dates(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract dates of court judgments"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting court judgment dates for {self.registration_number}: {str(e)}") from e
     
     def _extract_court_judgment_summary(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract brief court ruling descriptions"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting court judgment summary for {self.registration_number}: {str(e)}") from e
     
     def _extract_latest_update_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract most recent date from follow-up section"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting latest update date for {self.registration_number}: {str(e)}") from e
     
     # Multimedia and Documentation
     def _extract_factsheet_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract factsheet PDF URL"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting factsheet URL for {self.registration_number}: {str(e)}") from e
     
     def _extract_video_recording_count(self, soup: BeautifulSoup) -> Optional[int]:
         """Count number of video recordings linked"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error counting video recordings for {self.registration_number}: {str(e)}") from e
     
     def _extract_has_dedicated_website(self, soup: BeautifulSoup) -> Optional[bool]:
         """Check if organizers maintained campaign website"""
@@ -460,26 +567,50 @@ class ECIResponseHTMLParser:
     # Structural Analysis
     def _extract_related_eu_legislation(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract references to specific Regulations or Directives"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting related EU legislation for {self.registration_number}: {str(e)}") from e
     
     def _extract_petition_platforms_used(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract external platforms mentioned"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting petition platforms for {self.registration_number}: {str(e)}") from e
     
     def _calculate_follow_up_duration_months(self, commission_date: Optional[str], 
                                             latest_update: Optional[str]) -> Optional[int]:
         """Calculate months between Commission response and latest follow-up"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error calculating follow-up duration for {self.registration_number}: {str(e)}") from e
     
     # Helper Methods
     def _parse_date(self, date_string: str) -> Optional[str]:
         """Parse and normalize date strings to ISO format"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error parsing date for {self.registration_number}: {str(e)}") from e
     
     def _clean_text(self, text: str) -> str:
         """Clean extracted text (remove extra whitespace, normalize)"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error cleaning text for {self.registration_number}: {str(e)}") from e
     
     def _extract_all_video_urls(self, soup: BeautifulSoup) -> List[str]:
         """Extract all video recording URLs from page"""
-        pass
+        try:
+            # Implementation here
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting video URLs for {self.registration_number}: {str(e)}") from e

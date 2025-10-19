@@ -19,8 +19,6 @@ class ECICommissionResponseRecord:
     
     # Submission and Verification Data
     submission_date: Optional[str]
-    verified_signatures_count: Optional[str]
-    number_member_states_threshold: Optional[str]
     submission_news_url: Optional[str]
     
     # Procedural Timeline Milestones
