@@ -421,12 +421,91 @@ class ECIResponseHTMLParser:
     
     def _extract_commission_officials_met(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract names and titles of Commissioners/Vice-Presidents who met"""
+
         try:
-            # Implementation here
-            pass
+            # Find the "Submission and examination" section
+            submission_section = soup.find('h2', id='Submission-and-examination')
+            
+            if not submission_section:
+                submission_section = soup.find('h2', string=re.compile(r'Submission and examination', re.IGNORECASE))
+            
+            if not submission_section:
+                raise ValueError(f"No submission section for {self.registration_number}")
+            
+            # Get all paragraphs after the submission section
+            paragraphs = []
+            for sibling in submission_section.find_next_siblings():
+                if sibling.name == 'h2':
+                    break
+                if sibling.name == 'p':
+                    paragraphs.append(sibling)
+            
+            # Build date patterns (same as commission_meeting_date extraction)
+            month_names = '|'.join(calendar.month_name[1:])
+            date_pattern_month = rf'\d{{1,2}}\s+(?:{month_names})\s+\d{{4}}'
+            date_pattern_slash = r'\d{2}/\d{2}/\d{4}'
+            combined_date_pattern = f'(?:{date_pattern_month}|{date_pattern_slash})'
+            
+            # Look for the meeting sentence
+            for p in paragraphs:
+                text = p.get_text(strip=True)
+                
+                # Check if this is a commission meeting sentence
+                if ('organisers met with' in text or 
+                    'organisers were given the opportunity' in text):
+                    
+                    if ('Commission' in text and 
+                        ('Vice-President' in text or 'Commissioner' in text or 'officials' in text)):
+                        
+                        officials_text = None
+                        
+                        # Pattern 1: "met with [OFFICIALS] on [DATE]"
+                        if 'met with' in text:
+                            pattern = rf'met with\s+(.+?)\s+on\s+{combined_date_pattern}'
+                            match = re.search(pattern, text, re.IGNORECASE)
+                            if match:
+                                officials_text = match.group(1).strip()
+                        
+                        # Pattern 2: "meeting with [OFFICIALS] and European Commission officials"
+                        if not officials_text and 'meeting with' in text:
+                            match = re.search(r'meeting with\s+(.+?)\s+and European Commission officials', text, re.IGNORECASE)
+                            if match:
+                                officials_text = match.group(1).strip()
+                        
+                        if officials_text:
+
+                            # Clean up the text
+                            # Remove "the European Commission" prefix
+                            officials_text = re.sub(r'^the\s+European\s+Commission\s+', '', officials_text, flags=re.IGNORECASE)
+                            officials_text = re.sub(r'^European\s+Commission\s+', '', officials_text, flags=re.IGNORECASE)
+                            officials_text = re.sub(r'^Commission\s+', '', officials_text, flags=re.IGNORECASE)
+                            
+                            # Remove "First" from "First Vice-President"
+                            officials_text = re.sub(r'\bFirst\s+Vice-President\b', 'Vice-President', officials_text)
+                            
+                            # Split by " and " before title keywords
+                            officials_parts = re.split(
+                                r'\s+and\s+(?:the\s+)?(?=(?:Executive\s+)?Vice-President|Commissioner|Director-General|Deputy\s+Director-General)', 
+                                officials_text
+                                )
+                            
+                            # Clean each official entry
+                            cleaned_officials = []
+
+                            for official in officials_parts:
+                                official = official.strip().rstrip(',')
+                                if official:
+                                    cleaned_officials.append(official)
+                            
+                            # Join with semicolon
+                            result = '; '.join(cleaned_officials)
+                            return result if result else None
+            
+            raise ValueError(f"No commission meeting found in submission section for {self.registration_number}")
+            
         except Exception as e:
             raise ValueError(f"Error extracting commission officials for {self.registration_number}: {str(e)}") from e
-    
+
     def _extract_parliament_hearing_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract date of European Parliament public hearing"""
         try:

@@ -702,8 +702,141 @@ class TestProceduralTimelineExtraction:
     
     def test_commission_officials_met(self):
         """Test extraction of Commission officials who met organizers."""
-        # Placeholder - implement when HTML structure is known
-        pass
+        
+        test_cases = [
+            # Test case 1: Simple format - single Vice-President
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The organisers met with Commission Vice-President Maroš Šefčovič on 17 February 2014.</p>
+                """,
+                "Vice-President Maroš Šefčovič",
+                "single_vice_president",
+                False
+            ),
+            # Test case 2: Post-2020 format with Executive Vice-President
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>On 25 March 2025, the initiative organisers were given the opportunity to present 
+                the objectives of their initiative in the meeting with Executive Vice-President 
+                Raffaele Fitto and European Commission officials, in line with Article 15 of the 
+                ECI Regulation.</p>
+                """,
+                "Executive Vice-President Raffaele Fitto",
+                "executive_vp_post_2020",
+                False
+            ),
+            # Test case 3: Multiple officials with portfolios
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The organisers met with the European Commission Vice-President for Values and Transparency, 
+                Věra Jourová and the Commissioner for Health and Food Safety, Stella Kyriakides on 20 July 2023.</p>
+                """,
+                "Vice-President for Values and Transparency, Věra Jourová; Commissioner for Health and Food Safety, Stella Kyriakides",
+                "multiple_with_portfolios",
+                False
+            ),
+            # Test case 4: Officials with responsibilities
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The organisers met with European Commission Vice-President Jyrki Katainen, 
+                responsible for Jobs, Growth, Investment and Competitiveness and Director-General 
+                Karl Falkenberg, responsible for DG Environment, on 11 May 2015.</p>
+                """,
+                "Vice-President Jyrki Katainen, responsible for Jobs, Growth, Investment and Competitiveness; Director-General Karl Falkenberg, responsible for DG Environment",
+                "with_responsibilities",
+                False
+            ),
+            # Test case 5: Slash date format
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The organisers met with the Commissioner responsible for Research, Innovation and Science, 
+                Ms Geoghegan-Quinn, and the Deputy Director-General responsible for Development and Cooperation, 
+                Mr. Cornaro on 09/04/2014.</p>
+                """,
+                "Commissioner responsible for Research, Innovation and Science, Ms Geoghegan-Quinn; Deputy Director-General responsible for Development and Cooperation, Mr. Cornaro",
+                "slash_date_format",
+                False
+            ),
+            # Test case 6: First Vice-President (normalized)
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The organisers met with European Commission First Vice-President Frans Timmermans 
+                and Commissioner for Health & Food Safety Vytenis Andriukaitis on 23/10/2017.</p>
+                """,
+                "Vice-President Frans Timmermans; Commissioner for Health & Food Safety Vytenis Andriukaitis",
+                "first_vp_normalized",
+                False
+            ),
+            # Test case 7: Two Commissioners
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The organisers met with the European Commission Vice-President for Values and Transparency, 
+                Věra Jourová and the Commissioner for Environment, Oceans and Fisheries, Virginijus Sinkevičius 
+                on 6 February 2023.</p>
+                """,
+                "Vice-President for Values and Transparency, Věra Jourová; Commissioner for Environment, Oceans and Fisheries, Virginijus Sinkevičius",
+                "two_commissioners",
+                False
+            ),
+            # Test case 8: No meeting found (raises error)
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The initiative was submitted to the Commission on 15 May 2024.</p>
+                <p>A public hearing took place at the European Parliament on 20 June 2024.</p>
+                """,
+                None,
+                "no_meeting",
+                True
+            ),
+            # Test case 9: No submission section (raises error)
+            (
+                """
+                <h2 id="Other-section">Other section</h2>
+                <p>Some content here.</p>
+                """,
+                None,
+                "no_section",
+                True
+            ),
+        ]
+        
+        for html, expected, test_id, should_raise in test_cases:
+            soup = BeautifulSoup(html, 'html.parser')
+            parser = ECIResponseHTMLParser(soup)
+            parser.registration_number = "2024/000001"
+            
+            if should_raise:
+                # Expect ValueError to be raised
+                with pytest.raises(ValueError) as exc_info:
+                    parser._extract_commission_officials_met(soup)
+                assert "commission official" in str(exc_info.value).lower(), f"Failed for test case: {test_id}"
+            else:
+                # Normal case - should return expected value
+                try:
+                    result = parser._extract_commission_officials_met(soup)
+                    assert result == expected, (
+                        f"Failed for test case: {test_id}\n"
+                        f"Expected: {expected}\n"
+                        f"Got: {result}\n"
+                        f"HTML:\n{html}"
+                    )
+                except Exception as e:
+                    # Re-raise with HTML context
+                    raise AssertionError(
+                        f"Error in test case: {test_id}\n"
+                        f"Expected: {expected}\n"
+                        f"HTML:\n{html}\n"
+                        f"Error: {str(e)}\n"
+                    ) from e
+
     
     def test_parliament_hearing_date(self):
         """Test extraction of Parliament hearing date."""
