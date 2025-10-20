@@ -42,7 +42,7 @@ class TestECIResponseDataModel:
             commission_meeting_date=None,
             commission_officials_met=None,
             parliament_hearing_date=None,
-            parliament_hearing_recording_url=None,
+            parliament_hearing_video_urls=None,
             plenary_debate_date=None,
             plenary_debate_recording_url=None,
             commission_communication_date="2024-06-01",
@@ -124,7 +124,7 @@ class TestOptionalFieldHandling:
             commission_meeting_date=None,  # Optional
             commission_officials_met=None,
             parliament_hearing_date=None,  # Optional
-            parliament_hearing_recording_url=None,
+            parliament_hearing_video_urls=None,
             plenary_debate_date=None,  # Optional
             plenary_debate_recording_url=None,
             commission_communication_date=None,  # Optional
@@ -218,7 +218,7 @@ class TestDataIntegrity:
             commission_meeting_date=None,
             commission_officials_met=None,
             parliament_hearing_date=None,
-            parliament_hearing_recording_url=None,
+            parliament_hearing_video_urls=None,
             plenary_debate_date=None,
             plenary_debate_recording_url=None,
             commission_communication_date=None,

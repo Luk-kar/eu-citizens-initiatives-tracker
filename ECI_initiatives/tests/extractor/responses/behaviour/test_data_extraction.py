@@ -960,7 +960,7 @@ class TestProceduralTimelineExtraction:
                         f"Error: {str(e)}\n"
                     ) from e
     
-    def test_parliament_hearing_recording_url(self):
+    def test_parliament_hearing_video_urls(self):
         """Test extraction of Parliament hearing video URLs (as dict)."""
 
         test_cases = [
@@ -1029,9 +1029,9 @@ class TestProceduralTimelineExtraction:
 
             if should_raise:
                 with pytest.raises(ValueError):
-                    parser.parliament_activity.extract_parliament_hearing_recording_url(soup)
+                    parser.parliament_activity.extract_parliament_hearing_video_urls(soup)
             else:
-                result = parser.parliament_activity.extract_parliament_hearing_recording_url(soup)
+                result = parser.parliament_activity.extract_parliament_hearing_video_urls(soup)
                 assert result == expected, (
                     f"Failed for test case: {test_id}\n"
                     f"Expected: {expected}\n"
