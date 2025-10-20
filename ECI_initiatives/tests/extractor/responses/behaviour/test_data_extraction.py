@@ -1226,10 +1226,201 @@ class TestProceduralTimelineExtraction:
         result_6 = parser_6._extract_plenary_debate_date(soup_6)
         assert result_6 == "14-12-2020"
 
+    def test_plenary_debate_recording_url(self):
+        """Test extraction of plenary debate recording URLs."""
+        
+        # Test case 1: Single recording link
+        html_1 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The initiative was debated at the European Parliament's plenary session on 11 May 2023. See
+                <a href="https://multimedia.europarl.europa.eu/en/video/example">recording</a>.
+            </p>
+        </html>
+        """
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        parser_1 = ECIResponseHTMLParser(soup_1)
+        result_1 = parser_1._extract_plenary_debate_recording_url(soup_1)
+        expected_1 = json.dumps({"recording": "https://multimedia.europarl.europa.eu/en/video/example"})
+        assert result_1 == expected_1
+        
+        # Test case 2: Multiple links (resolution and press release)
+        html_2 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The initiative was debated at the European Parliament's plenary session on 10 June 2021. In the
+                <a href="https://www.europarl.europa.eu/doceo/document/TA-9-2021-0295_EN.html">resolution</a>
+                adopted on the same day, the European Parliament expressed its support for the initiative. See European Parliament's
+                <a href="https://www.europarl.europa.eu/news/en/press-room/20210604IPR05532/meps-endorse-eu-citizens-call-for-gradual-end-to-caged-farming">press release</a>.
+            </p>
+        </html>
+        """
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        parser_2 = ECIResponseHTMLParser(soup_2)
+        result_2 = parser_2._extract_plenary_debate_recording_url(soup_2)
+        expected_2 = json.dumps({
+            "resolution": "https://www.europarl.europa.eu/doceo/document/TA-9-2021-0295_EN.html",
+            "press release": "https://www.europarl.europa.eu/news/en/press-room/20210604IPR05532/meps-endorse-eu-citizens-call-for-gradual-end-to-caged-farming"
+        })
+        assert result_2 == expected_2
+        
+        # Test case 3: Alternative format with video recording link
+        html_3 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                A debate on this initiative was held in the plenary session of the&nbsp;European Parliament on 10 July 2025. See the
+                <a href="https://www.europarl.europa.eu/plenary/en/vod.html?mode=chapter">video recording</a>.
+            </p>
+        </html>
+        """
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        parser_3 = ECIResponseHTMLParser(soup_3)
+        result_3 = parser_3._extract_plenary_debate_recording_url(soup_3)
+        expected_3 = json.dumps({"video recording": "https://www.europarl.europa.eu/plenary/en/vod.html?mode=chapter"})
+        assert result_3 == expected_3
+        
+        # Test case 4: Multiple links with "part 1 and part 2"
+        html_4 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The initiative was debated at the European Parliament's plenary session on 19 October 2023. See recording (
+                <a href="https://example.com/part1">part 1</a> and
+                <a href="https://example.com/part2">part 2</a>).
+            </p>
+        </html>
+        """
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        parser_4 = ECIResponseHTMLParser(soup_4)
+        result_4 = parser_4._extract_plenary_debate_recording_url(soup_4)
+        expected_4 = json.dumps({
+            "part 1": "https://example.com/part1",
+            "part 2": "https://example.com/part2"
+        })
+        assert result_4 == expected_4
+        
+        # Test case 5: No links in debate paragraph
+        html_5 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The initiative was debated at the European Parliament's plenary session on 14 December 2020.
+            </p>
+        </html>
+        """
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        parser_5 = ECIResponseHTMLParser(soup_5)
+        result_5 = parser_5._extract_plenary_debate_recording_url(soup_5)
+        assert result_5 is None
+        
+        # Test case 6: No plenary debate paragraph at all
+        html_6 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The organisers met with Commission Vice-President on 17 February 2014.
+            </p>
+        </html>
+        """
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        parser_6 = ECIResponseHTMLParser(soup_6)
+        result_6 = parser_6._extract_plenary_debate_recording_url(soup_6)
+        assert result_6 is None
+
     def test_commission_communication_date(self):
-        """Test extraction of Commission Communication date."""
-        # Placeholder - implement when HTML structure is known
-        pass
+        """Test extraction of Commission communication date."""
+        
+        # Test case 1: Text format with full month name
+        html_1 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 19 March 2014 setting out the actions it intends to take in response to the initiative.
+                See <a href="https://example.com">press release</a>.
+            </p>
+        </html>
+        """
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        parser_1 = ECIResponseHTMLParser(soup_1)
+        result_1 = parser_1._extract_commission_communication_date(soup_1)
+        assert result_1 == "19-03-2014"
+        
+        # Test case 2: Slash format
+        html_2 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 12/12/2017 setting out the actions it intends to take in response to the initiative.
+            </p>
+        </html>
+        """
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        parser_2 = ECIResponseHTMLParser(soup_2)
+        result_2 = parser_2._extract_commission_communication_date(soup_2)
+        assert result_2 == "12-12-2017"
+        
+        # Test case 3: Different month name
+        html_3 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 30 June 2021 setting out the actions it intends to take in response to the initiative 'End the Cage Age'.
+                See <a href="https://example.com">press release</a> and <a href="https://example.com">Questions & Answers</a>.
+            </p>
+        </html>
+        """
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        parser_3 = ECIResponseHTMLParser(soup_3)
+        result_3 = parser_3._extract_commission_communication_date(soup_3)
+        assert result_3 == "30-06-2021"
+        
+        # Test case 4: Single digit day
+        html_4 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 5 April 2023 setting out its response to the initiative.
+            </p>
+        </html>
+        """
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        parser_4 = ECIResponseHTMLParser(soup_4)
+        result_4 = parser_4._extract_commission_communication_date(soup_4)
+        assert result_4 == "05-04-2023"
+        
+        # Test case 5: Recent format with "its response"
+        html_5 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 3 September 2025 setting out its response to this initiative.
+                See the <a href="https://example.com">Commission's news</a>.
+            </p>
+        </html>
+        """
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        parser_5 = ECIResponseHTMLParser(soup_5)
+        result_5 = parser_5._extract_commission_communication_date(soup_5)
+        assert result_5 == "03-09-2025"
+        
+        # Test case 6: No Commission communication (some older initiatives)
+        html_6 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The organisers met with Commission Vice-President on 17 February 2014.
+                A public hearing took place at the European Parliament on 17 February 2014.
+            </p>
+        </html>
+        """
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        parser_6 = ECIResponseHTMLParser(soup_6)
+        result_6 = parser_6._extract_commission_communication_date(soup_6)
+        assert result_6 is None
+
     
     def test_commission_communication_url(self):
         """Test extraction of Commission Communication PDF URL."""

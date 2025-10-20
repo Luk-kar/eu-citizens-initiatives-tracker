@@ -26,6 +26,7 @@ class ECIResponseHTMLParser:
         Args:
             logger: Shared logger instance from ResponsesExtractorLogger
         """
+
         self.logger = logger
         self.registration_number = None  # Temporary state during parsing
     
@@ -44,6 +45,7 @@ class ECIResponseHTMLParser:
         Returns:
             ECICommissionResponseRecord object or None if parsing fails
         """
+
         try:
             self.logger.info(f"Parsing response file: {html_path.name}")
             
@@ -156,6 +158,7 @@ class ECIResponseHTMLParser:
         Raises:
             ValueError: If response URL cannot be found
         """
+
         try:
             # Method 1: Find the active language link in the site header
             active_language_link = soup.find(
@@ -770,18 +773,127 @@ class ECIResponseHTMLParser:
 
             
     def _extract_plenary_debate_recording_url(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract video recording URL of plenary debate"""
+        """
+        Extract video recording URL of plenary debate as JSON
+        
+        Returns a JSON string with link text as keys and URLs as values.
+        Returns None if no plenary debate paragraph or links are found.
+        """
+
         try:
-            # Implementation here
-            pass
+            # 1. Locate the "Submission and examination" section
+            submission_section = soup.find('h2', id='Submission-and-examination')
+            if not submission_section:
+                submission_section = soup.find('h2', string=re.compile(r'Submission and examination', re.IGNORECASE))
+            if not submission_section:
+                raise ValueError(f"No submission section found for {self.registration_number}")
+            
+            # 2. Find all paragraphs in the submission section
+            paragraphs = submission_section.find_next_siblings('p')
+            
+            # Keywords that indicate plenary debate
+            debate_keywords = [
+                'initiative was debated at the European Parliament',
+                'debate on this initiative was held in the plenary session'
+            ]
+            
+            # 3. Find the paragraph containing plenary debate information
+            debate_paragraph = None
+            for p in paragraphs:
+                text = p.get_text(separator=' ', strip=True)
+                text = re.sub(r'\s+', ' ', text)
+                
+                if any(keyword in text for keyword in debate_keywords):
+                    debate_paragraph = p
+                    break
+            
+            if not debate_paragraph:
+                return None
+            
+            # 4. Extract all links from the debate paragraph
+            links = debate_paragraph.find_all('a')
+            
+            if not links:
+                return None
+            
+            # 5. Build dictionary with link text as key and URL as value
+            links_dict = {}
+            for link in links:
+                link_text = link.get_text(strip=True)
+                link_url = link.get('href', '')
+                
+                if link_text and link_url:
+                    links_dict[link_text] = link_url
+            
+            if not links_dict:
+                return None
+            
+            # 6. Return as JSON string
+            return json.dumps(links_dict)
+            
         except Exception as e:
             raise ValueError(f"Error extracting plenary debate recording URL for {self.registration_number}: {str(e)}") from e
     
     def _extract_commission_communication_date(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract date Commission adopted official Communication"""
+        """Extract date Commission adopted official Communication
+        
+        Returns date in DD-MM-YYYY format or None if not found.
+        """
         try:
-            # Implementation here
-            pass
+            # 1. Locate the "Submission and examination" section
+            submission_section = soup.find('h2', id='Submission-and-examination')
+            if not submission_section:
+                submission_section = soup.find('h2', string=re.compile(r'Submission and examination', re.IGNORECASE))
+            if not submission_section:
+                raise ValueError(f"No submission section found for {self.registration_number}")
+            
+            # 2. Find all paragraphs in the submission section
+            paragraphs = submission_section.find_next_siblings('p')
+            
+            # 3. Find the paragraph containing Commission Communication information
+            commission_paragraph = None
+            for p in paragraphs:
+                text = p.get_text(separator=' ', strip=True)
+                text = re.sub(r'\s+', ' ', text)
+                
+                if 'Commission adopted a Communication on' in text:
+                    commission_paragraph = text
+                    break
+            
+            if not commission_paragraph:
+                return None
+            
+            # 4. Create month name to number mapping
+            month_dict = {calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)}
+            
+            # 5. Extract date - try text format first (e.g., "19 March 2014")
+            date_pattern = r'Commission adopted a Communication on\s+(\d{1,2})\s+(\w+)\s+(\d{4})'
+            match = re.search(date_pattern, commission_paragraph, re.IGNORECASE)
+            
+            if match:
+                day = match.group(1).zfill(2)
+                month_name = match.group(2).lower()
+                year = match.group(3)
+                
+                month_str = month_dict.get(month_name)
+                if month_str is None:
+                    raise ValueError(f"Invalid month name: {month_name}")
+                
+                return f"{day}-{month_str}-{year}"
+            
+            # 6. Try slash format (e.g., "12/12/2017")
+            date_pattern_slash = r'Commission adopted a Communication on\s+(\d{1,2})/(\d{1,2})/(\d{4})'
+            match = re.search(date_pattern_slash, commission_paragraph, re.IGNORECASE)
+            
+            if match:
+                day = match.group(1).zfill(2)
+                month = match.group(2).zfill(2)
+                year = match.group(3)
+                return f"{day}-{month}-{year}"
+            
+            # No date found in commission paragraph
+            return None
+            
         except Exception as e:
             raise ValueError(f"Error extracting commission communication date for {self.registration_number}: {str(e)}") from e
     
