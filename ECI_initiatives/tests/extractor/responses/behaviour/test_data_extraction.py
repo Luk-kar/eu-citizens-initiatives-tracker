@@ -25,8 +25,14 @@ from ECI_initiatives.extractor.responses.parser import ECIResponseHTMLParser
 from ECI_initiatives.extractor.responses.responses_logger import ResponsesExtractorLogger
 
 
-class TestResponseURLExtraction:
-    """Tests for response URL extraction from HTML."""
+from typing import Optional
+from datetime import date as date_type
+import pytest
+from bs4 import BeautifulSoup
+
+
+class BaseParserTest:
+    """Base test class with common test utilities."""
     
     @classmethod
     def setup_class(cls):
@@ -34,9 +40,57 @@ class TestResponseURLExtraction:
         logger = ResponsesExtractorLogger().setup()
         cls.parser = ECIResponseHTMLParser(logger=logger)
     
+    @staticmethod
+    def create_soup(html: str) -> BeautifulSoup:
+        """Create BeautifulSoup object from HTML string.
+        
+        Args:
+            html: HTML string to parse
+            
+        Returns:
+            BeautifulSoup object
+        """
+        return BeautifulSoup(html, 'html.parser')
+    
+    def assert_url_matches(self, actual: str, expected: str, message: Optional[str] = None) -> None:
+        """Assert that actual URL matches expected URL.
+        
+        Args:
+            actual: Actual URL returned from parser
+            expected: Expected URL
+            message: Optional custom error message
+        """
+        default_message = f"Expected URL '{expected}', got '{actual}'"
+        assert actual == expected, message or default_message
+    
+    def assert_url_contains(self, url: str, substring: str, message: Optional[str] = None) -> None:
+        """Assert that URL contains substring.
+        
+        Args:
+            url: URL to check
+            substring: Substring to find
+            message: Optional custom error message
+        """
+        default_message = f"Expected URL to contain '{substring}', got '{url}'"
+        assert substring in url, message or default_message
+    
+    def assert_url_ends_with(self, url: str, suffix: str, message: Optional[str] = None) -> None:
+        """Assert that URL ends with suffix.
+        
+        Args:
+            url: URL to check
+            suffix: Expected suffix
+            message: Optional custom error message
+        """
+        default_message = f"Expected URL to end with '{suffix}', got '{url}'"
+        assert url.endswith(suffix), message or default_message
+
+
+class TestResponseURLExtraction(BaseParserTest):
+    """Tests for response URL extraction from HTML."""
+    
     def test_extract_response_url_from_active_language_link(self):
         """Test extraction of response URL from active language link."""
-        
         html = '''
         <html>
             <header>
@@ -50,16 +104,14 @@ class TestResponseURLExtraction:
         </html>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         url = self.parser._extract_response_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2020/000001/stop-finning-stop-the-trade_en"
-        assert url == expected_url, \
-            f"Expected '{expected_url}', got '{url}'"
+        self.assert_url_matches(url, expected_url)
 
     def test_extract_response_url_with_multiple_languages(self):
         """Test extraction when multiple language links exist."""
-        
         html = '''
         <html>
             <header>
@@ -82,18 +134,15 @@ class TestResponseURLExtraction:
         </html>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         url = self.parser._extract_response_url(soup)
         
         # Should extract the active (en) link, not the others
-        assert "_en" in url, \
-            "Should extract the active English language link"
-        assert url.endswith("_en"), \
-            "URL should end with _en language code"
+        self.assert_url_contains(url, "_en", "Should extract the active English language link")
+        self.assert_url_ends_with(url, "_en", "URL should end with _en language code")
 
     def test_extract_response_url_fallback_to_en_hreflang(self):
         """Test fallback to hreflang='en' when active class is missing."""
-        
         html = '''
         <html>
             <header>
@@ -106,16 +155,14 @@ class TestResponseURLExtraction:
         </html>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         url = self.parser._extract_response_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2012/000003/water-sanitation_en"
-        assert url == expected_url, \
-            "Should fallback to hreflang='en' link when active class is missing"
+        self.assert_url_matches(url, expected_url, "Should fallback to hreflang='en' link when active class is missing")
 
     def test_extract_response_url_from_canonical_fallback(self):
         """Test fallback to canonical link when language links are missing."""
-        
         html = '''
         <html>
             <head>
@@ -124,16 +171,14 @@ class TestResponseURLExtraction:
         </html>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         url = self.parser._extract_response_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/cohesion-policy-equality-regions_en"
-        assert url == expected_url, \
-            f"Should fallback to canonical link. Expected '{expected_url}', got '{url}'"
+        self.assert_url_matches(url, expected_url, "Should fallback to canonical link")
 
     def test_extract_response_url_handles_relative_urls(self):
         """Test that relative URLs are converted to absolute URLs."""
-        
         html = '''
         <html>
             <head>
@@ -142,16 +187,14 @@ class TestResponseURLExtraction:
         </html>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         url = self.parser._extract_response_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/fur-free-europe_en"
-        assert url == expected_url, \
-            f"Should convert relative URL to absolute. Expected '{expected_url}', got '{url}'"
+        self.assert_url_matches(url, expected_url, "Should convert relative URL to absolute")
 
     def test_extract_response_url_missing_all_methods(self):
         """Test that ValueError is raised when no URL sources are found."""
-        
         html = '''
         <html>
             <head></head>
@@ -159,24 +202,17 @@ class TestResponseURLExtraction:
         </html>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         
         with pytest.raises(ValueError, match="Response URL not found"):
             self.parser._extract_response_url(soup)
 
 
-class TestInitiativeURLExtraction:
+class TestInitiativeURLExtraction(BaseParserTest):
     """Tests for initiative URL extraction from HTML."""
-    
-    @classmethod
-    def setup_class(cls):
-        """Setup parser instance."""
-        logger = ResponsesExtractorLogger().setup()
-        cls.parser = ECIResponseHTMLParser(logger=logger)
     
     def test_extract_initiative_url_from_breadcrumb(self):
         """Test extraction of initiative URL from breadcrumb link."""
-        
         html = '''
         <nav class="ecl-breadcrumb">
             <ol class="ecl-breadcrumb__container">
@@ -190,16 +226,14 @@ class TestInitiativeURLExtraction:
         </nav>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         url = self.parser._extract_initiative_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2012/000003_en"
-        assert url == expected_url, \
-            f"Expected URL '{expected_url}', got '{url}'"
+        self.assert_url_matches(url, expected_url)
 
     def test_extract_initiative_url_with_whitespace(self):
         """Test extraction works with whitespace in breadcrumb text."""
-        
         html = '''
         <a href="/initiatives/details/2019/000007_en" 
            class="ecl-breadcrumb__link">
@@ -209,16 +243,14 @@ class TestInitiativeURLExtraction:
         </a>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         url = self.parser._extract_initiative_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2019/000007_en"
-        assert url == expected_url, \
-            f"Should handle whitespace correctly. Expected '{expected_url}', got '{url}'"
+        self.assert_url_matches(url, expected_url, "Should handle whitespace correctly")
 
     def test_extract_initiative_url_from_page_link(self):
         """Test fallback to searching page links for initiatives/details pattern."""
-        
         html = '''
         <html>
             <body>
@@ -231,16 +263,14 @@ class TestInitiativeURLExtraction:
         </html>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         url = self.parser._extract_initiative_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2017/000002_en"
-        assert url == expected_url, \
-            f"Expected '{expected_url}', got '{url}'"
+        self.assert_url_matches(url, expected_url)
 
     def test_extract_initiative_url_skips_empty_links(self):
         """Test that links without text are skipped."""
-        
         html = '''
         <html>
             <body>
@@ -250,16 +280,14 @@ class TestInitiativeURLExtraction:
         </html>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         url = self.parser._extract_initiative_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2022/000002_en"
-        assert url == expected_url, \
-            "Should find link with text content and skip empty links"
+        self.assert_url_matches(url, expected_url, "Should find link with text content and skip empty links")
 
     def test_extract_initiative_url_only_matches_english(self):
         """Test that only _en language URLs are matched."""
-        
         html = '''
         <html>
             <body>
@@ -269,123 +297,93 @@ class TestInitiativeURLExtraction:
         </html>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         url = self.parser._extract_initiative_url(soup)
         
         # Should match English version only
-        assert url.endswith("_en"), \
-            "Should only match English (_en) URL"
+        self.assert_url_ends_with(url, "_en", "Should only match English (_en) URL")
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2020/000001_en"
-        assert url == expected_url, \
-            f"Expected '{expected_url}', got '{url}'"
+        self.assert_url_matches(url, expected_url)
 
     def test_extract_initiative_url_missing(self):
         """Test that ValueError is raised when no initiative URL is found."""
-        
         html = '''
         <html>
             <body>No initiative URL here</body>
         </html>
         '''
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         
         with pytest.raises(ValueError, match="Initiative URL not found"):
             self.parser._extract_initiative_url(soup)
 
 
-class TestSubmissionDataExtraction:
+class TestSubmissionDataExtraction(BaseParserTest):
     """Tests for submission and verification data extraction."""
     
-    @classmethod
-    def setup_class(cls):
-        """Setup parser instance."""
-        logger = ResponsesExtractorLogger().setup()
-        cls.parser = ECIResponseHTMLParser(logger=logger)
+    def _create_submission_html(self, submission_text: str) -> str:
+        """Helper to create HTML with submission section.
+        
+        Args:
+            submission_text: Text content for submission paragraph
+            
+        Returns:
+            Complete HTML string with submission section
+        """
+        return f'''
+        <html>
+            <body>
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>{submission_text}</p>
+            </body>
+        </html>
+        '''
     
     def test_submission_date_extraction(self):
         """Test extraction of submission date."""
-        
         # Test Case 1: DD Month YYYY format (most common)
-        html = '''
-        <html>
-            <body>
-                <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>
-                    <a href="https://citizens-initiative.europa.eu/initiatives/details/2017/000002_en">
-                        Ban glyphosate and protect people and the environment from toxic pesticides
-                    </a>
-                    was submitted to the Commission on 6 October 2017, having gathered 1,070,865 statements of support.
-                </p>
-            </body>
-        </html>
-        '''
+        html = self._create_submission_html('''
+            <a href="https://citizens-initiative.europa.eu/initiatives/details/2017/000002_en">
+                Ban glyphosate and protect people and the environment from toxic pesticides
+            </a>
+            was submitted to the Commission on 6 October 2017, having gathered 1,070,865 statements of support.
+        ''')
         
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = self.create_soup(html)
         date = self.parser._extract_submission_date(soup)
         
-        from datetime import date as date_type
         expected_date = date_type(2017, 10, 6)
-        assert date == expected_date, \
-            f"Expected date {expected_date}, got {date}"
-        assert isinstance(date, date_type), \
-            "Should return datetime.date object"
-
+        assert date == expected_date, f"Expected date {expected_date}, got {date}"
+        assert isinstance(date, date_type), "Should return datetime.date object"
 
         # Test Case 2: DD/MM/YYYY format
-        html_ddmmyyyy = '''
-        <html>
-            <body>
-                <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>
-                    One of us was submitted to the Commission on 28/02/2014 having gathered 1,721,626 statements of support.
-                </p>
-            </body>
-        </html>
-        '''
+        html_ddmmyyyy = self._create_submission_html(
+            'One of us was submitted to the Commission on 28/02/2014 having gathered 1,721,626 statements of support.'
+        )
         
-        soup = BeautifulSoup(html_ddmmyyyy, 'html.parser')
+        soup = self.create_soup(html_ddmmyyyy)
         date = self.parser._extract_submission_date(soup)
         
         expected_date = date_type(2014, 2, 28)
-        assert date == expected_date, \
-            f"Expected date {expected_date}, got {date}"
-
+        assert date == expected_date, f"Expected date {expected_date}, got {date}"
 
         # Test Case 3: With "European Commission" variation
-        html_european = '''
-        <html>
-            <body>
-                <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>
-                    The 'Cohesion policy' initiative was submitted to the European Commission on 4 March 2025,
-                    after having gathered 1,269,351 verified statements of support.
-                </p>
-            </body>
-        </html>
-        '''
+        html_european = self._create_submission_html(
+            "The 'Cohesion policy' initiative was submitted to the European Commission on 4 March 2025, "
+            "after having gathered 1,269,351 verified statements of support."
+        )
         
-        soup = BeautifulSoup(html_european, 'html.parser')
+        soup = self.create_soup(html_european)
         date = self.parser._extract_submission_date(soup)
         
         expected_date = date_type(2025, 3, 4)
-        assert date == expected_date, \
-            f"Expected date {expected_date}, got {date}"
-
+        assert date == expected_date, f"Expected date {expected_date}, got {date}"
 
         # Test Case 4: Missing date should raise ValueError
-        html_no_date = '''
-        <html>
-            <body>
-                <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>
-                    No date information here.
-                </p>
-            </body>
-        </html>
-        '''
+        html_no_date = self._create_submission_html('No date information here.')
         
-        soup = BeautifulSoup(html_no_date, 'html.parser')
+        soup = self.create_soup(html_no_date)
         
         # Mock the registration_number instance variable
         self.parser.registration_number = "2099/999999"
@@ -393,176 +391,84 @@ class TestSubmissionDataExtraction:
         with pytest.raises(ValueError, match="No submission date found for initiative 2099/999999"):
             self.parser._extract_submission_date(soup)
 
-
     def test_submission_news_url(self):
         """Test extraction of submission news URL."""
+        test_cases = [
+            # (description, submission_text, expected_url)
+            (
+                "Standard press release with presscorner URL",
+                '''
+                <a href="https://citizens-initiative.europa.eu/initiatives/details/2012/000003_en">Right2Water</a>
+                was submitted to the Commission on 20 December 2013. See
+                <a href="https://ec.europa.eu/commission/presscorner/detail/en/mex_13_1223">press release</a>.
+                ''',
+                "https://ec.europa.eu/commission/presscorner/detail/en/mex_13_1223"
+            ),
+            (
+                "Press announcement variation",
+                '''
+                The 'Stop Finning' initiative was submitted to the Commission on 11 January 2023. See
+                <a href="https://ec.europa.eu/commission/presscorner/detail/en/mex_23_143">press announcement</a>.
+                ''',
+                "https://ec.europa.eu/commission/presscorner/detail/en/mex_23_143"
+            ),
+            (
+                "European Commission news variation",
+                '''
+                The initiative was submitted to the European Commission on 4 March 2025. See
+                <a href="https://ec.europa.eu/commission/presscorner/detail/en/mex_25_680">European Commission news</a>.
+                ''',
+                "https://ec.europa.eu/commission/presscorner/detail/en/mex_25_680"
+            ),
+            (
+                "Old europa.eu/rapid format",
+                '''
+                Ban glyphosate was submitted to the Commission on 6 October 2017. See
+                <a href="http://europa.eu/rapid/press-release_MEX-17-3748_en.htm">press release</a>.
+                ''',
+                "http://europa.eu/rapid/press-release_MEX-17-3748_en.htm"
+            ),
+            (
+                "Case insensitive matching",
+                '''
+                Initiative submitted. See
+                <a href="https://ec.europa.eu/commission/presscorner/detail/en/mex_20_1000">PRESS RELEASE</a>.
+                ''',
+                "https://ec.europa.eu/commission/presscorner/detail/en/mex_20_1000"
+            )
+        ]
         
-        # Test Case 1: Standard "press release" link with presscorner URL
-        html = '''
-        <html>
-            <body>
-                <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>
-                    <a href="https://citizens-initiative.europa.eu/initiatives/details/2012/000003_en">
-                        Right2Water
-                    </a>
-                    was submitted to the Commission on 20 December 2013. See
-                    <a href="https://ec.europa.eu/commission/presscorner/detail/en/mex_13_1223">
-                        press release
-                    </a>.
-                </p>
-            </body>
-        </html>
-        '''
-        
-        soup = BeautifulSoup(html, 'html.parser')
-        url = self.parser._extract_submission_news_url(soup)
-        
-        expected_url = "https://ec.europa.eu/commission/presscorner/detail/en/mex_13_1223"
-        assert url == expected_url, \
-            f"Expected URL '{expected_url}', got '{url}'"
+        for description, submission_text, expected_url in test_cases:
+            html = self._create_submission_html(submission_text)
+            soup = self.create_soup(html)
+            url = self.parser._extract_submission_news_url(soup)
+            
+            self.assert_url_matches(url, expected_url, f"Failed for: {description}")
 
-
-        # Test Case 2: "press announcement" variation
-        html_announcement = '''
-        <html>
-            <body>
-                <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>
-                    The 'Stop Finning' initiative was submitted to the Commission on 11 January 2023. See
-                    <a href="https://ec.europa.eu/commission/presscorner/detail/en/mex_23_143">
-                        press announcement
-                    </a>.
-                </p>
-            </body>
-        </html>
-        '''
+        # Test Case: Multiple links - should skip initiative link and get press link
+        html_multiple = self._create_submission_html('''
+            <a href="https://citizens-initiative.europa.eu/initiatives/details/2018/000004_en">'End the Cage Age'</a>
+            initiative was submitted to the Commission on 2 October 2020. See
+            <a href="https://ec.europa.eu/commission/presscorner/detail/en/MEX_20_1810">press release</a>.
+        ''')
         
-        soup = BeautifulSoup(html_announcement, 'html.parser')
-        url = self.parser._extract_submission_news_url(soup)
-        
-        expected_url = "https://ec.europa.eu/commission/presscorner/detail/en/mex_23_143"
-        assert url == expected_url, \
-            f"Expected URL '{expected_url}', got '{url}'"
-
-
-        # Test Case 3: "European Commission news" variation
-        html_news = '''
-        <html>
-            <body>
-                <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>
-                    The initiative was submitted to the European Commission on 4 March 2025. See
-                    <a href="https://ec.europa.eu/commission/presscorner/detail/en/mex_25_680">
-                        European Commission news
-                    </a>.
-                </p>
-            </body>
-        </html>
-        '''
-        
-        soup = BeautifulSoup(html_news, 'html.parser')
-        url = self.parser._extract_submission_news_url(soup)
-        
-        expected_url = "https://ec.europa.eu/commission/presscorner/detail/en/mex_25_680"
-        assert url == expected_url, \
-            f"Expected URL '{expected_url}', got '{url}'"
-
-
-        # Test Case 4: Old europa.eu/rapid format
-        html_rapid = '''
-        <html>
-            <body>
-                <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>
-                    Ban glyphosate was submitted to the Commission on 6 October 2017. See
-                    <a href="http://europa.eu/rapid/press-release_MEX-17-3748_en.htm">
-                        press release
-                    </a>.
-                </p>
-            </body>
-        </html>
-        '''
-        
-        soup = BeautifulSoup(html_rapid, 'html.parser')
-        url = self.parser._extract_submission_news_url(soup)
-        
-        expected_url = "http://europa.eu/rapid/press-release_MEX-17-3748_en.htm"
-        assert url == expected_url, \
-            f"Expected URL '{expected_url}', got '{url}'"
-
-
-        # Test Case 5: Multiple links - should skip initiative link and get press link
-        html_multiple = '''
-        <html>
-            <body>
-                <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>
-                    <a href="https://citizens-initiative.europa.eu/initiatives/details/2018/000004_en">
-                        'End the Cage Age'
-                    </a>
-                    initiative was submitted to the Commission on 2 October 2020. See
-                    <a href="https://ec.europa.eu/commission/presscorner/detail/en/MEX_20_1810">
-                        press release
-                    </a>.
-                </p>
-            </body>
-        </html>
-        '''
-        
-        soup = BeautifulSoup(html_multiple, 'html.parser')
+        soup = self.create_soup(html_multiple)
         url = self.parser._extract_submission_news_url(soup)
         
         # Should get the presscorner URL, not the initiative URL
-        assert 'presscorner' in url, \
-            "Should extract presscorner URL, not initiative URL"
-        assert url == "https://ec.europa.eu/commission/presscorner/detail/en/MEX_20_1810", \
-            "Should extract correct press release URL"
+        self.assert_url_contains(url, 'presscorner', "Should extract presscorner URL, not initiative URL")
+        self.assert_url_matches(url, "https://ec.europa.eu/commission/presscorner/detail/en/MEX_20_1810")
 
-
-        # Test Case 6: Missing news URL should return None
-        html_no_news = '''
-        <html>
-            <body>
-                <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>
-                    <a href="https://citizens-initiative.europa.eu/initiatives/details/2020/000001_en">
-                        Initiative
-                    </a>
-                    was submitted but no press release link here.
-                </p>
-            </body>
-        </html>
-        '''
+        # Test Case: Missing news URL should raise ValueError
+        html_no_news = self._create_submission_html('''
+            <a href="https://citizens-initiative.europa.eu/initiatives/details/2020/000001_en">Initiative</a>
+            was submitted but no press release link here.
+        ''')
         
-        soup = BeautifulSoup(html_no_news, 'html.parser')
+        soup = self.create_soup(html_no_news)
 
         with pytest.raises(ValueError, match="No submission news URL found for initiative"):
             self.parser._extract_submission_news_url(soup)
-
-
-        # Test Case 7: Case insensitive matching for link text
-        html_case = '''
-        <html>
-            <body>
-                <h2 id="Submission-and-examination">Submission and examination</h2>
-                <p>
-                    Initiative submitted. See
-                    <a href="https://ec.europa.eu/commission/presscorner/detail/en/mex_20_1000">
-                        PRESS RELEASE
-                    </a>.
-                </p>
-            </body>
-        </html>
-        '''
-        
-        soup = BeautifulSoup(html_case, 'html.parser')
-        url = self.parser._extract_submission_news_url(soup)
-        
-        assert url is not None, \
-            "Should match 'PRESS RELEASE' (case insensitive)"
-        assert url == "https://ec.europa.eu/commission/presscorner/detail/en/mex_20_1000"
-
 
 
 class TestProceduralTimelineExtraction:
