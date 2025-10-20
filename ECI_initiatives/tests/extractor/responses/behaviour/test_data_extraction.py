@@ -1135,9 +1135,97 @@ class TestProceduralTimelineExtraction:
 
     def test_plenary_debate_date(self):
         """Test extraction of plenary debate date."""
-        # Placeholder - implement when HTML structure is known
-        pass
-    
+        
+        # Test case 1: Standard format "initiative was debated at the European Parliament's plenary session on"
+        html_1 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>Some other text.</p>
+            <p>
+                The initiative was debated at the European Parliament's plenary session on 10 June 2021. In the
+                <a href="https://example.com">resolution</a>
+                adopted on the same day, the European Parliament expressed its support for the initiative.
+            </p>
+        </html>
+        """
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        parser_1 = ECIResponseHTMLParser(soup_1)
+        result_1 = parser_1._extract_plenary_debate_date(soup_1)
+        assert result_1 == "10-06-2021"
+        
+        # Test case 2: Alternative format "A debate on this initiative was held"
+        html_2 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                A debate on this initiative was held in the plenary session of the&nbsp;European Parliament on 10 July 2025. See the
+                <a href="https://example.com">video recording</a>.
+            </p>
+        </html>
+        """
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        parser_2 = ECIResponseHTMLParser(soup_2)
+        result_2 = parser_2._extract_plenary_debate_date(soup_2)
+        assert result_2 == "10-07-2025"
+        
+        # Test case 3: With various month names
+        html_3 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The initiative was debated at the European Parliament's plenary session on 16 March 2023.
+                See <a href="https://example.com">recording</a>.
+            </p>
+        </html>
+        """
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        parser_3 = ECIResponseHTMLParser(soup_3)
+        result_3 = parser_3._extract_plenary_debate_date(soup_3)
+        assert result_3 == "16-03-2023"
+        
+        # Test case 4: Single digit day
+        html_4 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The initiative was debated at the European Parliament's plenary session on 5 April 2023.
+            </p>
+        </html>
+        """
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        parser_4 = ECIResponseHTMLParser(soup_4)
+        result_4 = parser_4._extract_plenary_debate_date(soup_4)
+        assert result_4 == "05-04-2023"
+        
+        # Test case 5: No plenary debate date (older initiatives from 2017 and earlier)
+        html_5 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The organisers met with Commission Vice-President on 17 February 2014.
+                A public hearing took place at the European Parliament on 17 February 2014.
+            </p>
+        </html>
+        """
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        parser_5 = ECIResponseHTMLParser(soup_5)
+        result_5 = parser_5._extract_plenary_debate_date(soup_5)
+        assert result_5 is None
+        
+        # Test case 6: Slash format (if exists)
+        html_6 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The initiative was debated at the European Parliament's plenary session on 14/12/2020.
+            </p>
+        </html>
+        """
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        parser_6 = ECIResponseHTMLParser(soup_6)
+        result_6 = parser_6._extract_plenary_debate_date(soup_6)
+        assert result_6 == "14-12-2020"
+
     def test_commission_communication_date(self):
         """Test extraction of Commission Communication date."""
         # Placeholder - implement when HTML structure is known

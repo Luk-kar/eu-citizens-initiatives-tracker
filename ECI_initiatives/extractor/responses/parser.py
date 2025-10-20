@@ -694,65 +694,81 @@ class ECIResponseHTMLParser:
             raise ValueError(
                 f"Error extracting parliament hearing recording URLs for {self.registration_number}: {str(e)}"
             ) from e
+
     def _extract_plenary_debate_date(self, soup: BeautifulSoup) -> str:
-        """Extract date of plenary debate in Parliament"""
+        """Extract date of plenary debate in Parliament
+        
+        Note: Plenary debates did not take place for initiatives registered in 2017 and earlier.
+        Returns None when no plenary debate date is found (typically for older initiatives).
+        """
 
         try:
-            # import calendar
+            # 1. Locate the "Submission and examination" section
+            submission_section = soup.find('h2', id='Submission-and-examination')
+            if not submission_section:
+                submission_section = soup.find('h2', string=re.compile(r'Submission and examination', re.IGNORECASE))
+            if not submission_section:
+                raise ValueError(f"No submission section found for {self.registration_number}")
             
-            # # Get the submission text first
-            # submission_text = self._extract_submission_text(soup)
+            # 2. Find all paragraphs in the submission section
+            paragraphs = submission_section.find_next_siblings('p')
             
-            # # Create month name to number mapping using calendar module
-            # month_dict = {calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)}
+            # Keywords that indicate plenary debate
+            debate_keywords = [
+                'initiative was debated at the European Parliament',
+                'debate on this initiative was held in the plenary session'
+            ]
             
-            # # Dictionary mapping format types to their regex pattern lists
-            # patterns = {
-            #     'text': [
-            #         r'(?i)The initiative was debated at the European Parliament\'?s plenary session on (\d{1,2})\s+(\w+)\s+(\d{4})',
-            #         r'(?i)A debate on this initiative was held in the plenary session of the European Parliament on (\d{1,2})\s+(\w+)\s+(\d{4})',
-            #     ],
-            #     'slash': [
-            #         r'The initiative was debated at the European Parliament\'?s plenary session on (\d{1,2})/(\d{1,2})/(\d{4})',
-            #         r'A debate on this initiative was held in the plenary session of the European Parliament on (\d{1,2})/(\d{1,2})/(\d{4})',
-            #     ],
-            # }
+            # 3. Find the paragraph containing plenary debate information
+            debate_paragraph = None
+            for p in paragraphs:
+                # Use separator=' ' to ensure spaces between elements
+                text = p.get_text(separator=' ', strip=True)
+                # Normalize whitespace: replace non-breaking spaces and multiple spaces
+                text = re.sub(r'\s+', ' ', text)
+                
+                if any(keyword in text for keyword in debate_keywords):
+                    debate_paragraph = text
+                    break
             
-            # for format_type, pattern_list in patterns.items():
-            #     for pattern in pattern_list:
-            #         match = re.search(pattern, submission_text)
-            #         if match:
-            #             if format_type == 'text':
-            #                 # Convert "14 December 2020" to "14-12-2020"
-            #                 day = match.group(1).zfill(2)
-            #                 month_name = match.group(2).lower()
-            #                 year = match.group(3)
-                            
-            #                 # Get month number from dictionary
-            #                 month_str = month_dict.get(month_name)
-                            
-            #                 if month_str is None:
-            #                     raise ValueError(f"Invalid month name: {month_name}")
-                            
-            #                 return f"{day}-{month_str}-{year}"
-                            
-            #             elif format_type == 'slash':
-            #                 # Convert "14/12/2020" to "14-12-2020"
-            #                 day = match.group(1).zfill(2)
-            #                 month = match.group(2).zfill(2)
-            #                 year = match.group(3)
-                            
-            #                 return f"{day}-{month}-{year}"
+            if not debate_paragraph:
+                return None
             
-            # # No plenary debate date found - raise ValueError
-            # raise ValueError(f"No plenary debate date found in submission text for {self.registration_number}")
-
-            pass
+            # 4. Create month name to number mapping
+            month_dict = {calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)}
+            
+            # 5. Extract date - try text format first (e.g., "16 March 2023" or "10 June 2021")
+            date_pattern = r'plenary session\s+(?:of\s+the\s+)?(?:European\s+Parliament\s+)?on\s+(\d{1,2})\s+(\w+)\s+(\d{4})'
+            match = re.search(date_pattern, debate_paragraph, re.IGNORECASE)
+            
+            if match:
+                day = match.group(1).zfill(2)
+                month_name = match.group(2).lower()
+                year = match.group(3)
+                
+                month_str = month_dict.get(month_name)
+                if month_str is None:
+                    raise ValueError(f"Invalid month name: {month_name}")
+                
+                return f"{day}-{month_str}-{year}"
+            
+            # 6. Try slash format (e.g., "16/03/2023")
+            date_pattern_slash = r'plenary session\s+(?:of\s+the\s+)?(?:European\s+Parliament\s+)?on\s+(\d{1,2})/(\d{1,2})/(\d{4})'
+            match = re.search(date_pattern_slash, debate_paragraph, re.IGNORECASE)
+            
+            if match:
+                day = match.group(1).zfill(2)
+                month = match.group(2).zfill(2)
+                year = match.group(3)
+                return f"{day}-{month}-{year}"
+            
+            # No date found in debate paragraph
+            return None
             
         except Exception as e:
             raise ValueError(f"Error extracting plenary debate date for {self.registration_number}: {str(e)}") from e
 
-        
+            
     def _extract_plenary_debate_recording_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract video recording URL of plenary debate"""
         try:
