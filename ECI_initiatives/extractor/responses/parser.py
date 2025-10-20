@@ -626,7 +626,7 @@ class ParliamentActivityExtractor(BaseExtractor):
 class CommissionResponseExtractor(BaseExtractor):
     """Extracts Commission communication and response data"""
 
-    def extract_commission_communication_date(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_official_communication_adoption_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract date Commission adopted official Communication"""
         try:
             submission_section = soup.find('h2', id='Submission-and-examination')
@@ -959,7 +959,7 @@ class ECIResponseHTMLParser:
             current_timestamp = datetime.now().isoformat()
 
             # Extract commission communication date for follow-up calculation
-            commission_communication_date = self.commission_response.extract_commission_communication_date(soup)
+            official_communication_adoption_date = self.commission_response.extract_official_communication_adoption_date(soup)
             latest_update_date = self.followup_activity.extract_latest_update_date(soup)
 
             # Create and return ECI Response object using extractors
@@ -984,7 +984,7 @@ class ECIResponseHTMLParser:
                 parliament_hearing_video_urls=self.parliament_activity.extract_parliament_hearing_video_urls(soup),
                 plenary_debate_date=self.parliament_activity.extract_plenary_debate_date(soup),
                 plenary_debate_video_urls=self.parliament_activity.extract_plenary_debate_video_urls(soup),
-                commission_communication_date=commission_communication_date,
+                official_communication_adoption_date=official_communication_adoption_date,
                 commission_communication_url=self.commission_response.extract_commission_communication_url(soup),
 
                 # Commission Response Content
@@ -1015,7 +1015,7 @@ class ECIResponseHTMLParser:
                 related_eu_legislation=self.structural_analysis.extract_related_eu_legislation(soup),
                 petition_platforms_used=self.structural_analysis.extract_petition_platforms_used(soup),
                 follow_up_duration_months=self.structural_analysis.calculate_follow_up_duration_months(
-                    commission_communication_date, 
+                    official_communication_adoption_date, 
                     latest_update_date
                 ),
 

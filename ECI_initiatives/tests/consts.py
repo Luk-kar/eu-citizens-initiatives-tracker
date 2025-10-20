@@ -176,7 +176,7 @@ REQUIRED_RESPONSES_CSV_COLUMNS = [
     'parliament_hearing_video_urls',
     'plenary_debate_date',
     'plenary_debate_video_urls',
-    'commission_communication_date',
+    'official_communication_adoption_date',
     'commission_communication_url',
     'communication_main_conclusion',
     'legislative_proposal_status',

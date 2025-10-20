@@ -45,7 +45,7 @@ class TestECIResponseDataModel:
             parliament_hearing_video_urls=None,
             plenary_debate_date=None,
             plenary_debate_video_urls=None,
-            commission_communication_date="2024-06-01",
+            official_communication_adoption_date="2024-06-01",
             commission_communication_url="https://example.com/comm.pdf",
             communication_main_conclusion="Test conclusion",
             legislative_proposal_status="No action",
@@ -127,7 +127,7 @@ class TestOptionalFieldHandling:
             parliament_hearing_video_urls=None,
             plenary_debate_date=None,  # Optional
             plenary_debate_video_urls=None,
-            commission_communication_date=None,  # Optional
+            official_communication_adoption_date=None,  # Optional
             commission_communication_url=None,
             communication_main_conclusion=None,
             legislative_proposal_status=None,
@@ -221,7 +221,7 @@ class TestDataIntegrity:
             parliament_hearing_video_urls=None,
             plenary_debate_date=None,
             plenary_debate_video_urls=None,
-            commission_communication_date=None,
+            official_communication_adoption_date=None,
             commission_communication_url=None,
             communication_main_conclusion=None,
             legislative_proposal_status=None,

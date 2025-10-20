@@ -1236,7 +1236,7 @@ class TestProceduralTimelineExtraction:
         result_6 = parser_6.parliament_activity.extract_plenary_debate_video_urls(soup_6)
         assert result_6 is None
 
-    def test_commission_communication_date(self):
+    def test_official_communication_adoption_date(self):
         """Test extraction of Commission communication date."""
         
         # Test case 1: Text format with full month name
@@ -1251,7 +1251,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_1 = BeautifulSoup(html_1, 'html.parser')
         parser_1 = ECIResponseHTMLParser(soup_1)
-        result_1 = parser_1.commission_response.extract_commission_communication_date(soup_1)
+        result_1 = parser_1.commission_response.extract_official_communication_adoption_date(soup_1)
         assert result_1 == "19-03-2014"
         
         # Test case 2: Slash format
@@ -1265,7 +1265,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_2 = BeautifulSoup(html_2, 'html.parser')
         parser_2 = ECIResponseHTMLParser(soup_2)
-        result_2 = parser_2.commission_response.extract_commission_communication_date(soup_2)
+        result_2 = parser_2.commission_response.extract_official_communication_adoption_date(soup_2)
         assert result_2 == "12-12-2017"
         
         # Test case 3: Different month name
@@ -1280,7 +1280,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_3 = BeautifulSoup(html_3, 'html.parser')
         parser_3 = ECIResponseHTMLParser(soup_3)
-        result_3 = parser_3.commission_response.extract_commission_communication_date(soup_3)
+        result_3 = parser_3.commission_response.extract_official_communication_adoption_date(soup_3)
         assert result_3 == "30-06-2021"
         
         # Test case 4: Single digit day
@@ -1294,7 +1294,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_4 = BeautifulSoup(html_4, 'html.parser')
         parser_4 = ECIResponseHTMLParser(soup_4)
-        result_4 = parser_4.commission_response.extract_commission_communication_date(soup_4)
+        result_4 = parser_4.commission_response.extract_official_communication_adoption_date(soup_4)
         assert result_4 == "05-04-2023"
         
         # Test case 5: Recent format with "its response"
@@ -1309,7 +1309,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_5 = BeautifulSoup(html_5, 'html.parser')
         parser_5 = ECIResponseHTMLParser(soup_5)
-        result_5 = parser_5.commission_response.extract_commission_communication_date(soup_5)
+        result_5 = parser_5.commission_response.extract_official_communication_adoption_date(soup_5)
         assert result_5 == "03-09-2025"
         
         # Test case 6: No Commission communication (some older initiatives)
@@ -1324,7 +1324,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_6 = BeautifulSoup(html_6, 'html.parser')
         parser_6 = ECIResponseHTMLParser(soup_6)
-        result_6 = parser_6.commission_response.extract_commission_communication_date(soup_6)
+        result_6 = parser_6.commission_response.extract_official_communication_adoption_date(soup_6)
         assert result_6 is None
 
     
