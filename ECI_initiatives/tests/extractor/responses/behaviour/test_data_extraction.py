@@ -340,7 +340,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         </html>
         '''
     
-    def test_submission_date_extraction(self):
+    def test_commission_submission_date_extraction(self):
         """Test extraction of submission date."""
         # Test Case 1: DD Month YYYY format (most common)
         html = self._create_submission_html('''
@@ -351,7 +351,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         ''')
         
         soup = self.create_soup(html)
-        date = self.parser.submission_data.extract_submission_date(soup)
+        date = self.parser.submission_data.extract_commission_submission_date(soup)
         
         expected_date = date_type(2017, 10, 6)
         assert date == expected_date, f"Expected date {expected_date}, got {date}"
@@ -363,7 +363,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         )
         
         soup = self.create_soup(html_ddmmyyyy)
-        date = self.parser.submission_data.extract_submission_date(soup)
+        date = self.parser.submission_data.extract_commission_submission_date(soup)
         
         expected_date = date_type(2014, 2, 28)
         assert date == expected_date, f"Expected date {expected_date}, got {date}"
@@ -375,7 +375,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         )
         
         soup = self.create_soup(html_european)
-        date = self.parser.submission_data.extract_submission_date(soup)
+        date = self.parser.submission_data.extract_commission_submission_date(soup)
         
         expected_date = date_type(2025, 3, 4)
         assert date == expected_date, f"Expected date {expected_date}, got {date}"
@@ -389,7 +389,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         self.parser.registration_number = "2099/999999"
 
         with pytest.raises(ValueError, match="No submission date found for initiative 2099/999999"):
-            self.parser.submission_data.extract_submission_date(soup)
+            self.parser.submission_data.extract_commission_submission_date(soup)
 
     def test_submission_news_url(self):
         """Test extraction of submission news URL."""

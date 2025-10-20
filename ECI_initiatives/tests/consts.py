@@ -168,7 +168,7 @@ REQUIRED_RESPONSES_CSV_COLUMNS = [
     'initiative_url',
     'initiative_title',
     'registration_number',
-    'submission_date',
+    'commission_submission_date',
     'submission_news_url',
     'commission_meeting_date',
     'commission_officials_met',

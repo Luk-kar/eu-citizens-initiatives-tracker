@@ -19,7 +19,7 @@ class ECICommissionResponseRecord:
     
     # Submission and Verification Data
     submission_text: str
-    submission_date: Optional[str]
+    commission_submission_date: Optional[str]
     submission_news_url: Optional[str]
     
     # Procedural Timeline Milestones

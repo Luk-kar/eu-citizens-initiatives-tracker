@@ -37,7 +37,7 @@ class TestECIResponseDataModel:
             initiative_title="Test Initiative",
             registration_number="2024/000001",
             submission_text="the sample",
-            submission_date="2024-01-01",
+            commission_submission_date="2024-01-01",
             submission_news_url="https://example.com/news",
             commission_meeting_date=None,
             commission_officials_met=None,
@@ -119,7 +119,7 @@ class TestOptionalFieldHandling:
             initiative_title="Test",
             registration_number="2024/000001",
             submission_text="the sample",
-            submission_date=None,  # Optional
+            commission_submission_date=None,  # Optional
             submission_news_url=None,
             commission_meeting_date=None,  # Optional
             commission_officials_met=None,
@@ -155,7 +155,7 @@ class TestOptionalFieldHandling:
         )
         
         # Should not raise any errors
-        assert response.submission_date is None
+        assert response.commission_submission_date is None
         assert response.commission_meeting_date is None
 
 
@@ -213,7 +213,7 @@ class TestDataIntegrity:
             initiative_title="Test",
             registration_number="2024/000001",
             submission_text="the sample",
-            submission_date=None,
+            commission_submission_date=None,
             submission_news_url=None,
             commission_meeting_date=None,
             commission_officials_met=None,

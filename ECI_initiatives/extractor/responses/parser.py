@@ -182,7 +182,7 @@ class SubmissionDataExtractor(BaseExtractor):
         except Exception as e:
             raise ValueError(f"Error extracting submission text for {self.registration_number}: {str(e)}") from e
 
-    def extract_submission_date(self, soup: BeautifulSoup) -> datetime.date:
+    def extract_commission_submission_date(self, soup: BeautifulSoup) -> datetime.date:
         """Extract submission date from 'Submission and examination' section
         
         Handles two formats:
@@ -974,7 +974,7 @@ class ECIResponseHTMLParser:
                 submission_text=self.submission_data.extract_submission_text(soup),
 
                 # Submission and Verification Data
-                submission_date=self.submission_data.extract_submission_date(soup),
+                commission_submission_date=self.submission_data.extract_commission_submission_date(soup),
                 submission_news_url=self.submission_data.extract_submission_news_url(soup),
 
                 # Procedural Timeline Milestones
