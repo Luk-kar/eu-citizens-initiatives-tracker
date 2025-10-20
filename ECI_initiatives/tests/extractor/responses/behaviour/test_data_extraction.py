@@ -105,7 +105,7 @@ class TestResponseURLExtraction(BaseParserTest):
         '''
         
         soup = self.create_soup(html)
-        url = self.parser._extract_response_url(soup)
+        url = self.parser.basic_metadata.extract_response_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2020/000001/stop-finning-stop-the-trade_en"
         self.assert_url_matches(url, expected_url)
@@ -135,7 +135,7 @@ class TestResponseURLExtraction(BaseParserTest):
         '''
         
         soup = self.create_soup(html)
-        url = self.parser._extract_response_url(soup)
+        url = self.parser.basic_metadata.extract_response_url(soup)
         
         # Should extract the active (en) link, not the others
         self.assert_url_contains(url, "_en", "Should extract the active English language link")
@@ -156,7 +156,7 @@ class TestResponseURLExtraction(BaseParserTest):
         '''
         
         soup = self.create_soup(html)
-        url = self.parser._extract_response_url(soup)
+        url = self.parser.basic_metadata.extract_response_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2012/000003/water-sanitation_en"
         self.assert_url_matches(url, expected_url, "Should fallback to hreflang='en' link when active class is missing")
@@ -172,7 +172,7 @@ class TestResponseURLExtraction(BaseParserTest):
         '''
         
         soup = self.create_soup(html)
-        url = self.parser._extract_response_url(soup)
+        url = self.parser.basic_metadata.extract_response_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/cohesion-policy-equality-regions_en"
         self.assert_url_matches(url, expected_url, "Should fallback to canonical link")
@@ -188,7 +188,7 @@ class TestResponseURLExtraction(BaseParserTest):
         '''
         
         soup = self.create_soup(html)
-        url = self.parser._extract_response_url(soup)
+        url = self.parser.basic_metadata.extract_response_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/fur-free-europe_en"
         self.assert_url_matches(url, expected_url, "Should convert relative URL to absolute")
@@ -205,7 +205,7 @@ class TestResponseURLExtraction(BaseParserTest):
         soup = self.create_soup(html)
         
         with pytest.raises(ValueError, match="Response URL not found"):
-            self.parser._extract_response_url(soup)
+            self.parser.basic_metadata.extract_response_url(soup)
 
 
 class TestInitiativeURLExtraction(BaseParserTest):
@@ -227,7 +227,7 @@ class TestInitiativeURLExtraction(BaseParserTest):
         '''
         
         soup = self.create_soup(html)
-        url = self.parser._extract_initiative_url(soup)
+        url = self.parser.basic_metadata.extract_initiative_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2012/000003_en"
         self.assert_url_matches(url, expected_url)
@@ -244,7 +244,7 @@ class TestInitiativeURLExtraction(BaseParserTest):
         '''
         
         soup = self.create_soup(html)
-        url = self.parser._extract_initiative_url(soup)
+        url = self.parser.basic_metadata.extract_initiative_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2019/000007_en"
         self.assert_url_matches(url, expected_url, "Should handle whitespace correctly")
@@ -264,7 +264,7 @@ class TestInitiativeURLExtraction(BaseParserTest):
         '''
         
         soup = self.create_soup(html)
-        url = self.parser._extract_initiative_url(soup)
+        url = self.parser.basic_metadata.extract_initiative_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2017/000002_en"
         self.assert_url_matches(url, expected_url)
@@ -281,7 +281,7 @@ class TestInitiativeURLExtraction(BaseParserTest):
         '''
         
         soup = self.create_soup(html)
-        url = self.parser._extract_initiative_url(soup)
+        url = self.parser.basic_metadata.extract_initiative_url(soup)
         
         expected_url = "https://citizens-initiative.europa.eu/initiatives/details/2022/000002_en"
         self.assert_url_matches(url, expected_url, "Should find link with text content and skip empty links")
@@ -298,7 +298,7 @@ class TestInitiativeURLExtraction(BaseParserTest):
         '''
         
         soup = self.create_soup(html)
-        url = self.parser._extract_initiative_url(soup)
+        url = self.parser.basic_metadata.extract_initiative_url(soup)
         
         # Should match English version only
         self.assert_url_ends_with(url, "_en", "Should only match English (_en) URL")
@@ -316,7 +316,7 @@ class TestInitiativeURLExtraction(BaseParserTest):
         soup = self.create_soup(html)
         
         with pytest.raises(ValueError, match="Initiative URL not found"):
-            self.parser._extract_initiative_url(soup)
+            self.parser.basic_metadata.extract_initiative_url(soup)
 
 
 class TestSubmissionDataExtraction(BaseParserTest):
@@ -351,7 +351,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         ''')
         
         soup = self.create_soup(html)
-        date = self.parser._extract_submission_date(soup)
+        date = self.parser.submission_data.extract_submission_date(soup)
         
         expected_date = date_type(2017, 10, 6)
         assert date == expected_date, f"Expected date {expected_date}, got {date}"
@@ -363,7 +363,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         )
         
         soup = self.create_soup(html_ddmmyyyy)
-        date = self.parser._extract_submission_date(soup)
+        date = self.parser.submission_data.extract_submission_date(soup)
         
         expected_date = date_type(2014, 2, 28)
         assert date == expected_date, f"Expected date {expected_date}, got {date}"
@@ -375,7 +375,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         )
         
         soup = self.create_soup(html_european)
-        date = self.parser._extract_submission_date(soup)
+        date = self.parser.submission_data.extract_submission_date(soup)
         
         expected_date = date_type(2025, 3, 4)
         assert date == expected_date, f"Expected date {expected_date}, got {date}"
@@ -389,7 +389,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         self.parser.registration_number = "2099/999999"
 
         with pytest.raises(ValueError, match="No submission date found for initiative 2099/999999"):
-            self.parser._extract_submission_date(soup)
+            self.parser.submission_data.extract_submission_date(soup)
 
     def test_submission_news_url(self):
         """Test extraction of submission news URL."""
@@ -441,7 +441,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         for description, submission_text, expected_url in test_cases:
             html = self._create_submission_html(submission_text)
             soup = self.create_soup(html)
-            url = self.parser._extract_submission_news_url(soup)
+            url = self.parser.submission_data.extract_submission_news_url(soup)
             
             self.assert_url_matches(url, expected_url, f"Failed for: {description}")
 
@@ -453,7 +453,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         ''')
         
         soup = self.create_soup(html_multiple)
-        url = self.parser._extract_submission_news_url(soup)
+        url = self.parser.submission_data.extract_submission_news_url(soup)
         
         # Should get the presscorner URL, not the initiative URL
         self.assert_url_contains(url, 'presscorner', "Should extract presscorner URL, not initiative URL")
@@ -468,7 +468,7 @@ class TestSubmissionDataExtraction(BaseParserTest):
         soup = self.create_soup(html_no_news)
 
         with pytest.raises(ValueError, match="No submission news URL found for initiative"):
-            self.parser._extract_submission_news_url(soup)
+            self.parser.submission_data.extract_submission_news_url(soup)
 
 
 class TestProceduralTimelineExtraction:
@@ -598,12 +598,12 @@ class TestProceduralTimelineExtraction:
 
                 # Expect ValueError to be raised
                 with pytest.raises(ValueError) as exc_info:
-                    parser._extract_commission_meeting_date(soup)
+                    parser.procedural_timeline.extract_commission_meeting_date(soup)
                 assert "commission meeting date" in str(exc_info.value).lower(), f"Failed for test case: {test_id}"
 
             else:
                 # Normal case - should return expected value
-                result = parser._extract_commission_meeting_date(soup)
+                result = parser.procedural_timeline.extract_commission_meeting_date(soup)
                 assert result == expected, f"Failed for test case: {test_id}"
 
     def test_submission_text(self):
@@ -680,7 +680,7 @@ class TestProceduralTimelineExtraction:
             parser.registration_number = "2024/000001"
             
             try:
-                result = parser._extract_submission_text(soup)
+                result = parser.submission_data.extract_submission_text(soup)
                 assert result == expected, (
                     f"Failed for test case: {test_id}\n"
                     f"Expected: {expected}\n"
@@ -801,12 +801,12 @@ class TestProceduralTimelineExtraction:
             if should_raise:
                 # Expect ValueError to be raised
                 with pytest.raises(ValueError) as exc_info:
-                    parser._extract_commission_officials_met(soup)
+                    parser.procedural_timeline.extract_commission_officials_met(soup)
                 assert "commission official" in str(exc_info.value).lower(), f"Failed for test case: {test_id}"
             else:
                 # Normal case - should return expected value
                 try:
-                    result = parser._extract_commission_officials_met(soup)
+                    result = parser.procedural_timeline.extract_commission_officials_met(soup)
                     assert result == expected, (
                         f"Failed for test case: {test_id}\n"
                         f"Expected: {expected}\n"
@@ -939,12 +939,12 @@ class TestProceduralTimelineExtraction:
             if should_raise:
                 # Expect ValueError to be raised
                 with pytest.raises(ValueError) as exc_info:
-                    parser._extract_parliament_hearing_date(soup)
+                    parser.parliament_activity.extract_parliament_hearing_date(soup)
                 assert "parliament hearing date" in str(exc_info.value).lower(), f"Failed for test case: {test_id}"
             else:
                 # Normal case - should return expected value
                 try:
-                    result = parser._extract_parliament_hearing_date(soup)
+                    result = parser.parliament_activity.extract_parliament_hearing_date(soup)
                     assert result == expected, (
                         f"Failed for test case: {test_id}\n"
                         f"Expected: {expected}\n"
@@ -1029,9 +1029,9 @@ class TestProceduralTimelineExtraction:
 
             if should_raise:
                 with pytest.raises(ValueError):
-                    parser._extract_parliament_hearing_recording_url(soup)
+                    parser.parliament_activity.extract_parliament_hearing_recording_url(soup)
             else:
-                result = parser._extract_parliament_hearing_recording_url(soup)
+                result = parser.parliament_activity.extract_parliament_hearing_recording_url(soup)
                 assert result == expected, (
                     f"Failed for test case: {test_id}\n"
                     f"Expected: {expected}\n"
@@ -1056,7 +1056,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_1 = BeautifulSoup(html_1, 'html.parser')
         parser_1 = ECIResponseHTMLParser(soup_1)
-        result_1 = parser_1._extract_plenary_debate_date(soup_1)
+        result_1 = parser_1.parliament_activity.extract_plenary_debate_date(soup_1)
         assert result_1 == "10-06-2021"
         
         # Test case 2: Alternative format "A debate on this initiative was held"
@@ -1071,7 +1071,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_2 = BeautifulSoup(html_2, 'html.parser')
         parser_2 = ECIResponseHTMLParser(soup_2)
-        result_2 = parser_2._extract_plenary_debate_date(soup_2)
+        result_2 = parser_2.parliament_activity.extract_plenary_debate_date(soup_2)
         assert result_2 == "10-07-2025"
         
         # Test case 3: With various month names
@@ -1086,7 +1086,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_3 = BeautifulSoup(html_3, 'html.parser')
         parser_3 = ECIResponseHTMLParser(soup_3)
-        result_3 = parser_3._extract_plenary_debate_date(soup_3)
+        result_3 = parser_3.parliament_activity.extract_plenary_debate_date(soup_3)
         assert result_3 == "16-03-2023"
         
         # Test case 4: Single digit day
@@ -1100,7 +1100,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_4 = BeautifulSoup(html_4, 'html.parser')
         parser_4 = ECIResponseHTMLParser(soup_4)
-        result_4 = parser_4._extract_plenary_debate_date(soup_4)
+        result_4 = parser_4.parliament_activity.extract_plenary_debate_date(soup_4)
         assert result_4 == "05-04-2023"
         
         # Test case 5: No plenary debate date (older initiatives from 2017 and earlier)
@@ -1115,7 +1115,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_5 = BeautifulSoup(html_5, 'html.parser')
         parser_5 = ECIResponseHTMLParser(soup_5)
-        result_5 = parser_5._extract_plenary_debate_date(soup_5)
+        result_5 = parser_5.parliament_activity.extract_plenary_debate_date(soup_5)
         assert result_5 is None
         
         # Test case 6: Slash format (if exists)
@@ -1129,7 +1129,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_6 = BeautifulSoup(html_6, 'html.parser')
         parser_6 = ECIResponseHTMLParser(soup_6)
-        result_6 = parser_6._extract_plenary_debate_date(soup_6)
+        result_6 = parser_6.parliament_activity.extract_plenary_debate_date(soup_6)
         assert result_6 == "14-12-2020"
 
     def test_plenary_debate_recording_url(self):
@@ -1147,7 +1147,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_1 = BeautifulSoup(html_1, 'html.parser')
         parser_1 = ECIResponseHTMLParser(soup_1)
-        result_1 = parser_1._extract_plenary_debate_recording_url(soup_1)
+        result_1 = parser_1.parliament_activity.extract_plenary_debate_recording_url(soup_1)
         expected_1 = json.dumps({"recording": "https://multimedia.europarl.europa.eu/en/video/example"})
         assert result_1 == expected_1
         
@@ -1165,7 +1165,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_2 = BeautifulSoup(html_2, 'html.parser')
         parser_2 = ECIResponseHTMLParser(soup_2)
-        result_2 = parser_2._extract_plenary_debate_recording_url(soup_2)
+        result_2 = parser_2.parliament_activity.extract_plenary_debate_recording_url(soup_2)
         expected_2 = json.dumps({
             "resolution": "https://www.europarl.europa.eu/doceo/document/TA-9-2021-0295_EN.html",
             "press release": "https://www.europarl.europa.eu/news/en/press-room/20210604IPR05532/meps-endorse-eu-citizens-call-for-gradual-end-to-caged-farming"
@@ -1184,7 +1184,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_3 = BeautifulSoup(html_3, 'html.parser')
         parser_3 = ECIResponseHTMLParser(soup_3)
-        result_3 = parser_3._extract_plenary_debate_recording_url(soup_3)
+        result_3 = parser_3.parliament_activity.extract_plenary_debate_recording_url(soup_3)
         expected_3 = json.dumps({"video recording": "https://www.europarl.europa.eu/plenary/en/vod.html?mode=chapter"})
         assert result_3 == expected_3
         
@@ -1201,7 +1201,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_4 = BeautifulSoup(html_4, 'html.parser')
         parser_4 = ECIResponseHTMLParser(soup_4)
-        result_4 = parser_4._extract_plenary_debate_recording_url(soup_4)
+        result_4 = parser_4.parliament_activity.extract_plenary_debate_recording_url(soup_4)
         expected_4 = json.dumps({
             "part 1": "https://example.com/part1",
             "part 2": "https://example.com/part2"
@@ -1219,7 +1219,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_5 = BeautifulSoup(html_5, 'html.parser')
         parser_5 = ECIResponseHTMLParser(soup_5)
-        result_5 = parser_5._extract_plenary_debate_recording_url(soup_5)
+        result_5 = parser_5.parliament_activity.extract_plenary_debate_recording_url(soup_5)
         assert result_5 is None
         
         # Test case 6: No plenary debate paragraph at all
@@ -1233,7 +1233,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_6 = BeautifulSoup(html_6, 'html.parser')
         parser_6 = ECIResponseHTMLParser(soup_6)
-        result_6 = parser_6._extract_plenary_debate_recording_url(soup_6)
+        result_6 = parser_6.parliament_activity.extract_plenary_debate_recording_url(soup_6)
         assert result_6 is None
 
     def test_commission_communication_date(self):
@@ -1251,7 +1251,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_1 = BeautifulSoup(html_1, 'html.parser')
         parser_1 = ECIResponseHTMLParser(soup_1)
-        result_1 = parser_1._extract_commission_communication_date(soup_1)
+        result_1 = parser_1.commission_response.extract_commission_communication_date(soup_1)
         assert result_1 == "19-03-2014"
         
         # Test case 2: Slash format
@@ -1265,7 +1265,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_2 = BeautifulSoup(html_2, 'html.parser')
         parser_2 = ECIResponseHTMLParser(soup_2)
-        result_2 = parser_2._extract_commission_communication_date(soup_2)
+        result_2 = parser_2.commission_response.extract_commission_communication_date(soup_2)
         assert result_2 == "12-12-2017"
         
         # Test case 3: Different month name
@@ -1280,7 +1280,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_3 = BeautifulSoup(html_3, 'html.parser')
         parser_3 = ECIResponseHTMLParser(soup_3)
-        result_3 = parser_3._extract_commission_communication_date(soup_3)
+        result_3 = parser_3.commission_response.extract_commission_communication_date(soup_3)
         assert result_3 == "30-06-2021"
         
         # Test case 4: Single digit day
@@ -1294,7 +1294,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_4 = BeautifulSoup(html_4, 'html.parser')
         parser_4 = ECIResponseHTMLParser(soup_4)
-        result_4 = parser_4._extract_commission_communication_date(soup_4)
+        result_4 = parser_4.commission_response.extract_commission_communication_date(soup_4)
         assert result_4 == "05-04-2023"
         
         # Test case 5: Recent format with "its response"
@@ -1309,7 +1309,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_5 = BeautifulSoup(html_5, 'html.parser')
         parser_5 = ECIResponseHTMLParser(soup_5)
-        result_5 = parser_5._extract_commission_communication_date(soup_5)
+        result_5 = parser_5.commission_response.extract_commission_communication_date(soup_5)
         assert result_5 == "03-09-2025"
         
         # Test case 6: No Commission communication (some older initiatives)
@@ -1324,7 +1324,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_6 = BeautifulSoup(html_6, 'html.parser')
         parser_6 = ECIResponseHTMLParser(soup_6)
-        result_6 = parser_6._extract_commission_communication_date(soup_6)
+        result_6 = parser_6.commission_response.extract_commission_communication_date(soup_6)
         assert result_6 is None
 
     
@@ -1343,7 +1343,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_1 = BeautifulSoup(html_1, 'html.parser')
         parser_1 = ECIResponseHTMLParser(soup_1)
-        result_1 = parser_1._extract_commission_communication_url(soup_1)
+        result_1 = parser_1.commission_response.extract_commission_communication_url(soup_1)
         expected_1 = json.dumps({"press release": "http://europa.eu/rapid/press-release_IP-14-277_en.htm"})
         assert result_1 == expected_1
         
@@ -1360,7 +1360,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_2 = BeautifulSoup(html_2, 'html.parser')
         parser_2 = ECIResponseHTMLParser(soup_2)
-        result_2 = parser_2._extract_commission_communication_url(soup_2)
+        result_2 = parser_2.commission_response.extract_commission_communication_url(soup_2)
         expected_2 = json.dumps({
             "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_3297",
             "Questions & Answers.": "https://ec.europa.eu/commission/presscorner/detail/en/qanda_21_3298"
@@ -1379,7 +1379,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_3 = BeautifulSoup(html_3, 'html.parser')
         parser_3 = ECIResponseHTMLParser(soup_3)
-        result_3 = parser_3._extract_commission_communication_url(soup_3)
+        result_3 = parser_3.commission_response.extract_commission_communication_url(soup_3)
         expected_3 = json.dumps({"Commission's news": "https://ec.europa.eu/commission/presscorner/detail/en/mex_25_2018"})
         assert result_3 == expected_3
         
@@ -1398,7 +1398,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_4 = BeautifulSoup(html_4, 'html.parser')
         parser_4 = ECIResponseHTMLParser(soup_4)
-        result_4 = parser_4._extract_commission_communication_url(soup_4)
+        result_4 = parser_4.commission_response.extract_commission_communication_url(soup_4)
         expected_4 = json.dumps({"press release": "http://europa.eu/rapid/press-release_IP-17-5191_en.htm"})
         assert result_4 == expected_4
         
@@ -1416,7 +1416,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_5 = BeautifulSoup(html_5, 'html.parser')
         parser_5 = ECIResponseHTMLParser(soup_5)
-        result_5 = parser_5._extract_commission_communication_url(soup_5)
+        result_5 = parser_5.commission_response.extract_commission_communication_url(soup_5)
         expected_5 = json.dumps({"press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_81"})
         assert result_5 == expected_5
         
@@ -1433,7 +1433,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_6 = BeautifulSoup(html_6, 'html.parser')
         parser_6 = ECIResponseHTMLParser(soup_6)
-        result_6 = parser_6._extract_commission_communication_url(soup_6)
+        result_6 = parser_6.commission_response.extract_commission_communication_url(soup_6)
         expected_6 = json.dumps({
             "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_23_6251",
             "questions and answers": "https://ec.europa.eu/commission/presscorner/detail/en/QANDA_23_6254"
@@ -1451,7 +1451,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_7 = BeautifulSoup(html_7, 'html.parser')
         parser_7 = ECIResponseHTMLParser(soup_7)
-        result_7 = parser_7._extract_commission_communication_url(soup_7)
+        result_7 = parser_7.commission_response.extract_commission_communication_url(soup_7)
         assert result_7 is None
         
         # Test case 8: No commission communication paragraph
@@ -1465,7 +1465,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_8 = BeautifulSoup(html_8, 'html.parser')
         parser_8 = ECIResponseHTMLParser(soup_8)
-        result_8 = parser_8._extract_commission_communication_url(soup_8)
+        result_8 = parser_8.commission_response.extract_commission_communication_url(soup_8)
         assert result_8 is None
         
         # Test case 9: Only initiative detail link (should return None after filtering)
@@ -1480,7 +1480,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_9 = BeautifulSoup(html_9, 'html.parser')
         parser_9 = ECIResponseHTMLParser(soup_9)
-        result_9 = parser_9._extract_commission_communication_url(soup_9)
+        result_9 = parser_9.commission_response.extract_commission_communication_url(soup_9)
         assert result_9 is None
 
 
@@ -1568,7 +1568,7 @@ class TestMultimediaDocumentation:
         html = '<html><body></body></html>'
         soup = BeautifulSoup(html, 'html.parser')
         
-        result = self.parser._extract_has_dedicated_website(soup)
+        result = self.parser.multimedia_docs.extract_has_dedicated_website(soup)
         assert result == False, "Should return False by default"
 
 
