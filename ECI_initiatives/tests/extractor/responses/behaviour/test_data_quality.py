@@ -47,7 +47,6 @@ class TestECIResponseDataModel:
             plenary_debate_recording_url=None,
             commission_communication_date="2024-06-01",
             commission_communication_url="https://example.com/comm.pdf",
-            commission_response_news_url=None,
             communication_main_conclusion="Test conclusion",
             legislative_proposal_status="No action",
             commission_response_summary="Test summary",
@@ -130,7 +129,6 @@ class TestOptionalFieldHandling:
             plenary_debate_recording_url=None,
             commission_communication_date=None,  # Optional
             commission_communication_url=None,
-            commission_response_news_url=None,
             communication_main_conclusion=None,
             legislative_proposal_status=None,
             commission_response_summary=None,
@@ -225,7 +223,6 @@ class TestDataIntegrity:
             plenary_debate_recording_url=None,
             commission_communication_date=None,
             commission_communication_url=None,
-            commission_response_news_url=None,
             communication_main_conclusion=None,
             legislative_proposal_status=None,
             commission_response_summary=None,

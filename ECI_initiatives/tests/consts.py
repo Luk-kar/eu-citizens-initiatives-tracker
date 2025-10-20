@@ -178,7 +178,6 @@ REQUIRED_RESPONSES_CSV_COLUMNS = [
     'plenary_debate_recording_url',
     'commission_communication_date',
     'commission_communication_url',
-    'commission_response_news_url',
     'communication_main_conclusion',
     'legislative_proposal_status',
     'commission_response_summary',

@@ -89,7 +89,6 @@ class ECIResponseHTMLParser:
                 plenary_debate_recording_url=self._extract_plenary_debate_recording_url(soup),
                 commission_communication_date=commission_communication_date,
                 commission_communication_url=self._extract_commission_communication_url(soup),
-                commission_response_news_url=self._extract_commission_response_news_url(soup),
                 
                 # Commission Response Content
                 communication_main_conclusion=self._extract_communication_main_conclusion(soup),
@@ -977,15 +976,6 @@ class ECIResponseHTMLParser:
             
         except Exception as e:
             raise ValueError(f"Error extracting commission communication URL for {self.registration_number}: {str(e)}") from e
-
-
-    def _extract_commission_response_news_url(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract press release/news URL about Commission response"""
-        try:
-            # Implementation here
-            pass
-        except Exception as e:
-            raise ValueError(f"Error extracting commission response news URL for {self.registration_number}: {str(e)}") from e
     
     # Commission Response Content
     def _extract_communication_main_conclusion(self, soup: BeautifulSoup) -> Optional[str]:
