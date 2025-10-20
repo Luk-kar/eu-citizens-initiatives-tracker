@@ -1424,8 +1424,158 @@ class TestProceduralTimelineExtraction:
     
     def test_commission_communication_url(self):
         """Test extraction of Commission Communication PDF URL."""
-        # Placeholder - implement when HTML structure is known
-        pass
+        
+        # Test case 1: Single press release link
+        html_1 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 19 March 2014 setting out the actions it intends to take in response to the initiative.
+                See <a href="http://europa.eu/rapid/press-release_IP-14-277_en.htm">press release</a>.
+            </p>
+        </html>
+        """
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        parser_1 = ECIResponseHTMLParser(soup_1)
+        result_1 = parser_1._extract_commission_communication_url(soup_1)
+        expected_1 = json.dumps({"press release": "http://europa.eu/rapid/press-release_IP-14-277_en.htm"})
+        assert result_1 == expected_1
+        
+        # Test case 2: Multiple links (press release and Q&A)
+        html_2 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 30 June 2021 setting out the actions it intends to take in response to the initiative 'End the Cage Age'.
+                See <a href="https://ec.europa.eu/commission/presscorner/detail/en/ip_21_3297">press release</a> and 
+                <a href="https://ec.europa.eu/commission/presscorner/detail/en/qanda_21_3298">Questions & Answers.</a>
+            </p>
+        </html>
+        """
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        parser_2 = ECIResponseHTMLParser(soup_2)
+        result_2 = parser_2._extract_commission_communication_url(soup_2)
+        expected_2 = json.dumps({
+            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_3297",
+            "Questions & Answers.": "https://ec.europa.eu/commission/presscorner/detail/en/qanda_21_3298"
+        })
+        assert result_2 == expected_2
+        
+        # Test case 3: Commission's news link
+        html_3 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 3 September 2025 setting out its response to this initiative.
+                See the <a href="https://ec.europa.eu/commission/presscorner/detail/en/mex_25_2018">Commission's news</a>.
+            </p>
+        </html>
+        """
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        parser_3 = ECIResponseHTMLParser(soup_3)
+        result_3 = parser_3._extract_commission_communication_url(soup_3)
+        expected_3 = json.dumps({"Commission's news": "https://ec.europa.eu/commission/presscorner/detail/en/mex_25_2018"})
+        assert result_3 == expected_3
+        
+        # Test case 4: Filter out initiative name link (old URL format) - keep press release
+        html_4 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 12/12/2017 setting out the actions it intends to take in response to the initiative
+                <a href="http://ec.citizens-initiative.europa.eu/public/initiatives/successful/details/2017/000002">
+                Ban glyphosate and protect people and the environment from toxic pesticides
+                </a>. See
+                <a href="http://europa.eu/rapid/press-release_IP-17-5191_en.htm">press release</a>.
+            </p>
+        </html>
+        """
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        parser_4 = ECIResponseHTMLParser(soup_4)
+        result_4 = parser_4._extract_commission_communication_url(soup_4)
+        expected_4 = json.dumps({"press release": "http://europa.eu/rapid/press-release_IP-17-5191_en.htm"})
+        assert result_4 == expected_4
+        
+        # Test case 5: Filter out initiative name link (new URL format) - keep press release
+        html_5 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 14 January 2021 setting out how existing and recently adopted EU legislation supports the different aspects of the
+                <a href="https://citizens-initiative.europa.eu/initiatives/details/2017/000004_en">Minority SafePack</a>
+                Initiative. The reply outlined further follow-up actions. See
+                <a href="https://ec.europa.eu/commission/presscorner/detail/en/ip_21_81">press release</a>.
+            </p>
+        </html>
+        """
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        parser_5 = ECIResponseHTMLParser(soup_5)
+        result_5 = parser_5._extract_commission_communication_url(soup_5)
+        expected_5 = json.dumps({"press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_81"})
+        assert result_5 == expected_5
+        
+        # Test case 6: Press release and questions and answers (lowercase)
+        html_6 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 7 December 2023 setting out its response to the initiative 'Fur Free Europe'.
+                See <a href="https://ec.europa.eu/commission/presscorner/detail/en/ip_23_6251">press release</a> and 
+                <a href="https://ec.europa.eu/commission/presscorner/detail/en/QANDA_23_6254">questions and answers</a>.
+            </p>
+        </html>
+        """
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        parser_6 = ECIResponseHTMLParser(soup_6)
+        result_6 = parser_6._extract_commission_communication_url(soup_6)
+        expected_6 = json.dumps({
+            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_23_6251",
+            "questions and answers": "https://ec.europa.eu/commission/presscorner/detail/en/QANDA_23_6254"
+        })
+        assert result_6 == expected_6
+        
+        # Test case 7: No links in commission paragraph
+        html_7 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 12/12/2017 setting out the actions it intends to take in response to the initiative.
+            </p>
+        </html>
+        """
+        soup_7 = BeautifulSoup(html_7, 'html.parser')
+        parser_7 = ECIResponseHTMLParser(soup_7)
+        result_7 = parser_7._extract_commission_communication_url(soup_7)
+        assert result_7 is None
+        
+        # Test case 8: No commission communication paragraph
+        html_8 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The organisers met with Commission Vice-President on 17 February 2014.
+            </p>
+        </html>
+        """
+        soup_8 = BeautifulSoup(html_8, 'html.parser')
+        parser_8 = ECIResponseHTMLParser(soup_8)
+        result_8 = parser_8._extract_commission_communication_url(soup_8)
+        assert result_8 is None
+        
+        # Test case 9: Only initiative detail link (should return None after filtering)
+        html_9 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                The Commission adopted a Communication on 19 March 2014 about
+                <a href="https://citizens-initiative.europa.eu/initiatives/details/2012/000003_en">Right2Water</a>.
+            </p>
+        </html>
+        """
+        soup_9 = BeautifulSoup(html_9, 'html.parser')
+        parser_9 = ECIResponseHTMLParser(soup_9)
+        result_9 = parser_9._extract_commission_communication_url(soup_9)
+        assert result_9 is None
 
 
 class TestCommissionResponseContent:

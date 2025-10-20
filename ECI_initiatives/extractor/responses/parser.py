@@ -898,13 +898,87 @@ class ECIResponseHTMLParser:
             raise ValueError(f"Error extracting commission communication date for {self.registration_number}: {str(e)}") from e
     
     def _extract_commission_communication_url(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract link to full PDF of Commission Communication"""
+        """Extract link to full PDF of Commission Communication as JSON
+        
+        Returns a JSON string with link text as keys and URLs as values.
+        Returns None if no Commission communication paragraph or links are found.
+        Excludes self-referencing ECI initiative detail page URLs.
+        """
         try:
-            # Implementation here
-            pass
+            # 1. Locate the "Submission and examination" section
+            submission_section = soup.find('h2', id='Submission-and-examination')
+            if not submission_section:
+                submission_section = soup.find('h2', string=re.compile(r'Submission and examination', re.IGNORECASE))
+            if not submission_section:
+                raise ValueError(f"No submission section found for {self.registration_number}")
+            
+            # 2. Find all paragraphs in the submission section
+            paragraphs = submission_section.find_next_siblings('p')
+            
+            # 3. Find THE SPECIFIC paragraph containing Commission Communication information
+            commission_paragraph_element = None
+            for p in paragraphs:
+                text = p.get_text(separator=' ', strip=True)
+                text = re.sub(r'\s+', ' ', text)
+                
+                if re.search(r'Commission\s+adopted\s+a\s+Communication\s+on', text, re.IGNORECASE):
+                    # Store the paragraph ELEMENT (not text) to extract links from it
+                    commission_paragraph_element = p
+                    break
+            
+            # If no commission paragraph found, return None
+            if not commission_paragraph_element:
+                return None
+            
+            # 4. Extract all links ONLY from this specific commission paragraph
+            links = commission_paragraph_element.find_all('a')
+            
+            if not links:
+                return None
+            
+            # 5. Build dictionary with link text as key and URL as value
+            links_dict = {}
+            for link in links:
+                link_text = link.get_text(strip=True)
+                link_url = link.get('href', '')
+                
+                if link_text and link_url:
+                    links_dict[link_text] = link_url
+            
+            if not links_dict:
+                return None
+            
+            # 6. Filter out self-referencing ECI initiative detail page URLs
+            # Patterns to exclude:
+            # - http(s)://ec.citizens-initiative.europa.eu/public/initiatives/successful/details/YYYY/NNNNNN with optional _xx
+            # - http(s)://citizens-initiative.europa.eu/initiatives/details/YYYY/NNNNNN_xx (note: language code is typically present)
+            exclude_patterns = [
+                r'https?://ec\.citizens-initiative\.europa\.eu/public/initiatives/successful/details/\d{4}/\d{6}(_[a-z]{2})?/?$',
+                r'https?://citizens-initiative\.europa\.eu/initiatives/details/\d{4}/\d{6}[_]?[a-z]{2}/?$'
+            ]
+            
+            filtered_links_dict = {}
+            for text, url in links_dict.items():
+                # Check if URL matches any exclude pattern
+                should_exclude = False
+                for pattern in exclude_patterns:
+                    if re.match(pattern, url):
+                        should_exclude = True
+                        break
+                
+                if not should_exclude:
+                    filtered_links_dict[text] = url
+            
+            if not filtered_links_dict:
+                return None
+            
+            # 7. Return as JSON string
+            return json.dumps(filtered_links_dict)
+            
         except Exception as e:
             raise ValueError(f"Error extracting commission communication URL for {self.registration_number}: {str(e)}") from e
-    
+
+
     def _extract_commission_response_news_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract press release/news URL about Commission response"""
         try:
