@@ -573,7 +573,7 @@ class ParliamentActivityExtractor(BaseExtractor):
         except Exception as e:
             raise ValueError(f"Error extracting plenary debate date for {self.registration_number}: {str(e)}") from e
 
-    def extract_plenary_debate_recording_url(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_plenary_debate_video_urls(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract video recording URL of plenary debate as JSON"""
         try:
             submission_section = soup.find('h2', id='Submission-and-examination')
@@ -983,7 +983,7 @@ class ECIResponseHTMLParser:
                 parliament_hearing_date=self.parliament_activity.extract_parliament_hearing_date(soup),
                 parliament_hearing_video_urls=self.parliament_activity.extract_parliament_hearing_video_urls(soup),
                 plenary_debate_date=self.parliament_activity.extract_plenary_debate_date(soup),
-                plenary_debate_recording_url=self.parliament_activity.extract_plenary_debate_recording_url(soup),
+                plenary_debate_video_urls=self.parliament_activity.extract_plenary_debate_video_urls(soup),
                 commission_communication_date=commission_communication_date,
                 commission_communication_url=self.commission_response.extract_commission_communication_url(soup),
 

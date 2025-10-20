@@ -1132,7 +1132,7 @@ class TestProceduralTimelineExtraction:
         result_6 = parser_6.parliament_activity.extract_plenary_debate_date(soup_6)
         assert result_6 == "14-12-2020"
 
-    def test_plenary_debate_recording_url(self):
+    def test_plenary_debate_video_urls(self):
         """Test extraction of plenary debate recording URLs."""
         
         # Test case 1: Single recording link
@@ -1147,7 +1147,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_1 = BeautifulSoup(html_1, 'html.parser')
         parser_1 = ECIResponseHTMLParser(soup_1)
-        result_1 = parser_1.parliament_activity.extract_plenary_debate_recording_url(soup_1)
+        result_1 = parser_1.parliament_activity.extract_plenary_debate_video_urls(soup_1)
         expected_1 = json.dumps({"recording": "https://multimedia.europarl.europa.eu/en/video/example"})
         assert result_1 == expected_1
         
@@ -1165,7 +1165,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_2 = BeautifulSoup(html_2, 'html.parser')
         parser_2 = ECIResponseHTMLParser(soup_2)
-        result_2 = parser_2.parliament_activity.extract_plenary_debate_recording_url(soup_2)
+        result_2 = parser_2.parliament_activity.extract_plenary_debate_video_urls(soup_2)
         expected_2 = json.dumps({
             "resolution": "https://www.europarl.europa.eu/doceo/document/TA-9-2021-0295_EN.html",
             "press release": "https://www.europarl.europa.eu/news/en/press-room/20210604IPR05532/meps-endorse-eu-citizens-call-for-gradual-end-to-caged-farming"
@@ -1184,7 +1184,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_3 = BeautifulSoup(html_3, 'html.parser')
         parser_3 = ECIResponseHTMLParser(soup_3)
-        result_3 = parser_3.parliament_activity.extract_plenary_debate_recording_url(soup_3)
+        result_3 = parser_3.parliament_activity.extract_plenary_debate_video_urls(soup_3)
         expected_3 = json.dumps({"video recording": "https://www.europarl.europa.eu/plenary/en/vod.html?mode=chapter"})
         assert result_3 == expected_3
         
@@ -1201,7 +1201,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_4 = BeautifulSoup(html_4, 'html.parser')
         parser_4 = ECIResponseHTMLParser(soup_4)
-        result_4 = parser_4.parliament_activity.extract_plenary_debate_recording_url(soup_4)
+        result_4 = parser_4.parliament_activity.extract_plenary_debate_video_urls(soup_4)
         expected_4 = json.dumps({
             "part 1": "https://example.com/part1",
             "part 2": "https://example.com/part2"
@@ -1219,7 +1219,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_5 = BeautifulSoup(html_5, 'html.parser')
         parser_5 = ECIResponseHTMLParser(soup_5)
-        result_5 = parser_5.parliament_activity.extract_plenary_debate_recording_url(soup_5)
+        result_5 = parser_5.parliament_activity.extract_plenary_debate_video_urls(soup_5)
         assert result_5 is None
         
         # Test case 6: No plenary debate paragraph at all
@@ -1233,7 +1233,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_6 = BeautifulSoup(html_6, 'html.parser')
         parser_6 = ECIResponseHTMLParser(soup_6)
-        result_6 = parser_6.parliament_activity.extract_plenary_debate_recording_url(soup_6)
+        result_6 = parser_6.parliament_activity.extract_plenary_debate_video_urls(soup_6)
         assert result_6 is None
 
     def test_commission_communication_date(self):

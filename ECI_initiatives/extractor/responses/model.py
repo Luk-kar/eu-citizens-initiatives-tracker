@@ -28,7 +28,7 @@ class ECICommissionResponseRecord:
     parliament_hearing_date: Optional[str]
     parliament_hearing_video_urls: Optional[str]
     plenary_debate_date: Optional[str]
-    plenary_debate_recording_url: Optional[str]
+    plenary_debate_video_urls: Optional[str]
     commission_communication_date: Optional[str]
     commission_communication_url: Optional[str]
     
