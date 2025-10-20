@@ -4,6 +4,7 @@ Parses ECI Commission response HTML pages and extracts structured data
 """
 
 import calendar
+import html
 import re
 import json
 import logging
@@ -545,80 +546,213 @@ class ECIResponseHTMLParser:
         except Exception as e:
             raise ValueError(f"Error extracting commission officials for {self.registration_number}: {str(e)}") from e
 
-    def _extract_parliament_hearing_date(self, soup: BeautifulSoup) -> str:
-        """Extract date of European Parliament public hearing"""
+    def _extract_parliament_hearing_date(self, soup) -> str:
+        """Extracts and normalizes the European Parliament hearing date (DD-MM-YYYY)."""
         try:
-            
-            # Get the submission text first
+            # 1. Extract submission text
             submission_text = self._extract_submission_text(soup)
-            
-            # Create month name to number mapping using calendar module
-            month_dict = {calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)}
-            
-            # Dictionary mapping format types to their regex pattern lists
-            patterns = {
-                'text': [
-                    r'(?i)A public hearing took place at the European Parliament on (\d{1,2})\s+(\w+)\s+(\d{4})',
-                    r'(?i)The presentation of this initiative in a public hearing at the European Parliament took place on (\d{1,2})\s+(\w+)\s+(\d{4})',
-                ],
-                'slash': [
-                    r'A public hearing took place at the European Parliament on (\d{1,2})/(\d{1,2})/(\d{4})',
-                    r'The presentation of this initiative in a public hearing at the European Parliament took place on (\d{1,2})/(\d{1,2})/(\d{4})',
-                ],
-            }
-            
-            for format_type, pattern_list in patterns.items():
+            if not submission_text or not submission_text.strip():
+                raise ValueError("No submission text found in HTML.")
 
-                for pattern in pattern_list:
+            # 2. Lowercase and normalize whitespace
+            text = submission_text.lower()
+            text = re.sub(r'\s+', ' ', text).strip()
 
-                    match = re.search(pattern, submission_text)
+            # 3. Find sentence containing any of the key phrases (exact order)
+            key_phrases = [
+                'public hearing took place',
+                'public hearing at the european parliament',
+                'presentation of this initiative in a public hearing',
+                'public hearing',
+            ]
 
-                    if match:
-                        if format_type == 'text':
-                            # Convert "24 January 2023" to "24-01-2023"
-                            day = match.group(1).zfill(2)  # Pad with zero if needed
-                            month_name = match.group(2).lower()
-                            year = match.group(3)
-                            
-                            # Get month number from dictionary
-                            month_str = month_dict.get(month_name)
-                            
-                            if month_str is None:
-                                raise ValueError(f"Invalid month name: {month_name}")
-                            
-                            return f"{day}-{month_str}-{year}"
-                            
-                        elif format_type == 'slash':
-                            
-                            # Convert "17/02/2014" to "17-02-2014"
-                            day = match.group(1).zfill(2)
-                            month = match.group(2).zfill(2)
-                            year = match.group(3)
-                            
-                            return f"{day}-{month}-{year}"
-            
-            # If no match found, raise ValueError
-            raise ValueError(f"No parliament hearing date found in submission text for {self.registration_number}")
-            
+            # Split into sentences (simplified)
+            sentences = re.split(r'(?<=[.!?])\s+', text)
+            target_sentence = None
+            matched_phrase = None
+
+            for sent in sentences:
+                for phrase in key_phrases:
+                    if phrase in sent:
+                        target_sentence = sent
+                        matched_phrase = phrase
+                        break
+                if target_sentence:
+                    break
+
+            if not target_sentence:
+                raise ValueError("No sentence found containing any key phrase.")
+
+            # 4. Search for date AFTER the key phrase
+            idx = target_sentence.find(matched_phrase)
+            segment_after = target_sentence[idx + len(matched_phrase):]
+
+            # Build list of valid month names and abbreviations using calendar
+            month_names = [m.lower() for m in calendar.month_name if m]
+            month_abbrs = [m.lower() for m in calendar.month_abbr if m]
+            all_months = month_names + month_abbrs
+
+            # Date regexes
+            patterns = [
+                # e.g. 24 january 2023
+                rf'\b(\d{{1,2}})\s+({"|".join(all_months)})\s+(\d{{4}})\b',
+                # e.g. 24/01/2023 or 24-01-2023
+                r'\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b',
+                # e.g. 2023-01-24
+                r'\b(\d{4})[/-](\d{1,2})[/-](\d{1,2})\b',
+            ]
+
+            date_match = None
+            for pat in patterns:
+                m = re.search(pat, segment_after)
+                if m:
+                    date_match = m
+                    pattern = pat
+                    break
+
+            if not date_match:
+                raise ValueError("No date found after key phrase.")
+
+            # 5. Normalize the found date
+            # Create month mapping
+            month_map = {calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)}
+            month_map.update({calendar.month_abbr[i].lower(): str(i).zfill(2) for i in range(1, 13)})
+
+            # Normalize formats
+            if pattern == patterns[0]:
+                day, month_name, year = date_match.groups()
+                month = month_map.get(month_name.lower())
+                if not month:
+                    raise ValueError(f"Invalid month name: {month_name}")
+                date_str = f"{day.zfill(2)}-{month}-{year}"
+            elif pattern == patterns[1]:
+                day, month, year = date_match.groups()
+                date_str = f"{day.zfill(2)}-{month.zfill(2)}-{year}"
+            else:  # ISO 2023-01-24
+                year, month, day = date_match.groups()
+                date_str = f"{day.zfill(2)}-{month.zfill(2)}-{year}"
+
+            # 6. Return normalized date
+            return date_str
+
         except Exception as e:
-            raise ValueError(f"Error extracting parliament hearing date for {self.registration_number}: {str(e)}") from e
+            raise ValueError(
+                f"Error extracting parliament hearing date for {self.registration_number}: {str(e)}"
+            ) from e
     
-    def _extract_parliament_hearing_recording_url(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract video recording URL of Parliament hearing"""
+    def _extract_parliament_hearing_recording_url(self, soup: BeautifulSoup) -> dict:
+        """Extracts all relevant video recording URLs from the 'public hearing' paragraph.
+        Returns a dict where keys are link texts (e.g. 'recording', 'extracts', 'public hearing')
+        and values are absolute URLs.
+        """
+
         try:
-            # Implementation here
-            pass
+            # 1. Locate the "Submission and examination" section
+            submission_section = soup.find('h2', id='Submission-and-examination')
+            if not submission_section:
+                submission_section = soup.find('h2', string=re.compile(r'Submission and examination', re.IGNORECASE))
+            if not submission_section:
+                raise ValueError(f"No submission section found for {self.registration_number}")
+
+            # 2. Search paragraphs after the section for one describing a public hearing
+            for sibling in submission_section.find_next_siblings():
+                if sibling.name == 'h2':  # stop scanning at the next section
+                    break
+                if sibling.name != 'p':
+                    continue
+
+                # Normalize paragraph text (handle &nbsp;, etc.)
+                paragraph_text = html.unescape(' '.join(sibling.stripped_strings)).lower()
+
+                key_phrases = [
+                    'public hearing took place',
+                    'public hearing at the european parliament',
+                    'presentation of this initiative in a public hearing',
+                    'public hearing',
+                ]
+
+                if not any(phrase in paragraph_text for phrase in key_phrases):
+                    continue  # skip irrelevant paragraphs
+
+                # 3. Extract all <a> links and map text → href
+                links_data = {}
+                for link in sibling.find_all('a', href=True):
+                    link_text = html.unescape(link.get_text(strip=True)).lower()
+                    href = html.unescape(link['href'].strip())
+
+                    if link_text and href:
+                        links_data[link_text] = href
+
+                # 4. If found any links, return JSON-style dict
+                if links_data:
+                    return links_data
+
+            # 5. Nothing found
+            raise ValueError(f"No parliament hearing paragraph with links found for {self.registration_number}")
+
         except Exception as e:
-            raise ValueError(f"Error extracting parliament hearing recording URL for {self.registration_number}: {str(e)}") from e
-    
-    def _extract_plenary_debate_date(self, soup: BeautifulSoup) -> Optional[str]:
+            raise ValueError(
+                f"Error extracting parliament hearing recording URLs for {self.registration_number}: {str(e)}"
+            ) from e
+    def _extract_plenary_debate_date(self, soup: BeautifulSoup) -> str:
         """Extract date of plenary debate in Parliament"""
+
         try:
-            # Implementation here
+            # import calendar
+            
+            # # Get the submission text first
+            # submission_text = self._extract_submission_text(soup)
+            
+            # # Create month name to number mapping using calendar module
+            # month_dict = {calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)}
+            
+            # # Dictionary mapping format types to their regex pattern lists
+            # patterns = {
+            #     'text': [
+            #         r'(?i)The initiative was debated at the European Parliament\'?s plenary session on (\d{1,2})\s+(\w+)\s+(\d{4})',
+            #         r'(?i)A debate on this initiative was held in the plenary session of the European Parliament on (\d{1,2})\s+(\w+)\s+(\d{4})',
+            #     ],
+            #     'slash': [
+            #         r'The initiative was debated at the European Parliament\'?s plenary session on (\d{1,2})/(\d{1,2})/(\d{4})',
+            #         r'A debate on this initiative was held in the plenary session of the European Parliament on (\d{1,2})/(\d{1,2})/(\d{4})',
+            #     ],
+            # }
+            
+            # for format_type, pattern_list in patterns.items():
+            #     for pattern in pattern_list:
+            #         match = re.search(pattern, submission_text)
+            #         if match:
+            #             if format_type == 'text':
+            #                 # Convert "14 December 2020" to "14-12-2020"
+            #                 day = match.group(1).zfill(2)
+            #                 month_name = match.group(2).lower()
+            #                 year = match.group(3)
+                            
+            #                 # Get month number from dictionary
+            #                 month_str = month_dict.get(month_name)
+                            
+            #                 if month_str is None:
+            #                     raise ValueError(f"Invalid month name: {month_name}")
+                            
+            #                 return f"{day}-{month_str}-{year}"
+                            
+            #             elif format_type == 'slash':
+            #                 # Convert "14/12/2020" to "14-12-2020"
+            #                 day = match.group(1).zfill(2)
+            #                 month = match.group(2).zfill(2)
+            #                 year = match.group(3)
+                            
+            #                 return f"{day}-{month}-{year}"
+            
+            # # No plenary debate date found - raise ValueError
+            # raise ValueError(f"No plenary debate date found in submission text for {self.registration_number}")
+
             pass
+            
         except Exception as e:
             raise ValueError(f"Error extracting plenary debate date for {self.registration_number}: {str(e)}") from e
-    
+
+        
     def _extract_plenary_debate_recording_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract video recording URL of plenary debate"""
         try:

@@ -1055,10 +1055,84 @@ class TestProceduralTimelineExtraction:
                     ) from e
     
     def test_parliament_hearing_recording_url(self):
-        """Test extraction of Parliament hearing video URL."""
-        # Placeholder - implement when HTML structure is known
-        pass
-    
+        """Test extraction of Parliament hearing video URLs (as dict)."""
+
+        test_cases = [
+            # Test case 1: Link wrapping "public hearing" text
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>A <a href="http://www.europarl.europa.eu/news/en/news-room/20140210IPR35552/hearing">public hearing</a> took place at the European Parliament on 17 February 2014.</p>
+                """,
+                {"public hearing": "http://www.europarl.europa.eu/news/en/news-room/20140210IPR35552/hearing"},
+                "link_wrapping_public_hearing",
+                False
+            ),
+            # Test case 2: "See recording" pattern
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>A public hearing took place at the European Parliament on 24 January 2023. See <a href="https://multimedia.europarl.europa.eu/video/recording123">recording</a>.</p>
+                """,
+                {"recording": "https://multimedia.europarl.europa.eu/video/recording123"},
+                "see_recording_pattern",
+                False
+            ),
+            # Test case 3: "Watch the recording" pattern
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The presentation of this initiative in a public hearing at the European Parliament took place on 25 June 2025. Watch the <a href="https://multimedia.europarl.europa.eu/video/recording456">recording</a>.</p>
+                """,
+                {"recording": "https://multimedia.europarl.europa.eu/video/recording456"},
+                "watch_recording_pattern",
+                False
+            ),
+            # Test case 4: Multiple links (recording + extracts)
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>A&nbsp;public hearing&nbsp;took place at the European Parliament on 25 May 2023. See
+                <a href="https://multimedia.europarl.europa.eu/en/webstreaming/peti-envi-agri-committee-meeting_20230525-0900-COMMITTEE-ENVI-AGRI-PETI">recording</a>
+                and
+                <a href="https://multimedia.europarl.europa.eu/en/video/extracts_I241450">extracts</a>.</p>
+                """,
+                {
+                    "recording": "https://multimedia.europarl.europa.eu/en/webstreaming/peti-envi-agri-committee-meeting_20230525-0900-COMMITTEE-ENVI-AGRI-PETI",
+                    "extracts": "https://multimedia.europarl.europa.eu/en/video/extracts_I241450"
+                },
+                "multiple_links_recording_extracts",
+                False
+            ),
+            # Test case 5: Error when no relevant link
+            (
+                """
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>The initiative was submitted to the Commission on 15 May 2024.</p>
+                """,
+                None,
+                "no_links",
+                True
+            ),
+        ]
+
+        for html, expected, test_id, should_raise in test_cases:
+            soup = BeautifulSoup(html, "html.parser")
+            parser = ECIResponseHTMLParser(soup)
+            parser.registration_number = "2024/000001"
+
+            if should_raise:
+                with pytest.raises(ValueError):
+                    parser._extract_parliament_hearing_recording_url(soup)
+            else:
+                result = parser._extract_parliament_hearing_recording_url(soup)
+                assert result == expected, (
+                    f"Failed for test case: {test_id}\n"
+                    f"Expected: {expected}\n"
+                    f"Got: {result}\n"
+                    f"HTML:\n{html}"
+                )
+
     def test_plenary_debate_date(self):
         """Test extraction of plenary debate date."""
         # Placeholder - implement when HTML structure is known
