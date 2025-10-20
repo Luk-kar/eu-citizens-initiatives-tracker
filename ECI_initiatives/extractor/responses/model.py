@@ -30,7 +30,7 @@ class ECICommissionResponseRecord:
     plenary_debate_date: Optional[str]
     plenary_debate_video_urls: Optional[str]
     official_communication_adoption_date: Optional[str]
-    commission_communication_url: Optional[str]
+    official_communication_document_urls: Optional[str]
     
     # Commission Response Content
     communication_main_conclusion: Optional[str]

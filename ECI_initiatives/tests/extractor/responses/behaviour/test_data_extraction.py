@@ -1328,7 +1328,7 @@ class TestProceduralTimelineExtraction:
         assert result_6 is None
 
     
-    def test_commission_communication_url(self):
+    def test_official_communication_document_urls(self):
         """Test extraction of Commission Communication PDF URL."""
         
         # Test case 1: Single press release link
@@ -1343,7 +1343,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_1 = BeautifulSoup(html_1, 'html.parser')
         parser_1 = ECIResponseHTMLParser(soup_1)
-        result_1 = parser_1.commission_response.extract_commission_communication_url(soup_1)
+        result_1 = parser_1.commission_response.extract_official_communication_document_urls(soup_1)
         expected_1 = json.dumps({"press release": "http://europa.eu/rapid/press-release_IP-14-277_en.htm"})
         assert result_1 == expected_1
         
@@ -1360,7 +1360,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_2 = BeautifulSoup(html_2, 'html.parser')
         parser_2 = ECIResponseHTMLParser(soup_2)
-        result_2 = parser_2.commission_response.extract_commission_communication_url(soup_2)
+        result_2 = parser_2.commission_response.extract_official_communication_document_urls(soup_2)
         expected_2 = json.dumps({
             "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_3297",
             "Questions & Answers.": "https://ec.europa.eu/commission/presscorner/detail/en/qanda_21_3298"
@@ -1379,7 +1379,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_3 = BeautifulSoup(html_3, 'html.parser')
         parser_3 = ECIResponseHTMLParser(soup_3)
-        result_3 = parser_3.commission_response.extract_commission_communication_url(soup_3)
+        result_3 = parser_3.commission_response.extract_official_communication_document_urls(soup_3)
         expected_3 = json.dumps({"Commission's news": "https://ec.europa.eu/commission/presscorner/detail/en/mex_25_2018"})
         assert result_3 == expected_3
         
@@ -1398,7 +1398,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_4 = BeautifulSoup(html_4, 'html.parser')
         parser_4 = ECIResponseHTMLParser(soup_4)
-        result_4 = parser_4.commission_response.extract_commission_communication_url(soup_4)
+        result_4 = parser_4.commission_response.extract_official_communication_document_urls(soup_4)
         expected_4 = json.dumps({"press release": "http://europa.eu/rapid/press-release_IP-17-5191_en.htm"})
         assert result_4 == expected_4
         
@@ -1416,7 +1416,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_5 = BeautifulSoup(html_5, 'html.parser')
         parser_5 = ECIResponseHTMLParser(soup_5)
-        result_5 = parser_5.commission_response.extract_commission_communication_url(soup_5)
+        result_5 = parser_5.commission_response.extract_official_communication_document_urls(soup_5)
         expected_5 = json.dumps({"press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_81"})
         assert result_5 == expected_5
         
@@ -1433,7 +1433,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_6 = BeautifulSoup(html_6, 'html.parser')
         parser_6 = ECIResponseHTMLParser(soup_6)
-        result_6 = parser_6.commission_response.extract_commission_communication_url(soup_6)
+        result_6 = parser_6.commission_response.extract_official_communication_document_urls(soup_6)
         expected_6 = json.dumps({
             "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_23_6251",
             "questions and answers": "https://ec.europa.eu/commission/presscorner/detail/en/QANDA_23_6254"
@@ -1451,7 +1451,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_7 = BeautifulSoup(html_7, 'html.parser')
         parser_7 = ECIResponseHTMLParser(soup_7)
-        result_7 = parser_7.commission_response.extract_commission_communication_url(soup_7)
+        result_7 = parser_7.commission_response.extract_official_communication_document_urls(soup_7)
         assert result_7 is None
         
         # Test case 8: No commission communication paragraph
@@ -1465,7 +1465,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_8 = BeautifulSoup(html_8, 'html.parser')
         parser_8 = ECIResponseHTMLParser(soup_8)
-        result_8 = parser_8.commission_response.extract_commission_communication_url(soup_8)
+        result_8 = parser_8.commission_response.extract_official_communication_document_urls(soup_8)
         assert result_8 is None
         
         # Test case 9: Only initiative detail link (should return None after filtering)
@@ -1480,7 +1480,7 @@ class TestProceduralTimelineExtraction:
         """
         soup_9 = BeautifulSoup(html_9, 'html.parser')
         parser_9 = ECIResponseHTMLParser(soup_9)
-        result_9 = parser_9.commission_response.extract_commission_communication_url(soup_9)
+        result_9 = parser_9.commission_response.extract_official_communication_document_urls(soup_9)
         assert result_9 is None
 
 

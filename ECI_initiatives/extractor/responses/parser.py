@@ -679,7 +679,7 @@ class CommissionResponseExtractor(BaseExtractor):
         except Exception as e:
             raise ValueError(f"Error extracting commission communication date for {self.registration_number}: {str(e)}") from e
 
-    def extract_commission_communication_url(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_official_communication_document_urls(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract link to full PDF of Commission Communication as JSON"""
         try:
             submission_section = soup.find('h2', id='Submission-and-examination')
@@ -985,7 +985,7 @@ class ECIResponseHTMLParser:
                 plenary_debate_date=self.parliament_activity.extract_plenary_debate_date(soup),
                 plenary_debate_video_urls=self.parliament_activity.extract_plenary_debate_video_urls(soup),
                 official_communication_adoption_date=official_communication_adoption_date,
-                commission_communication_url=self.commission_response.extract_commission_communication_url(soup),
+                official_communication_document_urls=self.commission_response.extract_official_communication_document_urls(soup),
 
                 # Commission Response Content
                 communication_main_conclusion=self.commission_response.extract_communication_main_conclusion(soup),
