@@ -858,65 +858,6 @@ class CommissionResponseExtractor(BaseExtractor):
         # Default: return plain text
         return element.get_text(strip=True)
 
-    def extract_commission_factsheet_url(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract the URL of the Commission factsheet PDF (English version)
-        
-        Returns:
-            Optional[str]: URL to the factsheet PDF document, or None if no factsheet exists
-            
-        Raises:
-            ValueError: If factsheet element exists but download link is missing or invalid
-        """
-
-        try:
-            # Find all ecl-file divs (file download components)
-            ecl_files = soup.find_all('div', class_=lambda x: x and 'ecl-file' in x)
-            
-            # Track if we found a factsheet element
-            factsheet_found = False
-            
-            # Look for the one with "Factsheet" in the title
-            for file_div in ecl_files:
-                
-                # Find the title element
-                title_div = file_div.find('div', class_=lambda x: x and 'ecl-file__title' in x)
-                
-                if title_div:
-                    title_text = title_div.get_text(strip=True)
-                    
-                    # Check if this is a factsheet (case-insensitive)
-                    if 'factsheet' in title_text.lower():
-                        factsheet_found = True
-                        
-                        # Find the download link
-                        download_link = file_div.find('a', class_=lambda x: x and 'ecl-file__download' in x)
-                        
-                        if not download_link:
-                            raise ValueError(
-                                f"Factsheet element found but download link is missing for {self.registration_number}"
-                            )
-                        
-                        href = download_link.get('href', '').strip()
-                        
-                        if not href:
-                            raise ValueError(
-                                f"Factsheet download link found but href is empty for {self.registration_number}"
-                            )
-                        
-                        # Successfully found factsheet with valid URL
-                        return href
-            
-            # No factsheet found at all - this is OK, return None
-            return None
-            
-        except ValueError:
-            # Re-raise ValueError as-is
-            raise
-        except Exception as e:
-            raise ValueError(
-                f"Error extracting factsheet URL for {self.registration_number}: {str(e)}"
-            ) from e
-
     def extract_legislative_proposal_status(self, soup: BeautifulSoup) -> Optional[str]:
         """Determine if Commission proposed legislation, alternatives, or no action"""
         try:
@@ -1023,19 +964,64 @@ class FollowUpActivityExtractor(BaseExtractor):
 class MultimediaDocumentationExtractor(BaseExtractor):
     """Extracts multimedia and documentation links"""
 
-    def extract_factsheet_url(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract factsheet PDF URL"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(f"Error extracting factsheet URL for {self.registration_number}: {str(e)}") from e
+    def extract_commission_factsheet_url(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extract the URL of the Commission factsheet PDF (English version)
+        
+        Returns:
+            Optional[str]: URL to the factsheet PDF document, or None if no factsheet exists
+            
+        Raises:
+            ValueError: If factsheet element exists but download link is missing or invalid
+        """
 
-    def extract_video_recording_count(self, soup: BeautifulSoup) -> Optional[int]:
-        """Count number of video recordings linked"""
         try:
+            # Find all ecl-file divs (file download components)
+            ecl_files = soup.find_all('div', class_=lambda x: x and 'ecl-file' in x)
+            
+            # Track if we found a factsheet element
+            factsheet_found = False
+            
+            # Look for the one with "Factsheet" in the title
+            for file_div in ecl_files:
+
+                # Find the title element
+                title_div = file_div.find('div', class_=lambda x: x and 'ecl-file__title' in x)
+                
+                if title_div:
+                    title_text = title_div.get_text(strip=True)
+                    
+                    # Check if this is a factsheet (case-insensitive)
+                    if 'factsheet' in title_text.lower():
+                        factsheet_found = True
+                        
+                        # Find the download link
+                        download_link = file_div.find('a', class_=lambda x: x and 'ecl-file__download' in x)
+                        
+                        if not download_link:
+                            raise ValueError(
+                                f"Factsheet element found but download link is missing for {self.registration_number}"
+                            )
+                        
+                        href = download_link.get('href', '').strip()
+                        
+                        if not href:
+                            raise ValueError(
+                                f"Factsheet download link found but href is empty for {self.registration_number}"
+                            )
+                        
+                        # Successfully found factsheet with valid URL
+                        return href
+            
+            # No factsheet found at all - this is OK, return None
             return None
+            
+        except ValueError:
+            # Re-raise ValueError as-is
+            raise
         except Exception as e:
-            raise ValueError(f"Error counting video recordings for {self.registration_number}: {str(e)}") from e
+            raise ValueError(
+                f"Error extracting factsheet URL for {self.registration_number}: {str(e)}"
+            ) from e
 
     def extract_has_dedicated_website(self, soup: BeautifulSoup) -> Optional[bool]:
         """Check if organizers maintained campaign website"""
@@ -1157,7 +1143,6 @@ class ECIResponseHTMLParser:
 
                 # Commission Response Content
                 commission_answer_text=self.commission_response.extract_commission_answer_text(soup),
-                commission_factsheet_url=self.commission_response.extract_commission_factsheet_url(soup),
                 legislative_proposal_status=self.commission_response.extract_legislative_proposal_status(soup),
                 commission_response_summary=self.commission_response.extract_commission_response_summary(soup),
 
@@ -1176,8 +1161,7 @@ class ECIResponseHTMLParser:
                 latest_update_date=latest_update_date,
 
                 # Multimedia and Documentation Links
-                factsheet_url=self.multimedia_docs.extract_factsheet_url(soup),
-                video_recording_count=self.multimedia_docs.extract_video_recording_count(soup),
+                commission_factsheet_url=self.multimedia_docs.extract_commission_factsheet_url(soup),
                 dedicated_website=self.multimedia_docs.extract_has_dedicated_website(soup),
 
                 # Structural Analysis Flags

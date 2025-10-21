@@ -36,7 +36,6 @@ class ECICommissionResponseRecord:
     commission_answer_text: Optional[str]
     legislative_proposal_status: Optional[str]
     commission_response_summary: Optional[str]
-    commission_factsheet_url: str
     
     # Follow-up Activities Section
     has_followup_section: Optional[bool]
@@ -53,8 +52,7 @@ class ECICommissionResponseRecord:
     latest_update_date: Optional[str]
     
     # Multimedia and Documentation Links
-    factsheet_url: Optional[str]
-    video_recording_count: Optional[int]
+    commission_factsheet_url: str
     dedicated_website: bool
     
     # Structural Analysis Flags

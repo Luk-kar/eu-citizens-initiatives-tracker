@@ -63,8 +63,6 @@ class TestECIResponseDataModel:
             court_judgment_dates=None,
             court_judgment_summary=None,
             latest_update_date=None,
-            factsheet_url=None,
-            video_recording_count=0,
             dedicated_website=False,
             related_eu_legislation=None,
             petition_platforms_used=None,
@@ -144,8 +142,6 @@ class TestOptionalFieldHandling:
             court_judgment_dates=None,
             court_judgment_summary=None,
             latest_update_date=None,
-            factsheet_url=None,
-            video_recording_count=None,
             dedicated_website=False,
             related_eu_legislation=None,
             petition_platforms_used=None,
@@ -199,11 +195,6 @@ class TestDataIntegrity:
         # Placeholder - implement when calculation method is implemented
         pass
     
-    def test_video_recording_count_accuracy(self):
-        """Test that video_recording_count matches actual video links."""
-        # Placeholder - implement with actual test data when available
-        pass
-    
     def test_boolean_fields_are_boolean_type(self):
         """Test that boolean fields contain boolean values, not strings."""
         response = ECICommissionResponseRecord(
@@ -238,8 +229,6 @@ class TestDataIntegrity:
             court_judgment_dates=None,
             court_judgment_summary=None,
             latest_update_date=None,
-            factsheet_url=None,
-            video_recording_count=0,
             dedicated_website=True,  # Boolean
             related_eu_legislation=None,
             petition_platforms_used=None,
