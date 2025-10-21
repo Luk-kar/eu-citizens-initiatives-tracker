@@ -48,6 +48,15 @@ class TestECIResponseDataModel:
             official_communication_adoption_date="2024-06-01",
             official_communication_document_urls="https://example.com/comm.pdf",
             commission_answer_text="Test conclusion",
+            highest_status_reached="committed",
+            proposal_commitment_stated=True,
+            proposal_rejected=False,
+            rejection_reasoning=None,
+            proposal_commitment_deadline="end of 2024",
+            applicable_date=None,
+            official_journal_publication_date=None,
+            legislative_action='[{"type":"committed","action":"Test","status":"committed","deadline":"2024"}]',
+            non_legislative_action=None,
             commission_factsheet_url="https://example.com/factsheet.pdf",
             has_followup_section=False,
             followup_meeting_date=None,
@@ -75,33 +84,30 @@ class TestECIResponseDataModel:
         assert result['registration_number'] == "2024/000001", "Should contain registration_number"
         assert result['initiative_title'] == "Test Initiative", "Should contain initiative_title"
 
+
 class TestRequiredFieldValidation:
     """Tests for required field validation."""
     
     def test_registration_number_never_none(self):
         """Test that registration_number is never None in CSV."""
-        # Placeholder - implement with actual test data when available
         pass
     
     def test_response_url_never_none(self):
         """Test that response_url is never None in CSV."""
-        # Placeholder - implement with actual test data when available
         pass
     
     def test_initiative_url_never_none(self):
         """Test that initiative_url is never None in CSV."""
-        # Placeholder - implement with actual test data when available
         pass
     
     def test_initiative_title_never_none(self):
         """Test that initiative_title is never None in CSV."""
-        # Placeholder - implement with actual test data when available
         pass
     
     def test_timestamps_never_none(self):
         """Test that created_timestamp and last_updated are never None."""
-        # Placeholder - implement with actual test data when available
         pass
+
 
 class TestOptionalFieldHandling:
     """Tests for optional field handling."""
@@ -114,18 +120,27 @@ class TestOptionalFieldHandling:
             initiative_title="Test",
             registration_number="2024/000001",
             submission_text="the sample",
-            commission_submission_date=None,  # Optional
+            commission_submission_date=None,
             submission_news_url=None,
-            commission_meeting_date=None,  # Optional
+            commission_meeting_date=None,
             commission_officials_met=None,
-            parliament_hearing_date=None,  # Optional
+            parliament_hearing_date=None,
             parliament_hearing_video_urls=None,
-            plenary_debate_date=None,  # Optional
+            plenary_debate_date=None,
             plenary_debate_video_urls=None,
-            official_communication_adoption_date=None,  # Optional
+            official_communication_adoption_date=None,
             official_communication_document_urls=None,
             commission_answer_text=None,
-            commission_factsheet_url=None,  # Optional
+            highest_status_reached=None,
+            proposal_commitment_stated=None,
+            proposal_rejected=None,
+            rejection_reasoning=None,
+            proposal_commitment_deadline=None,
+            applicable_date=None,
+            official_journal_publication_date=None,
+            legislative_action=None,
+            non_legislative_action=None,
+            commission_factsheet_url=None,
             has_followup_section=None,
             followup_meeting_date=None,
             followup_meeting_officials=None,
@@ -149,18 +164,71 @@ class TestOptionalFieldHandling:
         # Should not raise any errors
         assert response.commission_submission_date is None
         assert response.commission_meeting_date is None
+        assert response.highest_status_reached is None
+        assert response.proposal_commitment_deadline is None
+
 
 class TestJSONFieldValidation:
     """Tests for JSON field validation."""
     
     def test_json_fields_are_valid_or_none(self):
         """Test that JSON fields are either valid JSON or None."""
-        # Placeholder - implement with actual test data when available
         pass
     
     def test_workshop_conference_dates_json_format(self):
         """Test that workshop_conference_dates is valid JSON array."""
-        # Placeholder - implement with actual test data when available
+        pass
+    
+    def test_legislative_action_json_format(self):
+        """Test that legislative_action is valid JSON array."""
+        pass
+    
+    def test_non_legislative_action_json_format(self):
+        """Test that non_legislative_action is valid JSON array."""
+        pass
+
+
+class TestLegislativeOutcomeFields:
+    """Tests for legislative outcome priority columns."""
+    
+    def test_highest_status_reached_valid_values(self):
+        """Test that highest_status_reached contains only valid enum values."""
+        pass
+    
+    def test_proposal_commitment_stated_is_boolean(self):
+        """Test that proposal_commitment_stated is boolean or None."""
+        pass
+    
+    def test_proposal_rejected_is_boolean(self):
+        """Test that proposal_rejected is boolean or None."""
+        pass
+    
+    def test_rejection_reasoning_only_when_rejected(self):
+        """Test that rejection_reasoning is only populated when proposal_rejected is True."""
+        pass
+    
+    def test_proposal_commitment_deadline_format(self):
+        """Test that proposal_commitment_deadline follows expected text format."""
+        pass
+    
+    def test_applicable_date_format(self):
+        """Test that applicable_date is valid ISO date format."""
+        pass
+    
+    def test_official_journal_publication_date_format(self):
+        """Test that official_journal_publication_date is valid ISO date format."""
+        pass
+    
+    def test_legislative_action_structure(self):
+        """Test that legislative_action JSON has required keys: type, action, status, deadline."""
+        pass
+    
+    def test_non_legislative_action_structure(self):
+        """Test that non_legislative_action JSON has required keys: type, action, status, deadline."""
+        pass
+    
+    def test_mutual_exclusivity_commitment_rejection(self):
+        """Test that proposal_commitment_stated and proposal_rejected are not both True."""
         pass
 
 
@@ -169,17 +237,14 @@ class TestCSVStructure:
     
     def test_all_rows_same_column_count(self):
         """Test that all CSV rows have same column count as headers."""
-        # Placeholder - implement with actual test data when available
         pass
     
     def test_no_duplicate_registration_numbers(self):
         """Test that no duplicate registration numbers appear in CSV."""
-        # Placeholder - implement with actual test data when available
         pass
     
     def test_csv_headers_match_dataclass_fields(self):
         """Test that CSV headers match ECICommissionResponse dataclass fields."""
-        # Placeholder - implement with actual test data when available
         pass
 
 
@@ -188,7 +253,6 @@ class TestDataIntegrity:
     
     def test_follow_up_duration_calculation_accuracy(self):
         """Test that follow_up_duration_months is calculated correctly."""
-        # Placeholder - implement when calculation method is implemented
         pass
     
     def test_boolean_fields_are_boolean_type(self):
@@ -210,11 +274,20 @@ class TestDataIntegrity:
             official_communication_adoption_date=None,
             official_communication_document_urls=None,
             commission_answer_text=None,
+            highest_status_reached=None,
+            proposal_commitment_stated=True,
+            proposal_rejected=False,
+            rejection_reasoning=None,
+            proposal_commitment_deadline=None,
+            applicable_date=None,
+            official_journal_publication_date=None,
+            legislative_action=None,
+            non_legislative_action=None,
             commission_factsheet_url=None,
-            has_followup_section=True,  # Boolean
+            has_followup_section=True,
             followup_meeting_date=None,
             followup_meeting_officials=None,
-            roadmap_launched=False,  # Boolean
+            roadmap_launched=False,
             roadmap_description=None,
             roadmap_completion_target=None,
             workshop_conference_dates=None,
@@ -223,7 +296,7 @@ class TestDataIntegrity:
             court_judgment_dates=None,
             court_judgment_summary=None,
             latest_update_date=None,
-            dedicated_website=True,  # Boolean
+            dedicated_website=True,
             related_eu_legislation=None,
             petition_platforms_used=None,
             follow_up_duration_months=None,
@@ -234,4 +307,13 @@ class TestDataIntegrity:
         assert isinstance(response.has_followup_section, bool)
         assert isinstance(response.roadmap_launched, bool)
         assert isinstance(response.dedicated_website, bool)
-
+        assert isinstance(response.proposal_commitment_stated, bool)
+        assert isinstance(response.proposal_rejected, bool)
+    
+    def test_date_chronology_validation(self):
+        """Test that dates follow logical chronological order."""
+        pass
+    
+    def test_json_parsing_does_not_fail(self):
+        """Test that all JSON fields can be parsed without errors."""
+        pass

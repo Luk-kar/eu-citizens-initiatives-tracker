@@ -858,6 +858,110 @@ class CommissionResponseExtractor(BaseExtractor):
         # Default: return plain text
         return element.get_text(strip=True)
 
+class LegislativeOutcomeExtractor(BaseExtractor):
+    """Extractor for legislative outcome and proposal status data"""
+
+    def extract_highest_status_reached(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract the highest status reached by the initiative
+        Possible values: 'applicable', 'committed', 'adopted', 'rejected', 
+        'rejected_with_actions', 'assessment_pending', 'non_legislative_action'
+        """
+        try:
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting highest status reached for {self.registration_number}: {str(e)}") from e
+
+
+    def extract_proposal_commitment_stated(self, soup: BeautifulSoup) -> Optional[bool]:
+        """
+        Extract whether Commission explicitly committed to propose legislation
+        Returns True if commitment found, False otherwise
+        """
+        try:
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting proposal commitment status for {self.registration_number}: {str(e)}") from e
+
+    def extract_proposal_rejected(self, soup: BeautifulSoup) -> Optional[bool]:
+        """
+        Extract whether Commission explicitly rejected making a legislative proposal
+        Returns True if rejection stated, False otherwise
+        """
+        try:
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting proposal rejection status for {self.registration_number}: {str(e)}") from e
+
+
+    def extract_rejection_reasoning(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract the reasoning provided by Commission for rejecting legislative proposal
+        Returns full text explanation or None if not rejected
+        """
+        try:
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting rejection reasoning for {self.registration_number}: {str(e)}") from e
+
+
+    def extract_applicable_date(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract the date when regulation/directive became applicable (implementation deadline)
+        Format: YYYY-MM-DD
+        """
+        try:
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting applicable date for {self.registration_number}: {str(e)}") from e
+
+
+    def extract_proposal_commitment_deadline(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract the deadline by which Commission committed to table proposal
+        Format: free text like "May 2018", "end of 2023", "March 2026"
+        """
+        try:
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting proposal commitment deadline for {self.registration_number}: {str(e)}") from e
+
+
+    def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract legislative actions as JSON array
+        Each item contains: type, action (full text with links), status, deadline
+        Returns JSON string or None
+        """
+        try:
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting legislative action for {self.registration_number}: {str(e)}") from e
+
+
+    def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract non-legislative actions as JSON array
+        Each item contains: type, action (full text with links), status, deadline
+        Returns JSON string or None
+        """
+        try:
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting non-legislative action for {self.registration_number}: {str(e)}") from e
+
+
+    def extract_official_journal_publication_date(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract the date when regulation/directive was published in Official Journal
+        This is when the law officially comes into existence
+        Format: YYYY-MM-DD
+        """
+        try:
+            pass
+        except Exception as e:
+            raise ValueError(f"Error extracting official journal publication date for {self.registration_number}: {str(e)}") from e
+
 
 class FollowUpActivityExtractor(BaseExtractor):
     """Extracts follow-up activities data"""
@@ -1054,6 +1158,7 @@ class ECIResponseHTMLParser:
         self.procedural_timeline = ProceduralTimelineExtractor(logger)
         self.parliament_activity = ParliamentActivityExtractor(logger)
         self.commission_response = CommissionResponseExtractor(logger)
+        self.legislative_outcome = LegislativeOutcomeExtractor(logger)
         self.followup_activity = FollowUpActivityExtractor(logger)
         self.multimedia_docs = MultimediaDocumentationExtractor(logger)
         self.structural_analysis = StructuralAnalysisExtractor(logger)
@@ -1086,8 +1191,8 @@ class ECIResponseHTMLParser:
 
             # Update registration number in all extractors
             for extractor in [self.basic_metadata, self.submission_data, self.procedural_timeline,
-                            self.parliament_activity, self.commission_response, self.followup_activity,
-                            self.multimedia_docs, self.structural_analysis]:
+                            self.parliament_activity, self.commission_response, self.legislative_outcome,
+                            self.followup_activity, self.multimedia_docs, self.structural_analysis]:
                 extractor.set_registration_number(self.registration_number)
 
             # Read and parse HTML file
@@ -1129,6 +1234,17 @@ class ECIResponseHTMLParser:
 
                 # Commission Response Content
                 commission_answer_text=self.commission_response.extract_commission_answer_text(soup),
+
+                # Legislative Outcome Assessment (Priority Columns)
+                highest_status_reached=self.legislative_outcome.extract_highest_status_reached(soup),
+                proposal_commitment_stated=self.legislative_outcome.extract_proposal_commitment_stated(soup),
+                proposal_rejected=self.legislative_outcome.extract_proposal_rejected(soup),
+                rejection_reasoning=self.legislative_outcome.extract_rejection_reasoning(soup),
+                proposal_commitment_deadline=self.legislative_outcome.extract_proposal_commitment_deadline(soup),
+                applicable_date=self.legislative_outcome.extract_applicable_date(soup),
+                official_journal_publication_date=self.legislative_outcome.extract_official_journal_publication_date(soup),
+                legislative_action=self.legislative_outcome.extract_legislative_action(soup),
+                non_legislative_action=self.legislative_outcome.extract_non_legislative_action(soup),
 
                 # Follow-up Activities Section
                 has_followup_section=self.followup_activity.extract_has_followup_section(soup),

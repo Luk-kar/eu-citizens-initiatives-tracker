@@ -34,6 +34,15 @@ class ECICommissionResponseRecord:
     
     # Commission Response Content
     commission_answer_text: Optional[str]
+    highest_status_reached: Optional[str]
+    proposal_commitment_stated: Optional[bool]
+    proposal_rejected: Optional[bool]
+    rejection_reasoning: Optional[str]
+    proposal_commitment_deadline: Optional[str]
+    applicable_date: Optional[str]
+    official_journal_publication_date: Optional[str]
+    legislative_action: Optional[str]  # JSON string
+    non_legislative_action: Optional[str]  # JSON string
     
     # Follow-up Activities Section
     has_followup_section: Optional[bool]

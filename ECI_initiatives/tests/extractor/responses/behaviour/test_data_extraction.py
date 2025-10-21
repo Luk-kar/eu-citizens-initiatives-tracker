@@ -1713,7 +1713,42 @@ class TestCommissionResponseContent:
         assert "[proposal for a regulation](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A52022PC0305)" in result_8
         assert "reduce chemical pesticides by 50% by 2030" in result_8
 
-
+    def test_highest_status_reached(self):
+        """Test extraction of highest status reached by initiative."""
+        pass
+    
+    def test_proposal_commitment_stated(self):
+        """Test extraction of whether Commission committed to legislative proposal."""
+        pass
+    
+    def test_proposal_rejected(self):
+        """Test extraction of whether Commission rejected legislative proposal."""
+        pass
+    
+    def test_rejection_reasoning(self):
+        """Test extraction of rejection reasoning text."""
+        pass
+    
+    def test_proposal_commitment_deadline(self):
+        """Test extraction of proposal commitment deadline."""
+        pass
+    
+    def test_applicable_date(self):
+        """Test extraction of date when regulation became applicable."""
+        pass
+    
+    def test_official_journal_publication_date(self):
+        """Test extraction of Official Journal publication date."""
+        pass
+    
+    def test_legislative_action(self):
+        """Test extraction of legislative action JSON array."""
+        pass
+    
+    def test_non_legislative_action(self):
+        """Test extraction of non-legislative action JSON array."""
+        pass
+    
 class TestFollowUpActivities:
     """Tests for follow-up activities extraction."""
     
