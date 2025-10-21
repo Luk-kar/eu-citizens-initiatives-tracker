@@ -1493,7 +1493,7 @@ class TestCommissionResponseContent:
         logger = ResponsesExtractorLogger().setup()
         cls.parser = ECIResponseHTMLParser(logger=logger)
     
-    def test_communication_main_conclusion(self):
+    def test_commission_answer_text(self):
         """Test extraction of main conclusions from Communication."""
         # Placeholder - implement when HTML structure is known
         pass

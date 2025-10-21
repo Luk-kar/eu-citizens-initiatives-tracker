@@ -33,7 +33,7 @@ class ECICommissionResponseRecord:
     official_communication_document_urls: Optional[str]
     
     # Commission Response Content
-    communication_main_conclusion: Optional[str]
+    commission_answer_text: Optional[str]
     legislative_proposal_status: Optional[str]
     commission_response_summary: Optional[str]
     

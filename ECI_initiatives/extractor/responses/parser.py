@@ -742,12 +742,98 @@ class CommissionResponseExtractor(BaseExtractor):
         except Exception as e:
             raise ValueError(f"Error extracting commission communication URL for {self.registration_number}: {str(e)}") from e
 
-    def extract_communication_main_conclusion(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_commission_answer_text(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract main conclusions text from Communication"""
         try:
+            # Find the "Answer of the European Commission" header
+            answer_header = soup.find('h2', id='Answer-of-the-European-Commission')
+            
+            if not answer_header:
+                # Alternative: find h2 containing the text
+                answer_header = soup.find('h2', string=lambda text: text and 'Answer of the European Commission' in text)
+            
+            if not answer_header:
+                return None
+            
+            # Collect all content between this header and the Follow-up header
+            content_parts = []
+            current = answer_header.find_next_sibling()
+            
+            while current:
+                # Stop if we hit Follow-up or another major section
+                if current.name == 'h2':
+                    h2_id = current.get('id', '')
+                    h2_text = current.get_text(strip=True)
+                    if 'Follow-up' in h2_text or h2_id == 'Follow-up':
+                        break
+                    # Also stop at other major sections
+                    if h2_id and h2_id != 'Answer-of-the-European-Commission':
+                        break
+                
+                # Extract and format content from this element
+                if current.name:
+                    element_text = self._extract_element_with_links(current)
+                    if element_text:
+                        content_parts.append(element_text)
+                
+                current = current.find_next_sibling()
+            
+            if content_parts:
+                return '\n'.join(content_parts).strip()
+            
             return None
+            
         except Exception as e:
             raise ValueError(f"Error extracting communication main conclusion for {self.registration_number}: {str(e)}") from e
+
+    def _extract_element_with_links(self, element) -> str:
+        """Helper to extract text while preserving links in markdown format"""
+
+        if not element.name:
+            return ''
+        
+        # For elements with links, convert to markdown
+        if element.name == 'a':
+            link_text = element.get_text(strip=True)
+            href = element.get('href', '')
+            return f'[{link_text}]({href})'
+        
+        # For list items, extract with links
+        if element.name == 'li':
+            text_parts = []
+            for child in element.children:
+                if hasattr(child, 'name'):
+                    if child.name == 'a':
+                        link_text = child.get_text(strip=True)
+                        href = child.get('href', '')
+                        text_parts.append(f'[{link_text}]({href})')
+                    else:
+                        child_text = child.get_text(strip=True)
+                        if child_text:
+                            text_parts.append(child_text)
+                else:
+                    child_text = str(child).strip()
+                    if child_text:
+                        text_parts.append(child_text)
+            return ' '.join(text_parts)
+        
+        # For paragraphs and other elements, process children to preserve links
+        if element.find('a'):
+            text_parts = []
+            for child in element.descendants:
+                if isinstance(child, str):
+                    text = child.strip()
+                    if text and text not in ['', '\n']:
+                        text_parts.append(text)
+                elif hasattr(child, 'name') and child.name == 'a':
+                    link_text = child.get_text(strip=True)
+                    href = child.get('href', '')
+                    if link_text:
+                        text_parts.append(f'[{link_text}]({href})')
+            return ' '.join(text_parts)
+        
+        # Default: return plain text
+        return element.get_text(strip=True)
 
     def extract_legislative_proposal_status(self, soup: BeautifulSoup) -> Optional[str]:
         """Determine if Commission proposed legislation, alternatives, or no action"""
@@ -988,7 +1074,7 @@ class ECIResponseHTMLParser:
                 official_communication_document_urls=self.commission_response.extract_official_communication_document_urls(soup),
 
                 # Commission Response Content
-                communication_main_conclusion=self.commission_response.extract_communication_main_conclusion(soup),
+                commission_answer_text=self.commission_response.extract_commission_answer_text(soup),
                 legislative_proposal_status=self.commission_response.extract_legislative_proposal_status(soup),
                 commission_response_summary=self.commission_response.extract_commission_response_summary(soup),
 
