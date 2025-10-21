@@ -179,8 +179,6 @@ REQUIRED_RESPONSES_CSV_COLUMNS = [
     'official_communication_adoption_date',
     'official_communication_document_urls',
     'commission_answer_text',
-    'legislative_proposal_status',
-    'commission_response_summary',
     'has_followup_section',
     'followup_meeting_date',
     'followup_meeting_officials',

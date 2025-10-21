@@ -858,20 +858,6 @@ class CommissionResponseExtractor(BaseExtractor):
         # Default: return plain text
         return element.get_text(strip=True)
 
-    def extract_legislative_proposal_status(self, soup: BeautifulSoup) -> Optional[str]:
-        """Determine if Commission proposed legislation, alternatives, or no action"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(f"Error extracting legislative proposal status for {self.registration_number}: {str(e)}") from e
-
-    def extract_commission_response_summary(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract overall Commission position summary"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(f"Error extracting commission response summary for {self.registration_number}: {str(e)}") from e
-
 
 class FollowUpActivityExtractor(BaseExtractor):
     """Extracts follow-up activities data"""
@@ -1143,8 +1129,6 @@ class ECIResponseHTMLParser:
 
                 # Commission Response Content
                 commission_answer_text=self.commission_response.extract_commission_answer_text(soup),
-                legislative_proposal_status=self.commission_response.extract_legislative_proposal_status(soup),
-                commission_response_summary=self.commission_response.extract_commission_response_summary(soup),
 
                 # Follow-up Activities Section
                 has_followup_section=self.followup_activity.extract_has_followup_section(soup),

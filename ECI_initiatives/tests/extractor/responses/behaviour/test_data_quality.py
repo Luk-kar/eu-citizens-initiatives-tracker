@@ -49,8 +49,6 @@ class TestECIResponseDataModel:
             official_communication_document_urls="https://example.com/comm.pdf",
             commission_answer_text="Test conclusion",
             commission_factsheet_url="https://example.com/factsheet.pdf",
-            legislative_proposal_status="No action",
-            commission_response_summary="Test summary",
             has_followup_section=False,
             followup_meeting_date=None,
             followup_meeting_officials=None,
@@ -128,8 +126,6 @@ class TestOptionalFieldHandling:
             official_communication_document_urls=None,
             commission_answer_text=None,
             commission_factsheet_url=None,  # Optional
-            legislative_proposal_status=None,
-            commission_response_summary=None,
             has_followup_section=None,
             followup_meeting_date=None,
             followup_meeting_officials=None,
@@ -215,8 +211,6 @@ class TestDataIntegrity:
             official_communication_document_urls=None,
             commission_answer_text=None,
             commission_factsheet_url=None,
-            legislative_proposal_status=None,
-            commission_response_summary=None,
             has_followup_section=True,  # Boolean
             followup_meeting_date=None,
             followup_meeting_officials=None,

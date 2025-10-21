@@ -1713,16 +1713,6 @@ class TestCommissionResponseContent:
         assert "[proposal for a regulation](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A52022PC0305)" in result_8
         assert "reduce chemical pesticides by 50% by 2030" in result_8
 
-    def test_legislative_proposal_status(self):
-        """Test extraction of legislative proposal status."""
-        # Placeholder - implement when HTML structure is known
-        pass
-    
-    def test_commission_response_summary(self):
-        """Test extraction of Commission response summary."""
-        # Placeholder - implement when HTML structure is known
-        pass
-
 
 class TestFollowUpActivities:
     """Tests for follow-up activities extraction."""
