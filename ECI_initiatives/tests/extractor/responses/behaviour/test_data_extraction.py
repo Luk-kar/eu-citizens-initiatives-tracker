@@ -1495,9 +1495,485 @@ class TestCommissionResponseContent:
     
     def test_commission_answer_text(self):
         """Test extraction of main conclusions from Communication."""
-        # Placeholder - implement when HTML structure is known
-        pass
-    
+        
+        # Test case 1: Standard format with Decision date and official documents
+        html_1 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Decision date: 19/03/2014</p>
+            <p>Official documents related to the decision:</p>
+            <ul>
+                <li><a href="https://ec.europa.eu/transparency/documents-register/detail?ref=COM(2014)177&lang=en">Communication</a></li>
+                <li><a href="https://ec.europa.eu/transparency/documents-register/detail?ref=COM(2014)177&lang=en">Annex</a></li>
+            </ul>
+            <p><strong>Main conclusions of the Communication</strong>:</p>
+            <p>The Commission committed, in particular, to taking the following actions:</p>
+            <ul>
+                <li>reinforcing implementation of EU water quality legislation;</li>
+                <li>launching an EU-wide public consultation on the Drinking Water Directive;</li>
+            </ul>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>Follow-up content here.</p>
+        </html>
+        """
+        
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        parser_1 = ECIResponseHTMLParser(soup_1)
+        parser_1.registration_number = "2012/000003"
+        
+        result_1 = parser_1.commission_response.extract_commission_answer_text(soup_1)
+        
+        # Should include decision date, official documents, and main conclusions
+        assert "Decision date: 19/03/2014" in result_1
+        assert "Official documents" in result_1
+        assert "[Communication]" in result_1
+        assert "Main conclusions" in result_1
+        assert "reinforcing implementation of EU water quality legislation" in result_1
+        # Should NOT include Follow-up content
+        assert "Follow-up content here" not in result_1
+        
+        # Test case 2: Format with Main conclusions paragraph only
+        html_2 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Decision date: 03/06/2015</p>
+            <p>Official documents related to the decision:</p>
+            <ul>
+                <li><a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2015)3773&lang=en">Communication</a></li>
+                <li><a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2015)3773&lang=en">Annex</a></li>
+            </ul>
+            <p><strong>Main conclusions of the Communication</strong>:</p>
+            <p>While the Commission does share the conviction that animal testing should be phased out in Europe, 
+            its approach for achieving that objective differs from the one proposed in this Citizens' Initiative.</p>
+            <p>The Commission considers that the Directive on the protection of animals used for scientific purposes 
+            (Directive 2010/63/EU), which the Initiative seeks to repeal, is the right legislation to achieve 
+            the underlying objectives of the Initiative.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+        </html>
+        """
+        
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        parser_2 = ECIResponseHTMLParser(soup_2)
+        parser_2.registration_number = "2012/000007"
+        
+        result_2 = parser_2.commission_response.extract_commission_answer_text(soup_2)
+        
+        assert "Decision date: 03/06/2015" in result_2
+        assert "Main conclusions of the Communication" in result_2
+        assert "animal testing should be phased out" in result_2
+        assert "Directive 2010/63/EU" in result_2
+        
+        # Test case 3: Recent format without Decision date, with direct conclusions
+        html_3 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Official documents:</p>
+            <ul>
+                <li><a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2017)8414">Communication</a></li>
+                <li><a href="https://ec.europa.eu/transparency/documents-register/api/files/C(2017)8414_1/de00000000208522?rendition=false">Annex</a></li>
+            </ul>
+            <p><strong>Main conclusions of the Communication</strong>:</p>
+            <p>On the first aim, to 'ban glyphosate-based herbicides', the Commission concluded that there are 
+            neither scientific nor legal grounds to justify a ban of glyphosate, and will not make a legislative 
+            proposal to that effect.</p>
+            <p>On the second aim, to "ensure that the scientific evaluation of pesticides for EU regulatory 
+            approval is based only on published studies", the Commission committed to come forward with a 
+            legislative proposal by May 2018.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+        </html>
+        """
+        
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        parser_3 = ECIResponseHTMLParser(soup_3)
+        parser_3.registration_number = "2017/000002"
+        
+        result_3 = parser_3.commission_response.extract_commission_answer_text(soup_3)
+        
+        assert "Official documents" in result_3
+        assert "glyphosate-based herbicides" in result_3
+        assert "legislative proposal by May 2018" in result_3
+        
+        # Test case 4: Format with Communication link inline
+        html_4 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Main conclusions of the <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)4747&lang=en">Communication</a>:</p>
+            <p>In its response to the ECI, the Commission communicated its intention to table a legislative 
+            proposal, by the end of 2023, to phase out, and finally prohibit, the use of cages for all animals 
+            mentioned in the ECI.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+        </html>
+        """
+        
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        parser_4 = ECIResponseHTMLParser(soup_4)
+        parser_4.registration_number = "2018/000004"
+        
+        result_4 = parser_4.commission_response.extract_commission_answer_text(soup_4)
+        result_4 = " ".join(result_4.split())
+        
+        assert "Main conclusions" in result_4
+        assert "[Communication]" in result_4
+        assert "legislative proposal" in result_4
+        assert "by the end of 2023" in result_4
+        
+        # Test case 5: Excludes factsheet downloads (ecl-file divs)
+        html_5 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <div class="ecl-file ecl-file--has-translation">
+                <div class="ecl-file__container">
+                    <a href="https://citizens-initiative.europa.eu/sites/default/files/factsheet.pdf" 
+                       class="ecl-link ecl-file__download">
+                        Factsheet – Successful Initiatives – Save bees and farmers English (4.89 MB - PDF)
+                        <span>Download</span>
+                    </a>
+                </div>
+                <div class="ecl-file__translation-container">
+                    <button class="ecl-file__translation-toggle">Available translations (23)</button>
+                    <ul class="ecl-file__translation-list">
+                        <li class="ecl-file__translation-item">
+                            <a href="https://example.com/bg.pdf">български (1.27 MB - PDF)</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <p>In its response to the ECI, the Commission welcomes the initiative.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+        </html>
+        """
+        
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        parser_5 = ECIResponseHTMLParser(soup_5)
+        parser_5.registration_number = "2019/000016"
+        
+        result_5 = parser_5.commission_response.extract_commission_answer_text(soup_5)
+        
+        # Should include the Commission's response
+        assert "Commission welcomes the initiative" in result_5
+        # Should NOT include factsheet download information
+        assert "Factsheet" not in result_5
+        assert "Available translations" not in result_5
+        assert "български" not in result_5
+        assert "Download" not in result_5
+        
+        # Test case 6: Error when section not found
+        html_6 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>Some content here.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+        </html>
+        """
+        
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        parser_6 = ECIResponseHTMLParser(soup_6)
+        parser_6.registration_number = "2099/999999"
+        
+        with pytest.raises(ValueError, match="Could not find 'Answer of the European Commission' section for 2099/999999"):
+            parser_6.commission_response.extract_commission_answer_text(soup_6)
+        
+        # Test case 7: Error when section exists but has no content
+        html_7 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <h2 id="Follow-up">Follow-up</h2>
+        </html>
+        """
+        
+        soup_7 = BeautifulSoup(html_7, 'html.parser')
+        parser_7 = ECIResponseHTMLParser(soup_7)
+        parser_7.registration_number = "2099/999998"
+        
+        with pytest.raises(ValueError, match="No content found in 'Answer of the European Commission' section for 2099/999998"):
+            parser_7.commission_response.extract_commission_answer_text(soup_7)
+        
+        # Test case 8: Multiple paragraphs with links preserved in markdown format
+        html_8 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission welcomes this initiative and acknowledges its importance.</p>
+            <p>Since 2019, the Commission has been engaged in intensive work under the 
+            <a href="https://ec.europa.eu/info/strategy/priorities-2019-2024/european-green-deal_en">European Green Deal</a> 
+            to ensure the sustainability of food systems.</p>
+            <p>The <a href="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A52022PC0305">proposal for a regulation</a> 
+            sets out an ambitious path to reduce chemical pesticides by 50% by 2030.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+        </html>
+        """
+        
+        soup_8 = BeautifulSoup(html_8, 'html.parser')
+        parser_8 = ECIResponseHTMLParser(soup_8)
+        parser_8.registration_number = "2019/000016"
+        
+        result_8 = parser_8.commission_response.extract_commission_answer_text(soup_8)
+        
+        # Check that links are preserved in markdown format
+        assert "[European Green Deal](https://ec.europa.eu/info/strategy/priorities-2019-2024/european-green-deal_en)" in result_8
+        assert "[proposal for a regulation](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A52022PC0305)" in result_8
+        assert "reduce chemical pesticides by 50% by 2030" in result_8
+
+    def test_commission_factsheet_url(self):
+        """Test extraction of Commission factsheet PDF URL."""
+        
+        # Test case 1: Standard factsheet with valid download link
+        html_1 = """
+        <html>
+            <div class="ecl-file" data-ecl-file="">
+                <div class="ecl-file__container">
+                    <picture class="ecl-picture ecl-file__picture">
+                        <img alt="Picture of the first page of the factsheet" 
+                            src="https://citizens-initiative.europa.eu/sites/default/files/thumbnail.png"/>
+                    </picture>
+                    <div class="ecl-file__info">
+                        <div class="ecl-file__title">Factsheet - Successful Initiatives - Fur Free Europe</div>
+                        <div class="ecl-file__language">English</div>
+                        <div class="ecl-file__meta">(234.58 KB - PDF)</div>
+                    </div>
+                    <div class="ecl-file__action">
+                        <a href="https://citizens-initiative.europa.eu/sites/default/files/2023-12/Factsheet.pdf" 
+                        class="ecl-link ecl-link--standalone ecl-link--icon ecl-file__download">
+                            Download
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </html>
+        """
+        
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        parser_1 = ECIResponseHTMLParser(soup_1)
+        parser_1.registration_number = "2022/000002"
+        
+        result_1 = parser_1.commission_response.extract_commission_factsheet_url(soup_1)
+        
+        assert result_1 is not None
+        assert result_1 == "https://citizens-initiative.europa.eu/sites/default/files/2023-12/Factsheet.pdf"
+        assert "citizens-initiative.europa.eu" in result_1
+        assert result_1.endswith(".pdf")
+        
+        # Test case 2: No factsheet element present (returns None)
+        html_2 = """
+        <html>
+            <div class="ecl-file">
+                <div class="ecl-file__container">
+                    <div class="ecl-file__info">
+                        <div class="ecl-file__title">Communication Document</div>
+                        <div class="ecl-file__language">English</div>
+                    </div>
+                    <div class="ecl-file__action">
+                        <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=COM(2023)123" 
+                        class="ecl-file__download">
+                            Download
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </html>
+        """
+        
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        parser_2 = ECIResponseHTMLParser(soup_2)
+        parser_2.registration_number = "2012/000003"
+        
+        result_2 = parser_2.commission_response.extract_commission_factsheet_url(soup_2)
+        
+        assert result_2 is None
+        
+        # Test case 3: Factsheet title exists but download link is missing (error)
+        html_3 = """
+        <html>
+            <div class="ecl-file">
+                <div class="ecl-file__container">
+                    <div class="ecl-file__info">
+                        <div class="ecl-file__title">Factsheet - Save Bees and Farmers</div>
+                        <div class="ecl-file__language">English</div>
+                    </div>
+                    <div class="ecl-file__action">
+                        <!-- No download link here -->
+                    </div>
+                </div>
+            </div>
+        </html>
+        """
+        
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        parser_3 = ECIResponseHTMLParser(soup_3)
+        parser_3.registration_number = "2019/000016"
+        
+        with pytest.raises(ValueError, match="Factsheet element found but download link is missing for 2019/000016"):
+            parser_3.commission_response.extract_commission_factsheet_url(soup_3)
+        
+        # Test case 4: Factsheet exists but href is empty (error)
+        html_4 = """
+        <html>
+            <div class="ecl-file">
+                <div class="ecl-file__container">
+                    <div class="ecl-file__info">
+                        <div class="ecl-file__title">Factsheet - End Cage Age</div>
+                        <div class="ecl-file__language">English</div>
+                    </div>
+                    <div class="ecl-file__action">
+                        <a href="" class="ecl-link ecl-file__download">
+                            Download
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </html>
+        """
+        
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        parser_4 = ECIResponseHTMLParser(soup_4)
+        parser_4.registration_number = "2018/000004"
+        
+        with pytest.raises(ValueError, match="Factsheet download link found but href is empty for 2018/000004"):
+            parser_4.commission_response.extract_commission_factsheet_url(soup_4)
+        
+        # Test case 5: Multiple file divs, only one is factsheet
+        html_5 = """
+        <html>
+            <div class="ecl-file">
+                <div class="ecl-file__container">
+                    <div class="ecl-file__info">
+                        <div class="ecl-file__title">Communication Document</div>
+                    </div>
+                    <div class="ecl-file__action">
+                        <a href="https://ec.europa.eu/transparency/documents-register/communication.pdf" 
+                        class="ecl-file__download">Download</a>
+                    </div>
+                </div>
+            </div>
+            <div class="ecl-file">
+                <div class="ecl-file__container">
+                    <div class="ecl-file__info">
+                        <div class="ecl-file__title">Annex Document</div>
+                    </div>
+                    <div class="ecl-file__action">
+                        <a href="https://ec.europa.eu/transparency/documents-register/annex.pdf" 
+                        class="ecl-file__download">Download</a>
+                    </div>
+                </div>
+            </div>
+            <div class="ecl-file">
+                <div class="ecl-file__container">
+                    <div class="ecl-file__info">
+                        <div class="ecl-file__title">Factsheet - Minority SafePack</div>
+                        <div class="ecl-file__language">English</div>
+                    </div>
+                    <div class="ecl-file__action">
+                        <a href="https://citizens-initiative.europa.eu/sites/default/files/factsheet_minority.pdf" 
+                        class="ecl-file__download">Download</a>
+                    </div>
+                </div>
+            </div>
+        </html>
+        """
+        
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        parser_5 = ECIResponseHTMLParser(soup_5)
+        parser_5.registration_number = "2017/000004"
+        
+        result_5 = parser_5.commission_response.extract_commission_factsheet_url(soup_5)
+        
+        assert result_5 is not None
+        assert "factsheet_minority.pdf" in result_5
+        # Should return the factsheet, not the other documents
+        assert "communication.pdf" not in result_5
+        assert "annex.pdf" not in result_5
+        
+        # Test case 6: Case-insensitive factsheet detection
+        html_6 = """
+        <html>
+            <div class="ecl-file">
+                <div class="ecl-file__container">
+                    <div class="ecl-file__info">
+                        <div class="ecl-file__title">FACTSHEET - Stop Finning</div>
+                    </div>
+                    <div class="ecl-file__action">
+                        <a href="https://citizens-initiative.europa.eu/sites/default/files/stop_finning.pdf" 
+                        class="ecl-file__download">Download</a>
+                    </div>
+                </div>
+            </div>
+        </html>
+        """
+        
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        parser_6 = ECIResponseHTMLParser(soup_6)
+        parser_6.registration_number = "2020/000001"
+        
+        result_6 = parser_6.commission_response.extract_commission_factsheet_url(soup_6)
+        
+        assert result_6 is not None
+        assert "stop_finning.pdf" in result_6
+        
+        # Test case 7: Factsheet with translations (should only get main English version)
+        html_7 = """
+        <html>
+            <div class="ecl-file ecl-file--has-translation">
+                <div class="ecl-file__container">
+                    <div class="ecl-file__info">
+                        <div class="ecl-file__title">Factsheet - Save Cruelty Free Cosmetics</div>
+                        <div class="ecl-file__language">English</div>
+                        <div class="ecl-file__meta">(1.31 MB - PDF)</div>
+                    </div>
+                    <div class="ecl-file__action">
+                        <a href="https://citizens-initiative.europa.eu/sites/default/files/2023-08/factsheet_EN.pdf" 
+                        class="ecl-link ecl-file__download">Download</a>
+                    </div>
+                </div>
+                <div class="ecl-file__translation-container">
+                    <button class="ecl-file__translation-toggle">Available translations (23)</button>
+                    <ul class="ecl-file__translation-list">
+                        <li class="ecl-file__translation-item">
+                            <a href="https://citizens-initiative.europa.eu/sites/default/files/2023-08/factsheet_BG.pdf" 
+                            class="ecl-link ecl-file__translation-download">
+                                <div class="ecl-file__language" lang="bg">български</div>
+                            </a>
+                        </li>
+                        <li class="ecl-file__translation-item">
+                            <a href="https://citizens-initiative.europa.eu/sites/default/files/2023-08/factsheet_ES.pdf" 
+                            class="ecl-link ecl-file__translation-download">
+                                <div class="ecl-file__language" lang="es">Español</div>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </html>
+        """
+        
+        soup_7 = BeautifulSoup(html_7, 'html.parser')
+        parser_7 = ECIResponseHTMLParser(soup_7)
+        parser_7.registration_number = "2021/000006"
+        
+        result_7 = parser_7.commission_response.extract_commission_factsheet_url(soup_7)
+        
+        assert result_7 is not None
+        assert "factsheet_EN.pdf" in result_7
+        # Should not return translations
+        assert "factsheet_BG.pdf" not in result_7
+        assert "factsheet_ES.pdf" not in result_7
+        
+        # Test case 8: Empty page (no ecl-file divs at all)
+        html_8 = """
+        <html>
+            <body>
+                <h2>Submission and examination</h2>
+                <p>The initiative was submitted on some date.</p>
+            </body>
+        </html>
+        """
+        
+        soup_8 = BeautifulSoup(html_8, 'html.parser')
+        parser_8 = ECIResponseHTMLParser(soup_8)
+        parser_8.registration_number = "2012/000005"
+        
+        result_8 = parser_8.commission_response.extract_commission_factsheet_url(soup_8)
+        
+        assert result_8 is None
+
     def test_legislative_proposal_status(self):
         """Test extraction of legislative proposal status."""
         # Placeholder - implement when HTML structure is known

@@ -48,6 +48,7 @@ class TestECIResponseDataModel:
             official_communication_adoption_date="2024-06-01",
             official_communication_document_urls="https://example.com/comm.pdf",
             commission_answer_text="Test conclusion",
+            commission_factsheet_url="https://example.com/factsheet.pdf",
             legislative_proposal_status="No action",
             commission_response_summary="Test summary",
             has_followup_section=False,
@@ -77,7 +78,6 @@ class TestECIResponseDataModel:
         assert isinstance(result, dict), "to_dict() should return dictionary"
         assert result['registration_number'] == "2024/000001", "Should contain registration_number"
         assert result['initiative_title'] == "Test Initiative", "Should contain initiative_title"
-    
 
 class TestRequiredFieldValidation:
     """Tests for required field validation."""
@@ -107,7 +107,6 @@ class TestRequiredFieldValidation:
         # Placeholder - implement with actual test data when available
         pass
 
-
 class TestOptionalFieldHandling:
     """Tests for optional field handling."""
     
@@ -130,6 +129,7 @@ class TestOptionalFieldHandling:
             official_communication_adoption_date=None,  # Optional
             official_communication_document_urls=None,
             commission_answer_text=None,
+            commission_factsheet_url=None,  # Optional
             legislative_proposal_status=None,
             commission_response_summary=None,
             has_followup_section=None,
@@ -157,7 +157,6 @@ class TestOptionalFieldHandling:
         # Should not raise any errors
         assert response.commission_submission_date is None
         assert response.commission_meeting_date is None
-
 
 class TestJSONFieldValidation:
     """Tests for JSON field validation."""
@@ -224,6 +223,7 @@ class TestDataIntegrity:
             official_communication_adoption_date=None,
             official_communication_document_urls=None,
             commission_answer_text=None,
+            commission_factsheet_url=None,
             legislative_proposal_status=None,
             commission_response_summary=None,
             has_followup_section=True,  # Boolean
@@ -251,3 +251,4 @@ class TestDataIntegrity:
         assert isinstance(response.has_followup_section, bool)
         assert isinstance(response.roadmap_launched, bool)
         assert isinstance(response.dedicated_website, bool)
+

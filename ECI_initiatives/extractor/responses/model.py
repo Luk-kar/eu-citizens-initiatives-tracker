@@ -36,6 +36,7 @@ class ECICommissionResponseRecord:
     commission_answer_text: Optional[str]
     legislative_proposal_status: Optional[str]
     commission_response_summary: Optional[str]
+    commission_factsheet_url: str
     
     # Follow-up Activities Section
     has_followup_section: Optional[bool]

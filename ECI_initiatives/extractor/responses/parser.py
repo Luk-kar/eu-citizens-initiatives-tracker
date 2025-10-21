@@ -630,6 +630,7 @@ class CommissionResponseExtractor(BaseExtractor):
         """Extract date Commission adopted official Communication"""
         try:
             submission_section = soup.find('h2', id='Submission-and-examination')
+
             if not submission_section:
                 submission_section = soup.find('h2', string=re.compile(r'Submission and examination', re.IGNORECASE))
             if not submission_section:
@@ -742,8 +743,12 @@ class CommissionResponseExtractor(BaseExtractor):
         except Exception as e:
             raise ValueError(f"Error extracting commission communication URL for {self.registration_number}: {str(e)}") from e
 
-    def extract_commission_answer_text(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract main conclusions text from Communication"""
+    def extract_commission_answer_text(self, soup: BeautifulSoup) -> str:
+        """Extract main conclusions text from Communication, excluding factsheet downloads
+        
+        Raises:
+            ValueError: If the Commission answer section cannot be found or extracted
+        """
         try:
             # Find the "Answer of the European Commission" header
             answer_header = soup.find('h2', id='Answer-of-the-European-Commission')
@@ -753,7 +758,9 @@ class CommissionResponseExtractor(BaseExtractor):
                 answer_header = soup.find('h2', string=lambda text: text and 'Answer of the European Commission' in text)
             
             if not answer_header:
-                return None
+                raise ValueError(
+                    f"Could not find 'Answer of the European Commission' section for {self.registration_number}"
+                )
             
             # Collect all content between this header and the Follow-up header
             content_parts = []
@@ -770,6 +777,11 @@ class CommissionResponseExtractor(BaseExtractor):
                     if h2_id and h2_id != 'Answer-of-the-European-Commission':
                         break
                 
+                # Skip factsheet file download components (ecl-file divs)
+                if current.name == 'div' and 'ecl-file' in current.get('class', []):
+                    current = current.find_next_sibling()
+                    continue
+                
                 # Extract and format content from this element
                 if current.name:
                     element_text = self._extract_element_with_links(current)
@@ -778,18 +790,29 @@ class CommissionResponseExtractor(BaseExtractor):
                 
                 current = current.find_next_sibling()
             
-            if content_parts:
-                return '\n'.join(content_parts).strip()
+            if not content_parts:
+                raise ValueError(
+                    f"No content found in 'Answer of the European Commission' section for {self.registration_number}"
+                )
             
-            return None
+            return '\n'.join(content_parts).strip()
             
+        except ValueError:
+            # Re-raise ValueError as-is
+            raise
         except Exception as e:
-            raise ValueError(f"Error extracting communication main conclusion for {self.registration_number}: {str(e)}") from e
+            raise ValueError(
+                f"Error extracting communication main conclusion for {self.registration_number}: {str(e)}"
+            ) from e
 
     def _extract_element_with_links(self, element) -> str:
         """Helper to extract text while preserving links in markdown format"""
 
         if not element.name:
+            return ''
+        
+        # Skip ecl-file components completely
+        if element.name == 'div' and 'ecl-file' in element.get('class', []):
             return ''
         
         # For elements with links, convert to markdown
@@ -834,6 +857,65 @@ class CommissionResponseExtractor(BaseExtractor):
         
         # Default: return plain text
         return element.get_text(strip=True)
+
+    def extract_commission_factsheet_url(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extract the URL of the Commission factsheet PDF (English version)
+        
+        Returns:
+            Optional[str]: URL to the factsheet PDF document, or None if no factsheet exists
+            
+        Raises:
+            ValueError: If factsheet element exists but download link is missing or invalid
+        """
+
+        try:
+            # Find all ecl-file divs (file download components)
+            ecl_files = soup.find_all('div', class_=lambda x: x and 'ecl-file' in x)
+            
+            # Track if we found a factsheet element
+            factsheet_found = False
+            
+            # Look for the one with "Factsheet" in the title
+            for file_div in ecl_files:
+                
+                # Find the title element
+                title_div = file_div.find('div', class_=lambda x: x and 'ecl-file__title' in x)
+                
+                if title_div:
+                    title_text = title_div.get_text(strip=True)
+                    
+                    # Check if this is a factsheet (case-insensitive)
+                    if 'factsheet' in title_text.lower():
+                        factsheet_found = True
+                        
+                        # Find the download link
+                        download_link = file_div.find('a', class_=lambda x: x and 'ecl-file__download' in x)
+                        
+                        if not download_link:
+                            raise ValueError(
+                                f"Factsheet element found but download link is missing for {self.registration_number}"
+                            )
+                        
+                        href = download_link.get('href', '').strip()
+                        
+                        if not href:
+                            raise ValueError(
+                                f"Factsheet download link found but href is empty for {self.registration_number}"
+                            )
+                        
+                        # Successfully found factsheet with valid URL
+                        return href
+            
+            # No factsheet found at all - this is OK, return None
+            return None
+            
+        except ValueError:
+            # Re-raise ValueError as-is
+            raise
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting factsheet URL for {self.registration_number}: {str(e)}"
+            ) from e
 
     def extract_legislative_proposal_status(self, soup: BeautifulSoup) -> Optional[str]:
         """Determine if Commission proposed legislation, alternatives, or no action"""
@@ -1075,6 +1157,7 @@ class ECIResponseHTMLParser:
 
                 # Commission Response Content
                 commission_answer_text=self.commission_response.extract_commission_answer_text(soup),
+                commission_factsheet_url=self.commission_response.extract_commission_factsheet_url(soup),
                 legislative_proposal_status=self.commission_response.extract_legislative_proposal_status(soup),
                 commission_response_summary=self.commission_response.extract_commission_response_summary(soup),
 
