@@ -858,174 +858,440 @@ class CommissionResponseExtractor(BaseExtractor):
         # Default: return plain text
         return element.get_text(strip=True)
 
+
+from typing import Optional
+
+
+class StatusMatcher:
+    """Helper class for matching legislative status patterns in ECI response text"""
+    
+    # Pattern constants for status detection
+    APPLICABLE_PATTERNS = [
+        'became applicable',
+        'became applicable immediately',
+        'and applicable from'
+    ]
+    
+    ADOPTION_EVIDENCE = [
+        'council of the eu adopted',
+        'council adopted the regulation',
+        'published in the official journal',
+        'following the agreement of the european parliament'
+    ]
+    
+    COMMITMENT_PATTERNS = [
+        'committed to come forward with a legislative proposal',
+        'communicated its intention to table a legislative proposal',
+        'intention to table a legislative proposal'
+    ]
+    
+    REJECTION_PATTERNS = [
+        'will not make a legislative proposal',
+        'decided not to submit a legislative proposal',
+        'has decided not to submit a legislative proposal'
+    ]
+    
+    EXISTING_FRAMEWORK_PATTERNS = [
+        'existing funding framework',
+        'existing legislation',
+        'already covered',
+        'already in place',
+        'legislation and policies already in place',
+        'recently debated and agreed',
+        'is the appropriate one',
+        'policies already in place'
+    ]
+    
+    ASSESSMENT_INDICATORS = [
+        'launch',
+        'started working on',
+        'external study to be carried out',
+        'call for evidence',
+        'preparatory work',
+        'with a view to launch'
+    ]
+    
+    # Citizen-friendly status names mapping
+    STATUS_CITIZEN_NAMES = {
+        'applicable': 'New Law in Force',
+        'adopted': 'Law Approved',
+        'committed': 'Law Promised',
+        'assessment_pending': 'Being Studied',
+        'roadmap_development': 'Action Plan Being Created',
+        'rejected_already_covered': 'Already Addressed',
+        'rejected_with_actions': 'Alternative Actions Taken',
+        'rejected': 'Rejected',
+        'non_legislative_action': 'Policy Changes Only',
+        'proposal_pending_adoption': 'Existing Proposals Under Review',
+    }
+    
+    # Status categories for UI styling
+    STATUS_CATEGORIES = {
+        'applicable': 'success',           # Green
+        'adopted': 'success',              # Green
+        'committed': 'in_progress',        # Yellow-Green
+        'assessment_pending': 'in_progress', # Yellow
+        'roadmap_development': 'in_progress', # Yellow
+        'rejected_already_covered': 'partial', # Orange
+        'rejected_with_actions': 'partial',    # Orange
+        'rejected': 'unsuccessful',            # Red
+        'non_legislative_action': 'partial',   # Orange
+        'proposal_pending_adoption': 'in_progress', # Yellow
+    }
+    
+    def __init__(self, content: str):
+        """
+        Initialize with normalized content string
+        
+        Args:
+            content: Text content from ECI Commission response
+        """
+        self.content = content.lower()
+    
+    def check_applicable(self) -> bool:
+        """
+        Check if initiative reached applicable status (law is in force)
+        
+        Returns:
+            True if law became applicable, False otherwise
+        """
+        # Direct applicable phrases
+        if any(phrase in self.content for phrase in self.APPLICABLE_PATTERNS):
+            return True
+        
+        # "Entered into force" with adoption evidence
+        if 'entered into force' in self.content:
+            if any(phrase in self.content for phrase in self.ADOPTION_EVIDENCE):
+                return True
+        
+        # "Applies from" with legislation context
+        if 'applies from' in self.content or 'apply from' in self.content:
+            if any(word in self.content for word in ['adopted', 'regulation', 'directive']):
+                return True
+        
+        return False
+    
+    def check_adopted(self) -> bool:
+        """
+        Check if proposal was adopted but not yet applicable
+        
+        Returns:
+            True if adopted but not yet in force, False otherwise
+        """
+        # Published in Official Journal (but not applicable yet)
+        if 'published in the official journal' in self.content or 'official journal of the eu' in self.content:
+            if 'became applicable' not in self.content and 'applies from' not in self.content:
+                return True
+        
+        # Adopted by Commission or Council
+        if any(phrase in self.content for phrase in [
+            'was adopted by the commission',
+            'council of the eu adopted',
+            'council adopted the regulation'
+        ]):
+            return True
+        
+        return False
+    
+    def check_committed(self) -> bool:
+        """
+        Check if Commission committed to legislative proposal
+        
+        Returns:
+            True if commitment to legislation exists, False otherwise
+        """
+        # Standard commitment patterns
+        if any(phrase in self.content for phrase in self.COMMITMENT_PATTERNS):
+            return True
+        
+        # "To table a legislative proposal by [date]"
+        if 'to table a legislative proposal' in self.content and 'by' in self.content:
+            return True
+        
+        return False
+    
+    def check_assessment_pending(self) -> bool:
+        """
+        Check if initiative is in assessment phase
+        
+        Returns:
+            True if assessment ongoing, False otherwise
+        """
+        # Avoid false positives with higher status
+        if 'intention to table a legislative proposal' in self.content or 'became applicable' in self.content:
+            return False
+        
+        # EFSA scientific opinion pending
+        if 'tasked' in self.content and 'efsa' in self.content and 'scientific opinion' in self.content:
+            return True
+        
+        # Impact assessment ongoing
+        if 'impact assessment' in self.content:
+            if any(phrase in self.content for phrase in self.ASSESSMENT_INDICATORS):
+                return True
+        
+        # Future communication expected
+        if 'will communicate' in self.content and ('by' in self.content or 'after' in self.content):
+            return True
+        
+        return False
+    
+    def check_roadmap_development(self) -> bool:
+        """
+        Check if roadmap is being developed
+        
+        Returns:
+            True if roadmap in development, False otherwise
+        """
+        if 'became applicable' in self.content:
+            return False
+        
+        roadmap_verbs = ['develop', 'work on', 'launched', 'started work on']
+        return 'roadmap' in self.content and any(verb in self.content for verb in roadmap_verbs)
+    
+    def check_rejection_type(self) -> Optional[str]:
+        """
+        Determine rejection type if initiative was rejected
+        
+        Returns:
+            'rejected', 'rejected_with_actions', 'rejected_already_covered', or None
+        """
+        # Check for primary rejection phrases
+        has_primary_rejection = any(phrase in self.content for phrase in self.REJECTION_PATTERNS)
+        
+        # Check for alternative rejection patterns
+        has_no_legal_acts = (
+            'no further legal acts are proposed' in self.content or 
+            'no new legislation will be proposed' in self.content
+        )
+        has_no_repeal = 'no repeal' in self.content and 'was proposed' in self.content
+        
+        if not (has_primary_rejection or has_no_legal_acts or has_no_repeal):
+            return None
+        
+        # Special case: no repeal with actions
+        if has_no_repeal:
+            if 'committed' in self.content or 'will continue' in self.content:
+                return 'rejected_with_actions'
+            return 'rejected'
+        
+        # Determine rejection subtype
+        if any(phrase in self.content for phrase in self.EXISTING_FRAMEWORK_PATTERNS):
+            return 'rejected_already_covered'
+        
+        if any(word in self.content for word in ['committed', 'will continue', 'monitor', 'support']):
+            return 'rejected_with_actions'
+        
+        return 'rejected'
+    
+    def check_non_legislative_action(self) -> bool:
+        """
+        Check if only non-legislative actions were taken
+        
+        Returns:
+            True if only policy actions (no legislation), False otherwise
+        """
+        # Check for non-legislative focus without proposals
+        if 'intends to focus on' in self.content or 'implementation of' in self.content:
+            if 'proposal' not in self.content:
+                return True
+        
+        # Specific non-legislative action patterns
+        action_patterns = [
+            'committed, in particular, to taking the following actions',
+            'launch an eu-wide public consultation',
+            'improve transparency',
+            'establish harmonised'
+        ]
+        
+        if any(phrase in self.content for phrase in action_patterns):
+            if 'legislative proposal' not in self.content and 'proposal' not in self.content:
+                return True
+        
+        return False
+    
+    def check_proposal_pending(self) -> bool:
+        """
+        Check if existing proposals are pending adoption
+        
+        Returns:
+            True if proposals under negotiation, False otherwise
+        """
+        has_tabled = 'proposal' in self.content and 'tabled' in self.content
+        has_context = 'rather than proposing new legislative acts' in self.content
+        not_completed = 'became applicable' not in self.content and 'entered into force' not in self.content
+        
+        return has_tabled and has_context and not_completed
+    
+    def extract_technical_status(self) -> str:
+        """
+        Extract technical status code by checking all patterns in priority order
+        
+        Status hierarchy (highest to lowest):
+        1. applicable
+        2. adopted
+        3. committed
+        4. assessment_pending
+        5. roadmap_development
+        6. rejected_already_covered / rejected_with_actions / rejected
+        7. non_legislative_action
+        8. proposal_pending_adoption
+        
+        Returns:
+            Technical status code (e.g., 'applicable', 'committed', etc.)
+            
+        Raises:
+            ValueError: If no status pattern matches
+        """
+        # Define status checks in priority order (highest to lowest)
+        status_checks = [
+            ('applicable', self.check_applicable),
+            ('adopted', self.check_adopted),
+            ('committed', self.check_committed),
+            ('assessment_pending', self.check_assessment_pending),
+            ('roadmap_development', self.check_roadmap_development),
+            (None, self.check_rejection_type),  # Returns status name directly
+            ('non_legislative_action', self.check_non_legislative_action),
+            ('proposal_pending_adoption', self.check_proposal_pending),
+        ]
+        
+        # Check each status in priority order
+        for status_name, check_func in status_checks:
+            result = check_func()
+            
+            # Handle rejection check (returns status name or None)
+            if status_name is None and result:
+                return result
+            
+            # Handle boolean checks
+            if status_name and result:
+                return status_name
+        
+        # No status matched
+        raise ValueError("No known status patterns matched")
+    
+    def translate_to_citizen_friendly(self, technical_status: str) -> str:
+        """
+        Translate technical status to citizen-friendly name
+        
+        Args:
+            technical_status: Technical status code (e.g., 'applicable')
+            
+        Returns:
+            Citizen-friendly status name (e.g., 'New Law in Force')
+        """
+        return self.STATUS_CITIZEN_NAMES.get(technical_status, technical_status)
+    
+    @classmethod
+    def get_status_category(cls, technical_status: str) -> str:
+        """
+        Get status category for UI styling
+        
+        Args:
+            technical_status: Technical status code
+            
+        Returns:
+            Category: 'success', 'in_progress', 'partial', or 'unsuccessful'
+        """
+        return cls.STATUS_CATEGORIES.get(technical_status, 'unknown')
+
 class LegislativeOutcomeExtractor(BaseExtractor):
     """Extractor for legislative outcome and proposal status data"""
 
-    def extract_highest_status_reached(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_legislative_content(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract all text content after Answer section
+        Returns normalized lowercase string or None if section not found
+        """
+        # Find Answer section with fallback for combined headers
+        answer_section = (
+            soup.find('h2', id='Answer-of-the-European-Commission') or
+            soup.find('h2', id='Answer-of-the-European-Commission-and-follow-up')
+        )
+        
+        if not answer_section:
+            return None
+        
+        # Collect all text, excluding factsheet downloads
+        all_text = []
+        for sibling in answer_section.find_next_siblings():
+            # Skip factsheet download divs
+            if self._is_factsheet_div(sibling):
+                continue
+            all_text.append(sibling.get_text(strip=False))
+        
+        return ' '.join(all_text).lower() if all_text else None
+    
+    def _is_factsheet_div(self, element) -> bool:
+        """Check if element is a factsheet download div to exclude"""
+        return (
+            element.name == 'div' and 
+            element.get('class') and 
+            'ecl-file' in element.get('class')
+        )
+    
+    def extract_highest_status_reached(self, soup: BeautifulSoup) -> str:
         """
         Extract the highest status reached by the initiative
-        Possible values: 'applicable', 'committed', 'adopted', 'rejected', 
-        'rejected_with_actions', 'assessment_pending', 'non_legislative_action',
-        'rejected_already_covered', 'roadmap_development', 'proposal_pending_adoption'
+        
+        This method combines two steps:
+        1. Extract technical status from HTML content
+        2. Translate to citizen-friendly name
+        
+        Status hierarchy (highest to lowest):
+        1. applicable - New Law in Force
+        2. adopted - Law Approved
+        3. committed - Law Promised
+        4. assessment_pending - Being Studied
+        5. roadmap_development - Action Plan Being Created
+        6. rejected_already_covered - Already Addressed
+        7. rejected_with_actions - Alternative Actions Taken
+        8. rejected - Rejected
+        9. non_legislative_action - Policy Changes Only
+        10. proposal_pending_adoption - Existing Proposals Under Review
+        
+        Args:
+            soup: BeautifulSoup object containing ECI response HTML
+            
+        Returns:
+            Citizen-friendly status name (e.g., "New Law in Force")
+        
+        Raises:
+            ValueError: If error occurs during extraction or no status can be determined
         """
         try:
-            # Get the commission answer section - handle both header formats
-            answer_section = soup.find('h2', id='Answer-of-the-European-Commission')
+            # Extract content from HTML
+            content = self._extract_legislative_content(soup)
+            if not content:
+                raise ValueError(
+                    f"Could not extract legislative content for initiative {self.registration_number}. "
+                    f"Answer section may be missing or empty."
+                )
             
-            # Some initiatives have combined "Answer and follow-up" section
-            if not answer_section:
-                answer_section = soup.find('h2', id='Answer-of-the-European-Commission-and-follow-up')
+            # Initialize status matcher with extracted content
+            matcher = StatusMatcher(content)
             
-            if not answer_section:
-                return None
+            # Step 1: Extract technical status
+            technical_status = matcher.extract_technical_status()
             
-            # Collect ALL text after Answer section until end of document
-            # This captures both explicit Follow-up sections AND implicit follow-up subsections
-            all_text = []
-            for sibling in answer_section.find_next_siblings():
-                # Skip factsheet download divs (ecl-file class)
-                if sibling.name == 'div' and sibling.get('class') and 'ecl-file' in sibling.get('class'):
-                    continue
-                all_text.append(sibling.get_text(strip=False))
+            # Step 2: Translate to citizen-friendly format
+            citizen_friendly = matcher.translate_to_citizen_friendly(technical_status)
             
-            combined_content = ' '.join(all_text).lower()
+            return citizen_friendly
             
-            # Check in priority order (highest to lowest status)
-            
-            # 1. APPLICABLE - Check FIRST (highest priority status)
-            if any(phrase in combined_content for phrase in [
-                'became applicable',
-                'became applicable immediately',
-                'and applicable from'
-            ]):
-                return 'applicable'
-            
-            # Check for "entered into force" with adoption context
-            if 'entered into force' in combined_content:
-                if any(phrase in combined_content for phrase in [
-                    'council of the eu adopted',
-                    'council adopted the regulation',
-                    'published in the official journal',
-                    'following the agreement of the european parliament'
-                ]):
-                    return 'applicable'
-            
-            # Legacy checks for other formulations
-            if 'applies from' in combined_content or 'apply from' in combined_content:
-                if any(phrase in combined_content for phrase in ['adopted', 'regulation', 'directive']):
-                    return 'applicable'
-            
-            # 2. ADOPTED - proposal published in Official Journal
-            if ('published in the official journal' in combined_content or
-                'official journal of the eu' in combined_content):
-                if 'became applicable' not in combined_content and 'applies from' not in combined_content:
-                    return 'adopted'
-            
-            # 3. ADOPTED - proposal was adopted by Commission or Council
-            if ('was adopted by the commission' in combined_content or
-                'council of the eu adopted' in combined_content or
-                'council adopted the regulation' in combined_content):
-                return 'adopted'
-            
-            # 4. COMMITTED - Commission committed to legislative proposal
-            if 'committed to come forward with a legislative proposal' in combined_content:
-                return 'committed'
-            if 'communicated its intention to table a legislative proposal' in combined_content:
-                return 'committed'
-            if 'intention to table a legislative proposal' in combined_content:
-                return 'committed'
-            if 'to table a legislative proposal' in combined_content and 'by' in combined_content:
-                return 'committed'
-            
-            # 5. ASSESSMENT_PENDING - waiting for studies/assessments
-            if 'tasked' in combined_content and 'efsa' in combined_content and 'scientific opinion' in combined_content:
-                if 'intention to table a legislative proposal' not in combined_content:
-                    return 'assessment_pending'
-            
-            if 'impact assessment' in combined_content:
-                if any(phrase in combined_content for phrase in [
-                    'launch',
-                    'started working on',
-                    'external study to be carried out',
-                    'call for evidence',
-                    'preparatory work',
-                    'with a view to launch'
-                ]):
-                    if 'became applicable' not in combined_content and 'intention to table' not in combined_content:
-                        return 'assessment_pending'
-            
-            if 'will communicate' in combined_content and ('by' in combined_content or 'after' in combined_content):
-                if 'became applicable' not in combined_content and 'intention to table' not in combined_content:
-                    return 'assessment_pending'
-            
-            # 6. ROADMAP_DEVELOPMENT
-            if 'roadmap' in combined_content and ('develop' in combined_content or 'work on' in combined_content or 'launched' in combined_content or 'started work on' in combined_content):
-                if 'became applicable' not in combined_content:
-                    return 'roadmap_development'
-            
-            # 7. REJECTED - explicit rejection
-            if any(phrase in combined_content for phrase in [
-                'will not make a legislative proposal',
-                'decided not to submit a legislative proposal',
-                'has decided not to submit a legislative proposal'
-            ]):
-                if any(phrase in combined_content for phrase in [
-                    'existing funding framework',
-                    'existing legislation',
-                    'already covered',
-                    'already in place',
-                    'legislation and policies already in place',
-                    'recently debated and agreed',
-                    'is the appropriate one'
-                ]):
-                    return 'rejected_already_covered'
-                
-                if ('committed' in combined_content or 'will continue' in combined_content or 
-                    'monitor' in combined_content or 'support' in combined_content):
-                    return 'rejected_with_actions'
-                
-                return 'rejected'
-            
-            if 'no further legal acts are proposed' in combined_content or 'no new legislation will be proposed' in combined_content:
-                if any(phrase in combined_content for phrase in [
-                    'already covered',
-                    'existing legislation',
-                    'existing funding framework',
-                    'already in place',
-                    'legislation and policies already in place',
-                    'policies already in place'
-                ]):
-                    return 'rejected_already_covered'
-                return 'rejected'
-            
-            if 'no repeal' in combined_content and 'was proposed' in combined_content:
-                if 'committed' in combined_content or 'will continue' in combined_content:
-                    return 'rejected_with_actions'
-                return 'rejected'
-            
-            # 8. NON_LEGISLATIVE_ACTION
-            if ('intends to focus on' in combined_content or 'implementation of' in combined_content) and 'proposal' not in combined_content:
-                return 'non_legislative_action'
-            
-            if any(phrase in combined_content for phrase in [
-                'committed, in particular, to taking the following actions',
-                'launch an eu-wide public consultation',
-                'improve transparency',
-                'establish harmonised'
-            ]):
-                if 'legislative proposal' not in combined_content and 'proposal' not in combined_content:
-                    return 'non_legislative_action'
-            
-            # 9. PROPOSAL_PENDING_ADOPTION
-            if ('proposal' in combined_content and 'tabled' in combined_content and 
-                'rather than proposing new legislative acts' in combined_content):
-                if 'became applicable' not in combined_content and 'entered into force' not in combined_content:
-                    return 'proposal_pending_adoption'
-            
-            return None
-            
+        except ValueError as e:
+            # Add context to ValueError from StatusMatcher
+            if "No known status patterns matched" in str(e):
+                content_preview = content[:500] + "..." if len(content) > 500 else content
+                raise ValueError(
+                    f"Could not determine legislative status for initiative {self.registration_number}. "
+                    f"No known status patterns matched. Content preview: {content_preview}"
+                ) from e
+            raise
         except Exception as e:
-            raise ValueError(f"Error extracting highest status reached for {self.registration_number}: {str(e)}") from e
+            raise ValueError(
+                f"Error extracting highest status reached for {self.registration_number}: {str(e)}"
+            ) from e
 
     def extract_proposal_commitment_stated(self, soup: BeautifulSoup) -> Optional[bool]:
         """
