@@ -879,62 +879,52 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             if not answer_section:
                 return None
             
-            # Get Follow-up section if it exists (separate from Answer)
-            followup_section = soup.find('h2', id='Follow-up')
-            
-            # Collect all text from Answer section and any subsections
-            answer_text = []
+            # Collect ALL text after Answer section until end of document
+            # This captures both explicit Follow-up sections AND implicit follow-up subsections
+            all_text = []
             for sibling in answer_section.find_next_siblings():
-                # Stop at next major h2 section (but include h3, h4 subsections)
-                if sibling.name == 'h2' and sibling != followup_section:
-                    break
-                # Remove factsheet download divs (ecl-file class)
+                # Skip factsheet download divs (ecl-file class)
                 if sibling.name == 'div' and sibling.get('class') and 'ecl-file' in sibling.get('class'):
                     continue
-                answer_text.append(sibling.get_text(strip=False))
-            answer_content = ' '.join(answer_text).lower()
+                all_text.append(sibling.get_text(strip=False))
             
-            # Collect Follow-up text if exists (as separate section)
-            followup_content = ''
-            if followup_section:
-                followup_text = []
-                for sibling in followup_section.find_next_siblings():
-                    if sibling.name == 'h2':
-                        break
-                    # Skip factsheet downloads
-                    if sibling.name == 'div' and sibling.get('class') and 'ecl-file' in sibling.get('class'):
-                        continue
-                    followup_text.append(sibling.get_text(strip=False))
-                followup_content = ' '.join(followup_text).lower()
-            
-            # Combine both for comprehensive checking
-            combined_content = answer_content + ' ' + followup_content
+            combined_content = ' '.join(all_text).lower()
             
             # Check in priority order (highest to lowest status)
             
-            # 1. APPLICABLE - highest status (law is implemented)
-            # This includes cases where existing proposals became law
+            # 1. APPLICABLE - Check FIRST (highest priority status)
             if any(phrase in combined_content for phrase in [
                 'became applicable',
                 'became applicable immediately',
-                'application date',
-                'applies from',
-                'entered into force'  # Added this
+                'and applicable from'
             ]):
                 return 'applicable'
+            
+            # Check for "entered into force" with adoption context
+            if 'entered into force' in combined_content:
+                if any(phrase in combined_content for phrase in [
+                    'council of the eu adopted',
+                    'council adopted the regulation',
+                    'published in the official journal',
+                    'following the agreement of the european parliament'
+                ]):
+                    return 'applicable'
+            
+            # Legacy checks for other formulations
+            if 'applies from' in combined_content or 'apply from' in combined_content:
+                if any(phrase in combined_content for phrase in ['adopted', 'regulation', 'directive']):
+                    return 'applicable'
             
             # 2. ADOPTED - proposal published in Official Journal
             if ('published in the official journal' in combined_content or
                 'official journal of the eu' in combined_content):
-                # Double-check it's not just published but also applicable
-                if 'became applicable' not in combined_content:
+                if 'became applicable' not in combined_content and 'applies from' not in combined_content:
                     return 'adopted'
             
             # 3. ADOPTED - proposal was adopted by Commission or Council
             if ('was adopted by the commission' in combined_content or
                 'council of the eu adopted' in combined_content or
-                'council adopted' in combined_content):
-                # If also applicable, that takes priority (already checked above)
+                'council adopted the regulation' in combined_content):
                 return 'adopted'
             
             # 4. COMMITTED - Commission committed to legislative proposal
@@ -942,31 +932,61 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 return 'committed'
             if 'communicated its intention to table a legislative proposal' in combined_content:
                 return 'committed'
+            if 'intention to table a legislative proposal' in combined_content:
+                return 'committed'
             if 'to table a legislative proposal' in combined_content and 'by' in combined_content:
                 return 'committed'
             
             # 5. ASSESSMENT_PENDING - waiting for studies/assessments
             if 'tasked' in combined_content and 'efsa' in combined_content and 'scientific opinion' in combined_content:
-                return 'assessment_pending'
-            if 'impact assessment' in combined_content and ('will' in combined_content or 'launch' in combined_content):
-                return 'assessment_pending'
+                if 'intention to table a legislative proposal' not in combined_content:
+                    return 'assessment_pending'
+            
+            if 'impact assessment' in combined_content:
+                if any(phrase in combined_content for phrase in [
+                    'launch',
+                    'started working on',
+                    'external study to be carried out',
+                    'call for evidence',
+                    'preparatory work',
+                    'with a view to launch'
+                ]):
+                    if 'became applicable' not in combined_content and 'intention to table' not in combined_content:
+                        return 'assessment_pending'
+            
             if 'will communicate' in combined_content and ('by' in combined_content or 'after' in combined_content):
-                return 'assessment_pending'
+                if 'became applicable' not in combined_content and 'intention to table' not in combined_content:
+                    return 'assessment_pending'
             
-            # 6. ROADMAP_DEVELOPMENT - roadmap/planning phase
-            if 'roadmap' in combined_content and ('develop' in combined_content or 'work on' in combined_content or 'launched' in combined_content):
-                return 'roadmap_development'
+            # 6. ROADMAP_DEVELOPMENT
+            if 'roadmap' in combined_content and ('develop' in combined_content or 'work on' in combined_content or 'launched' in combined_content or 'started work on' in combined_content):
+                if 'became applicable' not in combined_content:
+                    return 'roadmap_development'
             
-            # 7. REJECTED - explicit rejection (check combined content)
-            if 'will not make a legislative proposal' in combined_content or 'decided not to submit a legislative proposal' in combined_content:
-                # Check if there are accompanying actions
+            # 7. REJECTED - explicit rejection
+            if any(phrase in combined_content for phrase in [
+                'will not make a legislative proposal',
+                'decided not to submit a legislative proposal',
+                'has decided not to submit a legislative proposal'
+            ]):
+                if any(phrase in combined_content for phrase in [
+                    'existing funding framework',
+                    'existing legislation',
+                    'already covered',
+                    'already in place',
+                    'legislation and policies already in place',
+                    'recently debated and agreed',
+                    'is the appropriate one'
+                ]):
+                    return 'rejected_already_covered'
+                
                 if ('committed' in combined_content or 'will continue' in combined_content or 
                     'monitor' in combined_content or 'support' in combined_content):
                     return 'rejected_with_actions'
+                
                 return 'rejected'
             
             if 'no further legal acts are proposed' in combined_content or 'no new legislation will be proposed' in combined_content:
-                # Check if already covered by existing legislation - expanded patterns
                 if any(phrase in combined_content for phrase in [
                     'already covered',
                     'existing legislation',
@@ -979,13 +999,11 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 return 'rejected'
             
             if 'no repeal' in combined_content and 'was proposed' in combined_content:
-                # Check for alternative actions
                 if 'committed' in combined_content or 'will continue' in combined_content:
                     return 'rejected_with_actions'
                 return 'rejected'
             
-            # 8. NON_LEGISLATIVE_ACTION - policy actions without legislation
-            # Check this isn't the "Save Bees" case where proposals were tabled
+            # 8. NON_LEGISLATIVE_ACTION
             if ('intends to focus on' in combined_content or 'implementation of' in combined_content) and 'proposal' not in combined_content:
                 return 'non_legislative_action'
             
@@ -995,23 +1013,17 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 'improve transparency',
                 'establish harmonised'
             ]):
-                # Only if no legislative proposal mentioned
                 if 'legislative proposal' not in combined_content and 'proposal' not in combined_content:
                     return 'non_legislative_action'
             
-            # 9. PROPOSAL_PENDING_ADOPTION - existing proposals under negotiation
-            # Only if not already adopted or applicable
+            # 9. PROPOSAL_PENDING_ADOPTION
             if ('proposal' in combined_content and 'tabled' in combined_content and 
                 'rather than proposing new legislative acts' in combined_content):
-                return 'proposal_pending_adoption'
+                if 'became applicable' not in combined_content and 'entered into force' not in combined_content:
+                    return 'proposal_pending_adoption'
             
-            # Default: if Commission provided answer but no clear status
             return None
             
-        except Exception as e:
-            raise ValueError(f"Error extracting highest status reached for {self.registration_number}: {str(e)}") from e
-
-                
         except Exception as e:
             raise ValueError(f"Error extracting highest status reached for {self.registration_number}: {str(e)}") from e
 
