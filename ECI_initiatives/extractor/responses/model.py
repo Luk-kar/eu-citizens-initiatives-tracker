@@ -34,15 +34,21 @@ class ECICommissionResponseRecord:
     
     # Commission Response Content
     commission_answer_text: Optional[str]
-    highest_status_reached: Optional[str]
-    proposal_commitment_stated: Optional[bool]
-    proposal_rejected: Optional[bool]
-    rejection_reasoning: Optional[str]
-    proposal_commitment_deadline: Optional[str]
-    applicable_date: Optional[str]
-    official_journal_publication_date: Optional[str]
-    legislative_action: Optional[str]  # JSON string
-    non_legislative_action: Optional[str]  # JSON string
+    
+    # SECTION 1: Final Outcome (What citizens care about most)
+    final_outcome_status: Optional[str]
+    outcome_achieved_date: Optional[str]
+    law_publication_date: Optional[str]
+    
+    # SECTION 2: Commission's Initial Response (What they promised)
+    commission_promised_new_law: Optional[bool]
+    commission_promise_deadline: Optional[str]
+    commission_rejected_initiative: Optional[bool]
+    commission_rejection_reason: Optional[str]
+    
+    # SECTION 3: Actions Taken (What actually happened)
+    laws_introduced: Optional[str]  # JSON string
+    policies_changed: Optional[str]  # JSON string
     
     # Follow-up Activities Section
     has_followup_section: Optional[bool]

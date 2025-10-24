@@ -1692,16 +1692,22 @@ class ECIResponseHTMLParser:
                 # Commission Response Content
                 commission_answer_text=self.commission_response.extract_commission_answer_text(soup),
 
-                # Legislative Outcome Assessment (Priority Columns)
-                highest_status_reached=self.legislative_outcome.extract_highest_status_reached(soup),
-                proposal_commitment_stated=self.legislative_outcome.extract_proposal_commitment_stated(soup),
-                proposal_rejected=self.legislative_outcome.extract_proposal_rejected(soup),
-                rejection_reasoning=self.legislative_outcome.extract_rejection_reasoning(soup),
-                proposal_commitment_deadline=self.legislative_outcome.extract_proposal_commitment_deadline(soup),
-                applicable_date=self.legislative_outcome.extract_applicable_date(soup),
-                official_journal_publication_date=self.legislative_outcome.extract_official_journal_publication_date(soup),
-                legislative_action=self.legislative_outcome.extract_legislative_action(soup),
-                non_legislative_action=self.legislative_outcome.extract_non_legislative_action(soup),
+                # Legislative Outcome Assessment
+
+                # Final Outcome (What citizens care about most)
+                final_outcome_status=self.legislative_outcome.extract_highest_status_reached(soup),
+                outcome_achieved_date=self.legislative_outcome.extract_applicable_date(soup),
+                law_publication_date=self.legislative_outcome.extract_official_journal_publication_date(soup),
+
+                # Commission's Initial Response (What they promised)
+                commission_promised_new_law=self.legislative_outcome.extract_proposal_commitment_stated(soup),
+                commission_promise_deadline=self.legislative_outcome.extract_proposal_commitment_deadline(soup),
+                commission_rejected_initiative=self.legislative_outcome.extract_proposal_rejected(soup),
+                commission_rejection_reason=self.legislative_outcome.extract_rejection_reasoning(soup),
+
+                # Actions Taken (What actually happened)
+                laws_introduced=self.legislative_outcome.extract_legislative_action(soup),
+                policies_changed=self.legislative_outcome.extract_non_legislative_action(soup),
 
                 # Follow-up Activities Section
                 has_followup_section=self.followup_activity.extract_has_followup_section(soup),
