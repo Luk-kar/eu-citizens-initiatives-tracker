@@ -21,7 +21,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 # Local
-from ECI_initiatives.extractor.responses.parser import ECIResponseHTMLParser
+from ECI_initiatives.extractor.responses.parser import ECIResponseHTMLParser, LegislativeOutcomeExtractor
 from ECI_initiatives.extractor.responses.responses_logger import ResponsesExtractorLogger
 
 
@@ -1715,7 +1715,310 @@ class TestCommissionResponseContent:
 
     def test_highest_status_reached(self):
         """Test extraction of highest status reached by initiative."""
-        pass
+        
+        # Test case 1: applicable - Law became applicable
+        html_1 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>Legislative action:</p>
+            <p>The revised Drinking Water Directive entered into force on 12 January 2021. 
+            Member States had until 12 January 2023 to transpose it into national legislation.</p>
+            <p>The Regulation based on this proposal entered into force in June 2020. 
+            The new rules became applicable from 26 June 2023.</p>
+        </html>
+        """
+        
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        parser_1 = ECIResponseHTMLParser(soup_1)
+        parser_1.registration_number = "2012/000003"
+        
+        result_1 = parser_1.legislative_outcome.extract_highest_status_reached(soup_1)
+        assert result_1 == "New Law in Force"
+        
+        # Test case 2: committed - Commission committed to legislative proposal
+        html_2 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Main conclusions of the Communication:</p>
+            <p>In its response to the ECI, the Commission communicated its intention to table a 
+            legislative proposal, by the end of 2023, to phase out, and finally prohibit, 
+            the use of cages for all animals mentioned in the ECI.</p>
+        </html>
+        """
+        
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        parser_2 = ECIResponseHTMLParser(soup_2)
+        parser_2.registration_number = "2018/000004"
+        
+        result_2 = parser_2.legislative_outcome.extract_highest_status_reached(soup_2)
+        assert result_2 == "Law Promised"
+        
+        # Test case 3: assessment_pending - EFSA scientific opinion requested
+        html_3 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Main conclusions of the Communication:</p>
+            <p>The Commission has tasked the European Food Safety Authority (EFSA) to provide 
+            a scientific opinion on the welfare of animals farmed for fur.</p>
+            <p>Building further on this scientific input, and on an assessment of economic and 
+            social impacts, the Commission will then communicate, by March 2026, on the most 
+            appropriate action.</p>
+        </html>
+        """
+        
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        parser_3 = ECIResponseHTMLParser(soup_3)
+        parser_3.registration_number = "2022/000002"
+        
+        result_3 = parser_3.legislative_outcome.extract_highest_status_reached(soup_3)
+        assert result_3 == "Being Studied"
+        
+        # Test case 4: roadmap_development - Roadmap being developed
+        html_4 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Main conclusions of the Communication:</p>
+            <p>Transform EU chemicals legislation: The Commission will work together with all 
+            relevant parties on a roadmap towards chemical safety assessments that are free from 
+            animal testing. The roadmap will serve as a guiding framework for future actions and 
+            initiatives aimed at reducing and ultimately eliminating animal testing in the context 
+            of chemicals legislation within the European Union.</p>
+        </html>
+        """
+        
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        parser_4 = ECIResponseHTMLParser(soup_4)
+        parser_4.registration_number = "2021/000006"
+        
+        result_4 = parser_4.legislative_outcome.extract_highest_status_reached(soup_4)
+        assert result_4 == "Action Plan Being Created"
+        
+        # Test case 5: rejected_already_covered - Rejected due to existing legislation
+        html_5 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Decision date: 28/05/2014</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>In the Communication adopted on 28/05/2014, the Commission explains that it has 
+            decided not to submit a legislative proposal, given that Member States and the European 
+            Parliament had only recently discussed and decided EU policy in this regard. The Commission 
+            has concluded that the existing funding framework, which had been recently debated and 
+            agreed by EU Member States and the European Parliament, is the appropriate one.</p>
+        </html>
+        """
+        
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        parser_5 = ECIResponseHTMLParser(soup_5)
+        parser_5.registration_number = "2012/000005"
+        
+        result_5 = parser_5.legislative_outcome.extract_highest_status_reached(soup_5)
+        assert result_5 == "Already Addressed"
+        
+        # Test case 6: rejected_with_actions - Rejected but with alternative actions
+        html_6 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Main conclusions of the Communication:</p>
+            <p>While the Commission does share the conviction that animal testing should be phased 
+            out in Europe, its approach for achieving that objective differs from the one proposed 
+            in this Citizens' Initiative.</p>
+            <p>The Commission considers that the Directive on the protection of animals used for 
+            scientific purposes (Directive 2010/63/EU), which the Initiative seeks to repeal, is 
+            the right legislation to achieve the underlying objectives of the Initiative. Therefore, 
+            no repeal of that legislation was proposed.</p>
+            <p>Moreover, the Communication sets out four further Commission's actions to be taken 
+            towards the goal of phasing out animal testing. The Commission commits to active 
+            monitoring of compliance and enforcement of the legislation, and will continue supporting 
+            the development and validation of alternative approaches.</p>
+        </html>
+        """
+        
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        parser_6 = ECIResponseHTMLParser(soup_6)
+        parser_6.registration_number = "2012/000007"
+        
+        result_6 = parser_6.legislative_outcome.extract_highest_status_reached(soup_6)
+        assert result_6 == "Alternative Actions Taken"
+        
+        # Test case 7: rejected - Plain rejection
+        html_7 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Main conclusions of the Communication:</p>
+            <p>On the first aim, to 'ban glyphosate-based herbicides', the Commission concluded 
+            that there are neither scientific nor legal grounds to justify a ban of glyphosate, 
+            and will not make a legislative proposal to that effect.</p>
+        </html>
+        """
+        
+        soup_7 = BeautifulSoup(html_7, 'html.parser')
+        parser_7 = ECIResponseHTMLParser(soup_7)
+        parser_7.registration_number = "2017/000002"
+        
+        # Note: This HTML also contains commitment in other parts, but testing rejection part only
+        result_7 = parser_7.legislative_outcome.extract_highest_status_reached(soup_7)
+        assert result_7 == "Rejected"
+        
+        # Test case 8: proposal_pending_adoption - Existing proposals under review
+        html_8 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>In its response to the ECI, the Commission welcomes the initiative.</p>
+            <p>The proposal for a regulation on the sustainable use of plant protection products 
+            tabled in June 2022 sets out an ambitious path to reduce the risk and use of chemical 
+            pesticides in EU agriculture by 50% by 2030.</p>
+            <p>The proposal for a Nature Restoration Law tabled in June 2022 combines an overarching 
+            restoration objective for the long-term recovery of nature in the EU's land and sea areas.</p>
+            <p>In its reply, the Commission underlined that rather than proposing new legislative acts, 
+            the priority is to ensure that the proposals currently being negotiated by the co-legislators 
+            are timely adopted and then implemented.</p>
+        </html>
+        """
+        
+        soup_8 = BeautifulSoup(html_8, 'html.parser')
+        parser_8 = ECIResponseHTMLParser(soup_8)
+        parser_8.registration_number = "2019/000016"
+        
+        result_8 = parser_8.legislative_outcome.extract_highest_status_reached(soup_8)
+        assert result_8 == "Existing Proposals Under Review"
+        
+        # Test case 9: adopted - Law approved but not yet applicable
+        html_9 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>Legislative action:</p>
+            <p>Following the agreement of the European Parliament on the text (on 27 February 2024), 
+            the Council of the EU adopted the regulation on 17 June 2024. It was published in the 
+            Official Journal of the EU on 28 July 2024.</p>
+        </html>
+        """
+        
+        soup_9 = BeautifulSoup(html_9, 'html.parser')
+        parser_9 = ECIResponseHTMLParser(soup_9)
+        parser_9.registration_number = "2019/000016"
+        
+        result_9 = parser_9.legislative_outcome.extract_highest_status_reached(soup_9)
+        assert result_9 == "Law Approved"
+        
+        # Test case 10: non_legislative_action - Policy changes only
+        html_10 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission committed, in particular, to taking the following actions:</p>
+            <ul>
+                <li>reinforcing implementation of EU water quality legislation;</li>
+                <li>launching an EU-wide public consultation on the Drinking Water Directive;</li>
+                <li>improving transparency for urban wastewater and drinking water data management;</li>
+                <li>establishing harmonised risk indicators to enable the monitoring of trends.</li>
+            </ul>
+        </html>
+        """
+        
+        soup_10 = BeautifulSoup(html_10, 'html.parser')
+        parser_10 = ECIResponseHTMLParser(soup_10)
+        parser_10.registration_number = "2012/000003"
+        
+        # Note: This would only return non_legislative_action if there's NO follow-up with laws
+        # In reality, Right2Water has laws, so this is theoretical
+        result_10 = parser_10.legislative_outcome.extract_highest_status_reached(soup_10)
+        assert result_10 == "Policy Changes Only"
+        
+        # Test case 11: Error when Answer section not found
+        html_11 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>Some content here.</p>
+        </html>
+        """
+        
+        soup_11 = BeautifulSoup(html_11, 'html.parser')
+        parser_11 = ECIResponseHTMLParser(soup_11)
+        parser_11.registration_number = "2099/999999"
+        
+        # Re-initialize the extractor with registration number
+        parser_11.legislative_outcome = LegislativeOutcomeExtractor(registration_number="2099/999999")
+
+        with pytest.raises(ValueError, match="Could not extract legislative content for initiative 2099/999999"):
+            parser_11.legislative_outcome.extract_highest_status_reached(soup_11)
+                
+        # Test case 12: Error when no status patterns match
+        html_12 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>This is some random text that doesn't match any known status patterns.</p>
+            <p>Just some generic information about the initiative.</p>
+        </html>
+        """
+        
+        soup_12 = BeautifulSoup(html_12, 'html.parser')
+        parser_12 = ECIResponseHTMLParser(soup_12)
+        parser_12.registration_number = "2099/999998"
+
+        # Re-initialize the extractor with registration number
+        parser_12.legislative_outcome = LegislativeOutcomeExtractor(registration_number="2099/999998")
+
+        with pytest.raises(ValueError, match="Could not determine legislative status for initiative:\n2099/999998"):
+            parser_12.legislative_outcome.extract_highest_status_reached(soup_12)
+        
+        # Test case 13: Priority check - applicable takes priority over committed
+        html_13 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission communicated its intention to table a legislative proposal by May 2018.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The Regulation was published in the Official Journal of the EU on 6 September 2019. 
+            Following its entry into force 20 days after publication, it became applicable 18 months 
+            later, i.e. on 27 March 2021.</p>
+        </html>
+        """
+        
+        soup_13 = BeautifulSoup(html_13, 'html.parser')
+        parser_13 = ECIResponseHTMLParser(soup_13)
+        parser_13.registration_number = "2017/000002"
+        
+        result_13 = parser_13.legislative_outcome.extract_highest_status_reached(soup_13)
+        # Should return "New Law in Force" (applicable) not "Law Promised" (committed)
+        assert result_13 == "New Law in Force"
+        
+        # Test case 14: Handles "became applicable immediately"
+        html_14 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <h2 id="Updates-on-the-Commissions-proposals">Updates on the Commission's proposals</h2>
+            <p>Proposal for the Nature Restoration Law: following the agreement of the European 
+            Parliament on the text (on 27 February 2024), the Council of the EU adopted the regulation 
+            on 17 June 2024. It entered into force on 18 August 2024 (20 days after its publication 
+            in the Official Journal of the EU) and became applicable immediately.</p>
+        </html>
+        """
+        
+        soup_14 = BeautifulSoup(html_14, 'html.parser')
+        parser_14 = ECIResponseHTMLParser(soup_14)
+        parser_14.registration_number = "2019/000016"
+        
+        result_14 = parser_14.legislative_outcome.extract_highest_status_reached(soup_14)
+        assert result_14 == "New Law in Force"
+        
+        # Test case 15: Handles impact assessment (assessment_pending)
+        html_15 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission commits to:</p>
+            <p>Start without delay preparatory work with a view to launch, by the end of 2023, 
+            an impact assessment on the environmental, social and economic consequences of applying 
+            the "fins naturally attached" policy to the placing on the EU market of sharks.</p>
+        </html>
+        """
+        
+        soup_15 = BeautifulSoup(html_15, 'html.parser')
+        parser_15 = ECIResponseHTMLParser(soup_15)
+        parser_15.registration_number = "2020/000001"
+        
+        result_15 = parser_15.legislative_outcome.extract_highest_status_reached(soup_15)
+        assert result_15 == "Being Studied"
+
     
     def test_proposal_commitment_stated(self):
         """Test extraction of whether Commission committed to legislative proposal."""

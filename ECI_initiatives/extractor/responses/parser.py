@@ -10,7 +10,7 @@ import json
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 
 from bs4 import BeautifulSoup
 
@@ -862,7 +862,7 @@ class CommissionResponseExtractor(BaseExtractor):
 from typing import Optional
 
 
-class StatusMatcher:
+class LegislativeOutcomeClassifier:
     """Helper class for matching legislative status patterns in ECI response text"""
     
     # Pattern constants for status detection
@@ -925,20 +925,6 @@ class StatusMatcher:
         'proposal_pending_adoption': 'Existing Proposals Under Review',
     }
     
-    # Status categories for UI styling
-    STATUS_CATEGORIES = {
-        'applicable': 'success',           # Green
-        'adopted': 'success',              # Green
-        'committed': 'in_progress',        # Yellow-Green
-        'assessment_pending': 'in_progress', # Yellow
-        'roadmap_development': 'in_progress', # Yellow
-        'rejected_already_covered': 'partial', # Orange
-        'rejected_with_actions': 'partial',    # Orange
-        'rejected': 'unsuccessful',            # Red
-        'non_legislative_action': 'partial',   # Orange
-        'proposal_pending_adoption': 'in_progress', # Yellow
-    }
-    
     def __init__(self, content: str):
         """
         Initialize with normalized content string
@@ -946,6 +932,7 @@ class StatusMatcher:
         Args:
             content: Text content from ECI Commission response
         """
+
         self.content = content.lower()
     
     def check_applicable(self) -> bool:
@@ -955,6 +942,7 @@ class StatusMatcher:
         Returns:
             True if law became applicable, False otherwise
         """
+
         # Direct applicable phrases
         if any(phrase in self.content for phrase in self.APPLICABLE_PATTERNS):
             return True
@@ -978,6 +966,7 @@ class StatusMatcher:
         Returns:
             True if adopted but not yet in force, False otherwise
         """
+
         # Published in Official Journal (but not applicable yet)
         if 'published in the official journal' in self.content or 'official journal of the eu' in self.content:
             if 'became applicable' not in self.content and 'applies from' not in self.content:
@@ -1000,6 +989,7 @@ class StatusMatcher:
         Returns:
             True if commitment to legislation exists, False otherwise
         """
+
         # Standard commitment patterns
         if any(phrase in self.content for phrase in self.COMMITMENT_PATTERNS):
             return True
@@ -1017,6 +1007,7 @@ class StatusMatcher:
         Returns:
             True if assessment ongoing, False otherwise
         """
+
         # Avoid false positives with higher status
         if 'intention to table a legislative proposal' in self.content or 'became applicable' in self.content:
             return False
@@ -1043,12 +1034,30 @@ class StatusMatcher:
         Returns:
             True if roadmap in development, False otherwise
         """
+
         if 'became applicable' in self.content:
             return False
         
-        roadmap_verbs = ['develop', 'work on', 'launched', 'started work on']
-        return 'roadmap' in self.content and any(verb in self.content for verb in roadmap_verbs)
-    
+        # Check for roadmap with various development verbs
+        if 'roadmap' not in self.content:
+            return False
+        
+        # Roadmap action indicators
+        roadmap_indicators = [
+            'develop',           # "develop a roadmap"
+            'work on',           # "work on a roadmap"
+            'work together',     # "work together on a roadmap"
+            'work with',         # "work with parties on a roadmap"
+            'launched',          # "launched a roadmap"
+            'started work',      # "started work on a roadmap"
+            'will work',         # "will work on a roadmap"
+            'working on',        # "working on a roadmap"
+            'preparing',         # "preparing a roadmap"
+            'towards',           # "roadmap towards" (specific pattern)
+        ]
+        
+        return any(indicator in self.content for indicator in roadmap_indicators)
+
     def check_rejection_type(self) -> Optional[str]:
         """
         Determine rejection type if initiative was rejected
@@ -1056,6 +1065,7 @@ class StatusMatcher:
         Returns:
             'rejected', 'rejected_with_actions', 'rejected_already_covered', or None
         """
+
         # Check for primary rejection phrases
         has_primary_rejection = any(phrase in self.content for phrase in self.REJECTION_PATTERNS)
         
@@ -1091,6 +1101,7 @@ class StatusMatcher:
         Returns:
             True if only policy actions (no legislation), False otherwise
         """
+
         # Check for non-legislative focus without proposals
         if 'intends to focus on' in self.content or 'implementation of' in self.content:
             if 'proposal' not in self.content:
@@ -1117,6 +1128,7 @@ class StatusMatcher:
         Returns:
             True if proposals under negotiation, False otherwise
         """
+
         has_tabled = 'proposal' in self.content and 'tabled' in self.content
         has_context = 'rather than proposing new legislative acts' in self.content
         not_completed = 'became applicable' not in self.content and 'entered into force' not in self.content
@@ -1143,6 +1155,7 @@ class StatusMatcher:
         Raises:
             ValueError: If no status pattern matches
         """
+
         # Define status checks in priority order (highest to lowest)
         status_checks = [
             ('applicable', self.check_applicable),
@@ -1182,27 +1195,25 @@ class StatusMatcher:
         """
         return self.STATUS_CITIZEN_NAMES.get(technical_status, technical_status)
     
-    @classmethod
-    def get_status_category(cls, technical_status: str) -> str:
-        """
-        Get status category for UI styling
-        
-        Args:
-            technical_status: Technical status code
-            
-        Returns:
-            Category: 'success', 'in_progress', 'partial', or 'unsuccessful'
-        """
-        return cls.STATUS_CATEGORIES.get(technical_status, 'unknown')
 
 class LegislativeOutcomeExtractor(BaseExtractor):
     """Extractor for legislative outcome and proposal status data"""
+
+    def __init__(self, registration_number: Optional[str] = None):
+        """
+        Initialize extractor
+        
+        Args:
+            registration_number: ECI registration number for error messages
+        """
+        self.registration_number = registration_number
 
     def _extract_legislative_content(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract all text content after Answer section
         Returns normalized lowercase string or None if section not found
         """
+
         # Find Answer section with fallback for combined headers
         answer_section = (
             soup.find('h2', id='Answer-of-the-European-Commission') or
@@ -1220,7 +1231,11 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 continue
             all_text.append(sibling.get_text(strip=False))
         
-        return ' '.join(all_text).lower() if all_text else None
+        # Join text, convert to lowercase, and normalize whitespace
+        content = ' '.join(all_text).lower()
+        content = re.sub(r'\s+', ' ', content).strip()
+        
+        return content
     
     def _is_factsheet_div(self, element) -> bool:
         """Check if element is a factsheet download div to exclude"""
@@ -1259,6 +1274,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         Raises:
             ValueError: If error occurs during extraction or no status can be determined
         """
+
         try:
             # Extract content from HTML
             content = self._extract_legislative_content(soup)
@@ -1269,7 +1285,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 )
             
             # Initialize status matcher with extracted content
-            matcher = StatusMatcher(content)
+            matcher = LegislativeOutcomeClassifier(content)
             
             # Step 1: Extract technical status
             technical_status = matcher.extract_technical_status()
@@ -1280,12 +1296,12 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             return citizen_friendly
             
         except ValueError as e:
-            # Add context to ValueError from StatusMatcher
+            # Add context to ValueError from LegislativeOutcomeClassifier
             if "No known status patterns matched" in str(e):
                 content_preview = content[:500] + "..." if len(content) > 500 else content
                 raise ValueError(
-                    f"Could not determine legislative status for initiative {self.registration_number}. "
-                    f"No known status patterns matched. Content preview: {content_preview}"
+                    f"Could not determine legislative status for initiative:\n{self.registration_number}\n"
+                    f"No known status patterns matched. Content preview:\n{content_preview}\n"
                 ) from e
             raise
         except Exception as e:
@@ -1298,6 +1314,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         Extract whether Commission explicitly committed to propose legislation
         Returns True if commitment found, False otherwise
         """
+
         try:
             pass
         except Exception as e:
@@ -1578,7 +1595,7 @@ class ECIResponseHTMLParser:
         self.procedural_timeline = ProceduralTimelineExtractor(logger)
         self.parliament_activity = ParliamentActivityExtractor(logger)
         self.commission_response = CommissionResponseExtractor(logger)
-        self.legislative_outcome = LegislativeOutcomeExtractor(logger)
+        self.legislative_outcome = LegislativeOutcomeExtractor(registration_number=self.registration_number)
         self.followup_activity = FollowUpActivityExtractor(logger)
         self.multimedia_docs = MultimediaDocumentationExtractor(logger)
         self.structural_analysis = StructuralAnalysisExtractor(logger)
