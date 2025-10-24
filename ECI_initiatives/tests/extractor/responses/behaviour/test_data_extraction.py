@@ -2118,8 +2118,9 @@ class TestCommissionResponseContent:
         
         soup_9 = BeautifulSoup(html_9, 'html.parser')
         extractor_9 = LegislativeOutcomeExtractor(registration_number="2099/999999")
-        result_9 = extractor_9.extract_proposal_commitment_stated(soup_9)
-        assert result_9 is None, "Should return None when Answer section is not found"
+        
+        with pytest.raises(ValueError, match="Could not extract legislative content for initiative 2099/999999"):
+            extractor_9.extract_proposal_commitment_stated(soup_9)
         
         # Test case 10: Roadmap/assessment without commitment
         html_10 = """

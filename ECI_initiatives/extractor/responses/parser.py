@@ -1325,7 +1325,10 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             # Extract content from HTML
             content = self._extract_legislative_content(soup)
             if not content:
-                return None
+                raise ValueError(
+                    f"Could not extract legislative content for initiative {self.registration_number}.\n"
+                    f"Answer section may be missing or empty."
+                )
             
             # Initialize status matcher with extracted content
             matcher = LegislativeOutcomeClassifier(content)
@@ -1343,13 +1346,33 @@ class LegislativeOutcomeExtractor(BaseExtractor):
     def extract_proposal_rejected(self, soup: BeautifulSoup) -> Optional[bool]:
         """
         Extract whether Commission explicitly rejected making a legislative proposal
-        Returns True if rejection stated, False otherwise
+        Returns True if rejection stated, False otherwise, None if no Answer section
         """
         try:
-            pass
+            # Extract content from HTML
+            content = self._extract_legislative_content(soup)
+            if not content:
+                raise ValueError(
+                    f"Could not extract legislative content for initiative {self.registration_number}.\n"
+                    f"Answer section may be missing or empty."
+                )
+            
+            # Initialize status matcher with extracted content
+            matcher = LegislativeOutcomeClassifier(content)
+            
+            # Check if rejection exists
+            rejection_type = matcher.check_rejection_type()
+            
+            # If any rejection type is detected, return True
+            if rejection_type:
+                return True
+            
+            return False
+            
         except Exception as e:
-            raise ValueError(f"Error extracting proposal rejection status for {self.registration_number}: {str(e)}") from e
-
+            raise ValueError(
+                f"Error extracting proposal rejection status for {self.registration_number}: {str(e)}"
+            ) from e
 
     def extract_rejection_reasoning(self, soup: BeautifulSoup) -> Optional[str]:
         """
