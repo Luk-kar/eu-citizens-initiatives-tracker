@@ -1983,8 +1983,174 @@ class TestCommissionResponseContent:
         
     def test_proposal_commitment_stated(self):
         """Test extraction of whether Commission committed to legislative proposal."""
-        pass
-    
+        
+        # Test case 1: Clear commitment with deadline
+        html_1 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Main conclusions of the Communication:</p>
+            <p>In its response to the ECI, the Commission communicated its intention to table a 
+            legislative proposal, by the end of 2023, to phase out, and finally prohibit, 
+            the use of cages for all animals mentioned in the ECI.</p>
+        </html>
+        """
+        
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        extractor_1 = LegislativeOutcomeExtractor(registration_number="2018/000004")
+        result_1 = extractor_1.extract_proposal_commitment_stated(soup_1)
+        assert result_1 is True, "Should detect commitment to table legislative proposal"
+        
+        # Test case 2: Commitment with specific date
+        html_2 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>On the second aim, the Commission committed to come forward with a 
+            legislative proposal by May 2018.</p>
+        </html>
+        """
+        
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        extractor_2 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_2 = extractor_2.extract_proposal_commitment_stated(soup_2)
+        assert result_2 is True, "Should detect commitment with specific deadline"
+        
+        # Test case 3: Rejection - no commitment
+        html_3 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission concluded that there are neither scientific nor legal grounds 
+            to justify a ban of glyphosate, and will not make a legislative proposal to that effect.</p>
+        </html>
+        """
+        
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        extractor_3 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_3 = extractor_3.extract_proposal_commitment_stated(soup_3)
+        assert result_3 is False, "Should return False when proposal is rejected"
+        
+        # Test case 4: Already addressed - no new commitment
+        html_4 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission has decided not to submit a legislative proposal, given that 
+            Member States and the European Parliament had only recently discussed and decided EU 
+            policy in this regard. The existing funding framework is the appropriate one.</p>
+        </html>
+        """
+        
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        extractor_4 = LegislativeOutcomeExtractor(registration_number="2012/000005")
+        result_4 = extractor_4.extract_proposal_commitment_stated(soup_4)
+        assert result_4 is False, "Should return False for existing legislation"
+        
+        # Test case 5: Non-legislative actions only
+        html_5 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission committed, in particular, to taking the following actions:</p>
+            <ul>
+                <li>reinforcing implementation of EU water quality legislation;</li>
+                <li>launching an EU-wide public consultation on the Drinking Water Directive;</li>
+                <li>improving transparency for urban wastewater management;</li>
+            </ul>
+        </html>
+        """
+        
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        extractor_5 = LegislativeOutcomeExtractor(registration_number="2012/000003")
+        result_5 = extractor_5.extract_proposal_commitment_stated(soup_5)
+        assert result_5 is False, "Should return False for non-legislative actions without proposal commitment"
+        
+        # Test case 6: Existing proposals (no new commitment)
+        html_6 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The proposal for a regulation on the sustainable use of plant protection products 
+            tabled in June 2022 sets out an ambitious path to reduce chemical pesticides.</p>
+            <p>Rather than proposing new legislative acts, the priority is to ensure that the 
+            proposals currently being negotiated are timely adopted.</p>
+        </html>
+        """
+        
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        extractor_6 = LegislativeOutcomeExtractor(registration_number="2019/000016")
+        result_6 = extractor_6.extract_proposal_commitment_stated(soup_6)
+        assert result_6 is False, "Should return False when referring to existing proposals, not committing to new ones"
+        
+        # Test case 7: Commitment in follow-up section
+        html_7 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission welcomes the initiative.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>Following further assessment, the Commission communicated its intention to 
+            table a legislative proposal by the end of 2024.</p>
+        </html>
+        """
+        
+        soup_7 = BeautifulSoup(html_7, 'html.parser')
+        extractor_7 = LegislativeOutcomeExtractor(registration_number="2020/000001")
+        result_7 = extractor_7.extract_proposal_commitment_stated(soup_7)
+        assert result_7 is True, "Should detect commitment in follow-up section"
+        
+        # Test case 8: Alternative approach without commitment
+        html_8 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission does share the conviction that animal testing should be phased out, 
+            but its approach differs from the one proposed in this Citizens' Initiative.</p>
+            <p>The Commission will continue supporting the development of alternative approaches.</p>
+        </html>
+        """
+        
+        soup_8 = BeautifulSoup(html_8, 'html.parser')
+        extractor_8 = LegislativeOutcomeExtractor(registration_number="2012/000007")
+        result_8 = extractor_8.extract_proposal_commitment_stated(soup_8)
+        assert result_8 is False, "Should return False for alternative actions without legislative proposal"
+        
+        # Test case 9: No Answer section - returns None
+        html_9 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>Some procedural content.</p>
+        </html>
+        """
+        
+        soup_9 = BeautifulSoup(html_9, 'html.parser')
+        extractor_9 = LegislativeOutcomeExtractor(registration_number="2099/999999")
+        result_9 = extractor_9.extract_proposal_commitment_stated(soup_9)
+        assert result_9 is None, "Should return None when Answer section is not found"
+        
+        # Test case 10: Roadmap/assessment without commitment
+        html_10 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission commits to start preparatory work with a view to launch, 
+            by the end of 2023, an impact assessment on the environmental, social and economic 
+            consequences of the policy.</p>
+        </html>
+        """
+        
+        soup_10 = BeautifulSoup(html_10, 'html.parser')
+        extractor_10 = LegislativeOutcomeExtractor(registration_number="2020/000001")
+        result_10 = extractor_10.extract_proposal_commitment_stated(soup_10)
+        assert result_10 is False, "Should return False for assessment commitment without legislative proposal commitment"
+        
+        # Test case 11: Mixed response - partial rejection, partial commitment
+        html_11 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>On the first aim, to ban glyphosate, the Commission will not make a legislative proposal.</p>
+            <p>On the second aim, to improve transparency, the Commission committed to come forward 
+            with a legislative proposal by May 2018.</p>
+        </html>
+        """
+        
+        soup_11 = BeautifulSoup(html_11, 'html.parser')
+        extractor_11 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_11 = extractor_11.extract_proposal_commitment_stated(soup_11)
+        assert result_11 is True, "Should return True when at least one commitment exists, even if other parts rejected"
+
     def test_proposal_rejected(self):
         """Test extraction of whether Commission rejected legislative proposal."""
         pass
