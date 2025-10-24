@@ -913,16 +913,23 @@ class LegislativeOutcomeClassifier:
     
     # Citizen-friendly status names mapping
     STATUS_CITIZEN_NAMES = {
-        'applicable': 'New Law in Force',
+        # Success
+        'applicable': 'Law Active',
         'adopted': 'Law Approved',
         'committed': 'Law Promised',
+        
+        # In Progress
         'assessment_pending': 'Being Studied',
-        'roadmap_development': 'Action Plan Being Created',
-        'rejected_already_covered': 'Already Addressed',
-        'rejected_with_actions': 'Alternative Actions Taken',
+        'roadmap_development': 'Action Plan Created',
+        
+        # Rejection (Negative Emphasis)
+        'rejected_already_covered': 'Rejected - Already Covered',
+        'rejected_with_actions': 'Rejected - Alternative Actions',
         'rejected': 'Rejected',
+        
+        # Other
         'non_legislative_action': 'Policy Changes Only',
-        'proposal_pending_adoption': 'Existing Proposals Under Review',
+        'proposal_pending_adoption': 'Proposals Under Review',
     }
     
     def __init__(self, content: str):
@@ -1312,13 +1319,26 @@ class LegislativeOutcomeExtractor(BaseExtractor):
     def extract_proposal_commitment_stated(self, soup: BeautifulSoup) -> Optional[bool]:
         """
         Extract whether Commission explicitly committed to propose legislation
-        Returns True if commitment found, False otherwise
+        Returns True if commitment found, False otherwise, None if no Answer section
         """
-
         try:
-            pass
+            # Extract content from HTML
+            content = self._extract_legislative_content(soup)
+            if not content:
+                return None
+            
+            # Initialize status matcher with extracted content
+            matcher = LegislativeOutcomeClassifier(content)
+            
+            # Check if commitment exists
+            has_commitment = matcher.check_committed()
+            
+            return has_commitment
+            
         except Exception as e:
-            raise ValueError(f"Error extracting proposal commitment status for {self.registration_number}: {str(e)}") from e
+            raise ValueError(
+                f"Error extracting proposal commitment status for {self.registration_number}: {str(e)}"
+            ) from e
 
     def extract_proposal_rejected(self, soup: BeautifulSoup) -> Optional[bool]:
         """

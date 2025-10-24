@@ -1730,11 +1730,9 @@ class TestCommissionResponseContent:
         """
         
         soup_1 = BeautifulSoup(html_1, 'html.parser')
-        parser_1 = ECIResponseHTMLParser(soup_1)
-        parser_1.registration_number = "2012/000003"
-        
-        result_1 = parser_1.legislative_outcome.extract_highest_status_reached(soup_1)
-        assert result_1 == "New Law in Force"
+        extractor_1 = LegislativeOutcomeExtractor(registration_number="2012/000003")
+        result_1 = extractor_1.extract_highest_status_reached(soup_1)
+        assert result_1 == "Law Active"
         
         # Test case 2: committed - Commission committed to legislative proposal
         html_2 = """
@@ -1748,10 +1746,8 @@ class TestCommissionResponseContent:
         """
         
         soup_2 = BeautifulSoup(html_2, 'html.parser')
-        parser_2 = ECIResponseHTMLParser(soup_2)
-        parser_2.registration_number = "2018/000004"
-        
-        result_2 = parser_2.legislative_outcome.extract_highest_status_reached(soup_2)
+        extractor_2 = LegislativeOutcomeExtractor(registration_number="2018/000004")
+        result_2 = extractor_2.extract_highest_status_reached(soup_2)
         assert result_2 == "Law Promised"
         
         # Test case 3: assessment_pending - EFSA scientific opinion requested
@@ -1768,10 +1764,8 @@ class TestCommissionResponseContent:
         """
         
         soup_3 = BeautifulSoup(html_3, 'html.parser')
-        parser_3 = ECIResponseHTMLParser(soup_3)
-        parser_3.registration_number = "2022/000002"
-        
-        result_3 = parser_3.legislative_outcome.extract_highest_status_reached(soup_3)
+        extractor_3 = LegislativeOutcomeExtractor(registration_number="2022/000002")
+        result_3 = extractor_3.extract_highest_status_reached(soup_3)
         assert result_3 == "Being Studied"
         
         # Test case 4: roadmap_development - Roadmap being developed
@@ -1788,11 +1782,9 @@ class TestCommissionResponseContent:
         """
         
         soup_4 = BeautifulSoup(html_4, 'html.parser')
-        parser_4 = ECIResponseHTMLParser(soup_4)
-        parser_4.registration_number = "2021/000006"
-        
-        result_4 = parser_4.legislative_outcome.extract_highest_status_reached(soup_4)
-        assert result_4 == "Action Plan Being Created"
+        extractor_4 = LegislativeOutcomeExtractor(registration_number="2021/000006")
+        result_4 = extractor_4.extract_highest_status_reached(soup_4)
+        assert result_4 == "Action Plan Created"
         
         # Test case 5: rejected_already_covered - Rejected due to existing legislation
         html_5 = """
@@ -1809,11 +1801,9 @@ class TestCommissionResponseContent:
         """
         
         soup_5 = BeautifulSoup(html_5, 'html.parser')
-        parser_5 = ECIResponseHTMLParser(soup_5)
-        parser_5.registration_number = "2012/000005"
-        
-        result_5 = parser_5.legislative_outcome.extract_highest_status_reached(soup_5)
-        assert result_5 == "Already Addressed"
+        extractor_5 = LegislativeOutcomeExtractor(registration_number="2012/000005")
+        result_5 = extractor_5.extract_highest_status_reached(soup_5)
+        assert result_5 == "Rejected - Already Covered"
         
         # Test case 6: rejected_with_actions - Rejected but with alternative actions
         html_6 = """
@@ -1835,11 +1825,9 @@ class TestCommissionResponseContent:
         """
         
         soup_6 = BeautifulSoup(html_6, 'html.parser')
-        parser_6 = ECIResponseHTMLParser(soup_6)
-        parser_6.registration_number = "2012/000007"
-        
-        result_6 = parser_6.legislative_outcome.extract_highest_status_reached(soup_6)
-        assert result_6 == "Alternative Actions Taken"
+        extractor_6 = LegislativeOutcomeExtractor(registration_number="2012/000007")
+        result_6 = extractor_6.extract_highest_status_reached(soup_6)
+        assert result_6 == "Rejected - Alternative Actions"
         
         # Test case 7: rejected - Plain rejection
         html_7 = """
@@ -1853,11 +1841,8 @@ class TestCommissionResponseContent:
         """
         
         soup_7 = BeautifulSoup(html_7, 'html.parser')
-        parser_7 = ECIResponseHTMLParser(soup_7)
-        parser_7.registration_number = "2017/000002"
-        
-        # Note: This HTML also contains commitment in other parts, but testing rejection part only
-        result_7 = parser_7.legislative_outcome.extract_highest_status_reached(soup_7)
+        extractor_7 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_7 = extractor_7.extract_highest_status_reached(soup_7)
         assert result_7 == "Rejected"
         
         # Test case 8: proposal_pending_adoption - Existing proposals under review
@@ -1877,11 +1862,9 @@ class TestCommissionResponseContent:
         """
         
         soup_8 = BeautifulSoup(html_8, 'html.parser')
-        parser_8 = ECIResponseHTMLParser(soup_8)
-        parser_8.registration_number = "2019/000016"
-        
-        result_8 = parser_8.legislative_outcome.extract_highest_status_reached(soup_8)
-        assert result_8 == "Existing Proposals Under Review"
+        extractor_8 = LegislativeOutcomeExtractor(registration_number="2019/000016")
+        result_8 = extractor_8.extract_highest_status_reached(soup_8)
+        assert result_8 == "Proposals Under Review"
         
         # Test case 9: adopted - Law approved but not yet applicable
         html_9 = """
@@ -1896,10 +1879,8 @@ class TestCommissionResponseContent:
         """
         
         soup_9 = BeautifulSoup(html_9, 'html.parser')
-        parser_9 = ECIResponseHTMLParser(soup_9)
-        parser_9.registration_number = "2019/000016"
-        
-        result_9 = parser_9.legislative_outcome.extract_highest_status_reached(soup_9)
+        extractor_9 = LegislativeOutcomeExtractor(registration_number="2019/000016")
+        result_9 = extractor_9.extract_highest_status_reached(soup_9)
         assert result_9 == "Law Approved"
         
         # Test case 10: non_legislative_action - Policy changes only
@@ -1917,12 +1898,8 @@ class TestCommissionResponseContent:
         """
         
         soup_10 = BeautifulSoup(html_10, 'html.parser')
-        parser_10 = ECIResponseHTMLParser(soup_10)
-        parser_10.registration_number = "2012/000003"
-        
-        # Note: This would only return non_legislative_action if there's NO follow-up with laws
-        # In reality, Right2Water has laws, so this is theoretical
-        result_10 = parser_10.legislative_outcome.extract_highest_status_reached(soup_10)
+        extractor_10 = LegislativeOutcomeExtractor(registration_number="2012/000003")
+        result_10 = extractor_10.extract_highest_status_reached(soup_10)
         assert result_10 == "Policy Changes Only"
         
         # Test case 11: Error when Answer section not found
@@ -1934,14 +1911,10 @@ class TestCommissionResponseContent:
         """
         
         soup_11 = BeautifulSoup(html_11, 'html.parser')
-        parser_11 = ECIResponseHTMLParser(soup_11)
-        parser_11.registration_number = "2099/999999"
+        extractor_11 = LegislativeOutcomeExtractor(registration_number="2099/999999")
         
-        # Re-initialize the extractor with registration number
-        parser_11.legislative_outcome = LegislativeOutcomeExtractor(registration_number="2099/999999")
-
         with pytest.raises(ValueError, match="Could not extract legislative content for initiative 2099/999999"):
-            parser_11.legislative_outcome.extract_highest_status_reached(soup_11)
+            extractor_11.extract_highest_status_reached(soup_11)
                 
         # Test case 12: Error when no status patterns match
         html_12 = """
@@ -1953,14 +1926,10 @@ class TestCommissionResponseContent:
         """
         
         soup_12 = BeautifulSoup(html_12, 'html.parser')
-        parser_12 = ECIResponseHTMLParser(soup_12)
-        parser_12.registration_number = "2099/999998"
-
-        # Re-initialize the extractor with registration number
-        parser_12.legislative_outcome = LegislativeOutcomeExtractor(registration_number="2099/999998")
-
+        extractor_12 = LegislativeOutcomeExtractor(registration_number="2099/999998")
+        
         with pytest.raises(ValueError, match="Could not determine legislative status for initiative:\n2099/999998"):
-            parser_12.legislative_outcome.extract_highest_status_reached(soup_12)
+            extractor_12.extract_highest_status_reached(soup_12)
         
         # Test case 13: Priority check - applicable takes priority over committed
         html_13 = """
@@ -1975,12 +1944,9 @@ class TestCommissionResponseContent:
         """
         
         soup_13 = BeautifulSoup(html_13, 'html.parser')
-        parser_13 = ECIResponseHTMLParser(soup_13)
-        parser_13.registration_number = "2017/000002"
-        
-        result_13 = parser_13.legislative_outcome.extract_highest_status_reached(soup_13)
-        # Should return "New Law in Force" (applicable) not "Law Promised" (committed)
-        assert result_13 == "New Law in Force"
+        extractor_13 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_13 = extractor_13.extract_highest_status_reached(soup_13)
+        assert result_13 == "Law Active"
         
         # Test case 14: Handles "became applicable immediately"
         html_14 = """
@@ -1995,11 +1961,9 @@ class TestCommissionResponseContent:
         """
         
         soup_14 = BeautifulSoup(html_14, 'html.parser')
-        parser_14 = ECIResponseHTMLParser(soup_14)
-        parser_14.registration_number = "2019/000016"
-        
-        result_14 = parser_14.legislative_outcome.extract_highest_status_reached(soup_14)
-        assert result_14 == "New Law in Force"
+        extractor_14 = LegislativeOutcomeExtractor(registration_number="2019/000016")
+        result_14 = extractor_14.extract_highest_status_reached(soup_14)
+        assert result_14 == "Law Active"
         
         # Test case 15: Handles impact assessment (assessment_pending)
         html_15 = """
@@ -2013,13 +1977,10 @@ class TestCommissionResponseContent:
         """
         
         soup_15 = BeautifulSoup(html_15, 'html.parser')
-        parser_15 = ECIResponseHTMLParser(soup_15)
-        parser_15.registration_number = "2020/000001"
-        
-        result_15 = parser_15.legislative_outcome.extract_highest_status_reached(soup_15)
+        extractor_15 = LegislativeOutcomeExtractor(registration_number="2020/000001")
+        result_15 = extractor_15.extract_highest_status_reached(soup_15)
         assert result_15 == "Being Studied"
-
-    
+        
     def test_proposal_commitment_stated(self):
         """Test extraction of whether Commission committed to legislative proposal."""
         pass
