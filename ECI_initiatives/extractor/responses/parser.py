@@ -1377,12 +1377,152 @@ class LegislativeOutcomeExtractor(BaseExtractor):
     def extract_rejection_reasoning(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract the reasoning provided by Commission for rejecting legislative proposal
-        Returns full text explanation or None if not rejected
+        Returns full text explanation or None if not rejected.
+        For mixed responses (both commitment and rejection), extracts all relevant context.
+        
+        Returns:
+            String containing rejection reasoning, or None if no rejection found
+        
+        Raises:
+            ValueError: If Answer section is not found or is empty
         """
         try:
-            pass
+            # Extract content from HTML
+            content = self._extract_legislative_content(soup)
+            if not content:
+                raise ValueError(
+                    f"Could not extract legislative content for initiative {self.registration_number}.\n"
+                    f"Answer section may be missing or empty."
+                )
+            
+            # Initialize status matcher with extracted content
+            matcher = LegislativeOutcomeClassifier(content)
+            
+            # Check if rejection exists
+            rejection_type = matcher.check_rejection_type()
+            
+            # If no rejection, return None
+            if not rejection_type:
+                return None
+            
+            # Check if this is a mixed response
+            has_commitment = matcher.check_committed()
+            
+            # Find the Answer section in the original HTML to extract formatted text
+            answer_section = (
+                soup.find('h2', id='Answer-of-the-European-Commission') or
+                soup.find('h2', id='Answer-of-the-European-Commission-and-follow-up')
+            )
+            
+            if not answer_section:
+                return None
+            
+            # If MIXED RESPONSE: extract all paragraphs mentioning "legislative proposal"
+            if has_commitment:
+
+                legislative_proposal_paragraphs = []
+                
+                # Iterate through siblings after Answer section
+                for sibling in answer_section.find_next_siblings():
+                    # Stop at Follow-up or other major sections
+                    if sibling.name == 'h2':
+                        break
+                    
+                    # Skip factsheet divs
+                    if sibling.name == 'div' and sibling.get('class') and 'ecl-file' in sibling.get('class'):
+                        continue
+                    
+                    # Get text from paragraphs AND list items
+                    if sibling.name in ['p', 'li', 'ul', 'ol']:
+                        # For lists, extract all list items
+                        if sibling.name in ['ul', 'ol']:
+                            list_items = sibling.find_all('li')
+                            for li in list_items:
+                                text = li.get_text(strip=True)
+                                text_lower = text.lower()
+                                if 'legislative proposal' in text_lower:
+                                    legislative_proposal_paragraphs.append(text)
+                        else:
+                            text = sibling.get_text(strip=True)
+                            text_lower = text.lower()
+                            
+                            # Check if element mentions "legislative proposal"
+                            if 'legislative proposal' in text_lower:
+                                legislative_proposal_paragraphs.append(text)
+                
+                # Return all relevant paragraphs for mixed response
+                if legislative_proposal_paragraphs:
+                    return ' '.join(legislative_proposal_paragraphs)
+                else:
+                    raise ValueError(
+                        f"Failed to extract rejection reasoning for mixed response: {self.registration_number}.\n"
+                        "The Commission committed to some legislative action but rejected other aims.\n"
+                        "No paragraphs containing 'legislative proposal' were found in the Answer section.\n"
+                        f"legislative_proposal_paragraphs:\n{legislative_proposal_paragraphs}\n"
+                        f"answer_section:\n{answer_section}\n"
+                    )
+            
+            # If PURE REJECTION: use keyword-based extraction
+            rejection_sentences = []
+            
+            # Keywords that indicate rejection reasoning
+            rejection_keywords = [
+                'will not make',
+                'will not propose',
+                'decided not to',
+                'no legislative proposal',
+                'neither scientific nor legal grounds',
+                'existing legislation',
+                'existing funding framework',
+                'already covered',
+                'no repeal',
+                'differs from',
+                'not to submit',
+                'fall outside',
+                'outside of eu competence',
+                'not within eu competence',
+                'beyond eu competence',
+            ]
+            
+            # Iterate through siblings after Answer section
+            for sibling in answer_section.find_next_siblings():
+                # Stop at Follow-up or other major sections
+                if sibling.name == 'h2':
+                    break
+                
+                # Skip factsheet divs
+                if sibling.name == 'div' and sibling.get('class') and 'ecl-file' in sibling.get('class'):
+                    continue
+                
+                # Get text from paragraphs AND list items
+                if sibling.name in ['p', 'li', 'ul', 'ol']:
+                    # For lists, extract all list items
+                    if sibling.name in ['ul', 'ol']:
+                        list_items = sibling.find_all('li')
+                        for li in list_items:
+                            text = li.get_text(strip=True)
+                            text_lower = text.lower()
+                            if any(keyword in text_lower for keyword in rejection_keywords):
+                                rejection_sentences.append(text)
+                    else:
+                        text = sibling.get_text(strip=True)
+                        text_lower = text.lower()
+                        
+                        # Check if element contains rejection keywords
+                        if any(keyword in text_lower for keyword in rejection_keywords):
+                            rejection_sentences.append(text)
+            
+            # If we found rejection reasoning, return it
+            if rejection_sentences:
+                return ' '.join(rejection_sentences)
+            
+            # Fallback: if rejection detected but no specific reasoning found
+            return "The Commission decided not to make a legislative proposal."
+            
         except Exception as e:
-            raise ValueError(f"Error extracting rejection reasoning for {self.registration_number}: {str(e)}") from e
+            raise ValueError(
+                f"Error extracting rejection reasoning for {self.registration_number}: {str(e)}"
+            ) from e
 
 
     def extract_applicable_date(self, soup: BeautifulSoup) -> Optional[str]:

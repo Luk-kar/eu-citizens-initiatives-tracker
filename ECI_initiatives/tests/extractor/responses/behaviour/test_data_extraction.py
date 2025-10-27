@@ -2118,7 +2118,7 @@ class TestCommissionResponseContent:
         
         soup_9 = BeautifulSoup(html_9, 'html.parser')
         extractor_9 = LegislativeOutcomeExtractor(registration_number="2099/999999")
-        
+
         with pytest.raises(ValueError, match="Could not extract legislative content for initiative 2099/999999"):
             extractor_9.extract_proposal_commitment_stated(soup_9)
         
@@ -2154,11 +2154,426 @@ class TestCommissionResponseContent:
 
     def test_proposal_rejected(self):
         """Test extraction of whether Commission rejected legislative proposal."""
-        pass
-    
+        
+        # Test case 1: Plain rejection
+        html_1 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission will not make a legislative proposal to ban glyphosate.</p>
+        </html>
+        """
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        extractor_1 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_1 = extractor_1.extract_proposal_rejected(soup_1)
+
+        assert result_1 is True, "Should detect plain rejection"
+        
+        # Test case 2: Rejected - already covered
+        html_2 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission has decided not to submit a legislative proposal. 
+            The existing funding framework is the appropriate one.</p>
+        </html>
+        """
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        extractor_2 = LegislativeOutcomeExtractor(registration_number="2012/000005")
+        result_2 = extractor_2.extract_proposal_rejected(soup_2)
+
+        assert result_2 is True, "Should detect rejection when existing legislation applies"
+        
+        # Test case 3: Commitment (no rejection)
+        html_3 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission committed to table a legislative proposal by May 2018.</p>
+        </html>
+        """
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        extractor_3 = LegislativeOutcomeExtractor(registration_number="2018/000004")
+        result_3 = extractor_3.extract_proposal_rejected(soup_3)
+
+        assert result_3 is False, "Should return False when there is commitment, not rejection"
+        
+        # Test case 4: Rejected with alternative actions
+        html_4 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission considers that the existing Directive is the right legislation, 
+            therefore no repeal was proposed.</p>
+            <p>However, the Commission commits to monitoring compliance and enforcement.</p>
+        </html>
+        """
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        extractor_4 = LegislativeOutcomeExtractor(registration_number="2012/000007")
+        result_4 = extractor_4.extract_proposal_rejected(soup_4)
+
+        assert result_4 is True, "Should detect rejection even when alternative actions are offered"
+        
+        # Test case 5: Non-legislative response without rejection
+        html_5 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission will strengthen implementation of existing legislation 
+            and improve transparency measures.</p>
+        </html>
+        """
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        extractor_5 = LegislativeOutcomeExtractor(registration_number="2012/000003")
+        result_5 = extractor_5.extract_proposal_rejected(soup_5)
+
+        assert result_5 is False, "Should return False for non-legislative actions without explicit rejection"
+        
+        # Test case 6: Mixed response - partial rejection
+        html_6 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>On the first aim, the Commission will not make a legislative proposal.</p>
+            <p>On the second aim, the Commission committed to table a proposal by May 2018.</p>
+        </html>
+        """
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        extractor_6 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_6 = extractor_6.extract_proposal_rejected(soup_6)
+
+        assert result_6 is True, "Should return True when any rejection is present, even in mixed response"
+        
+        # Test case 7: Existing proposals (implicit rejection of new proposal)
+        html_7 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Rather than proposing new legislative acts, the priority is to ensure 
+            that the proposals currently being negotiated are adopted.</p>
+        </html>
+        """
+        soup_7 = BeautifulSoup(html_7, 'html.parser')
+        extractor_7 = LegislativeOutcomeExtractor(registration_number="2019/000016")
+        result_7 = extractor_7.extract_proposal_rejected(soup_7)
+
+        assert result_7 is False, "Should return False for existing proposals (not explicit rejection)"
+        
+        # Test case 8: Roadmap/assessment without rejection
+        html_8 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission will launch an impact assessment by the end of 2023 
+            to evaluate appropriate actions.</p>
+        </html>
+        """
+        soup_8 = BeautifulSoup(html_8, 'html.parser')
+        extractor_8 = LegislativeOutcomeExtractor(registration_number="2020/000001")
+        result_8 = extractor_8.extract_proposal_rejected(soup_8)
+
+        assert result_8 is False, "Should return False for assessment commitment without rejection"
+        
+        # Test case 9: Error when Answer section not found
+        html_9 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>Some procedural content.</p>
+        </html>
+        """
+        soup_9 = BeautifulSoup(html_9, 'html.parser')
+        extractor_9 = LegislativeOutcomeExtractor(registration_number="2099/999999")
+        
+        with pytest.raises(ValueError, match="Could not extract legislative content for initiative 2099/999999"):
+            extractor_9.extract_proposal_rejected(soup_9)
+        
+        # Test case 10: Rejection with reasoning
+        html_10 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission concluded that there are neither scientific nor legal grounds 
+            to justify the proposed legislation, and will not make a legislative proposal.</p>
+        </html>
+        """
+        soup_10 = BeautifulSoup(html_10, 'html.parser')
+        extractor_10 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_10 = extractor_10.extract_proposal_rejected(soup_10)
+        
+        assert result_10 is True, "Should detect rejection with reasoning"
+        
     def test_rejection_reasoning(self):
         """Test extraction of rejection reasoning text."""
-        pass
+        
+        # Test case 1: No rejection - Law Active (no reasoning expected)
+        html_1 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission committed to table a legislative proposal by the end of 2023.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The regulation became applicable from 26 June 2023.</p>
+        </html>
+        """
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        extractor_1 = LegislativeOutcomeExtractor(registration_number="2012/000003")
+        result_1 = extractor_1.extract_rejection_reasoning(soup_1)
+        
+        assert result_1 is None, "Should return None when there is no rejection"
+        
+        # Test case 2: Rejected - Already Covered (fallback reasoning)
+        html_2 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Decision date: 28/05/2014</p>
+            <p>The Commission has decided not to submit a legislative proposal, given that 
+            Member States and the European Parliament had only recently discussed and decided 
+            EU policy in this regard.</p>
+        </html>
+        """
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        extractor_2 = LegislativeOutcomeExtractor(registration_number="2012/000005")
+        result_2 = extractor_2.extract_rejection_reasoning(soup_2)
+        
+        assert result_2 is not None, "Should extract rejection reasoning"
+        assert "decided not to submit" in result_2 or "The Commission decided not to make a legislative proposal" in result_2
+        
+        # Test case 3: Rejected - Alternative Actions (detailed reasoning)
+        html_3 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p><strong>Main conclusions of the Communication</strong>:</p>
+            <p>While the Commission does share the conviction that animal testing should be phased 
+            out in Europe, its approach for achieving that objective differs from the one proposed 
+            in this Citizens' Initiative.</p>
+            <p>The Commission considers that the Directive on the protection of animals used for 
+            scientific purposes (Directive 2010/63/EU), which the Initiative seeks to repeal, is 
+            the right legislation to achieve the underlying objectives of the Initiative. It sets 
+            full replacement of animals as its ultimate goal as soon as it is scientifically possibly, 
+            and provides a legally binding stepwise approach as non-animal alternatives become available. 
+            Therefore, no repeal of that legislation was proposed.</p>
+        </html>
+        """
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        extractor_3 = LegislativeOutcomeExtractor(registration_number="2012/000007")
+        result_3 = extractor_3.extract_rejection_reasoning(soup_3)
+        
+        assert result_3 is not None, "Should extract rejection reasoning"
+        assert "differs from" in result_3 or "no repeal" in result_3
+        assert "Directive 2010/63/EU" in result_3
+        
+        # Test case 4: Mixed response - rejection on first aim, commitment on second (list items)
+        html_4 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Official documents:</p>
+            <ul>
+                <li><a href="https://example.com/comm.pdf">Communication</a></li>
+                <li><a href="https://example.com/annex.pdf">Annex</a></li>
+            </ul>
+            <p><strong>Main conclusions of the Communication</strong>:</p>
+            <ul>
+                <li>On the first aim, to 'ban glyphosate-based herbicides', the Commission concluded 
+                that there are neither scientific nor legal grounds to justify a ban of glyphosate, 
+                and will not make a legislative proposal to that effect.</li>
+                <li>On the second aim, to "ensure that the scientific evaluation of pesticides for 
+                EU regulatory approval is based only on published studies, which are commissioned by 
+                competent public authorities instead of the pesticide industry", the Commission 
+                committed to come forward with a legislative proposal by May 2018, amongst others, 
+                to strengthen the transparency of the EU risk assessment in the food chain and 
+                enhance – through a series of measures – the governance for the conduct of industry 
+                studies submitted to the European Food Safety Authority (EFSA) for risk assessment. 
+                See details below under 'Follow-up'.</li>
+            </ul>
+            <h2 id="Follow-up">Follow-up</h2>
+        </html>
+        """
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        extractor_4 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_4 = extractor_4.extract_rejection_reasoning(soup_4)
+        
+        assert result_4 is not None, "Should extract rejection reasoning for mixed response"
+        assert "legislative proposal" in result_4.lower()
+        assert "glyphosate" in result_4.lower() or "scientific evaluation" in result_4.lower()
+        # Should contain both the rejection and commitment parts mentioning legislative proposal
+        assert len(result_4) > 100, "Should contain comprehensive text from both list items"
+        
+        # Test case 5: Pure rejection with detailed reasoning in paragraphs
+        html_5 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p><strong>Main conclusions of the Communication</strong>:</p>
+            <p>The Commission concluded that there are neither scientific nor legal grounds 
+            to justify the proposed legislation.</p>
+            <p>The Commission will not make a legislative proposal to that effect.</p>
+            <p>The existing legislation already covers the objectives of this initiative.</p>
+        </html>
+        """
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        extractor_5 = LegislativeOutcomeExtractor(registration_number="2017/000004")
+        result_5 = extractor_5.extract_rejection_reasoning(soup_5)
+        
+        assert result_5 is not None, "Should extract rejection reasoning"
+        assert "will not make" in result_5 or "neither scientific nor legal grounds" in result_5
+        
+        # Test case 6: No rejection - Law Promised
+        html_6 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>In its response to the ECI, the Commission communicated its intention to 
+            table a legislative proposal, by the end of 2023, to phase out cages.</p>
+        </html>
+        """
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        extractor_6 = LegislativeOutcomeExtractor(registration_number="2018/000004")
+        result_6 = extractor_6.extract_rejection_reasoning(soup_6)
+        
+        assert result_6 is None, "Should return None when there is commitment without rejection"
+        
+        # Test case 7: Rejected with competence reasoning
+        html_7 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission carefully analysed the citizens' proposals and concluded that 
+            while some proposals fall outside of EU competence, as they would interfere with 
+            the existing constitutional setup of the concerned Member States, others are 
+            already covered under the current Cohesion policy thanks to its robust safeguards 
+            promoting inclusion and equal treatment of minorities, as well as the respect for 
+            cultural and linguistic diversity.</p>
+        </html>
+        """
+        soup_7 = BeautifulSoup(html_7, 'html.parser')
+        extractor_7 = LegislativeOutcomeExtractor(registration_number="2019/000007")
+        result_7 = extractor_7.extract_rejection_reasoning(soup_7)
+        
+        assert result_7 is not None, "Should extract rejection reasoning"
+        assert "fall outside of eu competence" in result_7.lower() or "already covered" in result_7.lower()
+        
+        # Test case 8: No rejection - Law Active (no reasoning)
+        html_8 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission welcomes the initiative.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The regulation became applicable immediately after publication.</p>
+        </html>
+        """
+        soup_8 = BeautifulSoup(html_8, 'html.parser')
+        extractor_8 = LegislativeOutcomeExtractor(registration_number="2019/000016")
+        result_8 = extractor_8.extract_rejection_reasoning(soup_8)
+        
+        assert result_8 is None, "Should return None for Law Active without rejection"
+        
+        # Test case 9: No rejection - Being Studied
+        html_9 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission has tasked the European Food Safety Authority (EFSA) to 
+            provide a scientific opinion. The Commission will then communicate by March 2026 
+            on the most appropriate action.</p>
+        </html>
+        """
+        soup_9 = BeautifulSoup(html_9, 'html.parser')
+        extractor_9 = LegislativeOutcomeExtractor(registration_number="2020/000001")
+        result_9 = extractor_9.extract_rejection_reasoning(soup_9)
+        
+        assert result_9 is None, "Should return None for Being Studied status"
+        
+        # Test case 10: No rejection - Action Plan Created
+        html_10 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission will work together with all relevant parties on a roadmap 
+            towards chemical safety assessments. The roadmap will serve as a guiding 
+            framework for future actions.</p>
+        </html>
+        """
+        soup_10 = BeautifulSoup(html_10, 'html.parser')
+        extractor_10 = LegislativeOutcomeExtractor(registration_number="2021/000006")
+        result_10 = extractor_10.extract_rejection_reasoning(soup_10)
+        
+        assert result_10 is None, "Should return None for Action Plan Created status"
+        
+        # Test case 11: No rejection - Being Studied (second case)
+        html_11 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission commits to launch an impact assessment on the environmental, 
+            social and economic consequences by the end of 2023.</p>
+        </html>
+        """
+        soup_11 = BeautifulSoup(html_11, 'html.parser')
+        extractor_11 = LegislativeOutcomeExtractor(registration_number="2022/000002")
+        result_11 = extractor_11.extract_rejection_reasoning(soup_11)
+        
+        assert result_11 is None, "Should return None for Being Studied status"
+        
+        # Test case 12: Rejection with existing funding framework reasoning
+        html_12 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission has concluded that the existing funding framework, which had 
+            been recently debated and agreed by EU Member States and the European Parliament, 
+            is the appropriate one. Therefore, the Commission will not propose new legislation.</p>
+        </html>
+        """
+        soup_12 = BeautifulSoup(html_12, 'html.parser')
+        extractor_12 = LegislativeOutcomeExtractor(registration_number="2012/000005")
+        result_12 = extractor_12.extract_rejection_reasoning(soup_12)
+        
+        assert result_12 is not None, "Should extract rejection reasoning"
+        assert "existing funding framework" in result_12.lower() or "will not propose" in result_12.lower()
+        
+        # Test case 13: Skips factsheet divs in extraction
+        html_13 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <div class="ecl-file ecl-file--has-translation">
+                <div class="ecl-file__container">
+                    <a href="https://example.com/factsheet.pdf" class="ecl-link ecl-file__download">
+                        Factsheet Download (4.89 MB - PDF)
+                    </a>
+                </div>
+            </div>
+            <p>The Commission will not make a legislative proposal because the existing 
+            legislation already addresses these concerns.</p>
+        </html>
+        """
+        soup_13 = BeautifulSoup(html_13, 'html.parser')
+        extractor_13 = LegislativeOutcomeExtractor(registration_number="2017/000004")
+        result_13 = extractor_13.extract_rejection_reasoning(soup_13)
+        
+        assert result_13 is not None, "Should extract rejection reasoning"
+        assert "Factsheet" not in result_13, "Should not include factsheet download text"
+        assert "will not make" in result_13 or "existing legislation" in result_13
+        
+        # Test case 14: Error when Answer section not found
+        html_14 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>Some content here.</p>
+        </html>
+        """
+        soup_14 = BeautifulSoup(html_14, 'html.parser')
+        extractor_14 = LegislativeOutcomeExtractor(registration_number="2099/999999")
+        
+        with pytest.raises(ValueError, match="Could not extract legislative content for initiative 2099/999999"):
+            extractor_14.extract_rejection_reasoning(soup_14)
+        
+        # Test case 15: Mixed response with nested list structure
+        html_15 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p><strong>Main conclusions of the Communication</strong>:</p>
+            <ol>
+                <li>On the first aim, to ban certain substances, the Commission concluded that 
+                there are no scientific grounds and will not make a legislative proposal.</li>
+                <li>On the second aim, the Commission committed to table a legislative proposal 
+                by December 2024 to strengthen regulatory frameworks.</li>
+                <li>On the third aim, the Commission will not propose new measures as existing 
+                legislation adequately covers these objectives.</li>
+            </ol>
+            <h2 id="Follow-up">Follow-up</h2>
+        </html>
+        """
+        soup_15 = BeautifulSoup(html_15, 'html.parser')
+        extractor_15 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_15 = extractor_15.extract_rejection_reasoning(soup_15)
+        
+        assert result_15 is not None, "Should extract rejection reasoning from mixed response"
+        assert "legislative proposal" in result_15.lower()
+        # Should capture all relevant items mentioning legislative proposal
+        assert len([item for item in result_15.split('.') if 'legislative proposal' in item.lower()]) >= 2
     
     def test_proposal_commitment_deadline(self):
         """Test extraction of proposal commitment deadline."""
