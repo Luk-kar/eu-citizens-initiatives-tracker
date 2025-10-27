@@ -2596,7 +2596,191 @@ class TestCommissionResponseContent:
 
     def test_proposal_commitment_deadline(self):
         """Test extraction of proposal commitment deadline."""
-        pass
+        
+        # Test case 1: "committed to come forward with a legislative proposal by May 2018"
+        html_1 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission committed to come forward with a legislative proposal by May 2018,
+            amongst others, to strengthen the transparency of the EU risk assessment.</p>
+        </html>
+        """
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        extractor_1 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_1 = extractor_1.extract_proposal_commitment_deadline(soup_1)
+        
+        assert result_1 == "2018-05-31", f"Expected '2018-05-31', got '{result_1}'"
+        
+        # Test case 2: "intention to table a legislative proposal, by the end of 2023"
+        html_2 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>In its response to the ECI, the Commission communicated its intention to 
+            table a legislative proposal, by the end of 2023, to phase out cages.</p>
+        </html>
+        """
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        extractor_2 = LegislativeOutcomeExtractor(registration_number="2018/000004")
+        result_2 = extractor_2.extract_proposal_commitment_deadline(soup_2)
+        
+        assert result_2 == "2023-12-31", f"Expected '2023-12-31', got '{result_2}'"
+        
+        # Test case 3: "to table a legislative proposal by March 2026"
+        html_3 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission committed to table a legislative proposal by March 2026 
+            to address these concerns.</p>
+        </html>
+        """
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        extractor_3 = LegislativeOutcomeExtractor(registration_number="2020/000001")
+        result_3 = extractor_3.extract_proposal_commitment_deadline(soup_3)
+        
+        assert result_3 == "2026-03-31", f"Expected '2026-03-31', got '{result_3}'"
+        
+        # Test case 4: "will table a legislative proposal by end of 2024"
+        html_4 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission will table a legislative proposal by end of 2024 
+            to strengthen the regulatory framework.</p>
+        </html>
+        """
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        extractor_4 = LegislativeOutcomeExtractor(registration_number="2021/000006")
+        result_4 = extractor_4.extract_proposal_commitment_deadline(soup_4)
+        
+        assert result_4 == "2024-12-31", f"Expected '2024-12-31', got '{result_4}'"
+        
+        # Test case 5: No commitment (rejected initiative)
+        html_5 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission will not make a legislative proposal.</p>
+            <p>The existing legislation already covers these objectives.</p>
+        </html>
+        """
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        extractor_5 = LegislativeOutcomeExtractor(registration_number="2012/000005")
+        result_5 = extractor_5.extract_proposal_commitment_deadline(soup_5)
+        
+        assert result_5 is None, "Should return None for rejected initiatives"
+        
+        # Test case 6: No commitment (being studied - communication deadline only)
+        html_6 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission has tasked EFSA to provide a scientific opinion.</p>
+            <p>The Commission will then communicate by March 2026 on the most appropriate action.</p>
+        </html>
+        """
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        extractor_6 = LegislativeOutcomeExtractor(registration_number="2020/000001")
+        result_6 = extractor_6.extract_proposal_commitment_deadline(soup_6)
+        
+        assert result_6 is None, "Should return None when only communication deadline (not legislative proposal)"
+        
+        # Test case 7: Law already active (no commitment deadline mentioned)
+        html_7 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission welcomes the initiative.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The regulation became applicable from 26 June 2023.</p>
+        </html>
+        """
+        soup_7 = BeautifulSoup(html_7, 'html.parser')
+        extractor_7 = LegislativeOutcomeExtractor(registration_number="2012/000003")
+        result_7 = extractor_7.extract_proposal_commitment_deadline(soup_7)
+        
+        assert result_7 is None, "Should return None when law already active without commitment deadline"
+
+        
+        # Test case 8: Mixed response - extract legislative proposal deadline
+        html_8 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <ul>
+                <li>On the first aim, the Commission will not make a legislative proposal.</li>
+                <li>On the second aim, the Commission committed to come forward with a 
+                legislative proposal by May 2018 to strengthen transparency.</li>
+                <li>On the third aim, the Commission will produce a report in 2019.</li>
+            </ul>
+        </html>
+        """
+        soup_8 = BeautifulSoup(html_8, 'html.parser')
+        extractor_8 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_8 = extractor_8.extract_proposal_commitment_deadline(soup_8)
+        
+        assert result_8 == "2018-05-31", f"Expected '2018-05-31', got '{result_8}'"
+        
+        # Test case 9: Multiple legislative proposal deadlines - extract first one
+        html_9 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission will table a legislative proposal by March 2024 on issue A.</p>
+            <p>Additionally, the Commission will table a legislative proposal by June 2025 on issue B.</p>
+        </html>
+        """
+        soup_9 = BeautifulSoup(html_9, 'html.parser')
+        extractor_9 = LegislativeOutcomeExtractor(registration_number="2023/000001")
+        result_9 = extractor_9.extract_proposal_commitment_deadline(soup_9)
+        
+        assert result_9 == "2024-03-31", f"Expected '2024-03-31' (first deadline), got '{result_9}'"
+        
+        # Test case 10: Error when Answer section missing
+        html_10 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>Some content here.</p>
+        </html>
+        """
+        soup_10 = BeautifulSoup(html_10, 'html.parser')
+        extractor_10 = LegislativeOutcomeExtractor(registration_number="9999/999999")
+        
+        with pytest.raises(ValueError, match="Could not find Answer section"):
+            extractor_10.extract_proposal_commitment_deadline(soup_10)
+        
+        # Test case 11: February deadline (leap year handling)
+        html_11 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The commission committed to table a legislative proposal by February 2024.</p>
+        </html>
+        """
+        soup_11 = BeautifulSoup(html_11, 'html.parser')
+        extractor_11 = LegislativeOutcomeExtractor(registration_number="2023/000002")
+        result_11 = extractor_11.extract_proposal_commitment_deadline(soup_11)
+        
+        assert result_11 == "2024-02-29", f"Expected '2024-02-29' (leap year), got '{result_11}'"
+        
+        # Test case 12: Action plan commitment (not legislative proposal)
+        html_12 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission will work together with all relevant parties on a roadmap 
+            towards chemical safety assessments by end of 2024.</p>
+        </html>
+        """
+        soup_12 = BeautifulSoup(html_12, 'html.parser')
+        extractor_12 = LegislativeOutcomeExtractor(registration_number="2021/000006")
+        result_12 = extractor_12.extract_proposal_commitment_deadline(soup_12)
+        
+        assert result_12 is None, "Should return None for roadmap/action plan (not legislative proposal)"
+        
+        # Test case 13: January deadline (31 days)
+        html_13 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission committed to table a legislative proposal by January 2025.</p>
+        </html>
+        """
+        soup_13 = BeautifulSoup(html_13, 'html.parser')
+        extractor_13 = LegislativeOutcomeExtractor(registration_number="2023/000004")
+        result_13 = extractor_13.extract_proposal_commitment_deadline(soup_13)
+        
+        assert result_13 == "2025-01-31", f"Expected '2025-01-31' (31 days), got '{result_13}'"
     
     def test_applicable_date(self):
         """Test extraction of date when regulation became applicable."""

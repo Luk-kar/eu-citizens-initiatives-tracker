@@ -49,10 +49,10 @@ class TestECIResponseDataModel:
             official_communication_document_urls="https://example.com/comm.pdf",
             commission_answer_text="Test conclusion",
             final_outcome_status="Law Promised",
-            outcome_achieved_date=None,
+            law_implementation_date=None,
             law_publication_date=None,
             commission_promised_new_law=True,
-            commission_promise_deadline="end of 2024",
+            commission_presentation_new_law_deadline="end of 2024",
             commission_rejected_initiative=False,
             commission_rejection_reason=None,
             laws_introduced='[{"type":"committed","action":"Test","status":"committed","deadline":"2024"}]',
@@ -133,10 +133,10 @@ class TestOptionalFieldHandling:
             official_communication_document_urls=None,
             commission_answer_text=None,
             final_outcome_status=None,
-            outcome_achieved_date=None,
+            law_implementation_date=None,
             law_publication_date=None,
             commission_promised_new_law=None,
-            commission_promise_deadline=None,
+            commission_presentation_new_law_deadline=None,
             commission_rejected_initiative=None,
             commission_rejection_reason=None,
             laws_introduced=None,
@@ -166,7 +166,7 @@ class TestOptionalFieldHandling:
         assert response.commission_submission_date is None
         assert response.commission_meeting_date is None
         assert response.final_outcome_status is None
-        assert response.commission_promise_deadline is None
+        assert response.commission_presentation_new_law_deadline is None
 
 
 class TestJSONFieldValidation:
@@ -209,11 +209,11 @@ class TestLegislativeOutcomeFields:
         pass
     
     def test_commission_promise_deadline_format(self):
-        """Test that commission_promise_deadline follows expected text format."""
+        """Test that commission_presentation_new_law_deadline follows expected text format."""
         pass
     
-    def test_outcome_achieved_date_format(self):
-        """Test that outcome_achieved_date is valid ISO date format."""
+    def test_law_implementation_date_format(self):
+        """Test that law_implementation_date is valid ISO date format."""
         pass
     
     def test_law_publication_date_format(self):
@@ -276,10 +276,10 @@ class TestDataIntegrity:
             official_communication_document_urls=None,
             commission_answer_text=None,
             final_outcome_status=None,
-            outcome_achieved_date=None,
+            law_implementation_date=None,
             law_publication_date=None,
             commission_promised_new_law=True,
-            commission_promise_deadline=None,
+            commission_presentation_new_law_deadline=None,
             commission_rejected_initiative=False,
             commission_rejection_reason=None,
             laws_introduced=None,
