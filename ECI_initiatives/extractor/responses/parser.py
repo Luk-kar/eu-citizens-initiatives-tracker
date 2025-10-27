@@ -1217,6 +1217,27 @@ class LegislativeOutcomeClassifier:
 
 class LegislativeOutcomeExtractor(BaseExtractor):
     """Extractor for legislative outcome and proposal status data"""
+    
+    # Keywords that indicate rejection reasoning
+    REJECTION_REASONING_KEYWORDS = [
+        'will not make',
+        'will not propose',
+        'decided not to',
+        'no legislative proposal',
+        'neither scientific nor legal grounds',
+        'existing legislation',
+        'existing funding framework',
+        'already covered',
+        'no repeal',
+        'differs from',
+        'not to submit',
+        'fall outside',
+        'outside of eu competence',
+        'outside the eu competence',
+        'not within eu competence',
+        'beyond eu competence',
+        'interfere with',
+    ]
 
     def __init__(self, registration_number: Optional[str] = None):
         """
@@ -1227,96 +1248,95 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         """
         self.registration_number = registration_number
 
-    def _extract_legislative_content(self, soup: BeautifulSoup) -> Optional[str]:
-        """
-        Extract all text content after Answer section
-        Returns normalized lowercase string or None if section not found
-        """
-
-        # Find Answer section with fallback for combined headers
-        answer_section = (
+    def _find_answer_section(self, soup: BeautifulSoup):
+        """Find the Answer section header in the HTML."""
+        return (
             soup.find('h2', id='Answer-of-the-European-Commission') or
             soup.find('h2', id='Answer-of-the-European-Commission-and-follow-up')
         )
+
+    def _extract_legislative_content(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract all text content after Answer section.
+        Returns normalized lowercase string or None if section not found.
+        """
+        answer_section = self._find_answer_section(soup)
         
         if not answer_section:
             return None
         
-        # Collect all text, excluding factsheet downloads
         all_text = []
         for sibling in answer_section.find_next_siblings():
-            # Skip factsheet download divs
-            if self._is_factsheet_div(sibling):
-                continue
-            all_text.append(sibling.get_text(strip=False))
+            if not self._should_skip_element(sibling):
+                all_text.append(sibling.get_text(strip=False))
         
-        # Join text, convert to lowercase, and normalize whitespace
         content = ' '.join(all_text).lower()
         content = re.sub(r'\s+', ' ', content).strip()
         
         return content
     
-    def _is_factsheet_div(self, element) -> bool:
-        """Check if element is a factsheet download div to exclude"""
-        return (
-            element.name == 'div' and 
-            element.get('class') and 
-            'ecl-file' in element.get('class')
-        )
+    def _should_skip_element(self, element) -> bool:
+        """Check if element should be skipped during extraction."""
+        if element.name == 'h2':
+            return True
+        if element.name == 'div' and element.get('class') and 'ecl-file' in element.get('class'):
+            return True
+        return False
     
-    def extract_highest_status_reached(self, soup: BeautifulSoup) -> str:
+    def _get_classifier(self, soup: BeautifulSoup) -> LegislativeOutcomeClassifier:
         """
-        Extract the highest status reached by the initiative
-        
-        This method combines two steps:
-        1. Extract technical status from HTML content
-        2. Translate to citizen-friendly name
-        
-        Status hierarchy (highest to lowest):
-        1. applicable - New Law in Force
-        2. adopted - Law Approved
-        3. committed - Law Promised
-        4. assessment_pending - Being Studied
-        5. roadmap_development - Action Plan Being Created
-        6. rejected_already_covered - Already Addressed
-        7. rejected_with_actions - Alternative Actions Taken
-        8. rejected - Rejected
-        9. non_legislative_action - Policy Changes Only
-        10. proposal_pending_adoption - Existing Proposals Under Review
+        Create and return a LegislativeOutcomeClassifier for the given HTML.
         
         Args:
             soup: BeautifulSoup object containing ECI response HTML
             
         Returns:
-            Citizen-friendly status name (e.g., "New Law in Force")
+            LegislativeOutcomeClassifier instance
+            
+        Raises:
+            ValueError: If Answer section is not found or is empty
+        """
+        content = self._extract_legislative_content(soup)
+        if not content:
+            raise ValueError(
+                f"Could not extract legislative content for initiative {self.registration_number}.\n"
+                f"Answer section may be missing or empty."
+            )
+        return LegislativeOutcomeClassifier(content)
+    
+    def extract_highest_status_reached(self, soup: BeautifulSoup) -> str:
+        """
+        Extract the highest status reached by the initiative.
+        
+        Status hierarchy (highest to lowest):
+        1. applicable - Law Active
+        2. adopted - Law Approved
+        3. committed - Law Promised
+        4. assessment_pending - Being Studied
+        5. roadmap_development - Action Plan Created
+        6. rejected_already_covered - Rejected - Already Covered
+        7. rejected_with_actions - Rejected - Alternative Actions
+        8. rejected - Rejected
+        9. non_legislative_action - Policy Changes Only
+        10. proposal_pending_adoption - Proposals Under Review
+        
+        Args:
+            soup: BeautifulSoup object containing ECI response HTML
+            
+        Returns:
+            Citizen-friendly status name (e.g., "Law Active")
         
         Raises:
             ValueError: If error occurs during extraction or no status can be determined
         """
-
         try:
-            # Extract content from HTML
-            content = self._extract_legislative_content(soup)
-            if not content:
-                raise ValueError(
-                    f"Could not extract legislative content for initiative {self.registration_number}. "
-                    f"Answer section may be missing or empty."
-                )
-            
-            # Initialize status matcher with extracted content
-            matcher = LegislativeOutcomeClassifier(content)
-            
-            # Step 1: Extract technical status
+            matcher = self._get_classifier(soup)
             technical_status = matcher.extract_technical_status()
-            
-            # Step 2: Translate to citizen-friendly format
-            citizen_friendly = matcher.translate_to_citizen_friendly(technical_status)
-            
-            return citizen_friendly
+            return matcher.translate_to_citizen_friendly(technical_status)
             
         except ValueError as e:
-            # Add context to ValueError from LegislativeOutcomeClassifier
             if "No known status patterns matched" in str(e):
+                content = self._extract_legislative_content(soup)
                 content_preview = content[:500] + "..." if len(content) > 500 else content
                 raise ValueError(
                     f"Could not determine legislative status for initiative:\n{self.registration_number}\n"
@@ -1330,25 +1350,14 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
     def extract_proposal_commitment_stated(self, soup: BeautifulSoup) -> Optional[bool]:
         """
-        Extract whether Commission explicitly committed to propose legislation
-        Returns True if commitment found, False otherwise, None if no Answer section
+        Extract whether Commission explicitly committed to propose legislation.
+        
+        Returns:
+            True if commitment found, False otherwise
         """
         try:
-            # Extract content from HTML
-            content = self._extract_legislative_content(soup)
-            if not content:
-                raise ValueError(
-                    f"Could not extract legislative content for initiative {self.registration_number}.\n"
-                    f"Answer section may be missing or empty."
-                )
-            
-            # Initialize status matcher with extracted content
-            matcher = LegislativeOutcomeClassifier(content)
-            
-            # Check if commitment exists
-            has_commitment = matcher.check_committed()
-            
-            return has_commitment
+            matcher = self._get_classifier(soup)
+            return matcher.check_committed()
             
         except Exception as e:
             raise ValueError(
@@ -1357,49 +1366,20 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
     def extract_proposal_rejected(self, soup: BeautifulSoup) -> Optional[bool]:
         """
-        Extract whether Commission explicitly rejected making a legislative proposal
-        Returns True if rejection stated, False otherwise, None if no Answer section
+        Extract whether Commission explicitly rejected making a legislative proposal.
+        
+        Returns:
+            True if rejection stated, False otherwise
         """
         try:
-            # Extract content from HTML
-            content = self._extract_legislative_content(soup)
-            if not content:
-                raise ValueError(
-                    f"Could not extract legislative content for initiative {self.registration_number}.\n"
-                    f"Answer section may be missing or empty."
-                )
-            
-            # Initialize status matcher with extracted content
-            matcher = LegislativeOutcomeClassifier(content)
-            
-            # Check if rejection exists
+            matcher = self._get_classifier(soup)
             rejection_type = matcher.check_rejection_type()
-            
-            # If any rejection type is detected, return True
-            if rejection_type:
-                return True
-            
-            return False
+            return bool(rejection_type)
             
         except Exception as e:
             raise ValueError(
                 f"Error extracting proposal rejection status for {self.registration_number}: {str(e)}"
             ) from e
-
-    def _find_answer_section(self, soup: BeautifulSoup):
-        """Find the Answer section header in the HTML."""
-        return (
-            soup.find('h2', id='Answer-of-the-European-Commission') or
-            soup.find('h2', id='Answer-of-the-European-Commission-and-follow-up')
-        )
-    
-    def _should_skip_element(self, element) -> bool:
-        """Check if element should be skipped during extraction."""
-        if element.name == 'h2':
-            return True
-        if element.name == 'div' and element.get('class') and 'ecl-file' in element.get('class'):
-            return True
-        return False
     
     def _extract_text_with_keyword_filter(self, sibling, keywords: list) -> Optional[str]:
         """
@@ -1480,27 +1460,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         Returns:
             Combined text of all relevant paragraphs or fallback message
         """
-        
-        REJECTION_REASONING_KEYWORDS = [
-            'will not make',
-            'will not propose',
-            'decided not to',
-            'no legislative proposal',
-            'neither scientific nor legal grounds',
-            'existing legislation',
-            'existing funding framework',
-            'already covered',
-            'no repeal',
-            'differs from',
-            'not to submit',
-            'fall outside',
-            'outside of eu competence',
-            'outside the eu competence',
-            'not within eu competence',
-            'beyond eu competence',
-            'interfere with',
-        ]
-        
         rejection_sentences = []
         
         for sibling in answer_section.find_next_siblings():
@@ -1511,7 +1470,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             
             extracted_text = self._extract_text_with_keyword_filter(
                 sibling,
-                REJECTION_REASONING_KEYWORDS
+                self.REJECTION_REASONING_KEYWORDS
             )
             if extracted_text:
                 rejection_sentences.append(extracted_text)
@@ -1534,14 +1493,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             ValueError: If Answer section is not found or is empty
         """
         try:
-            content = self._extract_legislative_content(soup)
-            if not content:
-                raise ValueError(
-                    f"Could not extract legislative content for initiative {self.registration_number}.\n"
-                    f"Answer section may be missing or empty."
-                )
-            
-            matcher = LegislativeOutcomeClassifier(content)
+            matcher = self._get_classifier(soup)
             rejection_type = matcher.check_rejection_type()
             
             if not rejection_type:
