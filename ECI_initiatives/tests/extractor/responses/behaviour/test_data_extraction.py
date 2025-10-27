@@ -2593,14 +2593,195 @@ class TestCommissionResponseContent:
         soup_7 = BeautifulSoup(html_7, 'html.parser')
         extractor_7 = LegislativeOutcomeExtractor(registration_number="2019/000007")
         result_7 = extractor_7.extract_rejection_reasoning(soup_7)
-        
+
     def test_proposal_commitment_deadline(self):
         """Test extraction of proposal commitment deadline."""
         pass
     
     def test_applicable_date(self):
         """Test extraction of date when regulation became applicable."""
-        pass
+        
+        # Test case 1: Specific date - "became applicable on 27 March 2021"
+        html_1 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission committed to table a legislative proposal.</p>
+            <p>The regulation became applicable 18 months later, i.e. on 27 March 2021.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The regulation was adopted by the Commission and it became applicable 
+            18 months later, i.e. on 27 March 2021.</p>
+        </html>
+        """
+        soup_1 = BeautifulSoup(html_1, 'html.parser')
+        extractor_1 = LegislativeOutcomeExtractor(registration_number="2017/000002")
+        result_1 = extractor_1.extract_applicable_date(soup_1)
+        
+        assert result_1 == "2021-03-27", f"Expected '2021-03-27', got '{result_1}'"
+        
+        # Test case 2: Became applicable immediately (use entry into force date)
+        html_2 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission proposed new legislation.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>It entered into force on 18 August 2024 (20 days after its publication 
+            in the Official Journal of the EU) and became applicable immediately.</p>
+        </html>
+        """
+        soup_2 = BeautifulSoup(html_2, 'html.parser')
+        extractor_2 = LegislativeOutcomeExtractor(registration_number="2019/000016")
+        result_2 = extractor_2.extract_applicable_date(soup_2)
+        
+        assert result_2 == "2024-08-18", f"Expected '2024-08-18', got '{result_2}'"
+        
+        # Test case 3: "applicable from" pattern
+        html_3 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission adopted the regulation.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The regulation was published in the Official Journal and 
+            became applicable from 26 June 2023.</p>
+        </html>
+        """
+        soup_3 = BeautifulSoup(html_3, 'html.parser')
+        extractor_3 = LegislativeOutcomeExtractor(registration_number="2018/000004")
+        result_3 = extractor_3.extract_applicable_date(soup_3)
+        
+        assert result_3 == "2023-06-26", f"Expected '2023-06-26', got '{result_3}'"
+        
+        # Test case 4: "and applicable from" pattern
+        html_4 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission committed to legislation.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The regulation entered into force in July 2023 
+            and applicable from 15 September 2023.</p>
+        </html>
+        """
+        soup_4 = BeautifulSoup(html_4, 'html.parser')
+        extractor_4 = LegislativeOutcomeExtractor(registration_number="2012/000003")
+        result_4 = extractor_4.extract_applicable_date(soup_4)
+        
+        assert result_4 == "2023-09-15", f"Expected '2023-09-15', got '{result_4}'"
+        
+        # Test case 5: "applies from" pattern
+        html_5 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Legislative proposal was tabled.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The new regulation applies from 1 January 2024.</p>
+        </html>
+        """
+        soup_5 = BeautifulSoup(html_5, 'html.parser')
+        extractor_5 = LegislativeOutcomeExtractor(registration_number="2020/000001")
+        result_5 = extractor_5.extract_applicable_date(soup_5)
+        
+        assert result_5 == "2024-01-01", f"Expected '2024-01-01', got '{result_5}'"
+        
+        # Test case 6: No applicable date (not in applicable status)
+        html_6 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission will not make a legislative proposal.</p>
+            <p>The existing legislation already covers the objectives.</p>
+        </html>
+        """
+        soup_6 = BeautifulSoup(html_6, 'html.parser')
+        extractor_6 = LegislativeOutcomeExtractor(registration_number="2012/000005")
+        result_6 = extractor_6.extract_applicable_date(soup_6)
+        
+        assert result_6 is None, "Should return None when not in applicable status"
+        
+        # Test case 7: No applicable date (commitment only, not yet applicable)
+        html_7 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission committed to table a legislative proposal by the end of 2023.</p>
+        </html>
+        """
+        soup_7 = BeautifulSoup(html_7, 'html.parser')
+        extractor_7 = LegislativeOutcomeExtractor(registration_number="2021/000006")
+        result_7 = extractor_7.extract_applicable_date(soup_7)
+        
+        assert result_7 is None, "Should return None when committed but not yet applicable"
+        
+        # Test case 8: Date in Answer section (not just Follow-up)
+        html_8 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The regulation became applicable on 10 May 2022 following publication 
+            in the Official Journal of the EU.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>Further updates will be provided.</p>
+        </html>
+        """
+        soup_8 = BeautifulSoup(html_8, 'html.parser')
+        extractor_8 = LegislativeOutcomeExtractor(registration_number="2017/000004")
+        result_8 = extractor_8.extract_applicable_date(soup_8)
+        
+        assert result_8 == "2022-05-10", f"Expected '2022-05-10', got '{result_8}'"
+        
+        # Test case 9: Short month name format
+        html_9 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>Commitment to legislation.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The directive became applicable from 5 Dec 2023.</p>
+        </html>
+        """
+        soup_9 = BeautifulSoup(html_9, 'html.parser')
+        extractor_9 = LegislativeOutcomeExtractor(registration_number="2019/000007")
+        result_9 = extractor_9.extract_applicable_date(soup_9)
+        
+        assert result_9 == "2023-12-05", f"Expected '2023-12-05', got '{result_9}'"
+        
+        # Test case 10: Error when Answer section missing
+        html_10 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>Some content here.</p>
+        </html>
+        """
+        soup_10 = BeautifulSoup(html_10, 'html.parser')
+        extractor_10 = LegislativeOutcomeExtractor(registration_number="9999/999999")
+        
+        with pytest.raises(ValueError, match="Could not find Answer section"):
+            extractor_10.extract_applicable_date(soup_10)
+        
+        # Test case 11: Multiple dates - should extract first applicable date found
+        html_11 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission made progress.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The regulation was published on 15 March 2023.</p>
+            <p>It became applicable on 1 April 2023 after a transition period.</p>
+        </html>
+        """
+        soup_11 = BeautifulSoup(html_11, 'html.parser')
+        extractor_11 = LegislativeOutcomeExtractor(registration_number="2022/000002")
+        result_11 = extractor_11.extract_applicable_date(soup_11)
+        
+        assert result_11 == "2023-04-01", f"Expected '2023-04-01', got '{result_11}'"
+        
+        # Test case 12: Date with "apply from" (singular form)
+        html_12 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>New rules were adopted.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The new provisions will apply from 20 November 2024.</p>
+        </html>
+        """
+        soup_12 = BeautifulSoup(html_12, 'html.parser')
+        extractor_12 = LegislativeOutcomeExtractor(registration_number="2023/000001")
+        result_12 = extractor_12.extract_applicable_date(soup_12)
+        
+        assert result_12 == "2024-11-20", f"Expected '2024-11-20', got '{result_12}'"
     
     def test_official_journal_publication_date(self):
         """Test extraction of Official Journal publication date."""

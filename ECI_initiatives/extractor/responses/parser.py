@@ -1518,13 +1518,112 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
     def extract_applicable_date(self, soup: BeautifulSoup) -> Optional[str]:
         """
-        Extract the date when regulation/directive became applicable (implementation deadline)
+        Extract the date when regulation/directive became applicable (implementation deadline).
         Format: YYYY-MM-DD
+        
+        Returns:
+            Date string in YYYY-MM-DD format or None if not applicable
+            
+        Raises:
+            ValueError: If Answer section not found
         """
         try:
-            pass
+            answer_section = self._find_answer_section(soup)
+            if not answer_section:
+                raise ValueError(
+                    f"Could not find Answer section for initiative {self.registration_number}"
+                )
+            
+            # Check if this initiative has applicable status
+            matcher = self._get_classifier(soup)
+            if not matcher.check_applicable():
+                return None
+            
+            # Patterns to search for applicable dates
+            applicable_patterns = [
+                # "became applicable 18 months later, i.e. on 27 March 2021"
+                r'became applicable.*?on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+                # "became applicable immediately"
+                r'became applicable immediately',
+                # "applicable from 27 March 2021"
+                r'applicable from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+                # "and applicable from 27 March 2021"
+                r'and applicable from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+                # "applies from 27 March 2021"
+                r'applies from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+                # "apply from 27 March 2021"
+                r'apply from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+            ]
+            
+            # Search through all siblings after Answer section
+            for sibling in answer_section.find_next_siblings():
+                if self._should_skip_element(sibling):
+                    if sibling.name == 'h2':
+                        continue  # Don't break, check other sections too
+                    continue
+                
+                text = sibling.get_text(strip=False)
+                
+                # Check for "immediately" case first
+                if 'became applicable immediately' in text.lower():
+                    # Try to find entry into force date nearby
+                    force_match = re.search(
+                        r'entered into force on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+                        text,
+                        re.IGNORECASE
+                    )
+                    if force_match:
+                        date_str = force_match.group(1).strip()
+                        parsed_date = self._parse_date_string(date_str)
+                        if parsed_date:
+                            return parsed_date
+                
+                # Check each pattern
+                for pattern in applicable_patterns:
+                    match = re.search(pattern, text, re.IGNORECASE)
+                    if match:
+                        if match.groups():  # Has captured group
+                            date_str = match.group(1).strip()
+                            parsed_date = self._parse_date_string(date_str)
+                            if parsed_date:
+                                return parsed_date
+            
+            return None
+            
         except Exception as e:
-            raise ValueError(f"Error extracting applicable date for {self.registration_number}: {str(e)}") from e
+            raise ValueError(
+                f"Error extracting applicable date for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def _parse_date_string(self, date_str: str) -> Optional[str]:
+        """
+        Parse various date formats to YYYY-MM-DD.
+        
+        Args:
+            date_str: Date string in formats like "27 March 2021", "27/03/2021"
+            
+        Returns:
+            Date in YYYY-MM-DD format or None if parsing fails
+        """
+        from datetime import datetime
+        
+        # Common date formats in ECI responses
+        date_formats = [
+            '%d %B %Y',      # 27 March 2021
+            '%d/%m/%Y',      # 27/03/2021
+            '%d-%m-%Y',      # 27-03-2021
+            '%Y-%m-%d',      # 2021-03-27 (already in target format)
+            '%d %b %Y',      # 27 Mar 2021
+        ]
+        
+        for fmt in date_formats:
+            try:
+                parsed = datetime.strptime(date_str.strip(), fmt)
+                return parsed.strftime('%Y-%m-%d')
+            except ValueError:
+                continue
+        
+        return None
 
 
     def extract_proposal_commitment_deadline(self, soup: BeautifulSoup) -> Optional[str]:
