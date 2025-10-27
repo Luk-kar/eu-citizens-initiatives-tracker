@@ -1628,6 +1628,281 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         
         return None
 
+    def extract_commissions_deadlines(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract all Commission deadlines mentioned in the response as JSON.
+        Returns a dictionary where keys are dates (YYYY-MM-DD) and values are phrases connected to those dates.
+        Returns None if no deadlines are mentioned.
+        
+        Format: JSON string like:
+        {
+            "2018-05-31": "committed to come forward with a legislative proposal",
+            "2026-03-31": "will communicate on the most appropriate action",
+            "2024-12-31": "complete the impact assessment"
+        }
+        
+        Returns:
+            JSON string with date->phrase mapping or None if no deadlines found
+            
+        Raises:
+            ValueError: If Answer section not found
+        """
+        try:
+            import json
+            
+            answer_section = self._find_answer_section(soup)
+            if not answer_section:
+                raise ValueError(
+                    f"Could not find Answer section for initiative {self.registration_number}"
+                )
+            
+            # Comprehensive deadline patterns covering various commitment types
+            deadline_patterns = [
+                # Legislative proposal patterns (action BEFORE deadline)
+                r'committed to come forward with a legislative proposal[,\s]+by\s+([^.,;]+)',
+                r'intention to table a legislative proposal[,\s]+by\s+([^.,;]+)',
+                r'communicated its intention to table a legislative proposal[,\s]+by\s+([^.,;]+)',
+                r'to table a legislative proposal[,\s]+by\s+([^.,;]+)',
+                r'will table a legislative proposal[,\s]+by\s+([^.,;]+)',
+                r'to propose legislation[,\s]+by\s+([^.,;]+)',
+                
+                # Communication patterns (action BEFORE deadline)
+                r'will (?:then )?communicate[,\s]+by\s+([^.,;]+)',
+                r'committed to communicate[,\s]+by\s+([^.,;]+)',
+                r'will then communicate[,\s]+by\s+([^.,;]+)',
+                
+                # Assessment and study patterns (action BEFORE deadline)
+                r'launch.*?(?:impact )?assessment[,\s]+by\s+([^.,;]+)',
+                r'conduct.*?study[,\s]+by\s+([^.,;]+)',
+                r'carry out.*?(?:assessment|study)[,\s]+by\s+([^.,;]+)',
+                r'scientific opinion[,\s]+by\s+([^.,;]+)',
+                r'efsa.*?(?:to )?provide.*?(?:opinion|assessment)[,\s]+by\s+([^.,;]+)',
+                r'complete.*?(?:assessment|study|evaluation)[,\s]+by\s+([^.,;]+)',
+                r'external study to be carried out.*?by\s+([^.,;]+)',
+                
+                # Roadmap patterns (action BEFORE deadline)
+                r'roadmap.*?(?:is planned|planned|completed?)[,\s]+by\s+([^.,;]+)',
+                r'finalisation.*?roadmap.*?by\s+([^.,;]+)',
+                r'work on.*?roadmap.*?by\s+([^.,;]+)',
+                
+                # Report and update patterns (action BEFORE deadline)
+                r'provide.*?(?:update|information|data|details)[,\s]+by\s+([^.,;]+)',
+                r'will report[,\s]+by\s+([^.,;]+)',
+                r'(?:produce|publish).*?report[,\s]+by\s+([^.,;]+)',
+                r'report.*?to be produced.*?(?:by|in)\s+([^.,;]+)',
+                r'to be produced\s+in\s+([^.,;]+)',
+                
+                # Other commitment patterns (action BEFORE deadline)
+                r'preparatory work.*?(?:with a view to )?launch.*?by\s+([^.,;]+)',
+                r'call for evidence.*?by\s+([^.,;]+)',
+                
+                # DEADLINE-FIRST patterns (deadline BEFORE action)
+                r'by\s+([^.,;]+),\s+provide.*?(?:information|data|details)',
+                r'by\s+([^.,;]+),\s+the\s+commission\s+will\s+(?:communicate|report|provide)',
+                r'by\s+([^.,;]+),\s+(?:to\s+)?(?:phase\s+out|ban|prohibit|implement)',
+            ]
+            
+            deadlines_dict = {}
+            
+            # Search through all siblings after Answer section
+            for sibling in answer_section.find_next_siblings():
+                if self._should_skip_element(sibling):
+                    if sibling.name == 'h2':
+                        break
+                    continue
+                
+                text = sibling.get_text(strip=False)
+                text_lower = text.lower()
+                
+                # Check each pattern
+                for pattern in deadline_patterns:
+                    # Find all matches in this element (handles multiple deadlines per element)
+                    for match in re.finditer(pattern, text_lower, re.IGNORECASE):
+                        deadline_text = match.group(1).strip()
+                        
+                        if deadline_text:
+                            # Clean and convert the deadline
+                            deadline_cleaned = self._clean_deadline_text(deadline_text)
+                            if deadline_cleaned:
+                                deadline_date = self._convert_deadline_to_date(deadline_cleaned)
+                                if deadline_date:
+                                    # Extract the complete sentence containing this deadline
+                                    sentence = self._extract_complete_sentence(text, match.start())
+                                    
+                                    if sentence:
+                                        # Clean up whitespace
+                                        sentence = re.sub(r'\s+', ' ', sentence).strip()
+                                        
+                                        # If we already have this date, append to existing phrase
+                                        if deadline_date in deadlines_dict:
+                                            # Only append if it's different content
+                                            if sentence not in deadlines_dict[deadline_date]:
+                                                deadlines_dict[deadline_date] += f"; {sentence}"
+                                        else:
+                                            deadlines_dict[deadline_date] = sentence
+            
+            # Return None if no deadlines found, otherwise return JSON string
+            if not deadlines_dict:
+                return None
+            
+            return json.dumps(deadlines_dict, ensure_ascii=False, indent=2)
+            
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting commission deadlines for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def _extract_complete_sentence(self, text: str, match_position: int) -> Optional[str]:
+        """
+        Extract the complete sentence containing the deadline match.
+        
+        Args:
+            text: Full text to search within
+            match_position: Position of the regex match in the text
+            
+        Returns:
+            Complete sentence or None if extraction fails
+        """
+        # Find the start of the sentence (look backwards for sentence boundary)
+        sentence_start = 0
+        
+        # Look backwards from match position for sentence start markers
+        for i in range(match_position - 1, -1, -1):
+            char = text[i]
+            
+            # Sentence boundaries: period, question mark, exclamation, or start of text
+            if char in '.!?':
+                # Make sure it's not an abbreviation (check for space after)
+                if i + 1 < len(text) and text[i + 1].isspace():
+                    sentence_start = i + 1
+                    break
+            # Also break at bullet points or list markers
+            elif char == '•' or (char == '\n' and i > 0 and text[i-1] == '\n'):
+                sentence_start = i + 1
+                break
+        
+        # Find the end of the sentence (look forwards for sentence boundary)
+        sentence_end = len(text)
+        
+        # Look forwards from match position for sentence end markers
+        for i in range(match_position, len(text)):
+            char = text[i]
+            
+            # Sentence boundaries: period, question mark, exclamation
+            if char in '.!?':
+                # Include the punctuation and stop
+                sentence_end = i + 1
+                break
+            # Also break at newlines indicating paragraph breaks
+            elif char == '\n' and i + 1 < len(text) and text[i + 1] == '\n':
+                sentence_end = i
+                break
+        
+        # Extract and clean the sentence
+        sentence = text[sentence_start:sentence_end].strip()
+        
+        # Remove leading punctuation or whitespace
+        sentence = sentence.lstrip('.,;:•\n\r\t ')
+        
+        return sentence if sentence else None
+
+    def _clean_deadline_text(self, deadline: str) -> Optional[str]:
+        """
+        Clean deadline text by removing trailing words that aren't part of the date.
+        
+        Args:
+            deadline: Raw deadline text
+            
+        Returns:
+            Cleaned deadline text or None if invalid
+        """
+        # Remove common trailing phrases
+        deadline = re.sub(r'\s+(?:to|for|in order to|with|amongst|among).*$', '', deadline, flags=re.IGNORECASE)
+        
+        # Remove trailing commas, semicolons, periods
+        deadline = deadline.rstrip('.,;')
+        
+        # Validate it contains a year (4 digits)
+        if not re.search(r'\d{4}', deadline):
+            return None
+        
+        return deadline.strip()
+
+    def _convert_deadline_to_date(self, deadline: str) -> Optional[str]:
+        """
+        Convert deadline text to YYYY-MM-DD format (last day of month/year).
+        
+        Args:
+            deadline: Cleaned deadline text like "may 2018", "the end of 2023", "end 2024", "2019"
+            
+        Returns:
+            Date string in YYYY-MM-DD format (last day of period) or None if parsing fails
+            
+        Examples:
+            - "May 2018" → "2018-05-31"
+            - "the end of 2023" → "2023-12-31"
+            - "end of 2024" → "2024-12-31"
+            - "end 2024" → "2024-12-31"
+            - "2019" → "2019-12-31"
+            - "March 2026" → "2026-03-31"
+            - "early 2026" → "2026-03-31"
+        """
+        from datetime import datetime
+        import calendar
+        
+        deadline_lower = deadline.lower().strip()
+        
+        # Validate it contains a year (4 digits)
+        if not re.search(r'\d{4}', deadline_lower):
+            return None
+        
+        # Pattern 1: "the end of YYYY" or "end of YYYY"
+        endof_match = re.match(r'(?:the\s+)?end\s+of\s+(\d{4})', deadline_lower)
+        if endof_match:
+            year = int(endof_match.group(1))
+            return f"{year}-12-31"
+        
+        # Pattern 1b: "end YYYY" (without "of")
+        end_match = re.match(r'end\s+(\d{4})', deadline_lower)
+        if end_match:
+            year = int(end_match.group(1))
+            return f"{year}-12-31"
+        
+        # Pattern 2: "early YYYY" (interpret as end of Q1 = March 31)
+        early_match = re.match(r'early\s+(\d{4})', deadline_lower)
+        if early_match:
+            year = int(early_match.group(1))
+            return f"{year}-03-31"
+        
+        # Pattern 3: "Month YYYY" (e.g., "May 2018", "march 2026")
+        monthyear_match = re.match(r'([a-z]+)\s+(\d{4})', deadline_lower)
+        if monthyear_match:
+            month_name = monthyear_match.group(1).capitalize()
+            year = int(monthyear_match.group(2))
+            
+            # Parse month name to month number
+            try:
+                month_date = datetime.strptime(month_name, '%B')  # Full month name
+                month_num = month_date.month
+            except ValueError:
+                try:
+                    month_date = datetime.strptime(month_name, '%b')  # Abbreviated month name
+                    month_num = month_date.month
+                except ValueError:
+                    return None
+            
+            # Get last day of the month
+            last_day = calendar.monthrange(year, month_num)[1]
+            return f"{year}-{month_num:02d}-{last_day:02d}"
+        
+        # Pattern 4: Just a year "YYYY" (e.g., "2019") - NEW PATTERN
+        year_only_match = re.match(r'^(\d{4})$', deadline_lower)
+        if year_only_match:
+            year = int(year_only_match.group(1))
+            return f"{year}-12-31"
+        
+        return None
+        
     def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract legislative actions as JSON array
@@ -1945,6 +2220,7 @@ class ECIResponseHTMLParser:
 
                 # Commission's Initial Response (What they promised)
                 commission_promised_new_law=self.legislative_outcome.extract_proposal_commitment_stated(soup),
+                commission_deadlines=self.legislative_outcome.extract_commissions_deadlines(soup),
                 commission_rejected_initiative=self.legislative_outcome.extract_proposal_rejected(soup),
                 commission_rejection_reason=self.legislative_outcome.extract_rejection_reasoning(soup),
 

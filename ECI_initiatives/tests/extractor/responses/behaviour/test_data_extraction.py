@@ -2778,7 +2778,7 @@ class TestCommissionResponseContent:
         result_12 = extractor_12.extract_applicable_date(soup_12)
         
         assert result_12 == "2024-11-20", f"Expected '2024-11-20', got '{result_12}'"
-    
+
     def test_official_journal_publication_date(self):
         """Test extraction of Official Journal publication date."""
         pass
