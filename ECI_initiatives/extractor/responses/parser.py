@@ -887,9 +887,23 @@ class LegislativeOutcomeClassifier:
     
     REJECTION_PATTERNS = [
         'will not make a legislative proposal',
+        'not propose new legislation',
         'decided not to submit a legislative proposal',
-        'has decided not to submit a legislative proposal'
+        'has decided not to submit a legislative proposal',
+        'no further legal acts are proposed',
+        'no new legislation will be proposed',
+        'no legislative proposal',
+        'neither scientific nor legal grounds',
+        'already covered',
+        'proposals fall outside',
+        'outside of eu competence',
+        'outside the eu competence',
+        'not within eu competence',
+        'beyond eu competence',
     ]
+    
+    # Special rejection pattern requiring two keywords
+    NO_REPEAL_PATTERN = ('no repeal', 'was proposed')
     
     EXISTING_FRAMEWORK_PATTERNS = [
         'existing funding framework',
@@ -900,6 +914,13 @@ class LegislativeOutcomeClassifier:
         'recently debated and agreed',
         'is the appropriate one',
         'policies already in place'
+    ]
+    
+    REJECTION_WITH_ACTIONS_INDICATORS = [
+        'committed',
+        'will continue',
+        'monitor',
+        'support'
     ]
     
     ASSESSMENT_INDICATORS = [
@@ -1073,30 +1094,21 @@ class LegislativeOutcomeClassifier:
             'rejected', 'rejected_with_actions', 'rejected_already_covered', or None
         """
 
-        # Check for primary rejection phrases
         has_primary_rejection = any(phrase in self.content for phrase in self.REJECTION_PATTERNS)
+        has_no_repeal = all(keyword in self.content for keyword in self.NO_REPEAL_PATTERN)
         
-        # Check for alternative rejection patterns
-        has_no_legal_acts = (
-            'no further legal acts are proposed' in self.content or 
-            'no new legislation will be proposed' in self.content
-        )
-        has_no_repeal = 'no repeal' in self.content and 'was proposed' in self.content
-        
-        if not (has_primary_rejection or has_no_legal_acts or has_no_repeal):
+        if not (has_primary_rejection or has_no_repeal):
             return None
         
-        # Special case: no repeal with actions
         if has_no_repeal:
-            if 'committed' in self.content or 'will continue' in self.content:
+            if any(word in self.content for word in self.REJECTION_WITH_ACTIONS_INDICATORS):
                 return 'rejected_with_actions'
             return 'rejected'
         
-        # Determine rejection subtype
         if any(phrase in self.content for phrase in self.EXISTING_FRAMEWORK_PATTERNS):
             return 'rejected_already_covered'
         
-        if any(word in self.content for word in ['committed', 'will continue', 'monitor', 'support']):
+        if any(word in self.content for word in self.REJECTION_WITH_ACTIONS_INDICATORS):
             return 'rejected_with_actions'
         
         return 'rejected'
@@ -1389,6 +1401,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         try:
             # Extract content from HTML
             content = self._extract_legislative_content(soup)
+
             if not content:
                 raise ValueError(
                     f"Could not extract legislative content for initiative {self.registration_number}.\n"
@@ -1480,9 +1493,11 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 'not to submit',
                 'fall outside',
                 'outside of eu competence',
+                'outside the eu competence',
                 'not within eu competence',
                 'beyond eu competence',
-            ]
+                'interfere with',
+                ]
             
             # Iterate through siblings after Answer section
             for sibling in answer_section.find_next_siblings():
@@ -1496,12 +1511,15 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 
                 # Get text from paragraphs AND list items
                 if sibling.name in ['p', 'li', 'ul', 'ol']:
+
                     # For lists, extract all list items
                     if sibling.name in ['ul', 'ol']:
                         list_items = sibling.find_all('li')
+
                         for li in list_items:
                             text = li.get_text(strip=True)
                             text_lower = text.lower()
+
                             if any(keyword in text_lower for keyword in rejection_keywords):
                                 rejection_sentences.append(text)
                     else:

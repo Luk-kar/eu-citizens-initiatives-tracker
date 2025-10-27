@@ -2437,7 +2437,7 @@ class TestCommissionResponseContent:
         result_7 = extractor_7.extract_rejection_reasoning(soup_7)
         
         assert result_7 is not None, "Should extract rejection reasoning"
-        assert "fall outside of eu competence" in result_7.lower() or "already covered" in result_7.lower()
+        assert "fall outside of EU competence" in result_7.lower() or "already covered" in result_7.lower()
         
         # Test case 8: No rejection - Law Active (no reasoning)
         html_8 = """
@@ -2574,7 +2574,26 @@ class TestCommissionResponseContent:
         assert "legislative proposal" in result_15.lower()
         # Should capture all relevant items mentioning legislative proposal
         assert len([item for item in result_15.split('.') if 'legislative proposal' in item.lower()]) >= 2
-    
+
+    def test_rejection_reasoning_debug(self):
+        """Test extraction of rejection reasoning text."""
+
+        # Test case 7: Rejected with competence reasoning
+        html_7 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission carefully analysed the citizens' proposals and concluded that 
+            while some proposals fall outside of EU competence, as they would interfere with 
+            the existing constitutional setup of the concerned Member States, others are 
+            already covered under the current Cohesion policy thanks to its robust safeguards 
+            promoting inclusion and equal treatment of minorities, as well as the respect for 
+            cultural and linguistic diversity.</p>
+        </html>
+        """
+        soup_7 = BeautifulSoup(html_7, 'html.parser')
+        extractor_7 = LegislativeOutcomeExtractor(registration_number="2019/000007")
+        result_7 = extractor_7.extract_rejection_reasoning(soup_7)
+        
     def test_proposal_commitment_deadline(self):
         """Test extraction of proposal commitment deadline."""
         pass
