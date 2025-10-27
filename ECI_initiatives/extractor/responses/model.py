@@ -42,7 +42,6 @@ class ECICommissionResponseRecord:
     
     # SECTION 2: Commission's Initial Response (What they promised)
     commission_promised_new_law: Optional[bool]
-    commission_presentation_new_law_deadline: Optional[str]
     commission_rejected_initiative: Optional[bool]
     commission_rejection_reason: Optional[str]
     

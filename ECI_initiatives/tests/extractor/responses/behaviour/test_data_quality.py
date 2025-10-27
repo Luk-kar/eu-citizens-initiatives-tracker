@@ -51,10 +51,9 @@ class TestECIResponseDataModel:
             final_outcome_status="Law Promised",
             law_implementation_date=None,
             law_publication_date=None,
-            commission_promised_new_law=True,
-            commission_presentation_new_law_deadline="end of 2024",
-            commission_rejected_initiative=False,
-            commission_rejection_reason=None,
+            commission_committed_to_legislation=True,
+            commission_rejected_proposal=False,
+            commission_rejection_explanation=None,
             laws_introduced='[{"type":"committed","action":"Test","status":"committed","deadline":"2024"}]',
             policies_changed=None,
             commission_factsheet_url="https://example.com/factsheet.pdf",
@@ -135,10 +134,9 @@ class TestOptionalFieldHandling:
             final_outcome_status=None,
             law_implementation_date=None,
             law_publication_date=None,
-            commission_promised_new_law=None,
-            commission_presentation_new_law_deadline=None,
-            commission_rejected_initiative=None,
-            commission_rejection_reason=None,
+            commission_committed_to_legislation=None,
+            commission_rejected_proposal=None,
+            commission_rejection_explanation=None,
             laws_introduced=None,
             policies_changed=None,
             commission_factsheet_url=None,
@@ -166,7 +164,6 @@ class TestOptionalFieldHandling:
         assert response.commission_submission_date is None
         assert response.commission_meeting_date is None
         assert response.final_outcome_status is None
-        assert response.commission_presentation_new_law_deadline is None
 
 
 class TestJSONFieldValidation:
@@ -196,20 +193,20 @@ class TestLegislativeOutcomeFields:
         """Test that final_outcome_status contains only valid enum values."""
         pass
     
-    def test_commission_promised_new_law_is_boolean(self):
-        """Test that commission_promised_new_law is boolean or None."""
+    def test_commission_committed_to_legislation_is_boolean(self):
+        """Test that commission_committed_to_legislation is boolean or None."""
         pass
     
-    def test_commission_rejected_initiative_is_boolean(self):
-        """Test that commission_rejected_initiative is boolean or None."""
+    def test_commission_rejected_proposal_is_boolean(self):
+        """Test that commission_rejected_proposal is boolean or None."""
         pass
     
-    def test_commission_rejection_reason_only_when_rejected(self):
-        """Test that commission_rejection_reason is only populated when commission_rejected_initiative is True."""
+    def test_commission_rejection_explanation_only_when_rejected(self):
+        """Test that commission_rejection_explanation is only populated when commission_rejected_proposal is True."""
         pass
     
-    def test_commission_promise_deadline_format(self):
-        """Test that commission_presentation_new_law_deadline follows expected text format."""
+    def test_commission_deadline_formats(self):
+        """Test that commission deadline fields are valid ISO date format (YYYY-MM-DD)."""
         pass
     
     def test_law_implementation_date_format(self):
@@ -228,8 +225,12 @@ class TestLegislativeOutcomeFields:
         """Test that policies_changed JSON has required keys: type, action, status, deadline."""
         pass
     
-    def test_mutual_exclusivity_promise_rejection(self):
-        """Test that commission_promised_new_law and commission_rejected_initiative are not both True."""
+    def test_mutual_exclusivity_commitment_rejection(self):
+        """Test that commission_committed_to_legislation and commission_rejected_proposal are not both True."""
+        pass
+    
+    def test_deadline_chronology(self):
+        """Test that commission deadlines follow logical order: study -> decision -> legislation."""
         pass
 
 
@@ -278,10 +279,10 @@ class TestDataIntegrity:
             final_outcome_status=None,
             law_implementation_date=None,
             law_publication_date=None,
-            commission_promised_new_law=True,
-            commission_presentation_new_law_deadline=None,
-            commission_rejected_initiative=False,
-            commission_rejection_reason=None,
+            commission_committed_to_legislation=True,
+            commission_legislation_submission_deadline=None,
+            commission_rejected_proposal=False,
+            commission_rejection_explanation=None,
             laws_introduced=None,
             policies_changed=None,
             commission_factsheet_url=None,
@@ -308,8 +309,8 @@ class TestDataIntegrity:
         assert isinstance(response.has_followup_section, bool)
         assert isinstance(response.roadmap_launched, bool)
         assert isinstance(response.dedicated_website, bool)
-        assert isinstance(response.commission_promised_new_law, bool)
-        assert isinstance(response.commission_rejected_initiative, bool)
+        assert isinstance(response.commission_committed_to_legislation, bool)
+        assert isinstance(response.commission_rejected_proposal, bool)
     
     def test_date_chronology_validation(self):
         """Test that dates follow logical chronological order."""
