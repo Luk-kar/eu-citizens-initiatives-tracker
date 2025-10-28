@@ -1906,253 +1906,278 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         
     def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
         """
-        Extract legislative actions as JSON array.
-        Handles two formats:
-        1. <ul> list under "Legislative action:" in Follow-up section
-        2. Paragraph-based proposals in Answer or Follow-up sections
-        Returns JSON string or None
+        Extract LEGISLATIVE actions - proposals, adoptions, laws, regulations, directives.
+        Excludes: rejection statements, enforcement activities, policy actions.
+        Returns JSON string with list of legislative actions or None
         
-        Returns:
-            JSON string with array of legislative actions or None if no actions found
-            
-        Raises:
-            ValueError: If extraction fails
+        Each action contains:
+        - type: Type of action (e.g., "Regulation Proposal", "Directive Revision", "Tariff Codes Creation")
+        - description: Brief description of the action
+        - status: Status of action ("proposed", "adopted", "in_force", "withdrawn", "planned")
+        - date: Date in YYYY-MM-DD format (when applicable)
+        - document_url: URL to official document (optional)
         """
         try:
-            import json
-            from datetime import datetime
+            # Check if proposal was rejected
+            matcher = self._get_classifier(soup)
+            rejection_type = matcher.check_rejection_type()
             
-            legislative_actions = []
-            
-            # METHOD 1: Look for "Legislative action:" heading with <ul> list (e.g., Right2Water)
-            followup_section = soup.find('h2', id=re.compile(r'Follow-?up', re.IGNORECASE))
-            if followup_section:
-                # Look for "Legislative action" marker
-                legislative_marker = None
-                for sibling in followup_section.find_next_siblings():
-                    if sibling.name in ['h3', 'h4', 'strong', 'b', 'p']:
-                        text = sibling.get_text(strip=True).lower()
-                        if 'legislative action' in text:
-                            legislative_marker = sibling
-                            break
-                    if sibling.name == 'h2':
-                        break
-                
-                # Find the <ul> containing legislative actions
-                if legislative_marker:
-                    for sibling in legislative_marker.find_next_siblings():
-                        if sibling.name == 'ul':
-                            # Process EACH <li> as a complete legislative action
-                            for li in sibling.find_all('li', recursive=False):
-                                action = self._extract_action_from_element(li)
-                                if action:
-                                    legislative_actions.append(action)
-                            break
-                        if sibling.name == 'h2':
-                            break
-            
-            # METHOD 2: Look for proposal paragraphs (e.g., Save bees and farmers)
-            # Search both Answer and Follow-up sections for proposal patterns
-            sections_to_check = []
-            
-            answer_section = self._find_answer_section(soup)
-            if answer_section:
-                sections_to_check.append(answer_section)
-            
-            if followup_section:
-                sections_to_check.append(followup_section)
-            
-            for section in sections_to_check:
-                for sibling in section.find_next_siblings():
-                    if sibling.name == 'h2' and sibling != followup_section:
-                        break
-                    
-                    if sibling.name == 'p':
-                        text = sibling.get_text(strip=False)
-                        text_lower = text.lower()
-                        
-                        # Check if this paragraph describes a proposal or legislative action
-                        if any(keyword in text_lower for keyword in [
-                            'proposal for a regulation',
-                            'proposal for a directive', 
-                            'proposal for the revision',
-                            'tabled in',
-                            'adopted by the commission',
-                            'entered into force',
-                            'council adopted',
-                            'parliament adopted'
-                        ]):
-                            action = self._extract_action_from_element(sibling)
-                            if action:
-                                # Check for duplicate descriptions
-                                is_duplicate = False
-                                for existing in legislative_actions:
-                                    if existing['description'][:100] == action['description'][:100]:
-                                        is_duplicate = True
-                                        break
-                                if not is_duplicate:
-                                    legislative_actions.append(action)
-            
-            # METHOD 3: Look for "Updates" subsection in Follow-up (e.g., Save bees - updates on proposals)
-            if followup_section:
-                for sibling in followup_section.find_next_siblings():
-                    if sibling.name in ['h3', 'h4', 'strong', 'b']:
-                        text = sibling.get_text(strip=True).lower()
-                        if 'update' in text and 'proposal' in text:
-                            # Found updates section, extract from following paragraphs
-                            for update_sibling in sibling.find_next_siblings():
-                                if update_sibling.name in ['h2', 'h3', 'h4']:
-                                    break
-                                if update_sibling.name == 'p':
-                                    update_text = update_sibling.get_text(strip=False).lower()
-                                    if any(kw in update_text for kw in ['entered into force', 'adopted', 'withdrew', 'withdrawal']):
-                                        action = self._extract_action_from_element(update_sibling)
-                                        if action:
-                                            # Avoid duplicates
-                                            is_duplicate = False
-                                            for existing in legislative_actions:
-                                                if existing['description'][:100] == action['description'][:100]:
-                                                    is_duplicate = True
-                                                    break
-                                            if not is_duplicate:
-                                                legislative_actions.append(action)
-                    if sibling.name == 'h2':
-                        break
-            
-            if not legislative_actions:
+            # If rejected with no commitment, return None
+            if rejection_type and not matcher.check_committed():
                 return None
             
-            return json.dumps(legislative_actions, ensure_ascii=False, indent=2)
+            # If only commitment stated but no actual proposals, return None
+            if matcher.check_committed() and not (matcher.check_adopted() or matcher.check_applicable()):
+                # Check if there are actual proposals mentioned in follow-up section
+                follow_up_section = soup.find('h2', id='Follow-up')
+                if not follow_up_section:
+                    return None
+            
+            # Extract all legislative actions
+            actions = []
+            
+            # Find Answer and Follow-up sections
+            answer_section = self._find_answer_section(soup)
+            follow_up_section = soup.find('h2', id='Follow-up') or soup.find('h2', string=re.compile(r'Follow[- ]up', re.IGNORECASE))
+            updates_section = soup.find('h2', id='Updates-on-the-Commissions-proposals') or soup.find('h2', string=re.compile(r'Updates.*proposal', re.IGNORECASE))
+            
+            # Section priorities: Updates > Follow-up > Answer
+            search_sections = []
+            if updates_section:
+                search_sections.append(('updates', updates_section))
+            if follow_up_section:
+                search_sections.append(('follow_up', follow_up_section))
+            if answer_section:
+                search_sections.append(('answer', answer_section))
+            
+            # Extract actions from each section
+            for section_type, section in search_sections:
+                section_actions = self._extract_actions_from_section(section, section_type)
+                actions.extend(section_actions)
+            
+            # If no actions found, return None
+            if not actions:
+                return None
+            
+            # Remove duplicates (same type, description, and date)
+            unique_actions = []
+            seen = set()
+            for action in actions:
+                key = (action.get('type', ''), action.get('description', ''), action.get('date', ''))
+                if key not in seen:
+                    seen.add(key)
+                    unique_actions.append(action)
+            
+            return json.dumps(unique_actions, ensure_ascii=False, indent=2)
             
         except Exception as e:
             raise ValueError(
                 f"Error extracting legislative action for {self.registration_number}: {str(e)}"
             ) from e
 
-    def _extract_action_from_element(self, element) -> Optional[dict]:
+    def _extract_actions_from_section(self, section, section_type: str) -> list:
         """
-        Extract a single legislative action from an HTML element (li or p).
+        Extract legislative actions from a specific section
         
         Args:
-            element: BeautifulSoup element (li or p tag)
-            
+            section: BeautifulSoup element of the section
+            section_type: Type of section ('answer', 'follow_up', 'updates')
+        
         Returns:
-            Dictionary with type, description, status, date or None if invalid
+            List of action dictionaries
         """
-        # Get FULL text from the element
-        full_text = element.get_text(separator=' ', strip=False)
-        full_text_clean = re.sub(r'\s+', ' ', full_text).strip()
+        actions = []
         
-        # Skip if empty, too short, or just reference links
-        if not full_text_clean or len(full_text_clean) < 30:
-            return None
-        if full_text_clean.lower().startswith('further information'):
-            return None
-        if full_text_clean.lower().startswith('for up-to-date information'):
-            return None
-        
-        # Extract ALL dates from this element
-        all_dates = []
-        
-        date_patterns = [
-            r'on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
-            r'in\s+([A-Za-z]+\s+\d{4})',
-            r'from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
-            r'as\s+of\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
-            r'until\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+        # Legislative action patterns
+        action_patterns = [
+            # Proposals
+            {
+                'pattern': r'(?:proposal|proposed|tabled).*?(?:regulation|directive|law|amendment)',
+                'type_hint': 'proposal',
+                'status': 'proposed'
+            },
+            # Adoptions
+            {
+                'pattern': r'(?:adopted|approved).*?(?:regulation|directive|law|amendment)',
+                'type_hint': 'adoption',
+                'status': 'adopted'
+            },
+            # In force
+            {
+                'pattern': r'(?:entered into force|became applicable|applies from)',
+                'type_hint': 'in_force',
+                'status': 'in_force'
+            },
+            # Revisions
+            {
+                'pattern': r'(?:revision|revised|recast).*?(?:directive|regulation)',
+                'type_hint': 'revision',
+                'status': 'proposed'
+            },
+            # Withdrawn
+            {
+                'pattern': r'(?:withdrawn|withdraw)',
+                'type_hint': 'withdrawal',
+                'status': 'withdrawn'
+            },
+            # Planned/Future
+            {
+                'pattern': r'(?:will apply|planned|to be adopted|foresees).*?(?:from|by|in).*?\d{4}',
+                'type_hint': 'planned',
+                'status': 'planned'
+            },
+            # Creation of codes/standards
+            {
+                'pattern': r'(?:created|creation|new|adopted).*?(?:tariff codes|codes|standards)',
+                'type_hint': 'creation',
+                'status': 'planned'
+            }
         ]
         
-        for pattern in date_patterns:
-            for match in re.finditer(pattern, full_text_clean, re.IGNORECASE):
-                date_text = match.group(1).strip()
-                cleaned = self._clean_deadline_text(date_text)
-                if cleaned:
-                    parsed = self._parse_date_string(cleaned)
-                    if not parsed:
-                        parsed = self._convert_deadline_to_date(cleaned)
-                    if parsed:
-                        all_dates.append(parsed)
+        # Iterate through siblings after section header
+        for sibling in section.find_next_siblings():
+            # Stop at next h2 section
+            if sibling.name == 'h2':
+                break
+            
+            if sibling.name not in ['p', 'ul', 'li']:
+                continue
+            
+            text = sibling.get_text()
+            text_lower = text.lower()
+            
+            # Skip if this is clearly not legislative content
+            if any(skip_word in text_lower for skip_word in [
+                'tasked', 'will communicate', 'will report', 'impact assessment',
+                'stakeholder', 'consultation', 'workshop', 'meeting'
+            ]):
+                continue
+            
+            # Check each pattern
+            for pattern_info in action_patterns:
+                if re.search(pattern_info['pattern'], text_lower, re.IGNORECASE):
+                    action = self._parse_legislative_action(sibling, text, pattern_info)
+                    if action:
+                        actions.append(action)
         
-        # Use the LATEST date as the primary date
-        latest_date = max(all_dates) if all_dates else None
-        
-        # Classify the action type
-        action_type = self._classify_legislative_action(full_text_clean)
-        
-        # Determine status
-        status = self._determine_legislative_status(full_text_clean, latest_date)
-        
-        return {
-            'type': action_type,
-            'description': full_text_clean,
-            'status': status,
-            'date': latest_date if latest_date else None
-        }
+        return actions
 
-    def _classify_legislative_action(self, text: str) -> str:
-        """Classify legislative action type based on keywords."""
+    def _parse_legislative_action(self, element, text: str, pattern_info: dict) -> Optional[dict]:
+        """
+        Parse a legislative action from text element
+        
+        Args:
+            element: BeautifulSoup element containing the action
+            text: Text content
+            pattern_info: Pattern information dictionary
+        
+        Returns:
+            Action dictionary or None
+        """
+        # Extract dates from text
+        date_patterns = [
+            r'(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})',
+            r'(\d{1,2}/\d{1,2}/\d{4})',
+            r'(\d{4}-\d{2}-\d{2})',
+            r'(?:by|in|from)\s+(\d{4})',
+            r'(?:by|in|from)\s+(?:end\s+of\s+)?(\d{4})'
+        ]
+        
+        found_date = None
+        for date_pattern in date_patterns:
+            match = re.search(date_pattern, text, re.IGNORECASE)
+            if match:
+                date_str = match.group(1)
+                parsed = self._parse_date_string(date_str)
+                if parsed:
+                    found_date = parsed
+                    break
+        
+        # Extract action type and description
+        action_type = self._extract_action_type(text, pattern_info['type_hint'])
+        description = self._extract_action_description(text)
+        
+        # Get document URLs if any
+        doc_url = None
+        link = element.find('a', href=True)
+        if link:
+            href = link.get('href', '')
+            if 'eur-lex' in href or 'europa.eu' in href:
+                doc_url = href
+        
+        action = {
+            'type': action_type,
+            'description': description[:200],  # Limit description length
+            'status': pattern_info['status']
+        }
+        
+        if found_date:
+            action['date'] = found_date
+        
+        if doc_url:
+            action['document_url'] = doc_url
+        
+        return action
+
+    def _extract_action_type(self, text: str, type_hint: str) -> str:
+        """Extract the type of legislative action"""
         text_lower = text.lower()
         
-        if 'amendment' in text_lower and 'came into force' in text_lower:
-            return 'Amendment'
-        elif 'proposal for the revision' in text_lower or 'proposal for a revision' in text_lower:
-            return 'Directive Revision'
-        elif 'proposal for a regulation' in text_lower:
-            if 'nature restoration' in text_lower:
-                return 'Nature Restoration Law'
-            elif 'plant protection' in text_lower or 'pesticide' in text_lower:
-                return 'Pesticides Regulation'
-            else:
-                return 'Regulation Proposal'
-        elif 'proposal for a directive' in text_lower:
-            return 'Directive Proposal'
-        elif 'new minimum' in text_lower and 'standards' in text_lower:
+        # Specific type patterns
+        if 'tariff codes' in text_lower or 'tariff code' in text_lower:
+            return 'Tariff Codes Creation'
+        elif 'standards' in text_lower and ('minimum' in text_lower or 'hygiene' in text_lower):
             return 'Standards Adoption'
-        elif 'directive' in text_lower and 'adopted' in text_lower:
-            return 'Directive Adoption'
-        elif 'regulation' in text_lower and 'adopted' in text_lower:
-            return 'Regulation Adoption'
+        elif 'revision' in text_lower or 'revised' in text_lower or 'recast' in text_lower:
+            if 'directive' in text_lower:
+                return 'Directive Revision'
+            elif 'regulation' in text_lower:
+                return 'Regulation Revision'
+            else:
+                return 'Legislative Revision'
+        elif 'amendment' in text_lower:
+            return 'Amendment'
+        elif 'proposal' in text_lower or 'proposed' in text_lower:
+            if 'regulation' in text_lower:
+                return 'Regulation Proposal'
+            elif 'directive' in text_lower:
+                return 'Directive Proposal'
+            elif 'law' in text_lower:
+                return 'Law Proposal'
+            else:
+                return 'Legislative Proposal'
+        elif 'adopted' in text_lower or 'adoption' in text_lower:
+            if 'regulation' in text_lower:
+                return 'Regulation Adoption'
+            elif 'directive' in text_lower:
+                return 'Directive Adoption'
+            elif 'law' in text_lower:
+                return 'Law Adoption'
+            else:
+                return 'Legislative Adoption'
+        elif 'entered into force' in text_lower or 'became applicable' in text_lower:
+            return 'Law Entered Into Force'
+        elif 'withdrawn' in text_lower or 'withdraw' in text_lower:
+            if 'regulation' in text_lower:
+                return 'Regulation Withdrawal'
+            elif 'directive' in text_lower:
+                return 'Directive Withdrawal'
+            else:
+                return 'Proposal Withdrawal'
         else:
             return 'Legislative Action'
 
-    def _determine_legislative_status(self, text: str, latest_date: Optional[str]) -> str:
-        """Determine status considering full context."""
-        text_lower = text.lower()
+    def _extract_action_description(self, text: str) -> str:
+        """Extract a clean description of the action"""
+        # Clean up the text
+        text = re.sub(r'\s+', ' ', text).strip()
         
-        # Check if date is in the future
-        if latest_date:
-            try:
-                from datetime import datetime
-                date_obj = datetime.strptime(latest_date, '%Y-%m-%d')
-                if date_obj > datetime.now():
-                    return 'planned'
-            except:
-                pass
+        # Take first sentence or up to 200 chars
+        sentences = re.split(r'[.!?]\s+', text)
+        if sentences:
+            return sentences[0].strip()
         
-        # Check for withdrawal
-        if 'withdrew' in text_lower or 'withdrawn' in text_lower or 'withdrawal' in text_lower:
-            return 'withdrawn'
-        
-        # Check for rejection
-        if 'rejected' in text_lower or 'rejection' in text_lower:
-            return 'rejected'
-        
-        # Check status indicators
-        if 'will apply' in text_lower or 'apply from' in text_lower or 'apply as of' in text_lower:
-            return 'in_force'
-        elif 'entered into force' in text_lower or 'came into force' in text_lower:
-            return 'in_force'
-        elif 'became applicable' in text_lower:
-            return 'in_force'
-        elif 'adopted' in text_lower and 'council' in text_lower:
-            return 'adopted'
-        elif 'proposal' in text_lower and 'tabled' in text_lower:
-            # Check if it mentions later adoption/entry into force
-            if 'entered into force' in text_lower or 'adopted' in text_lower:
-                return 'in_force'
-            return 'proposed'
-        
-        return 'completed'
+        return text[:200].strip()
 
     def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
         """
@@ -2453,8 +2478,8 @@ class ECIResponseHTMLParser:
                 commission_rejection_reason=self.legislative_outcome.extract_rejection_reasoning(soup),
 
                 # Actions Taken (What actually happened)
-                laws_introduced=self.legislative_outcome.extract_legislative_action(soup),
-                policies_changed=self.legislative_outcome.extract_non_legislative_action(soup),
+                laws_actions=self.legislative_outcome.extract_legislative_action(soup),
+                policies_actions=self.legislative_outcome.extract_non_legislative_action(soup),
 
                 # Follow-up Activities Section
                 has_followup_section=self.followup_activity.extract_has_followup_section(soup),

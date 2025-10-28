@@ -46,8 +46,8 @@ class ECICommissionResponseRecord:
     commission_rejection_reason: Optional[str]
     
     # SECTION 3: Actions Taken (What actually happened)
-    laws_introduced: Optional[str]  # JSON string
-    policies_changed: Optional[str]  # JSON string
+    laws_actions: Optional[str]  # JSON string
+    policies_actions: Optional[str]  # JSON string
     
     # Follow-up Activities Section
     has_followup_section: Optional[bool]

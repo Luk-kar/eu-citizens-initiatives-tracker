@@ -53,8 +53,8 @@ class TestECIResponseDataModel:
             commission_committed_to_legislation=True,
             commission_rejected_proposal=False,
             commission_rejection_explanation=None,
-            laws_introduced='[{"type":"committed","action":"Test","status":"committed","deadline":"2024"}]',
-            policies_changed=None,
+            laws_actions='[{"type":"committed","action":"Test","status":"committed","deadline":"2024"}]',
+            policies_actions=None,
             commission_factsheet_url="https://example.com/factsheet.pdf",
             has_followup_section=False,
             followup_meeting_date=None,
@@ -135,8 +135,8 @@ class TestOptionalFieldHandling:
             commission_committed_to_legislation=None,
             commission_rejected_proposal=None,
             commission_rejection_explanation=None,
-            laws_introduced=None,
-            policies_changed=None,
+            laws_actions=None,
+            policies_actions=None,
             commission_factsheet_url=None,
             has_followup_section=None,
             followup_meeting_date=None,
@@ -175,12 +175,12 @@ class TestJSONFieldValidation:
         """Test that workshop_conference_dates is valid JSON array."""
         pass
     
-    def test_laws_introduced_json_format(self):
-        """Test that laws_introduced is valid JSON array."""
+    def test_laws_actions_json_format(self):
+        """Test that laws_actions is valid JSON array."""
         pass
     
-    def test_policies_changed_json_format(self):
-        """Test that policies_changed is valid JSON array."""
+    def test_policies_actions_json_format(self):
+        """Test that policies_actions is valid JSON array."""
         pass
 
 
@@ -211,12 +211,12 @@ class TestLegislativeOutcomeFields:
         """Test that law_implementation_date is valid ISO date format."""
         pass
     
-    def test_laws_introduced_structure(self):
-        """Test that laws_introduced JSON has required keys: type, action, status, deadline."""
+    def test_laws_actions_structure(self):
+        """Test that laws_actions JSON has required keys: type, action, status, deadline."""
         pass
     
-    def test_policies_changed_structure(self):
-        """Test that policies_changed JSON has required keys: type, action, status, deadline."""
+    def test_policies_actions_structure(self):
+        """Test that policies_actions JSON has required keys: type, action, status, deadline."""
         pass
     
     def test_mutual_exclusivity_commitment_rejection(self):
@@ -276,8 +276,8 @@ class TestDataIntegrity:
             commission_legislation_submission_deadline=None,
             commission_rejected_proposal=False,
             commission_rejection_explanation=None,
-            laws_introduced=None,
-            policies_changed=None,
+            laws_actions=None,
+            policies_actions=None,
             commission_factsheet_url=None,
             has_followup_section=True,
             followup_meeting_date=None,
