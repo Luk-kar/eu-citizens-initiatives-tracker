@@ -1907,7 +1907,9 @@ class LegislativeOutcomeExtractor(BaseExtractor):
     def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract legislative actions as JSON array.
-        Each action is the FULL text from a <li> element under "Legislative action".
+        Handles two formats:
+        1. <ul> list under "Legislative action:" in Follow-up section
+        2. Paragraph-based proposals in Answer or Follow-up sections
         Returns JSON string or None
         
         Returns:
@@ -1920,94 +1922,102 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             import json
             from datetime import datetime
             
-            # Find Follow-up section
-            followup_section = soup.find('h2', id=re.compile(r'Follow-?up', re.IGNORECASE))
-            if not followup_section:
-                return None
-            
-            # Look for "Legislative action" marker (can be in strong, b, h3, h4, or p tags)
-            legislative_marker = None
-            for sibling in followup_section.find_next_siblings():
-                if sibling.name:
-                    text = sibling.get_text(strip=True).lower()
-                    if 'legislative action' in text:
-                        legislative_marker = sibling
-                        break
-                if sibling.name == 'h2':
-                    break
-            
-            if not legislative_marker:
-                return None
-            
-            # Find the <ul> containing legislative actions
-            legislative_list = None
-            for sibling in legislative_marker.find_next_siblings():
-                if sibling.name == 'ul':
-                    legislative_list = sibling
-                    break
-                if sibling.name == 'h2':  # Stop at next major section
-                    break
-            
-            if not legislative_list:
-                return None
-            
             legislative_actions = []
             
-            # Process EACH <li> as a complete legislative action
-            for li in legislative_list.find_all('li', recursive=False):
-                # Get FULL text from the <li> element
-                full_text = li.get_text(separator=' ', strip=False)
-                full_text_clean = re.sub(r'\s+', ' ', full_text).strip()
+            # METHOD 1: Look for "Legislative action:" heading with <ul> list (e.g., Right2Water)
+            followup_section = soup.find('h2', id=re.compile(r'Follow-?up', re.IGNORECASE))
+            if followup_section:
+                # Look for "Legislative action" marker
+                legislative_marker = None
+                for sibling in followup_section.find_next_siblings():
+                    if sibling.name in ['h3', 'h4', 'strong', 'b', 'p']:
+                        text = sibling.get_text(strip=True).lower()
+                        if 'legislative action' in text:
+                            legislative_marker = sibling
+                            break
+                    if sibling.name == 'h2':
+                        break
                 
-                # Skip if empty or too short (less than 30 characters)
-                if not full_text_clean or len(full_text_clean) < 30:
-                    continue
-                
-                # Skip entries that are just reference links
-                if full_text_clean.lower().startswith('further information'):
-                    continue
-                
-                # Extract ALL dates from this <li>
-                all_dates = []
-                
-                # Multiple date patterns to catch all formats
-                date_patterns = [
-                    r'on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',  # "on 12 January 2021"
-                    r'in\s+([A-Za-z]+\s+\d{4})',  # "in May 2018"
-                    r'from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',  # "from 26 June 2023"
-                    r'as\s+of\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',  # "as of 31 December 2026"
-                    r'until\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',  # "until 12 January 2023"
-                ]
-                
-                for pattern in date_patterns:
-                    for match in re.finditer(pattern, full_text_clean, re.IGNORECASE):
-                        date_text = match.group(1).strip()
-                        cleaned = self._clean_deadline_text(date_text)
-                        if cleaned:
-                            parsed = self._parse_date_string(cleaned)
-                            if not parsed:
-                                parsed = self._convert_deadline_to_date(cleaned)
-                            if parsed:
-                                all_dates.append(parsed)
-                
-                # Use the LATEST date as the primary date (most recent action)
-                latest_date = max(all_dates) if all_dates else None
-                
-                # Classify the action type based on content
-                action_type = self._classify_legislative_action(full_text_clean)
-                
-                # Determine status
-                status = self._determine_legislative_status(full_text_clean, latest_date)
-                
-                # Create action entry with FULL <li> text
-                action_entry = {
-                    'type': action_type,
-                    'description': full_text_clean,  # COMPLETE text from <li>
-                    'status': status,
-                    'date': latest_date if latest_date else None
-                }
-                
-                legislative_actions.append(action_entry)
+                # Find the <ul> containing legislative actions
+                if legislative_marker:
+                    for sibling in legislative_marker.find_next_siblings():
+                        if sibling.name == 'ul':
+                            # Process EACH <li> as a complete legislative action
+                            for li in sibling.find_all('li', recursive=False):
+                                action = self._extract_action_from_element(li)
+                                if action:
+                                    legislative_actions.append(action)
+                            break
+                        if sibling.name == 'h2':
+                            break
+            
+            # METHOD 2: Look for proposal paragraphs (e.g., Save bees and farmers)
+            # Search both Answer and Follow-up sections for proposal patterns
+            sections_to_check = []
+            
+            answer_section = self._find_answer_section(soup)
+            if answer_section:
+                sections_to_check.append(answer_section)
+            
+            if followup_section:
+                sections_to_check.append(followup_section)
+            
+            for section in sections_to_check:
+                for sibling in section.find_next_siblings():
+                    if sibling.name == 'h2' and sibling != followup_section:
+                        break
+                    
+                    if sibling.name == 'p':
+                        text = sibling.get_text(strip=False)
+                        text_lower = text.lower()
+                        
+                        # Check if this paragraph describes a proposal or legislative action
+                        if any(keyword in text_lower for keyword in [
+                            'proposal for a regulation',
+                            'proposal for a directive', 
+                            'proposal for the revision',
+                            'tabled in',
+                            'adopted by the commission',
+                            'entered into force',
+                            'council adopted',
+                            'parliament adopted'
+                        ]):
+                            action = self._extract_action_from_element(sibling)
+                            if action:
+                                # Check for duplicate descriptions
+                                is_duplicate = False
+                                for existing in legislative_actions:
+                                    if existing['description'][:100] == action['description'][:100]:
+                                        is_duplicate = True
+                                        break
+                                if not is_duplicate:
+                                    legislative_actions.append(action)
+            
+            # METHOD 3: Look for "Updates" subsection in Follow-up (e.g., Save bees - updates on proposals)
+            if followup_section:
+                for sibling in followup_section.find_next_siblings():
+                    if sibling.name in ['h3', 'h4', 'strong', 'b']:
+                        text = sibling.get_text(strip=True).lower()
+                        if 'update' in text and 'proposal' in text:
+                            # Found updates section, extract from following paragraphs
+                            for update_sibling in sibling.find_next_siblings():
+                                if update_sibling.name in ['h2', 'h3', 'h4']:
+                                    break
+                                if update_sibling.name == 'p':
+                                    update_text = update_sibling.get_text(strip=False).lower()
+                                    if any(kw in update_text for kw in ['entered into force', 'adopted', 'withdrew', 'withdrawal']):
+                                        action = self._extract_action_from_element(update_sibling)
+                                        if action:
+                                            # Avoid duplicates
+                                            is_duplicate = False
+                                            for existing in legislative_actions:
+                                                if existing['description'][:100] == action['description'][:100]:
+                                                    is_duplicate = True
+                                                    break
+                                            if not is_duplicate:
+                                                legislative_actions.append(action)
+                    if sibling.name == 'h2':
+                        break
             
             if not legislative_actions:
                 return None
@@ -2019,6 +2029,66 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 f"Error extracting legislative action for {self.registration_number}: {str(e)}"
             ) from e
 
+    def _extract_action_from_element(self, element) -> Optional[dict]:
+        """
+        Extract a single legislative action from an HTML element (li or p).
+        
+        Args:
+            element: BeautifulSoup element (li or p tag)
+            
+        Returns:
+            Dictionary with type, description, status, date or None if invalid
+        """
+        # Get FULL text from the element
+        full_text = element.get_text(separator=' ', strip=False)
+        full_text_clean = re.sub(r'\s+', ' ', full_text).strip()
+        
+        # Skip if empty, too short, or just reference links
+        if not full_text_clean or len(full_text_clean) < 30:
+            return None
+        if full_text_clean.lower().startswith('further information'):
+            return None
+        if full_text_clean.lower().startswith('for up-to-date information'):
+            return None
+        
+        # Extract ALL dates from this element
+        all_dates = []
+        
+        date_patterns = [
+            r'on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+            r'in\s+([A-Za-z]+\s+\d{4})',
+            r'from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+            r'as\s+of\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+            r'until\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+        ]
+        
+        for pattern in date_patterns:
+            for match in re.finditer(pattern, full_text_clean, re.IGNORECASE):
+                date_text = match.group(1).strip()
+                cleaned = self._clean_deadline_text(date_text)
+                if cleaned:
+                    parsed = self._parse_date_string(cleaned)
+                    if not parsed:
+                        parsed = self._convert_deadline_to_date(cleaned)
+                    if parsed:
+                        all_dates.append(parsed)
+        
+        # Use the LATEST date as the primary date
+        latest_date = max(all_dates) if all_dates else None
+        
+        # Classify the action type
+        action_type = self._classify_legislative_action(full_text_clean)
+        
+        # Determine status
+        status = self._determine_legislative_status(full_text_clean, latest_date)
+        
+        return {
+            'type': action_type,
+            'description': full_text_clean,
+            'status': status,
+            'date': latest_date if latest_date else None
+        }
+
     def _classify_legislative_action(self, text: str) -> str:
         """Classify legislative action type based on keywords."""
         text_lower = text.lower()
@@ -2028,11 +2098,20 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         elif 'proposal for the revision' in text_lower or 'proposal for a revision' in text_lower:
             return 'Directive Revision'
         elif 'proposal for a regulation' in text_lower:
-            return 'Regulation Proposal'
+            if 'nature restoration' in text_lower:
+                return 'Nature Restoration Law'
+            elif 'plant protection' in text_lower or 'pesticide' in text_lower:
+                return 'Pesticides Regulation'
+            else:
+                return 'Regulation Proposal'
+        elif 'proposal for a directive' in text_lower:
+            return 'Directive Proposal'
         elif 'new minimum' in text_lower and 'standards' in text_lower:
             return 'Standards Adoption'
         elif 'directive' in text_lower and 'adopted' in text_lower:
             return 'Directive Adoption'
+        elif 'regulation' in text_lower and 'adopted' in text_lower:
+            return 'Regulation Adoption'
         else:
             return 'Legislative Action'
 
@@ -2051,17 +2130,26 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 pass
         
         # Check for withdrawal
-        if 'withdrew' in text_lower or 'withdrawn' in text_lower:
+        if 'withdrew' in text_lower or 'withdrawn' in text_lower or 'withdrawal' in text_lower:
             return 'withdrawn'
+        
+        # Check for rejection
+        if 'rejected' in text_lower or 'rejection' in text_lower:
+            return 'rejected'
         
         # Check status indicators
         if 'will apply' in text_lower or 'apply from' in text_lower or 'apply as of' in text_lower:
             return 'in_force'
         elif 'entered into force' in text_lower or 'came into force' in text_lower:
             return 'in_force'
-        elif 'adopted' in text_lower:
+        elif 'became applicable' in text_lower:
+            return 'in_force'
+        elif 'adopted' in text_lower and 'council' in text_lower:
             return 'adopted'
-        elif 'proposal' in text_lower and 'entered into force' not in text_lower:
+        elif 'proposal' in text_lower and 'tabled' in text_lower:
+            # Check if it mentions later adoption/entry into force
+            if 'entered into force' in text_lower or 'adopted' in text_lower:
+                return 'in_force'
             return 'proposed'
         
         return 'completed'
