@@ -2004,7 +2004,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             },
             # In force
             {
-                'pattern': r'(?:entered into force|became applicable|applies from)',
+                'pattern': r'(?:entered into force|became applicable|applies from|came into force|apply from)',
                 'type_hint': 'in_force',
                 'status': 'in_force'
             },
@@ -2028,7 +2028,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             },
             # Creation of codes/standards
             {
-                'pattern': r'(?:created|creation|new|adopted).*?(?:tariff codes|codes|standards)',
+                'pattern': r'(?:created|creation|new|adopted|establish).*?(?:tariff codes?|cn codes?|standards)',
                 'type_hint': 'creation',
                 'status': 'planned'
             }
@@ -2040,28 +2040,50 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             if sibling.name == 'h2':
                 break
             
-            if sibling.name not in ['p', 'ul', 'li']:
-                continue
+            # Process different HTML elements
+            if sibling.name == 'p':
+                # Process paragraph directly
+                self._process_element_for_legislative_action(sibling, action_patterns, actions)
             
-            text = sibling.get_text()
-            text_lower = text.lower()
+            elif sibling.name in ['ul', 'ol']:
+                # Process each list item individually
+                for li in sibling.find_all('li', recursive=False):
+                    self._process_element_for_legislative_action(li, action_patterns, actions)
             
-            # Skip if this is clearly not legislative content
-            if any(skip_word in text_lower for skip_word in [
-                'roadmap', 'tasked', 'will communicate', 'will report', 'impact assessment',
-                'stakeholder', 'consultation', 'workshop', 'meeting', 'better enforcement',
-                'in parallel to the legislation', 'seek specific supporting measures',
-            ]):
-                continue
-            
-            # Check each pattern
-            for pattern_info in action_patterns:
-                if re.search(pattern_info['pattern'], text_lower, re.IGNORECASE | re.DOTALL):
-                    action = self._parse_legislative_action(sibling, text, pattern_info)
-                    if action:
-                        actions.append(action)
+            elif sibling.name == 'li':
+                # Process standalone list item
+                self._process_element_for_legislative_action(sibling, action_patterns, actions)
         
         return actions
+
+    def _process_element_for_legislative_action(self, element, action_patterns: list, actions: list):
+        """
+        Process a single HTML element (p or li) for legislative actions
+        
+        Args:
+            element: BeautifulSoup element to process
+            action_patterns: List of action pattern dictionaries
+            actions: List to append found actions to
+        """
+        text = element.get_text()
+        text_lower = text.lower()
+        
+        # Skip if this is clearly not legislative content
+        if any(skip_word in text_lower for skip_word in [
+            'roadmap', 'tasked', 'will communicate', 'will report', 'impact assessment',
+            'stakeholder', 'consultation', 'workshop', 'meeting', 'better enforcement',
+            'in parallel to the legislation', 'seek specific supporting measures',
+        ]):
+            return
+        
+        # Check each pattern
+        for pattern_info in action_patterns:
+            if re.search(pattern_info['pattern'], text_lower, re.IGNORECASE | re.DOTALL):
+                action = self._parse_legislative_action(element, text, pattern_info)
+                if action:
+                    actions.append(action)
+                    break  # Only match once per element
+
 
     def _parse_legislative_action(self, element, text: str, pattern_info: dict) -> Optional[dict]:
         """
@@ -2178,7 +2200,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         if sentences:
             return sentences[0].strip()
         
-        return text[:200].strip()
+        return text.strip()
 
     def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
         """
