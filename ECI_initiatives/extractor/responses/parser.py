@@ -2049,7 +2049,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             # Skip if this is clearly not legislative content
             if any(skip_word in text_lower for skip_word in [
                 'roadmap', 'tasked', 'will communicate', 'will report', 'impact assessment',
-                'stakeholder', 'consultation', 'workshop', 'meeting', 'better enforcement'
+                'stakeholder', 'consultation', 'workshop', 'meeting', 'better enforcement',
+                'in parallel to the legislation', 'seek specific supporting measures',
             ]):
                 continue
             
