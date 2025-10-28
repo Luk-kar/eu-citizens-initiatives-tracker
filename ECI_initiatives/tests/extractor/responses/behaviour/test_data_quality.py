@@ -50,7 +50,6 @@ class TestECIResponseDataModel:
             commission_answer_text="Test conclusion",
             final_outcome_status="Law Promised",
             law_implementation_date=None,
-            law_publication_date=None,
             commission_committed_to_legislation=True,
             commission_rejected_proposal=False,
             commission_rejection_explanation=None,
@@ -133,7 +132,6 @@ class TestOptionalFieldHandling:
             commission_answer_text=None,
             final_outcome_status=None,
             law_implementation_date=None,
-            law_publication_date=None,
             commission_committed_to_legislation=None,
             commission_rejected_proposal=None,
             commission_rejection_explanation=None,
@@ -213,10 +211,6 @@ class TestLegislativeOutcomeFields:
         """Test that law_implementation_date is valid ISO date format."""
         pass
     
-    def test_law_publication_date_format(self):
-        """Test that law_publication_date is valid ISO date format."""
-        pass
-    
     def test_laws_introduced_structure(self):
         """Test that laws_introduced JSON has required keys: type, action, status, deadline."""
         pass
@@ -278,7 +272,6 @@ class TestDataIntegrity:
             commission_answer_text=None,
             final_outcome_status=None,
             law_implementation_date=None,
-            law_publication_date=None,
             commission_committed_to_legislation=True,
             commission_legislation_submission_deadline=None,
             commission_rejected_proposal=False,

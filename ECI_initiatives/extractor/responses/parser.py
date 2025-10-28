@@ -1906,15 +1906,165 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         
     def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
         """
-        Extract legislative actions as JSON array
-        Each item contains: type, action (full text with links), status, deadline
+        Extract legislative actions as JSON array.
+        Each action is the FULL text from a <li> element under "Legislative action".
         Returns JSON string or None
+        
+        Returns:
+            JSON string with array of legislative actions or None if no actions found
+            
+        Raises:
+            ValueError: If extraction fails
         """
         try:
-            pass
+            import json
+            from datetime import datetime
+            
+            # Find Follow-up section
+            followup_section = soup.find('h2', id=re.compile(r'Follow-?up', re.IGNORECASE))
+            if not followup_section:
+                return None
+            
+            # Look for "Legislative action" marker (can be in strong, b, h3, h4, or p tags)
+            legislative_marker = None
+            for sibling in followup_section.find_next_siblings():
+                if sibling.name:
+                    text = sibling.get_text(strip=True).lower()
+                    if 'legislative action' in text:
+                        legislative_marker = sibling
+                        break
+                if sibling.name == 'h2':
+                    break
+            
+            if not legislative_marker:
+                return None
+            
+            # Find the <ul> containing legislative actions
+            legislative_list = None
+            for sibling in legislative_marker.find_next_siblings():
+                if sibling.name == 'ul':
+                    legislative_list = sibling
+                    break
+                if sibling.name == 'h2':  # Stop at next major section
+                    break
+            
+            if not legislative_list:
+                return None
+            
+            legislative_actions = []
+            
+            # Process EACH <li> as a complete legislative action
+            for li in legislative_list.find_all('li', recursive=False):
+                # Get FULL text from the <li> element
+                full_text = li.get_text(separator=' ', strip=False)
+                full_text_clean = re.sub(r'\s+', ' ', full_text).strip()
+                
+                # Skip if empty or too short (less than 30 characters)
+                if not full_text_clean or len(full_text_clean) < 30:
+                    continue
+                
+                # Skip entries that are just reference links
+                if full_text_clean.lower().startswith('further information'):
+                    continue
+                
+                # Extract ALL dates from this <li>
+                all_dates = []
+                
+                # Multiple date patterns to catch all formats
+                date_patterns = [
+                    r'on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',  # "on 12 January 2021"
+                    r'in\s+([A-Za-z]+\s+\d{4})',  # "in May 2018"
+                    r'from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',  # "from 26 June 2023"
+                    r'as\s+of\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',  # "as of 31 December 2026"
+                    r'until\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',  # "until 12 January 2023"
+                ]
+                
+                for pattern in date_patterns:
+                    for match in re.finditer(pattern, full_text_clean, re.IGNORECASE):
+                        date_text = match.group(1).strip()
+                        cleaned = self._clean_deadline_text(date_text)
+                        if cleaned:
+                            parsed = self._parse_date_string(cleaned)
+                            if not parsed:
+                                parsed = self._convert_deadline_to_date(cleaned)
+                            if parsed:
+                                all_dates.append(parsed)
+                
+                # Use the LATEST date as the primary date (most recent action)
+                latest_date = max(all_dates) if all_dates else None
+                
+                # Classify the action type based on content
+                action_type = self._classify_legislative_action(full_text_clean)
+                
+                # Determine status
+                status = self._determine_legislative_status(full_text_clean, latest_date)
+                
+                # Create action entry with FULL <li> text
+                action_entry = {
+                    'type': action_type,
+                    'description': full_text_clean,  # COMPLETE text from <li>
+                    'status': status,
+                    'date': latest_date if latest_date else None
+                }
+                
+                legislative_actions.append(action_entry)
+            
+            if not legislative_actions:
+                return None
+            
+            return json.dumps(legislative_actions, ensure_ascii=False, indent=2)
+            
         except Exception as e:
-            raise ValueError(f"Error extracting legislative action for {self.registration_number}: {str(e)}") from e
+            raise ValueError(
+                f"Error extracting legislative action for {self.registration_number}: {str(e)}"
+            ) from e
 
+    def _classify_legislative_action(self, text: str) -> str:
+        """Classify legislative action type based on keywords."""
+        text_lower = text.lower()
+        
+        if 'amendment' in text_lower and 'came into force' in text_lower:
+            return 'Amendment'
+        elif 'proposal for the revision' in text_lower or 'proposal for a revision' in text_lower:
+            return 'Directive Revision'
+        elif 'proposal for a regulation' in text_lower:
+            return 'Regulation Proposal'
+        elif 'new minimum' in text_lower and 'standards' in text_lower:
+            return 'Standards Adoption'
+        elif 'directive' in text_lower and 'adopted' in text_lower:
+            return 'Directive Adoption'
+        else:
+            return 'Legislative Action'
+
+    def _determine_legislative_status(self, text: str, latest_date: Optional[str]) -> str:
+        """Determine status considering full context."""
+        text_lower = text.lower()
+        
+        # Check if date is in the future
+        if latest_date:
+            try:
+                from datetime import datetime
+                date_obj = datetime.strptime(latest_date, '%Y-%m-%d')
+                if date_obj > datetime.now():
+                    return 'planned'
+            except:
+                pass
+        
+        # Check for withdrawal
+        if 'withdrew' in text_lower or 'withdrawn' in text_lower:
+            return 'withdrawn'
+        
+        # Check status indicators
+        if 'will apply' in text_lower or 'apply from' in text_lower or 'apply as of' in text_lower:
+            return 'in_force'
+        elif 'entered into force' in text_lower or 'came into force' in text_lower:
+            return 'in_force'
+        elif 'adopted' in text_lower:
+            return 'adopted'
+        elif 'proposal' in text_lower and 'entered into force' not in text_lower:
+            return 'proposed'
+        
+        return 'completed'
 
     def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
         """
@@ -1928,16 +2078,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             raise ValueError(f"Error extracting non-legislative action for {self.registration_number}: {str(e)}") from e
 
 
-    def extract_official_journal_publication_date(self, soup: BeautifulSoup) -> Optional[str]:
-        """
-        Extract the date when regulation/directive was published in Official Journal
-        This is when the law officially comes into existence
-        Format: YYYY-MM-DD
-        """
-        try:
-            pass
-        except Exception as e:
-            raise ValueError(f"Error extracting official journal publication date for {self.registration_number}: {str(e)}") from e
 
 
 class FollowUpActivityExtractor(BaseExtractor):
@@ -2217,7 +2357,6 @@ class ECIResponseHTMLParser:
                 # Final Outcome (What citizens care about most)
                 final_outcome_status=self.legislative_outcome.extract_highest_status_reached(soup),
                 law_implementation_date=self.legislative_outcome.extract_applicable_date(soup),
-                law_publication_date=self.legislative_outcome.extract_official_journal_publication_date(soup),
 
                 # Commission's Initial Response (What they promised)
                 commission_promised_new_law=self.legislative_outcome.extract_proposal_commitment_stated(soup),

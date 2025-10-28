@@ -38,7 +38,6 @@ class ECICommissionResponseRecord:
     # SECTION 1: Final Outcome (What citizens care about most)
     final_outcome_status: Optional[str]
     law_implementation_date: Optional[str]
-    law_publication_date: Optional[str]
     
     # SECTION 2: Commission's Initial Response (What they promised)
     commission_promised_new_law: Optional[bool]

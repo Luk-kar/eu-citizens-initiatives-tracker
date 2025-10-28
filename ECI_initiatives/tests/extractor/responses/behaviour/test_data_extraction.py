@@ -3008,13 +3008,174 @@ class TestCommissionResponseContent:
         assert "EFSA" in result_dict["2018-05-31"]
         assert "for risk assessment." in result_dict["2018-05-31"]
 
-    def test_official_journal_publication_date(self):
-        """Test extraction of Official Journal publication date."""
-        pass
-    
-    def test_legislative_action(self):
-        """Test extraction of legislative action JSON array."""
-        pass
+    def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract legislative actions as JSON array.
+        Each action is extracted from a complete <li> element, preserving full context.
+        Returns JSON string or None
+        
+        Returns:
+            JSON string with array of legislative actions or None if no actions found
+            
+        Raises:
+            ValueError: If extraction fails
+        """
+        try:
+            import json
+            from datetime import datetime
+            
+            # Find Follow-up section
+            followup_section = soup.find('h2', id=re.compile(r'Follow-?up', re.IGNORECASE))
+            if not followup_section:
+                return None
+            
+            # Look for "Legislative action" marker
+            legislative_marker = None
+            for sibling in followup_section.find_next_siblings():
+                if sibling.name in ['h3', 'h4', 'strong', 'b', 'p']:
+                    text = sibling.get_text(strip=True).lower()
+                    if 'legislative action' in text:
+                        legislative_marker = sibling
+                        break
+                if sibling.name == 'h2':
+                    break
+            
+            if not legislative_marker:
+                return None
+            
+            # Find the <ul> containing legislative actions
+            legislative_list = None
+            for sibling in legislative_marker.find_next_siblings():
+                if sibling.name == 'ul':
+                    legislative_list = sibling
+                    break
+                if sibling.name == 'h2':
+                    break
+            
+            if not legislative_list:
+                return None
+            
+            legislative_actions = []
+            
+            # Process each <li> as a separate legislative action
+            for li in legislative_list.find_all('li', recursive=False):
+                full_text = li.get_text(strip=False)
+                full_text_clean = re.sub(r'\s+', ' ', full_text).strip()
+                
+                # Skip if too short or just links to other information
+                if len(full_text_clean) < 50 or 'further information' in full_text_clean.lower():
+                    continue
+                
+                # Extract all dates from this action
+                dates_found = []
+                
+                # Pattern: "on [date]" or "in [month year]"
+                date_patterns = [
+                    r'(?:on|in)\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',  # "on 12 January 2021"
+                    r'(?:on|in)\s+([A-Za-z]+\s+\d{4})',  # "in May 2018"
+                    r'in\s+([A-Za-z]+\s+\d{4})',  # "in June 2020"
+                ]
+                
+                for pattern in date_patterns:
+                    for match in re.finditer(pattern, full_text_clean, re.IGNORECASE):
+                        date_text = match.group(1).strip()
+                        cleaned = self._clean_deadline_text(date_text)
+                        if cleaned:
+                            parsed = self._parse_date_string(cleaned)
+                            if not parsed:
+                                parsed = self._convert_deadline_to_date(cleaned)
+                            if parsed:
+                                dates_found.append(parsed)
+                
+                # Determine the most recent/relevant date (usually the last significant one)
+                latest_date = max(dates_found) if dates_found else None
+                
+                # Determine action type and status from text
+                action_type = self._classify_action_type(full_text_clean)
+                status = self._determine_comprehensive_status(full_text_clean, latest_date)
+                
+                # Create action entry with FULL context
+                action_entry = {
+                    'type': action_type,
+                    'description': full_text_clean,  # FULL text from <li>
+                    'status': status,
+                    'date': latest_date if latest_date else 'No date specified'
+                }
+                
+                legislative_actions.append(action_entry)
+            
+            if not legislative_actions:
+                return None
+            
+            return json.dumps(legislative_actions, ensure_ascii=False, indent=2)
+            
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting legislative action for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def _classify_action_type(self, text: str) -> str:
+        """
+        Classify the type of legislative action based on text content.
+        """
+        text_lower = text.lower()
+        
+        if 'amendment' in text_lower:
+            return 'Amendment'
+        elif 'proposal for the revision' in text_lower or 'proposal for a revision' in text_lower:
+            return 'Proposal for Revision'
+        elif 'proposal for a regulation' in text_lower:
+            return 'Proposal for Regulation'
+        elif 'proposal for a directive' in text_lower:
+            return 'Proposal for Directive'
+        elif 'new minimum' in text_lower and 'standards' in text_lower:
+            return 'New Standards'
+        elif 'proposal' in text_lower:
+            return 'Proposal'
+        elif 'regulation' in text_lower:
+            return 'Regulation'
+        elif 'directive' in text_lower:
+            return 'Directive'
+        else:
+            return 'Legislative Action'
+
+    def _determine_comprehensive_status(self, text: str, latest_date: Optional[str]) -> str:
+        """
+        Determine comprehensive status considering full context and dates.
+        """
+        text_lower = text.lower()
+        
+        # Check for future dates or future tense
+        if latest_date:
+            try:
+                from datetime import datetime
+                date_obj = datetime.strptime(latest_date, '%Y-%m-%d')
+                if date_obj > datetime.now():
+                    return 'planned'
+            except:
+                pass
+        
+        # Withdrawal/rejection
+        if any(word in text_lower for word in ['withdrew', 'withdrawn', 'rejected']):
+            return 'withdrawn'
+        
+        # Implementation stage
+        if 'apply from' in text_lower or 'will apply' in text_lower:
+            return 'in_force'
+        
+        # Entry into force
+        if 'entered into force' in text_lower or 'came into force' in text_lower:
+            return 'in_force'
+        
+        # Adopted
+        if 'formally adopted' in text_lower or 'adopted' in text_lower:
+            return 'adopted'
+        
+        # Proposed
+        if 'proposal' in text_lower and 'was adopted' not in text_lower:
+            return 'proposed'
+        
+        return 'completed'
     
     def test_non_legislative_action(self):
         """Test extraction of non-legislative action JSON array."""
