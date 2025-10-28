@@ -2055,7 +2055,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             
             # Check each pattern
             for pattern_info in action_patterns:
-                if re.search(pattern_info['pattern'], text_lower, re.IGNORECASE):
+                if re.search(pattern_info['pattern'], text_lower, re.IGNORECASE | re.DOTALL):
                     action = self._parse_legislative_action(sibling, text, pattern_info)
                     if action:
                         actions.append(action)
