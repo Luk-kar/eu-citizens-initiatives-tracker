@@ -2779,6 +2779,235 @@ class TestCommissionResponseContent:
         
         assert result_12 == "2024-11-20", f"Expected '2024-11-20', got '{result_12}'"
 
+    def test_commission_deadlines(self):
+        """Test extraction of Commission deadlines with various date formats and phrasings."""
+        
+        # Test 1: Single deadline with "by [month year]" format
+        html_single_deadline = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission committed to come forward with a legislative proposal by May 2018, 
+        amongst others, to strengthen the transparency of the EU risk assessment in the food chain.</p>
+        """
+        soup = BeautifulSoup(html_single_deadline, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2017/000002")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        assert "2018-05-31" in result_dict
+        assert "committed to come forward with a legislative proposal by May 2018" in result_dict["2018-05-31"]
+        
+        # Test 2: Multiple deadlines in same initiative
+        html_multiple_deadlines = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>● Start without delay preparatory work with a view to launch, by the end of 2023, 
+        an impact assessment on the environmental, social and economic consequences.</p>
+        <p>● By end 2024, provide more detailed EU's import and export information to 
+        improve statistics on trade in shark products.</p>
+        """
+        soup = BeautifulSoup(html_multiple_deadlines, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2020/000001")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        assert len(result_dict) == 2
+        assert "2023-12-31" in result_dict
+        assert "2024-12-31" in result_dict
+        assert "by the end of 2023" in result_dict["2023-12-31"]
+        assert "By end 2024, provide" in result_dict["2024-12-31"]
+        
+        # Test 3: Deadline with "early [year]" format
+        html_early_year = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>Building further on this scientific input, and on an assessment of economic and 
+        social impacts, the Commission will then communicate, by March 2026, on the most 
+        appropriate action.</p>
+        """
+        soup = BeautifulSoup(html_early_year, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2022/000002")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        assert "2026-03-31" in result_dict
+        assert "by March 2026" in result_dict["2026-03-31"]
+        
+        # Test 4: Report to be produced with standalone year
+        html_report_year = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <ul>
+            <li>The Commission will re-evaluate the situation, initially in a report to 
+            Council and the Parliament on the implementation of the Directive to be 
+            produced in 2019.</li>
+        </ul>
+        """
+        soup = BeautifulSoup(html_report_year, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2017/000002")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        assert "2019-12-31" in result_dict
+        assert "to be produced in 2019" in result_dict["2019-12-31"]
+        
+        # Test 5: Intention to table legislative proposal
+        html_intention = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>In its response to the ECI, the Commission communicated its intention to table 
+        a legislative proposal, by the end of 2023, to phase out, and finally prohibit, 
+        the use of cages for all animals mentioned in the ECI.</p>
+        """
+        soup = BeautifulSoup(html_intention, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2018/000004")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        assert "2023-12-31" in result_dict
+        assert "intention to table a legislative proposal" in result_dict["2023-12-31"]
+        
+        # Test 6: No deadlines mentioned
+        html_no_deadlines = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission decided not to submit a legislative proposal as the existing 
+        legislation already covers this matter adequately.</p>
+        """
+        soup = BeautifulSoup(html_no_deadlines, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2012/000003")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is None
+        
+        # Test 7: Impact assessment deadline
+        html_impact_assessment = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission will launch an impact assessment by the end of 2024 to evaluate 
+        the environmental and social consequences of the proposed measures.</p>
+        """
+        soup = BeautifulSoup(html_impact_assessment, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2021/000001")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        assert "2024-12-31" in result_dict
+        assert "launch an impact assessment" in result_dict["2024-12-31"]
+        
+        # Test 8: EFSA scientific opinion deadline
+        html_efsa = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission has tasked the European Food Safety Authority (EFSA) to provide 
+        a scientific opinion by end of 2025 on the welfare of animals farmed for fur.</p>
+        """
+        soup = BeautifulSoup(html_efsa, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2022/000001")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        assert "2025-12-31" in result_dict
+        assert "scientific opinion" in result_dict["2025-12-31"]
+        
+        # Test 9: Roadmap deadline
+        html_roadmap = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>Finalisation of the work on the roadmap is planned by early 2026 to outline 
+        the Commission's strategy for the next steps.</p>
+        """
+        soup = BeautifulSoup(html_roadmap, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2023/000001")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        assert "2026-03-31" in result_dict
+        assert "roadmap is planned by early 2026" in result_dict["2026-03-31"]
+        
+        # Test 10: Deadline-first format (By [date], [action])
+        html_deadline_first = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>● By end 2024, provide more detailed EU's import and export information to 
+        improve statistics on trade in shark products.</p>
+        """
+        soup = BeautifulSoup(html_deadline_first, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2020/000001")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        assert "2024-12-31" in result_dict
+        assert "By end 2024, provide" in result_dict["2024-12-31"]
+        
+        # Test 11: Multiple deadlines on same date (should concatenate)
+        html_same_date = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission will launch an impact assessment by end of 2023.</p>
+        <p>The Commission will also provide a report by end of 2023 on the implementation status.</p>
+        """
+        soup = BeautifulSoup(html_same_date, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2021/000002")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        assert "2023-12-31" in result_dict
+        # Should contain both commitments separated by semicolon
+        assert "impact assessment" in result_dict["2023-12-31"]
+        assert "report" in result_dict["2023-12-31"]
+        
+        # Test 12: Missing Answer section (should raise ValueError)
+        html_no_answer = """
+        <h2 id="Some-Other-Section">Some Other Section</h2>
+        <p>Some content without Answer section.</p>
+        """
+        soup = BeautifulSoup(html_no_answer, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2012/000001")
+        
+        with pytest.raises(ValueError) as exc_info:
+            extractor.extract_commissions_deadlines(soup)
+        assert "Could not find Answer section" in str(exc_info.value)
+        
+        # Test 13: Stop at next h2 section
+        html_multiple_sections = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission will communicate by May 2024 on the appropriate action.</p>
+        <h2 id="Next-Section">Next Section</h2>
+        <p>The Commission will also do something by December 2025.</p>
+        """
+        soup = BeautifulSoup(html_multiple_sections, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2023/000002")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        # Should only capture the May 2024 deadline, not December 2025
+        assert "2024-05-31" in result_dict
+        assert "2025-12-31" not in result_dict
+        
+        # Test 14: Complex sentence with complete extraction
+        html_complex = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>On the second aim, to "ensure that the scientific evaluation of pesticides for 
+        EU regulatory approval is based only on published studies, which are commissioned 
+        by competent public authorities instead of the pesticide industry", the Commission 
+        committed to come forward with a legislative proposal by May 2018, amongst others, 
+        to strengthen the transparency of the EU risk assessment in the food chain and 
+        enhance – through a series of measures – the governance for the conduct of industry 
+        studies submitted to the European Food Safety Authority (EFSA) for risk assessment.</p>
+        """
+        soup = BeautifulSoup(html_complex, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2017/000002")
+        result = extractor.extract_commissions_deadlines(soup)
+        
+        assert result is not None
+        result_dict = json.loads(result)
+        assert "2018-05-31" in result_dict
+        # Should extract complete sentence
+        assert "On the second aim" in result_dict["2018-05-31"]
+        assert "EFSA" in result_dict["2018-05-31"]
+        assert "for risk assessment." in result_dict["2018-05-31"]
+
     def test_official_journal_publication_date(self):
         """Test extraction of Official Journal publication date."""
         pass

@@ -1686,11 +1686,12 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 r'work on.*?roadmap.*?by\s+([^.,;]+)',
                 
                 # Report and update patterns (action BEFORE deadline)
+                r'provide.*?report[,\s]+by\s+([^.,;]+)',
                 r'provide.*?(?:update|information|data|details)[,\s]+by\s+([^.,;]+)',
                 r'will report[,\s]+by\s+([^.,;]+)',
                 r'(?:produce|publish).*?report[,\s]+by\s+([^.,;]+)',
                 r'report.*?to be produced.*?(?:by|in)\s+([^.,;]+)',
-                r'to be produced\s+in\s+([^.,;]+)',
+                r'to\s+be\s+produced\s+in\s+([^.,;]+)',
                 
                 # Other commitment patterns (action BEFORE deadline)
                 r'preparatory work.*?(?:with a view to )?launch.*?by\s+([^.,;]+)',
