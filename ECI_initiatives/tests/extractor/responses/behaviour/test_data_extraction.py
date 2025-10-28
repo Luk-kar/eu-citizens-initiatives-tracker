@@ -3008,175 +3008,272 @@ class TestCommissionResponseContent:
         assert "EFSA" in result_dict["2018-05-31"]
         assert "for risk assessment." in result_dict["2018-05-31"]
 
-    def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
-        """
-        Extract legislative actions as JSON array.
-        Each action is extracted from a complete <li> element, preserving full context.
-        Returns JSON string or None
+    def test_legislative_action(self):
+        """Test extraction of legislative action JSON array."""
         
-        Returns:
-            JSON string with array of legislative actions or None if no actions found
-            
-        Raises:
-            ValueError: If extraction fails
+        # Test 1: Multiple legislative actions with different statuses (2012/000003)
+        html_water_directive = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission will address the concerns raised by this initiative.</p>
+        <h2 id="Follow-up">Follow-up</h2>
+        <ul>
+            <li>As a first step following the European Citizens' Initiative Right2Water, an
+            <strong>amendment to the</strong>
+            <a href="http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv:OJ.L_.2015.260.01.0006.01.ENG">
+            Drinking Water Directive</a>
+            aimed at improving the monitoring of drinking water across Europe came into force on 28 October 2015.</li>
+            <li><a href="http://ec.europa.eu/environment/water/water-drink/pdf/revised_drinking_water_directive.pdf">
+            <strong>A proposal for the revision of the Directive on drinking water</strong></a>
+            was adopted by the Commission on 01 February 2018. The Directive entered into force on 12 January 2021.</li>
+            <li>A <a href="https://ec.europa.eu/environment/water/pdf/water_reuse_regulation.pdf">
+            proposal for a regulation on minimum requirements for water reuse</a>
+            was adopted by the Commission in May 2018. The Regulation entered into force in June 2020. 
+            The new rules apply from 26 June 2023.</li>
+            <li>In January 2024, the Commission adopted
+            <a href="https://environment.ec.europa.eu/publications/delegated-acts-drinking-water-directive_en">
+            <strong>new minimum hygiene standards</strong></a>
+            <strong>for materials and products that come into contact with drinking water</strong>. 
+            They will apply as of 31 December 2026.</li>
+        </ul>
         """
-        try:
-            import json
-            from datetime import datetime
-            
-            # Find Follow-up section
-            followup_section = soup.find('h2', id=re.compile(r'Follow-?up', re.IGNORECASE))
-            if not followup_section:
-                return None
-            
-            # Look for "Legislative action" marker
-            legislative_marker = None
-            for sibling in followup_section.find_next_siblings():
-                if sibling.name in ['h3', 'h4', 'strong', 'b', 'p']:
-                    text = sibling.get_text(strip=True).lower()
-                    if 'legislative action' in text:
-                        legislative_marker = sibling
-                        break
-                if sibling.name == 'h2':
-                    break
-            
-            if not legislative_marker:
-                return None
-            
-            # Find the <ul> containing legislative actions
-            legislative_list = None
-            for sibling in legislative_marker.find_next_siblings():
-                if sibling.name == 'ul':
-                    legislative_list = sibling
-                    break
-                if sibling.name == 'h2':
-                    break
-            
-            if not legislative_list:
-                return None
-            
-            legislative_actions = []
-            
-            # Process each <li> as a separate legislative action
-            for li in legislative_list.find_all('li', recursive=False):
-                full_text = li.get_text(strip=False)
-                full_text_clean = re.sub(r'\s+', ' ', full_text).strip()
-                
-                # Skip if too short or just links to other information
-                if len(full_text_clean) < 50 or 'further information' in full_text_clean.lower():
-                    continue
-                
-                # Extract all dates from this action
-                dates_found = []
-                
-                # Pattern: "on [date]" or "in [month year]"
-                date_patterns = [
-                    r'(?:on|in)\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',  # "on 12 January 2021"
-                    r'(?:on|in)\s+([A-Za-z]+\s+\d{4})',  # "in May 2018"
-                    r'in\s+([A-Za-z]+\s+\d{4})',  # "in June 2020"
-                ]
-                
-                for pattern in date_patterns:
-                    for match in re.finditer(pattern, full_text_clean, re.IGNORECASE):
-                        date_text = match.group(1).strip()
-                        cleaned = self._clean_deadline_text(date_text)
-                        if cleaned:
-                            parsed = self._parse_date_string(cleaned)
-                            if not parsed:
-                                parsed = self._convert_deadline_to_date(cleaned)
-                            if parsed:
-                                dates_found.append(parsed)
-                
-                # Determine the most recent/relevant date (usually the last significant one)
-                latest_date = max(dates_found) if dates_found else None
-                
-                # Determine action type and status from text
-                action_type = self._classify_action_type(full_text_clean)
-                status = self._determine_comprehensive_status(full_text_clean, latest_date)
-                
-                # Create action entry with FULL context
-                action_entry = {
-                    'type': action_type,
-                    'description': full_text_clean,  # FULL text from <li>
-                    'status': status,
-                    'date': latest_date if latest_date else 'No date specified'
-                }
-                
-                legislative_actions.append(action_entry)
-            
-            if not legislative_actions:
-                return None
-            
-            return json.dumps(legislative_actions, ensure_ascii=False, indent=2)
-            
-        except Exception as e:
-            raise ValueError(
-                f"Error extracting legislative action for {self.registration_number}: {str(e)}"
-            ) from e
+        soup = BeautifulSoup(html_water_directive, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2012/000003")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is not None
+        result_list = json.loads(result)
+        assert len(result_list) == 4
+        
+        # Check amendment
+        amendment = next((a for a in result_list if a['type'] == 'Amendment'), None)
+        assert amendment is not None
+        assert amendment['status'] == 'in_force'
+        assert amendment['date'] == '2015-10-28'
+        
+        # Check directive revision
+        directive = next((a for a in result_list if 'Directive Revision' in a['type']), None)
+        assert directive is not None
+        assert directive['status'] == 'in_force'
+        assert directive['date'] == '2023-01-12'
+        
+        # Check water reuse regulation
+        water_reuse = next((a for a in result_list if 'reuse' in a['description'].lower()), None)
+        assert water_reuse is not None
+        assert water_reuse['status'] == 'in_force'
+        assert water_reuse['date'] == '2023-06-26'
+        
+        # Check standards adoption
+        standards = next((a for a in result_list if a['type'] == 'Standards Adoption'), None)
+        assert standards is not None
+        assert standards['status'] == 'planned'
+        assert standards['date'] == '2026-12-31'
+        
+        # Test 2: Tariff codes creation (2020/000001)
+        html_tariff_codes = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>Following up on its commitment to develop more detailed EU import and export data to 
+        improve statistics on trade in shark products, the Commission created 13 new 
+        <a href="https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32024R2522">
+        tariff codes for sharks and their fins</a>. These codes will enable the tracking of the 
+        most traded shark species, including the blue shark and shortfin mako. The codes enter 
+        in application in January 2025.</p>
+        """
+        soup = BeautifulSoup(html_tariff_codes, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2020/000001")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is not None
+        result_list = json.loads(result)
+        assert len(result_list) == 1
+        assert result_list[0]['type'] == 'Tariff Codes Creation'
+        assert result_list[0]['status'] == 'planned'
+        assert 'tariff codes' in result_list[0]['description'].lower()
+        
+        # Test 3: Proposal and adoption cycle (2017/000002)
+        html_transparency_reg = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>A proposal for a Regulation of the European Parliament and the Council on the 
+        transparency and sustainability of the EU risk assessment in the food chain was 
+        adopted by the Commission on 11 April 2018.</p>
+        <p>Following the agreement of the European Parliament and the Council, the Regulation 
+        was published in the Official Journal of the EU on 6 September 2019 and entered into 
+        force on 27 March 2021.</p>
+        """
+        soup = BeautifulSoup(html_transparency_reg, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2017/000002")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is not None
+        result_list = json.loads(result)
+        assert len(result_list) >= 2
+        
+        # Check proposal
+        proposal = next((a for a in result_list if a['status'] == 'proposed'), None)
+        assert proposal is not None
+        assert proposal['date'] == '2018-04-11'
+        
+        # Check in force
+        in_force = next((a for a in result_list if a['status'] == 'in_force'), None)
+        assert in_force is not None
+        
+        # Test 4: Withdrawn proposal (2019/000016)
+        html_withdrawn = """
+        <h2 id="Updates-on-the-Commissions-proposals">Updates on the Commission's proposals</h2>
+        <p>In view of the rejection by the European Parliament of the proposal in November 2023, 
+        and a lack of progress of the discussions in the Council, the Commission withdrew the 
+        proposal for a Regulation on the Sustainable Use of Plant Protection Products on 
+        27 March 2024.</p>
+        <p>The proposal for a Nature Restoration Law was adopted by the Council and entered 
+        into force on 18 August 2024.</p>
+        """
+        soup = BeautifulSoup(html_withdrawn, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2019/000016")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is not None
+        result_list = json.loads(result)
+        
+        # Check withdrawn proposal
+        withdrawn = next((a for a in result_list if a['status'] == 'withdrawn'), None)
+        assert withdrawn is not None
+        assert withdrawn['date'] == '2024-03-27'
+        
+        # Check adopted nature restoration
+        nature_law = next((a for a in result_list if 'nature' in a['description'].lower()), None)
+        assert nature_law is not None
+        assert nature_law['status'] == 'in_force'
+        assert nature_law['date'] == '2024-08-18'
+        
+        # Test 5: Rejected initiative - should return None (2012/000005)
+        html_rejected = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission decided not to submit a legislative proposal as the existing 
+        legislation already covers this matter adequately.</p>
+        """
+        soup = BeautifulSoup(html_rejected, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2012/000005")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is None
+        
+        # Test 6: Roadmap only - should return None (2021/000006)
+        html_roadmap_only = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>In the second half of 2023, the Commission started work on a roadmap to phase out 
+        animal testing for chemical safety assessments that was announced in its reply to 
+        the ECI.</p>
+        <p>The Commission will carefully consider the Court's judgments in view of any 
+        potential future measures.</p>
+        """
+        soup = BeautifulSoup(html_roadmap_only, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2021/000006")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is None
+        
+        # Test 7: Commitment without actual proposal - should return None (2018/000004 if no follow-up)
+        html_commitment_only = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission communicated its intention to table a legislative proposal, 
+        by the end of 2023, to phase out the use of cages for all animals.</p>
+        """
+        soup = BeautifulSoup(html_commitment_only, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2018/000004")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is None
+        
+        # Test 8: Non-legislative activities should be filtered out
+        html_non_legislative = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>The Commission will launch an impact assessment by the end of 2023.</p>
+        <p>The Commission organized a consultation with stakeholders in 2024.</p>
+        <p>A workshop on alternative approaches was held in April 2025.</p>
+        <p>The Commission is working towards better enforcement of existing rules.</p>
+        <p>In parallel to the legislation, the Commission will seek specific supporting 
+        measures in key related policy areas.</p>
+        """
+        soup = BeautifulSoup(html_non_legislative, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2023/000001")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is None
+        
+        # Test 9: Mixed content with actual legislation
+        html_mixed = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>The Commission launched a consultation in January 2023.</p>
+        <p>A proposal for a new regulation on animal welfare was adopted by the Commission 
+        on 15 June 2023.</p>
+        <p>Several stakeholder workshops were organized throughout 2024.</p>
+        """
+        soup = BeautifulSoup(html_mixed, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2023/000002")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is not None
+        result_list = json.loads(result)
+        assert len(result_list) == 1
+        assert result_list[0]['type'] == 'Regulation Proposal'
+        assert result_list[0]['date'] == '2023-06-15'
+        
+        # Test 10: No duplicate actions
+        html_duplicates = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission adopted a proposal for a regulation on 10 May 2023.</p>
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>The Commission adopted a proposal for a regulation on 10 May 2023.</p>
+        """
+        soup = BeautifulSoup(html_duplicates, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2024/000001")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is not None
+        result_list = json.loads(result)
+        # Should only have one action, not two duplicates
+        assert len(result_list) == 1
+        
+        # Test 11: Updates section takes priority
+        html_updates_priority = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission committed to table a proposal.</p>
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>The Commission is working on the proposal.</p>
+        <h2 id="Updates-on-the-Commissions-proposals">Updates on the Commission's proposals</h2>
+        <p>The proposal was adopted on 20 January 2024 and entered into force on 1 March 2024.</p>
+        """
+        soup = BeautifulSoup(html_updates_priority, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2024/000002")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is not None
+        result_list = json.loads(result)
+        # Should extract from all sections
+        assert len(result_list) >= 1
+        
+        # Test 12: Date extraction from various formats
+        html_date_formats = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <ul>
+            <li>Regulation entered into force on 12 January 2023.</li>
+            <li>Directive adopted in May 2024.</li>
+            <li>New standards will apply from 2026.</li>
+            <li>Amendment came into force on 15/03/2022.</li>
+        </ul>
+        """
+        soup = BeautifulSoup(html_date_formats, 'html.parser')
+        extractor = LegislativeOutcomeExtractor("2024/000003")
+        result = extractor.extract_legislative_action(soup)
+        
+        assert result is not None
+        result_list = json.loads(result)
+        assert len(result_list) >= 2
+        
+        # Check various date formats were extracted
+        dates = [a.get('date') for a in result_list if 'date' in a]
+        assert any('2023-01-12' in str(d) for d in dates)
+        assert any('2024' in str(d) for d in dates)
 
-    def _classify_action_type(self, text: str) -> str:
-        """
-        Classify the type of legislative action based on text content.
-        """
-        text_lower = text.lower()
-        
-        if 'amendment' in text_lower:
-            return 'Amendment'
-        elif 'proposal for the revision' in text_lower or 'proposal for a revision' in text_lower:
-            return 'Proposal for Revision'
-        elif 'proposal for a regulation' in text_lower:
-            return 'Proposal for Regulation'
-        elif 'proposal for a directive' in text_lower:
-            return 'Proposal for Directive'
-        elif 'new minimum' in text_lower and 'standards' in text_lower:
-            return 'New Standards'
-        elif 'proposal' in text_lower:
-            return 'Proposal'
-        elif 'regulation' in text_lower:
-            return 'Regulation'
-        elif 'directive' in text_lower:
-            return 'Directive'
-        else:
-            return 'Legislative Action'
-
-    def _determine_comprehensive_status(self, text: str, latest_date: Optional[str]) -> str:
-        """
-        Determine comprehensive status considering full context and dates.
-        """
-        text_lower = text.lower()
-        
-        # Check for future dates or future tense
-        if latest_date:
-            try:
-                from datetime import datetime
-                date_obj = datetime.strptime(latest_date, '%Y-%m-%d')
-                if date_obj > datetime.now():
-                    return 'planned'
-            except:
-                pass
-        
-        # Withdrawal/rejection
-        if any(word in text_lower for word in ['withdrew', 'withdrawn', 'rejected']):
-            return 'withdrawn'
-        
-        # Implementation stage
-        if 'apply from' in text_lower or 'will apply' in text_lower:
-            return 'in_force'
-        
-        # Entry into force
-        if 'entered into force' in text_lower or 'came into force' in text_lower:
-            return 'in_force'
-        
-        # Adopted
-        if 'formally adopted' in text_lower or 'adopted' in text_lower:
-            return 'adopted'
-        
-        # Proposed
-        if 'proposal' in text_lower and 'was adopted' not in text_lower:
-            return 'proposed'
-        
-        return 'completed'
-    
     def test_non_legislative_action(self):
         """Test extraction of non-legislative action JSON array."""
         pass
