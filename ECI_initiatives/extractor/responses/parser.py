@@ -1905,6 +1905,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         
         return None
         
+    # TODO: need a refactor
     def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract LEGISLATIVE actions - proposals, adoptions, laws, regulations, directives.
@@ -2324,50 +2325,29 @@ class FollowUpActivityExtractor(BaseExtractor):
         except Exception as e:
             raise ValueError(f"Error checking followup section for {self.registration_number}: {str(e)}") from e
 
-    def extract_followup_meeting_date(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract date of follow-up meetings after initial response"""
+    def extract_followup_events(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extract follow-up events information"""
         try:
             return None
         except Exception as e:
-            raise ValueError(f"Error extracting followup meeting date for {self.registration_number}: {str(e)}") from e
+            raise ValueError(f"Error extracting followup events for {self.registration_number}: {str(e)}") from e
 
-    def extract_followup_meeting_officials(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract names of officials in follow-up meetings"""
+    def extract_has_roadmap(self, soup: BeautifulSoup) -> Optional[bool]:
+        """Check if initiative has a roadmap"""
         try:
             return None
         except Exception as e:
-            raise ValueError(f"Error extracting followup meeting officials for {self.registration_number}: {str(e)}") from e
+            raise ValueError(f"Error checking roadmap for {self.registration_number}: {str(e)}") from e
 
-    def extract_roadmap_launched(self, soup: BeautifulSoup) -> Optional[bool]:
-        """Check if roadmap or action plan was initiated"""
+    def extract_has_workshop(self, soup: BeautifulSoup) -> Optional[bool]:
+        """Check if initiative has workshop activities"""
         try:
             return None
         except Exception as e:
-            raise ValueError(f"Error checking roadmap status for {self.registration_number}: {str(e)}") from e
-
-    def extract_roadmap_description(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract roadmap objectives description"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(f"Error extracting roadmap description for {self.registration_number}: {str(e)}") from e
-
-    def extract_roadmap_completion_target(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract target date for roadmap completion"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(f"Error extracting roadmap completion target for {self.registration_number}: {str(e)}") from e
-
-    def extract_workshop_conference_dates(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract dates of workshops/conferences as JSON array"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(f"Error extracting workshop/conference dates for {self.registration_number}: {str(e)}") from e
+            raise ValueError(f"Error checking workshop for {self.registration_number}: {str(e)}") from e
 
     def extract_partnership_programs(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract names of partnership programs established"""
+        """Extract partnership programs information"""
         try:
             return None
         except Exception as e:
@@ -2379,20 +2359,6 @@ class FollowUpActivityExtractor(BaseExtractor):
             return None
         except Exception as e:
             raise ValueError(f"Error extracting court cases for {self.registration_number}: {str(e)}") from e
-
-    def extract_court_judgment_dates(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract dates of court judgments"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(f"Error extracting court judgment dates for {self.registration_number}: {str(e)}") from e
-
-    def extract_court_judgment_summary(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract brief court ruling descriptions"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(f"Error extracting court judgment summary for {self.registration_number}: {str(e)}") from e
 
     def extract_latest_update_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract most recent date from follow-up section"""
@@ -2604,16 +2570,11 @@ class ECIResponseHTMLParser:
 
                 # Follow-up Activities Section
                 has_followup_section=self.followup_activity.extract_has_followup_section(soup),
-                followup_meeting_date=self.followup_activity.extract_followup_meeting_date(soup),
-                followup_meeting_officials=self.followup_activity.extract_followup_meeting_officials(soup),
-                roadmap_launched=self.followup_activity.extract_roadmap_launched(soup),
-                roadmap_description=self.followup_activity.extract_roadmap_description(soup),
-                roadmap_completion_target=self.followup_activity.extract_roadmap_completion_target(soup),
-                workshop_conference_dates=self.followup_activity.extract_workshop_conference_dates(soup),
-                partnership_programs=self.followup_activity.extract_partnership_programs(soup),
+                followup_events=self.followup_activity.extract_followup_events(soup),
+                has_roadmap=self.followup_activity.extract_has_roadmap(soup),
+                has_workshop=self.followup_activity.extract_has_workshop(soup),
+                has_partnership_programs=self.followup_activity.extract_has_partnership_programs(soup),
                 court_cases_referenced=self.followup_activity.extract_court_cases_referenced(soup),
-                court_judgment_dates=self.followup_activity.extract_court_judgment_dates(soup),
-                court_judgment_summary=self.followup_activity.extract_court_judgment_summary(soup),
                 latest_update_date=latest_update_date,
 
                 # Multimedia and Documentation Links

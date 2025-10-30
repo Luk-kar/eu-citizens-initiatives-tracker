@@ -3311,23 +3311,33 @@ class TestFollowUpActivities:
         # Placeholder - implement when HTML structure is known
         pass
     
-    def test_followup_meeting_date(self):
-        """Test extraction of follow-up meeting date."""
+    def test_followup_events_extraction(self):
+        """Test extraction of follow-up events information."""
         # Placeholder - implement when HTML structure is known
         pass
     
-    def test_roadmap_launched_detection(self):
-        """Test detection of roadmap launch."""
+    def test_has_roadmap_detection(self):
+        """Test detection of roadmap presence."""
         # Placeholder - implement when HTML structure is known
         pass
     
-    def test_workshop_conference_dates_json_format(self):
-        """Test that workshop dates are returned as valid JSON array."""
+    def test_has_workshop_detection(self):
+        """Test detection of workshop activities."""
+        # Placeholder - implement when HTML structure is known
+        pass
+    
+    def test_partnership_programs_extraction(self):
+        """Test extraction of partnership programs information."""
         # Placeholder - implement when HTML structure is known
         pass
     
     def test_court_cases_referenced(self):
         """Test extraction of Court of Justice case numbers."""
+        # Placeholder - implement when HTML structure is known
+        pass
+    
+    def test_latest_update_date_extraction(self):
+        """Test extraction of most recent date from follow-up section."""
         # Placeholder - implement when HTML structure is known
         pass
 

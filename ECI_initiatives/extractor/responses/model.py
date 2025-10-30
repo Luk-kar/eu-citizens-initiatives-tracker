@@ -17,8 +17,10 @@ class ECICommissionResponseRecord:
     initiative_title: str
     registration_number: str
     
-    # Submission and Verification Data
+    # Submission text
     submission_text: str
+    
+    # Submission and Verification Data
     commission_submission_date: Optional[str]
     submission_news_url: Optional[str]
     
@@ -51,16 +53,11 @@ class ECICommissionResponseRecord:
     
     # Follow-up Activities Section
     has_followup_section: Optional[bool]
-    followup_meeting_date: Optional[str]
-    followup_meeting_officials: Optional[str]
-    roadmap_launched: Optional[bool]
-    roadmap_description: Optional[str]
-    roadmap_completion_target: Optional[str]
-    workshop_conference_dates: Optional[str]  # JSON array
-    partnership_programs: Optional[str]
+    followup_events: Optional[str]
+    has_roadmap: Optional[bool]
+    has_workshop: Optional[bool]
+    has_partnership_programs: Optional[str]
     court_cases_referenced: Optional[str]
-    court_judgment_dates: Optional[str]
-    court_judgment_summary: Optional[str]
     latest_update_date: Optional[str]
     
     # Multimedia and Documentation Links

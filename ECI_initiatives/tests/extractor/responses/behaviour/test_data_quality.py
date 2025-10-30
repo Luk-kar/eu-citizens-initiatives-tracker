@@ -50,24 +50,20 @@ class TestECIResponseDataModel:
             commission_answer_text="Test conclusion",
             final_outcome_status="Law Promised",
             law_implementation_date=None,
-            commission_committed_to_legislation=True,
-            commission_rejected_proposal=False,
-            commission_rejection_explanation=None,
+            commission_promised_new_law=True,
+            commission_deadlines=None,
+            commission_rejected_initiative=False,
+            commission_rejection_reason=None,
             laws_actions='[{"type":"committed","action":"Test","status":"committed","deadline":"2024"}]',
             policies_actions=None,
-            commission_factsheet_url="https://example.com/factsheet.pdf",
             has_followup_section=False,
-            followup_meeting_date=None,
-            followup_meeting_officials=None,
-            roadmap_launched=False,
-            roadmap_description=None,
-            roadmap_completion_target=None,
-            workshop_conference_dates=None,
-            partnership_programs=None,
+            followup_events=None,
+            has_roadmap=None,
+            has_workshop=None,
+            has_partnership_programs=None,
             court_cases_referenced=None,
-            court_judgment_dates=None,
-            court_judgment_summary=None,
             latest_update_date=None,
+            commission_factsheet_url="https://example.com/factsheet.pdf",
             dedicated_website=False,
             related_eu_legislation=None,
             petition_platforms_used=None,
@@ -132,24 +128,20 @@ class TestOptionalFieldHandling:
             commission_answer_text=None,
             final_outcome_status=None,
             law_implementation_date=None,
-            commission_committed_to_legislation=None,
-            commission_rejected_proposal=None,
-            commission_rejection_explanation=None,
+            commission_promised_new_law=None,
+            commission_deadlines=None,
+            commission_rejected_initiative=None,
+            commission_rejection_reason=None,
             laws_actions=None,
             policies_actions=None,
-            commission_factsheet_url=None,
             has_followup_section=None,
-            followup_meeting_date=None,
-            followup_meeting_officials=None,
-            roadmap_launched=None,
-            roadmap_description=None,
-            roadmap_completion_target=None,
-            workshop_conference_dates=None,
-            partnership_programs=None,
+            followup_events=None,
+            has_roadmap=None,
+            has_workshop=None,
+            has_partnership_programs=None,
             court_cases_referenced=None,
-            court_judgment_dates=None,
-            court_judgment_summary=None,
             latest_update_date=None,
+            commission_factsheet_url="",
             dedicated_website=False,
             related_eu_legislation=None,
             petition_platforms_used=None,
@@ -171,10 +163,6 @@ class TestJSONFieldValidation:
         """Test that JSON fields are either valid JSON or None."""
         pass
     
-    def test_workshop_conference_dates_json_format(self):
-        """Test that workshop_conference_dates is valid JSON array."""
-        pass
-    
     def test_laws_actions_json_format(self):
         """Test that laws_actions is valid JSON array."""
         pass
@@ -191,16 +179,16 @@ class TestLegislativeOutcomeFields:
         """Test that final_outcome_status contains only valid enum values."""
         pass
     
-    def test_commission_committed_to_legislation_is_boolean(self):
-        """Test that commission_committed_to_legislation is boolean or None."""
+    def test_commission_promised_new_law_is_boolean(self):
+        """Test that commission_promised_new_law is boolean or None."""
         pass
     
-    def test_commission_rejected_proposal_is_boolean(self):
-        """Test that commission_rejected_proposal is boolean or None."""
+    def test_commission_rejected_initiative_is_boolean(self):
+        """Test that commission_rejected_initiative is boolean or None."""
         pass
     
-    def test_commission_rejection_explanation_only_when_rejected(self):
-        """Test that commission_rejection_explanation is only populated when commission_rejected_proposal is True."""
+    def test_commission_rejection_reason_only_when_rejected(self):
+        """Test that commission_rejection_reason is only populated when commission_rejected_initiative is True."""
         pass
     
     def test_commission_deadline_formats(self):
@@ -220,7 +208,7 @@ class TestLegislativeOutcomeFields:
         pass
     
     def test_mutual_exclusivity_commitment_rejection(self):
-        """Test that commission_committed_to_legislation and commission_rejected_proposal are not both True."""
+        """Test that commission_promised_new_law and commission_rejected_initiative are not both True."""
         pass
     
     def test_deadline_chronology(self):
@@ -272,25 +260,20 @@ class TestDataIntegrity:
             commission_answer_text=None,
             final_outcome_status=None,
             law_implementation_date=None,
-            commission_committed_to_legislation=True,
-            commission_legislation_submission_deadline=None,
-            commission_rejected_proposal=False,
-            commission_rejection_explanation=None,
+            commission_promised_new_law=True,
+            commission_deadlines=None,
+            commission_rejected_initiative=False,
+            commission_rejection_reason=None,
             laws_actions=None,
             policies_actions=None,
-            commission_factsheet_url=None,
             has_followup_section=True,
-            followup_meeting_date=None,
-            followup_meeting_officials=None,
-            roadmap_launched=False,
-            roadmap_description=None,
-            roadmap_completion_target=None,
-            workshop_conference_dates=None,
-            partnership_programs=None,
+            followup_events=None,
+            has_roadmap=True,
+            has_workshop=False,
+            has_partnership_programs=None,
             court_cases_referenced=None,
-            court_judgment_dates=None,
-            court_judgment_summary=None,
             latest_update_date=None,
+            commission_factsheet_url="",
             dedicated_website=True,
             related_eu_legislation=None,
             petition_platforms_used=None,
@@ -300,10 +283,11 @@ class TestDataIntegrity:
         )
         
         assert isinstance(response.has_followup_section, bool)
-        assert isinstance(response.roadmap_launched, bool)
         assert isinstance(response.dedicated_website, bool)
-        assert isinstance(response.commission_committed_to_legislation, bool)
-        assert isinstance(response.commission_rejected_proposal, bool)
+        assert isinstance(response.commission_promised_new_law, bool)
+        assert isinstance(response.commission_rejected_initiative, bool)
+        assert isinstance(response.has_roadmap, bool)
+        assert isinstance(response.has_workshop, bool)
     
     def test_date_chronology_validation(self):
         """Test that dates follow logical chronological order."""
