@@ -2040,19 +2040,14 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             if sibling.name == 'h2':
                 break
             
-            # Process different HTML elements
-            if sibling.name == 'p':
-                # Process paragraph directly
+            # Process paragraphs and standalone list items
+            if sibling.name in ['p', 'li']:
                 self._process_element_for_legislative_action(sibling, action_patterns, actions)
             
             elif sibling.name in ['ul', 'ol']:
                 # Process each list item individually
                 for li in sibling.find_all('li', recursive=False):
                     self._process_element_for_legislative_action(li, action_patterns, actions)
-            
-            elif sibling.name == 'li':
-                # Process standalone list item
-                self._process_element_for_legislative_action(sibling, action_patterns, actions)
         
         return actions
 
