@@ -1617,6 +1617,9 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             '%d-%m-%Y',      # 27-03-2021
             '%Y-%m-%d',      # 2021-03-27 (already in target format)
             '%d %b %Y',      # 27 Mar 2021
+            '%B %Y',         # February 2024 (month and year only)
+            '%b %Y',         # Mar 2024 (abbreviated month and year)
+            '%Y',
         ]
         
         for fmt in date_formats:
@@ -1848,8 +1851,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             - "March 2026" → "2026-03-31"
             - "early 2026" → "2026-03-31"
         """
-        from datetime import datetime
-        import calendar
         
         deadline_lower = deadline.lower().strip()
         
@@ -2016,7 +2017,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             },
             # Withdrawn
             {
-                'pattern': r'(?:withdrawn|withdraw)',
+                'pattern': r'(?:withdrawn|withdraw|withdrew)',
                 'type_hint': 'withdrawal',
                 'status': 'withdrawn'
             },
@@ -2052,15 +2053,14 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         return actions
 
     def _process_element_for_legislative_action(self, element, action_patterns: list, actions: list):
-        """
-        Process a single HTML element (p or li) for legislative actions
+        """Process a single HTML element (p or li) for legislative actions"""
+
+        # Get text with newlines separating each tag
+        text = element.get_text(separator='\n', strip=True)
         
-        Args:
-            element: BeautifulSoup element to process
-            action_patterns: List of action pattern dictionaries
-            actions: List to append found actions to
-        """
-        text = element.get_text()
+        # NORMALIZE WHITESPACE: Replace multiple whitespace (including newlines) with single space
+        text = re.sub(r'\s+', ' ', text).strip()
+        
         text_lower = text.lower()
 
         skip_words = [
@@ -2069,55 +2069,137 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             'in parallel to the legislation', 'seek specific supporting measures',
         ]
 
-        # Skip if this is clearly not legislative content
+        # Skip non-legislative content
         if any(word in text_lower for word in skip_words):
             return
         
-        # Check each pattern
+        # Find ALL matching patterns, then pick the most specific status
+        matches = []
         for pattern_info in action_patterns:
             if re.search(pattern_info['pattern'], text_lower, re.IGNORECASE | re.DOTALL):
-                action = self._parse_legislative_action(element, text, pattern_info)
-                if action:
-                    actions.append(action)
-                    break  # Only match once per element
+                matches.append(pattern_info)
+        
+        if not matches:
+            return
+        
+        # Status priority: in_force > withdrawn > adopted > proposed > planned
+        status_priority = {
+            'in_force': 5,
+            'withdrawn': 4,
+            'adopted': 3,
+            'proposed': 2,
+            'planned': 1
+        }
+        
+        # Pick the pattern with highest priority status
+        best_match = max(matches, key=lambda p: status_priority.get(p['status'], 0))
+        
+        action = self._parse_legislative_action(element, text, best_match)
+        if action:
+            actions.append(action)
 
 
     def _parse_legislative_action(self, element, text: str, pattern_info: dict) -> Optional[dict]:
         """
-        Parse a legislative action from text element
+        Parse a legislative action from text element.
         
         Args:
             element: BeautifulSoup element containing the action
             text: Text content
             pattern_info: Pattern information dictionary
-        
+            
         Returns:
             Action dictionary or None
         """
-
         MONTH_NAMES_PATTERN = '|'.join(calendar.month_name[1:])
-
+        
         # Extract dates from text
         date_patterns = [
-            rf'(\d{{1,2}}\s+(?:{MONTH_NAMES_PATTERN})\s+\d{{4}})',
-            r'(\d{1,2}/\d{1,2}/\d{4})',
-            r'(\d{4}-\d{2}-\d{2})',
-            r'(?:by|in|from)\s+(\d{4})',
-            r'(?:by|in|from)\s+(?:end\s+of\s+)?(\d{4})'
+            rf'(\d{{1,2}}\s+(?:{MONTH_NAMES_PATTERN})\s+\d{{4}})',  # 12 January 2023
+            rf'(?:in|by|from)\s+((?:{MONTH_NAMES_PATTERN})\s+\d{{4}})',  # in May 2024
+            r'(\d{1,2}/\d{1,2}/\d{4})',  # 15/03/2022
+            r'(\d{4}-\d{2}-\d{2})',  # 2023-01-12
+            rf'(?:by|in|from)\s+(\d{{4}})',  # in 2024
+            rf'(?:by|in|from)\s+(?:end\s+of\s+)?(\d{{4}})',  # by end of 2024
         ]
         
         found_date = None
-
-        for date_pattern in date_patterns:
-            match = re.search(date_pattern, text, re.IGNORECASE)
-
-            if match:
-                date_str = match.group(1)
-                parsed = self._parse_date_string(date_str)
-
-                if parsed:
-                    found_date = parsed
-                    break
+        status = pattern_info['status']
+        
+        # Map status to keyword phrases with priority order
+        status_keywords = {
+            'in_force': [
+                ('apply from', 3),  # Highest priority for in_force
+                ('applies from', 3),
+                ('rules apply from', 3),
+                ('entered into force', 2),
+                ('came into force', 2),
+                ('became applicable', 2),
+            ],
+            'adopted': [('adopted', 1), ('approved', 1)],
+            'proposed': [('proposal', 1), ('proposed', 1), ('tabled', 1)],
+            'withdrawn': [('withdrawn', 1), ('withdraw', 1)],
+            'planned': [('will apply', 1), ('planned', 1), ('foresees', 1)],
+        }
+        
+        text_lower = text.lower()
+        keywords = status_keywords.get(status, [])
+        
+        # Try to find date in context of status keyword
+        best_date = None
+        best_priority = 0
+        
+        for keyword_info in keywords:
+            if isinstance(keyword_info, tuple):
+                keyword, priority = keyword_info
+            else:
+                keyword = keyword_info
+                priority = 1
+                
+            if keyword not in text_lower:
+                continue
+            
+            # Find the position of the keyword
+            keyword_pos = text_lower.find(keyword)
+            
+            # Extract text starting from keyword position
+            text_from_keyword = text[keyword_pos:]
+            
+            # Find the end of the sentence/clause (., ; or end of text)
+            clause_end = len(text_from_keyword)
+            for delimiter in ['. ', '; ']:
+                pos = text_from_keyword.find(delimiter)
+                if pos != -1 and pos < clause_end:
+                    clause_end = pos
+            
+            # Extract the clause containing the keyword
+            clause = text_from_keyword[:clause_end + 1]
+            
+            # Try to find a date in this clause
+            for date_pattern in date_patterns:
+                match = re.search(date_pattern, clause, re.IGNORECASE)
+                if match:
+                    date_str = match.group(1)
+                    parsed = self._parse_date_string(date_str)
+                    if parsed:
+                        # Update if this is higher priority
+                        if priority > best_priority:
+                            best_date = parsed
+                            best_priority = priority
+                        break
+        
+        found_date = best_date
+        
+        # Fallback: if no date found near status keyword, try the whole text
+        if not found_date:
+            for date_pattern in date_patterns:
+                match = re.search(date_pattern, text, re.IGNORECASE)
+                if match:
+                    date_str = match.group(1)
+                    parsed = self._parse_date_string(date_str)
+                    if parsed:
+                        found_date = parsed
+                        break
         
         # Extract action type and description
         action_type = self._extract_action_type(text, pattern_info['type_hint'])
@@ -2133,7 +2215,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         
         action = {
             'type': action_type,
-            'description': description[:200],  # Limit description length
+            'description': description,  # Limit description length
             'status': pattern_info['status']
         }
         
@@ -2144,6 +2226,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             action['document_url'] = doc_url
         
         return action
+
 
     def _extract_action_type(self, text: str, type_hint: str) -> str:
         """Extract the type of legislative action"""
