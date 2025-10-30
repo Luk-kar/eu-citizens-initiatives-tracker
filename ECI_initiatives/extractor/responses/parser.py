@@ -2062,13 +2062,15 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         """
         text = element.get_text()
         text_lower = text.lower()
-        
-        # Skip if this is clearly not legislative content
-        if any(skip_word in text_lower for skip_word in [
+
+        skip_words = [
             'roadmap', 'tasked', 'will communicate', 'will report', 'impact assessment',
             'stakeholder', 'consultation', 'workshop', 'meeting', 'better enforcement',
             'in parallel to the legislation', 'seek specific supporting measures',
-        ]):
+        ]
+
+        # Skip if this is clearly not legislative content
+        if any(word in text_lower for word in skip_words):
             return
         
         # Check each pattern
@@ -2092,9 +2094,12 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         Returns:
             Action dictionary or None
         """
+
+        MONTH_NAMES_PATTERN = '|'.join(calendar.month_name[1:])
+
         # Extract dates from text
         date_patterns = [
-            r'(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})',
+            rf'(\d{{1,2}}\s+(?:{MONTH_NAMES_PATTERN})\s+\d{{4}})',
             r'(\d{1,2}/\d{1,2}/\d{4})',
             r'(\d{4}-\d{2}-\d{2})',
             r'(?:by|in|from)\s+(\d{4})',
@@ -2102,11 +2107,14 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         ]
         
         found_date = None
+
         for date_pattern in date_patterns:
             match = re.search(date_pattern, text, re.IGNORECASE)
+
             if match:
                 date_str = match.group(1)
                 parsed = self._parse_date_string(date_str)
+
                 if parsed:
                     found_date = parsed
                     break
@@ -2144,18 +2152,24 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         # Specific type patterns
         if 'tariff codes' in text_lower or 'tariff code' in text_lower:
             return 'Tariff Codes Creation'
+
         elif 'standards' in text_lower and ('minimum' in text_lower or 'hygiene' in text_lower):
             return 'Standards Adoption'
+
         elif 'revision' in text_lower or 'revised' in text_lower or 'recast' in text_lower:
+
             if 'directive' in text_lower:
                 return 'Directive Revision'
             elif 'regulation' in text_lower:
                 return 'Regulation Revision'
             else:
                 return 'Legislative Revision'
+
         elif 'amendment' in text_lower:
             return 'Amendment'
+
         elif 'proposal' in text_lower or 'proposed' in text_lower:
+
             if 'regulation' in text_lower:
                 return 'Regulation Proposal'
             elif 'directive' in text_lower:
@@ -2164,7 +2178,9 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 return 'Law Proposal'
             else:
                 return 'Legislative Proposal'
+
         elif 'adopted' in text_lower or 'adoption' in text_lower:
+
             if 'regulation' in text_lower:
                 return 'Regulation Adoption'
             elif 'directive' in text_lower:
@@ -2173,9 +2189,13 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 return 'Law Adoption'
             else:
                 return 'Legislative Adoption'
+
         elif 'entered into force' in text_lower or 'became applicable' in text_lower:
+
             return 'Law Entered Into Force'
+
         elif 'withdrawn' in text_lower or 'withdraw' in text_lower:
+
             if 'regulation' in text_lower:
                 return 'Regulation Withdrawal'
             elif 'directive' in text_lower:
@@ -2190,7 +2210,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         # Clean up the text
         text = re.sub(r'\s+', ' ', text).strip()
         
-        # Take first sentence or up to 200 chars
+        # Take first sentence
         sentences = re.split(r'[.!?]\s+', text)
         if sentences:
             return sentences[0].strip()
