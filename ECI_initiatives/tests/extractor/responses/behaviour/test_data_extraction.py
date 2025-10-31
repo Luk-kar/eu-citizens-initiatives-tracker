@@ -3295,8 +3295,283 @@ class TestCommissionResponseContent:
 
     def test_non_legislative_action(self):
         """Test extraction of non-legislative action JSON array."""
-        pass
-    
+        
+        # Test case 1: Multiple non-legislative actions from Follow-up section
+        html1 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission will address the concerns raised by this initiative.</p>
+            
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The Commission will launch an impact assessment by the end of 2023 to evaluate policy options.</p>
+            <p>A scientific conference on alternative approaches was held at the European Commission on 6-7 December 2024.</p>
+            <p>The Commission will continue monitoring compliance with existing legislation through regular audits.</p>
+            <p>Stakeholder meetings on water quality took place on 09/09/2023 in Brussels.</p>
+            <p>The Commission implements funding programmes in the areas of education, notably Erasmus+, which are fully accessible.</p>
+        </html>
+        """
+        soup1 = BeautifulSoup(html1, 'html.parser')
+        extractor1 = LegislativeOutcomeExtractor(registration_number='2023/000001')
+        result1 = extractor1.extract_non_legislative_action(soup1)
+        
+        assert result1 is not None, "Should extract non-legislative actions"
+        result_list1 = json.loads(result1)
+        assert len(result_list1) >= 4, "Should extract multiple actions"
+        
+        # Check action types are present
+        types1 = [action['type'] for action in result_list1]
+        assert 'Impact Assessment and Consultation' in types1
+        assert 'Scientific Activity' in types1
+        assert 'Monitoring and Enforcement' in types1
+        assert 'Stakeholder Dialogue' in types1
+        assert 'Funding Programme' in types1
+        
+        # Check dates are extracted
+        dated_actions1 = [a for a in result_list1 if 'date' in a]
+        assert len(dated_actions1) >= 2, "Should extract dates from actions"
+        
+        # Test case 2: Actions from Answer section only (no Follow-up)
+        html2 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission monitors the implementation of existing EU initiatives which are directly relevant.</p>
+            <p>The Commission will strengthen enforcement of EU law through regular inspections.</p>
+            <p>Transparency and benchmarking initiatives will be established in 2024.</p>
+        </html>
+        """
+        soup2 = BeautifulSoup(html2, 'html.parser')
+        extractor2 = LegislativeOutcomeExtractor(registration_number='2023/000002')
+        result2 = extractor2.extract_non_legislative_action(soup2)
+        
+        assert result2 is not None, "Should extract from Answer section"
+        result_list2 = json.loads(result2)
+        assert len(result_list2) >= 2
+        
+        types2 = [action['type'] for action in result_list2]
+        assert 'Monitoring and Enforcement' in types2
+        assert 'Data Collection and Transparency' in types2
+        
+        # Test case 3: List items with non-legislative actions
+        html3 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission committed to taking the following actions:</p>
+            <ul>
+                <li>reinforcing implementation of EU water quality legislation;</li>
+                <li>launching an EU-wide public consultation on the Drinking Water Directive;</li>
+                <li>improving transparency for urban wastewater data management;</li>
+                <li>bringing about a more structured dialogue between stakeholders;</li>
+                <li>cooperating with existing initiatives to provide benchmarks;</li>
+            </ul>
+        </html>
+        """
+        soup3 = BeautifulSoup(html3, 'html.parser')
+        extractor3 = LegislativeOutcomeExtractor(registration_number='2012/000003')
+        result3 = extractor3.extract_non_legislative_action(soup3)
+        
+        assert result3 is not None, "Should extract from list items"
+        result_list3 = json.loads(result3)
+        assert len(result_list3) >= 4, "Should extract multiple list items"
+        
+        types3 = [action['type'] for action in result_list3]
+        assert 'Policy Implementation' in types3
+        assert 'Impact Assessment and Consultation' in types3
+        assert 'Data Collection and Transparency' in types3
+        assert 'Stakeholder Dialogue' in types3
+        
+        # Test case 4: Roadmap and strategy actions
+        html4 = """
+        <html>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>In the second half of 2023, the Commission started work on a roadmap to phase out animal testing.</p>
+            <p>The strategic plan of Horizon Europe includes alternatives to animal testing for 2025-2027.</p>
+            <p>The Commission will work on mechanisms to ensure compliance with fundamental rights in EU funds.</p>
+        </html>
+        """
+        soup4 = BeautifulSoup(html4, 'html.parser')
+        extractor4 = LegislativeOutcomeExtractor(registration_number='2021/000006')
+        result4 = extractor4.extract_non_legislative_action(soup4)
+        
+        assert result4 is not None
+        result_list4 = json.loads(result4)
+        
+        types4 = [action['type'] for action in result_list4]
+        assert 'Policy Roadmap and Strategy' in types4
+        
+        # Test case 5: International cooperation actions
+        html5 = """
+        <html>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>At the international level, the Commission is reaching out to international partners with a view to achieve a worldwide ban.</p>
+            <p>The Commission will advocate universal access to safe drinking water as a priority for Sustainable Development Goals.</p>
+            <p>High-level dialogue with China, US, Japan was conducted in 2024.</p>
+        </html>
+        """
+        soup5 = BeautifulSoup(html5, 'html.parser')
+        extractor5 = LegislativeOutcomeExtractor(registration_number='2020/000001')
+        result5 = extractor5.extract_non_legislative_action(soup5)
+        
+        assert result5 is not None
+        result_list5 = json.loads(result5)
+        
+        types5 = [action['type'] for action in result_list5]
+        assert 'International Cooperation' in types5
+        
+        # Test case 6: No non-legislative actions (only legislative)
+        html6 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission adopted a proposal for a regulation on 10 May 2023.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The regulation entered into force on 27 March 2024.</p>
+        </html>
+        """
+        soup6 = BeautifulSoup(html6, 'html.parser')
+        extractor6 = LegislativeOutcomeExtractor(registration_number='2023/000003')
+        result6 = extractor6.extract_non_legislative_action(soup6)
+        
+        assert result6 is None, "Should return None when only legislative actions present"
+        
+        # Test case 7: Duplicate actions should be removed
+        html7 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            <p>The Commission will monitor compliance with existing legislation.</p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>The Commission will monitor compliance with existing legislation.</p>
+        </html>
+        """
+        soup7 = BeautifulSoup(html7, 'html.parser')
+        extractor7 = LegislativeOutcomeExtractor(registration_number='2023/000004')
+        result7 = extractor7.extract_non_legislative_action(soup7)
+        
+        assert result7 is not None
+        result_list7 = json.loads(result7)
+        assert len(result_list7) == 1, "Should remove duplicate actions"
+        
+        # Test case 8: No Answer or Follow-up section
+        html8 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>Some procedural content.</p>
+        </html>
+        """
+        soup8 = BeautifulSoup(html8, 'html.parser')
+        extractor8 = LegislativeOutcomeExtractor(registration_number='2099/999999')
+        result8 = extractor8.extract_non_legislative_action(soup8)
+        
+        assert result8 is None, "Should return None when no relevant sections found"
+        
+        # Test case 9: Mixed with EFSA scientific opinions
+        html9 = """
+        <html>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>EFSA scientific opinions have been published concerning welfare risks in October 2021.</p>
+            <p>The Commission organised a workshop on alternative approaches on 10-11 April 2025.</p>
+        </html>
+        """
+        soup9 = BeautifulSoup(html9, 'html.parser')
+        extractor9 = LegislativeOutcomeExtractor(registration_number='2018/000004')
+        result9 = extractor9.extract_non_legislative_action(soup9)
+        
+        assert result9 is not None
+        result_list9 = json.loads(result9)
+        
+        types9 = [action['type'] for action in result_list9]
+        assert 'Scientific Activity' in types9
+        
+        # Verify dates are in correct format
+        dated9 = [a for a in result_list9 if 'date' in a]
+        assert len(dated9) >= 1
+        assert any('2021' in a.get('date', '') for a in dated9)
+        assert any('2025' in a.get('date', '') for a in dated9)
+        
+        # Test case 10: Actions with specific date formats
+        html10 = """
+        <html>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>A public consultation was carried out from 15 October 2021 to 21 January 2022.</p>
+            <p>The report was published in January 2024.</p>
+            <p>A colloquium was co-organised in November 2023.</p>
+            <p>The Commission will take action by the end of 2026.</p>
+        </html>
+        """
+        soup10 = BeautifulSoup(html10, 'html.parser')
+        extractor10 = LegislativeOutcomeExtractor(registration_number='2017/000004')
+        result10 = extractor10.extract_non_legislative_action(soup10)
+        
+        assert result10 is not None
+        result_list10 = json.loads(result10)
+        
+        # Check various date formats are extracted
+        dates10 = [a.get('date') for a in result_list10 if 'date' in a]
+        assert len(dates10) == 3, "Should extract dates from different formats"
+        assert any('2021' in str(d) for d in dates10)
+        assert any('2024' in str(d) for d in dates10)
+        assert any('2023' in str(d) for d in dates10)
+        
+        # Test case 11: Section headers should be filtered out
+        html11 = """
+        <html>
+            <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+
+            <p><strong>Implementation and review of existing EU legislation:</strong></p>
+            <ul>
+                <li>Subsequent implementation reports were published in 2015, 2019 and 2021.</li>
+            </ul>
+
+            <p><strong>Transparency and benchmarking:</strong></p>
+            <ul>
+                <li>Stakeholder meetings on benchmarking took place on 09/09/2014 in Brussels.</li>
+            </ul>
+
+            <p><strong>International cooperation:</strong></p>
+            <p>The Commission is working with international partners.</p>
+
+            <p><strong>Monitoring activities:</strong></p>
+            <p>The Commission will monitor compliance with existing legislation.</p>
+        </html>
+        """
+
+        soup11 = BeautifulSoup(html11, 'html.parser')
+        extractor11 = LegislativeOutcomeExtractor(registration_number='2012/000003')
+        result11 = extractor11.extract_non_legislative_action(soup11)
+
+        assert result11 is not None, "Should extract actions"
+        result_list11 = json.loads(result11)
+
+        # Check that section headers are NOT in the results
+        descriptions11 = [action['description'] for action in result_list11]
+
+        # These should NOT be in results (they are section headers ending with ':')
+        assert not any('Implementation and review of existing EU legislation:' == desc 
+                      for desc in descriptions11), "Section header should be filtered out"
+        assert not any('Transparency and benchmarking:' == desc 
+                      for desc in descriptions11), "Section header should be filtered out"
+        assert not any('International cooperation:' == desc 
+                      for desc in descriptions11), "Section header should be filtered out"
+        assert not any('Monitoring activities:' == desc 
+                      for desc in descriptions11), "Section header should be filtered out"
+
+        # These SHOULD be in results (actual actions, not headers)
+        assert any('implementation reports were published' in desc.lower() 
+                  for desc in descriptions11), "Actual action should be extracted"
+        assert any('stakeholder meetings' in desc.lower() 
+                  for desc in descriptions11), "Actual action should be extracted"
+        assert any('working with international partners' in desc.lower() 
+                  for desc in descriptions11), "Actual action should be extracted"
+        assert any('monitor compliance' in desc.lower() 
+                  for desc in descriptions11), "Actual action should be extracted"
+
+        # Verify we have exactly 4 actions (not 8 with headers included)
+        assert len(result_list11) == 4, f"Should have 4 actions, not {len(result_list11)} - section headers should be filtered"
+
+        # Additional check: No description should end with ':' and be < 100 chars (section header pattern)
+        for action in result_list11:
+            desc = action['description']
+            if desc.endswith(':'):
+                assert len(desc) >= 100, f"Short text ending with ':' should be filtered: {desc}"
+
 class TestFollowUpActivities:
     """Tests for follow-up activities extraction."""
     

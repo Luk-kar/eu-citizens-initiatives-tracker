@@ -2294,11 +2294,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         # Clean up the text
         text = re.sub(r'\s+', ' ', text).strip()
         
-        # Take first sentence
-        sentences = re.split(r'[.!?]\s+', text)
-        if sentences:
-            return sentences[0].strip()
-        
         return text.strip()
 
     def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
@@ -2433,7 +2428,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             # Data collection and transparency
             {
                 'keywords': [
-                    'data collection', 'transparency', 'benchmarking'
+                    'data collection', 'transparency', 'benchmarking', 'eurobarometer',
+                    'report was published', 'publication'
                 ],
                 'type': 'Data Collection and Transparency',
             },
@@ -2495,7 +2491,11 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         # Skip if empty or too short
         if len(text) < 20:
             return
-        
+            
+        # Section headers end with ':' and are short (< 100 chars)
+        if text.endswith(':') and len(text) < 100:
+            return
+
         # Skip legislative keywords (these belong to legislative actions)
         legislative_keywords = [
             'entered into force', 'became applicable', 'withdrawal',
@@ -2511,9 +2511,18 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             'labelling requirements',
             'mandatory labelling'
         ]
+
+        header_sections = [
+            "transparency and benchmarking:",
+            "Implementation and review of existing EU legislation:"
+        ]
         
         # If contains legislative keywords, skip (unless it's about enforcement)
         if any(keyword in text_lower for keyword in legislative_keywords):
+            return
+
+        # other trouble phrases
+        if any(keyword in text_lower for keyword in header_sections):
             return
         
         # Find matching pattern
