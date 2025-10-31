@@ -2407,7 +2407,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             # Impact assessments and consultations
             {
                 'keywords': [
-                    'impact assessment', 'public consultation', 'call for evidence'
+                    'impact assessment', 'public consultation', 'call for evidence',
+                    'consultation on',
                 ],
                 'type': 'Impact Assessment and Consultation',
             },
@@ -2424,7 +2425,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                     'international cooperation', 'reaching out', 'international partners',
                     'international level', 'international fora', 'international commission',
                     'un general assembly', 'ICCAT', 'best practices between Member States',
-                    'Sustainable Development Goals EU'
+                    'Sustainable Development Goals EU', 'EU-wide public consultation',
+                    'advocating universal access'
                 ],
                 'type': 'International Cooperation',
             },
@@ -2446,20 +2448,39 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         ]
         
         # Iterate through siblings after section header
-        for sibling in section.find_next_siblings():
+        current = section.next_sibling
+
+        while current:
             # Stop at next h2 section
-            if sibling.name == 'h2':
+            if hasattr(current, 'name') and current.name == 'h2':
                 break
-            
-            # Process paragraphs and list items
-            if sibling.name in ['p', 'li']:
-                self._process_element_for_non_legislative_action(sibling, action_patterns, actions)
-            
-            elif sibling.name in ['ul', 'ol']:
-                # Process each list item individually
-                for li in sibling.find_all('li', recursive=False):
+
+            if not hasattr(current, 'name'):
+                current = current.next_sibling
+                continue
+
+            # Process paragraph elements
+            if current.name == 'p':
+                self._process_element_for_non_legislative_action(current, action_patterns, actions)
+
+            # CRITICAL FIX: Process unordered lists
+            # Many Commission commitments are in <ul><li> structures
+            elif current.name == 'ul':
+                # Get all direct <li> children (not nested lists)
+                list_items = current.find_all('li', recursive=False)
+
+                for li in list_items:
                     self._process_element_for_non_legislative_action(li, action_patterns, actions)
-        
+
+            # Also handle ordered lists
+            elif current.name == 'ol':
+                list_items = current.find_all('li', recursive=False)
+
+                for li in list_items:
+                    self._process_element_for_non_legislative_action(li, action_patterns, actions)
+
+            current = current.next_sibling
+
         return actions
 
 
@@ -2477,7 +2498,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         
         # Skip legislative keywords (these belong to legislative actions)
         legislative_keywords = [
-            'regulation', 'directive', 
             'entered into force', 'became applicable', 'withdrawal',
             'decided not to submit a legislative proposal',
             'come forward with a legislative proposal',
