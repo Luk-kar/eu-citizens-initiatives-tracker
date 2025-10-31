@@ -2304,15 +2304,266 @@ class LegislativeOutcomeExtractor(BaseExtractor):
     def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract non-legislative actions as JSON array
-        Each item contains: type, action (full text with links), status, deadline
+        Each item contains: type, description, date
         Returns JSON string or None
         """
         try:
-            pass
+            import json
+            
+            # Find Answer and Follow-up sections
+            answer_section = self._find_answer_section(soup)
+            follow_up_section = soup.find('h2', id='Follow-up') or soup.find('h2', string=re.compile(r'Follow[- ]up', re.IGNORECASE))
+            
+            # Section priorities: Follow-up > Answer
+            search_sections = []
+            if follow_up_section:
+                search_sections.append(('follow_up', follow_up_section))
+            if answer_section:
+                search_sections.append(('answer', answer_section))
+            
+            if not search_sections:
+                return None
+            
+            # Extract actions from each section
+            actions = []
+            for section_type, section in search_sections:
+                section_actions = self._extract_non_legislative_actions_from_section(section, section_type)
+                actions.extend(section_actions)
+            
+            # If no actions found, return None
+            if not actions:
+                return None
+            
+            # Remove duplicates (same type, description, and date)
+            unique_actions = []
+            seen = set()
+            for action in actions:
+                key = (action.get('type', ''), action.get('description', ''), action.get('date', ''))
+                if key not in seen:
+                    seen.add(key)
+                    unique_actions.append(action)
+            
+            return json.dumps(unique_actions, ensure_ascii=False, indent=2)
+            
         except Exception as e:
             raise ValueError(f"Error extracting non-legislative action for {self.registration_number}: {str(e)}") from e
 
 
+    def _extract_non_legislative_actions_from_section(self, section, section_type: str) -> list:
+        """
+        Extract non-legislative actions from a specific section
+        
+        Args:
+            section: BeautifulSoup element of the section
+            section_type: Type of section ('answer', 'follow_up')
+        
+        Returns:
+            List of action dictionaries
+        """
+        actions = []
+        
+        # Non-legislative action patterns with their types
+        action_patterns = [
+            # 1. Monitoring
+            {
+                'keywords': [
+                    'monitoring', 'monitor', 'active monitoring', 'will monitor',
+                    'better enforce', 'strengthen enforcement', 'enforcement',
+                    'ensure compliance', 'ensuring compliance', 'compliance',
+                    'support member states', 'guarantee equal treatment', 
+                    'withhold payments', 'conditional funding', 'withhold the corresponding payments',
+                ],
+                'type': 'Monitoring and Enforcement',
+            },
+            # 2. Policy implementation
+            {
+                'keywords': [
+                    'will continue', 'continue to', 'ensure', 'ensuring',
+                    'guarantee', 'maintain', 'maintaining',
+                    'non-discriminatory access', 'equal access',
+                    'implementation', 'implementing', 'safeguard',
+                    'set of benchmarks'
+                    
+                ],
+                'type': 'Policy Implementation',
+            },
+            # Scientific activities
+            {
+                'keywords': [
+                    'scientific conference', 'scientific opinion', 'efsa',
+                    'workshop', 'colloquium'
+                ],
+                'type': 'Scientific Activity',
+            },
+            # Funding Programme
+            {
+                'keywords': [
+                    'funding', 'horizon europe', 'erasmus', 'creative europe',
+                    'cohesion policy', 'cohesion funding', 'union funding',
+                    'multiannual financial framework', 'mff'
+                ],
+                'type': 'Funding Programme',
+            },
+            # Impact assessments and consultations
+            {
+                'keywords': [
+                    'impact assessment', 'public consultation', 'call for evidence'
+                ],
+                'type': 'Impact Assessment and Consultation',
+            },
+            # Stakeholder dialogue
+            {
+                'keywords': [
+                    'stakeholder', 'partnership', 'stakeholder dialogue'
+                ],
+                'type': 'Stakeholder Dialogue',
+            },
+            # International cooperation
+            {
+                'keywords': [
+                    'international cooperation', 'reaching out', 'international partners',
+                    'international level', 'international fora', 'international commission',
+                    'un general assembly', 'ICCAT', 'best practices between Member States',
+                    'Sustainable Development Goals EU'
+                ],
+                'type': 'International Cooperation',
+            },
+            # Data collection and transparency
+            {
+                'keywords': [
+                    'data collection', 'transparency', 'benchmarking'
+                ],
+                'type': 'Data Collection and Transparency',
+            },
+            # Strategy policy
+            {
+                'keywords': [
+                    'roadmap', 'strategic plan', 'strengthened', 'modernised',
+                    'enhanced', 'policy framework', 'mechanism', 'mechanisms in place',
+                ],
+                'type': 'Policy Roadmap and Strategy',
+            },
+        ]
+        
+        # Iterate through siblings after section header
+        for sibling in section.find_next_siblings():
+            # Stop at next h2 section
+            if sibling.name == 'h2':
+                break
+            
+            # Process paragraphs and list items
+            if sibling.name in ['p', 'li']:
+                self._process_element_for_non_legislative_action(sibling, action_patterns, actions)
+            
+            elif sibling.name in ['ul', 'ol']:
+                # Process each list item individually
+                for li in sibling.find_all('li', recursive=False):
+                    self._process_element_for_non_legislative_action(li, action_patterns, actions)
+        
+        return actions
+
+
+    def _process_element_for_non_legislative_action(self, element, action_patterns: list, actions: list):
+        """Process a single HTML element (p or li) for non-legislative actions"""
+        
+        # Get text with normalized whitespace
+        text = element.get_text(separator=' ', strip=True)
+        text = re.sub(r'\s+', ' ', text).strip()
+        text_lower = text.lower()
+        
+        # Skip if empty or too short
+        if len(text) < 20:
+            return
+        
+        # Skip legislative keywords (these belong to legislative actions)
+        legislative_keywords = [
+            'regulation', 'directive', 
+            'entered into force', 'became applicable', 'withdrawal',
+            'decided not to submit a legislative proposal',
+            'come forward with a legislative proposal',
+            'table a legislative proposal', 'no new legislation',
+            'came into force on',
+            'amendment to the directive',
+            'amendment to the regulation',
+            'amending directive',
+            'amending regulation',
+            'revision of legislation',
+            'labelling requirements',
+            'mandatory labelling'
+        ]
+        
+        # If contains legislative keywords, skip (unless it's about enforcement)
+        if any(keyword in text_lower for keyword in legislative_keywords):
+            return
+        
+        # Find matching pattern
+        matched_pattern = None
+        for pattern_info in action_patterns:
+            if any(keyword in text_lower for keyword in pattern_info['keywords']):
+                matched_pattern = pattern_info
+                break
+        
+        # If no pattern matched, skip
+        if not matched_pattern:
+            return
+        
+        # Parse the action
+        action = self._parse_non_legislative_action(element, text, matched_pattern)
+        if action:
+            actions.append(action)
+
+
+    def _parse_non_legislative_action(self, element, text: str, pattern_info: dict) -> Optional[dict]:
+        """
+        Parse a non-legislative action from text element.
+        
+        Args:
+            element: BeautifulSoup element containing the action
+            text: Text content
+            pattern_info: Pattern information dictionary
+            
+        Returns:
+            Action dictionary or None
+        """
+        import calendar
+        
+        MONTH_NAMES_PATTERN = '|'.join(calendar.month_name[1:])
+        
+        # Extract dates from text
+        date_patterns = [
+            rf'(\d{{1,2}}\s+(?:{MONTH_NAMES_PATTERN})\s+\d{{4}})',  # 12 January 2023
+            rf'(?:in|by|from)\s+((?:{MONTH_NAMES_PATTERN})\s+\d{{4}})',  # in May 2024
+            r'(\d{1,2}/\d{1,2}/\d{4})',  # 15/03/2022
+            r'(\d{4}-\d{2}-\d{2})',  # 2023-01-12
+            rf'(?:by|in|from)\s+(\d{{4}})',  # in 2024
+            rf'(?:by|in|from)\s+(?:end\s+of\s+)?(\d{{4}})',  # by end of 2024
+        ]
+        
+        found_date = None
+        
+        # Try to find date in text
+        for date_pattern in date_patterns:
+            match = re.search(date_pattern, text, re.IGNORECASE)
+            if match:
+                date_str = match.group(1)
+                parsed = self._parse_date_string(date_str)
+                if parsed:
+                    found_date = parsed
+                    break
+        
+        # Extract clean description (first sentence or up to 300 chars)
+        description = self._extract_action_description(text)
+        
+        # Build action dictionary
+        action = {
+            'type': pattern_info['type'],
+            'description': description
+        }
+        
+        if found_date:
+            action['date'] = found_date
+        
+        return action
 
 
 class FollowUpActivityExtractor(BaseExtractor):
@@ -2331,6 +2582,12 @@ class FollowUpActivityExtractor(BaseExtractor):
             return None
         except Exception as e:
             raise ValueError(f"Error extracting followup events for {self.registration_number}: {str(e)}") from e
+
+    def extract_has_partnership_programs(self, soup: BeautifulSoup) -> Optional[bool]:
+        try:
+            return None
+        except Exception as e:
+            raise ValueError(f"Error checking roadmap for {self.registration_number}: {str(e)}") from e
 
     def extract_has_roadmap(self, soup: BeautifulSoup) -> Optional[bool]:
         """Check if initiative has a roadmap"""
