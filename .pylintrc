@@ -1,0 +1,5 @@
+[MESSAGES CONTROL]
+# Disable logging-fstring-interpolation (W1203):
+# - F-strings provide better code readability
+# - Performance overhead from eager evaluation is negligible for our logging volume
+disable=logging-fstring-interpolation,W1203
