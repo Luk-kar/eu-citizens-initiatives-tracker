@@ -770,17 +770,15 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             # Section priorities: Updates > Follow-up > Answer
             search_sections = []
             if updates_section:
-                search_sections.append(("updates", updates_section))
+                search_sections.append(updates_section)
             if follow_up_section:
-                search_sections.append(("follow_up", follow_up_section))
+                search_sections.append(follow_up_section)
             if answer_section:
-                search_sections.append(("answer", answer_section))
+                search_sections.append(answer_section)
 
             # Extract actions from each section
-            for section_type, section in search_sections:
-                section_actions = self._extract_actions_from_section(
-                    section, section_type
-                )
+            for section in search_sections:
+                section_actions = self._extract_actions_from_section(section)
                 actions.extend(section_actions)
 
             # If no actions found, return None
@@ -807,7 +805,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 f"Error extracting legislative action for {self.registration_number}: {str(e)}"
             ) from e
 
-    def _extract_actions_from_section(self, section, section_type: str) -> list:
+    def _extract_actions_from_section(self, section) -> list:
         """
         Extract legislative actions from a specific section
 
