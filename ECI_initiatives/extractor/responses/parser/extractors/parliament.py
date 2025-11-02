@@ -155,7 +155,8 @@ class ParliamentActivityExtractor(BaseExtractor):
 
         except Exception as e:
             raise ValueError(
-                f"Error extracting parliament hearing recording URLs for {self.registration_number}: {str(e)}"
+                "Error extracting parliament hearing recording URLs for "
+                f"{self.registration_number}: {str(e)}"
             ) from e
 
     def extract_plenary_debate_date(self, soup: BeautifulSoup) -> Optional[str]:
@@ -195,7 +196,12 @@ class ParliamentActivityExtractor(BaseExtractor):
                 calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)
             }
 
-            date_pattern = r"plenary session\s+(?:of\s+the\s+)?(?:European\s+Parliament\s+)?on\s+(\d{1,2})\s+(\w+)\s+(\d{4})"
+            date_pattern = (
+                r"plenary session\s+"
+                r"(?:of\s+the\s+)?"
+                r"(?:European\s+Parliament\s+)?on\s+"
+                r"(\d{1,2})\s+(\w+)\s+(\d{4})"
+            )
             match = re.search(date_pattern, debate_paragraph, re.IGNORECASE)
 
             if match:
@@ -209,7 +215,12 @@ class ParliamentActivityExtractor(BaseExtractor):
 
                 return f"{day}-{month_str}-{year}"
 
-            date_pattern_slash = r"plenary session\s+(?:of\s+the\s+)?(?:European\s+Parliament\s+)?on\s+(\d{1,2})/(\d{1,2})/(\d{4})"
+            date_pattern_slash = (
+                r"plenary session\s+"
+                r"(?:of\s+the\s+)?"
+                r"(?:European\s+Parliament\s+)?on\s+"
+                r"(\d{1,2})/(\d{1,2})/(\d{4})"
+            )
             match = re.search(date_pattern_slash, debate_paragraph, re.IGNORECASE)
 
             if match:
@@ -278,5 +289,6 @@ class ParliamentActivityExtractor(BaseExtractor):
 
         except Exception as e:
             raise ValueError(
-                f"Error extracting plenary debate recording URL for {self.registration_number}: {str(e)}"
+                "Error extracting plenary debate recording URL for "
+                f"{self.registration_number}: {str(e)}"
             ) from e
