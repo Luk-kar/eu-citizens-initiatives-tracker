@@ -1,5 +1,6 @@
 """Basic metadata extraction: URLs and titles"""
 
+import re
 from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor

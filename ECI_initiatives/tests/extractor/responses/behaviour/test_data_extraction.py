@@ -21,7 +21,8 @@ import pytest
 from bs4 import BeautifulSoup
 
 # Local
-from ECI_initiatives.extractor.responses.parser import ECIResponseHTMLParser, LegislativeOutcomeExtractor
+from ECI_initiatives.extractor.responses.parser.main_parser import ECIResponseHTMLParser
+from ECI_initiatives.extractor.responses.parser.extractors.outcome import LegislativeOutcomeExtractor
 from ECI_initiatives.extractor.responses.responses_logger import ResponsesExtractorLogger
 
 
