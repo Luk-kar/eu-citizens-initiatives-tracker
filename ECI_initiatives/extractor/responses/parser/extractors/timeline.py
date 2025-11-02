@@ -38,6 +38,7 @@ class ProceduralTimelineExtractor(BaseExtractor):
             date_pattern_month_name = (
                 rf"(?:On|on)\s+(\d{{1,2}}\s+(?:{month_names})\s+\d{{4}})"
             )
+            # error if not f-string
             date_pattern_slash = rf"(?:On|on)\s+(\d{{2}}/\d{{2}}/\d{{4}})"
 
             for p in paragraphs:
@@ -71,12 +72,14 @@ class ProceduralTimelineExtractor(BaseExtractor):
                                 return date_str
 
             raise ValueError(
-                f"No commission meeting date found in submission section for {self.registration_number}."
+                "No commission meeting date found in submission section for "
+                f"{self.registration_number}."
             )
 
         except Exception as e:
             raise ValueError(
-                f"Error extracting commission meeting date for {self.registration_number}: {str(e)}"
+                "Error extracting commission meeting date for "
+                f"{self.registration_number}:{str(e)}"
             ) from e
 
     def extract_commission_officials_met(self, soup: BeautifulSoup) -> Optional[str]:
