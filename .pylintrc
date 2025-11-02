@@ -2,4 +2,10 @@
 # Disable logging-fstring-interpolation (W1203):
 # - F-strings provide better code readability
 # - Performance overhead from eager evaluation is negligible for our logging volume
-disable=logging-fstring-interpolation,W1203
+#
+# Disable no-else-return (R1705):
+# - Developer disagrees that else/elif after return is unnecessary
+# - Explicit else blocks improve code readability and intent clarity
+# - Makes it obvious that all cases are covered (exhaustive conditionals)
+# - Prevents bugs where code runs unexpectedly without a clear else statement
+disable=logging-fstring-interpolation,no-else-return

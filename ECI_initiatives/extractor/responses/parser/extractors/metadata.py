@@ -115,7 +115,8 @@ class BasicMetadataExtractor(BaseExtractor):
                     elif href.startswith("/"):
                         initiative_url = f"https://citizens-initiative.europa.eu{href}"
                         self.logger.info(
-                            f"Found initiative URL in page link with text '{link_text}': {initiative_url}"
+                            f"Found initiative URL in page link with text '{link_text}': "
+                            f"{initiative_url}"
                         )
                         return initiative_url
 
