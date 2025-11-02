@@ -7,7 +7,9 @@ from typing import Optional
 class BaseExtractor:
     """Base class for all extractors with common utilities"""
 
-    def __init__(self, logger: logging.Logger, registration_number: Optional[str] = None):
+    def __init__(
+        self, logger: logging.Logger, registration_number: Optional[str] = None
+    ):
         self.logger = logger
         self.registration_number = registration_number
 

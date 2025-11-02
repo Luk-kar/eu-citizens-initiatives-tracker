@@ -13,34 +13,35 @@ from typing import Optional
 from ..base.base_extractor import BaseExtractor
 from .classifiers.status_matcher import LegislativeOutcomeClassifier
 
+
 class LegislativeOutcomeExtractor(BaseExtractor):
     """Extractor for legislative outcome and proposal status data"""
-    
+
     # Keywords that indicate rejection reasoning
     REJECTION_REASONING_KEYWORDS = [
-        'will not make',
-        'will not propose',
-        'decided not to',
-        'no legislative proposal',
-        'neither scientific nor legal grounds',
-        'existing legislation',
-        'existing funding framework',
-        'already covered',
-        'no repeal',
-        'differs from',
-        'not to submit',
-        'fall outside',
-        'outside of eu competence',
-        'outside the eu competence',
-        'not within eu competence',
-        'beyond eu competence',
-        'interfere with',
+        "will not make",
+        "will not propose",
+        "decided not to",
+        "no legislative proposal",
+        "neither scientific nor legal grounds",
+        "existing legislation",
+        "existing funding framework",
+        "already covered",
+        "no repeal",
+        "differs from",
+        "not to submit",
+        "fall outside",
+        "outside of eu competence",
+        "outside the eu competence",
+        "not within eu competence",
+        "beyond eu competence",
+        "interfere with",
     ]
 
     def __init__(self, registration_number: Optional[str] = None):
         """
         Initialize extractor
-        
+
         Args:
             registration_number: ECI registration number for error messages
         """
@@ -48,9 +49,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
     def _find_answer_section(self, soup: BeautifulSoup):
         """Find the Answer section header in the HTML."""
-        return (
-            soup.find('h2', id='Answer-of-the-European-Commission') or
-            soup.find('h2', id='Answer-of-the-European-Commission-and-follow-up')
+        return soup.find("h2", id="Answer-of-the-European-Commission") or soup.find(
+            "h2", id="Answer-of-the-European-Commission-and-follow-up"
         )
 
     def _extract_legislative_content(self, soup: BeautifulSoup) -> Optional[str]:
@@ -59,38 +59,42 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         Returns normalized lowercase string or None if section not found.
         """
         answer_section = self._find_answer_section(soup)
-        
+
         if not answer_section:
             return None
-        
+
         all_text = []
         for sibling in answer_section.find_next_siblings():
             if not self._should_skip_element(sibling):
                 all_text.append(sibling.get_text(strip=False))
-        
-        content = ' '.join(all_text).lower()
-        content = re.sub(r'\s+', ' ', content).strip()
-        
+
+        content = " ".join(all_text).lower()
+        content = re.sub(r"\s+", " ", content).strip()
+
         return content
-    
+
     def _should_skip_element(self, element) -> bool:
         """Check if element should be skipped during extraction."""
-        if element.name == 'h2':
+        if element.name == "h2":
             return True
-        if element.name == 'div' and element.get('class') and 'ecl-file' in element.get('class'):
+        if (
+            element.name == "div"
+            and element.get("class")
+            and "ecl-file" in element.get("class")
+        ):
             return True
         return False
-    
+
     def _get_classifier(self, soup: BeautifulSoup) -> LegislativeOutcomeClassifier:
         """
         Create and return a LegislativeOutcomeClassifier for the given HTML.
-        
+
         Args:
             soup: BeautifulSoup object containing ECI response HTML
-            
+
         Returns:
             LegislativeOutcomeClassifier instance
-            
+
         Raises:
             ValueError: If Answer section is not found or is empty
         """
@@ -101,11 +105,11 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 f"Answer section may be missing or empty."
             )
         return LegislativeOutcomeClassifier(content)
-    
+
     def extract_highest_status_reached(self, soup: BeautifulSoup) -> str:
         """
         Extract the highest status reached by the initiative.
-        
+
         Status hierarchy (highest to lowest):
         1. applicable - Law Active
         2. adopted - Law Approved
@@ -117,13 +121,13 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         8. rejected - Rejected
         9. non_legislative_action - Policy Changes Only
         10. proposal_pending_adoption - Proposals Under Review
-        
+
         Args:
             soup: BeautifulSoup object containing ECI response HTML
-            
+
         Returns:
             Citizen-friendly status name (e.g., "Law Active")
-        
+
         Raises:
             ValueError: If error occurs during extraction or no status can be determined
         """
@@ -131,11 +135,13 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             matcher = self._get_classifier(soup)
             technical_status = matcher.extract_technical_status()
             return matcher.translate_to_citizen_friendly(technical_status)
-            
+
         except ValueError as e:
             if "No known status patterns matched" in str(e):
                 content = self._extract_legislative_content(soup)
-                content_preview = content[:500] + "..." if len(content) > 500 else content
+                content_preview = (
+                    content[:500] + "..." if len(content) > 500 else content
+                )
                 raise ValueError(
                     f"Could not determine legislative status for initiative:\n{self.registration_number}\n"
                     f"No known status patterns matched. Content preview:\n{content_preview}\n"
@@ -149,14 +155,14 @@ class LegislativeOutcomeExtractor(BaseExtractor):
     def extract_proposal_commitment_stated(self, soup: BeautifulSoup) -> Optional[bool]:
         """
         Extract whether Commission explicitly committed to propose legislation.
-        
+
         Returns:
             True if commitment found, False otherwise
         """
         try:
             matcher = self._get_classifier(soup)
             return matcher.check_committed()
-            
+
         except Exception as e:
             raise ValueError(
                 f"Error extracting proposal commitment status for {self.registration_number}: {str(e)}"
@@ -165,7 +171,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
     def extract_proposal_rejected(self, soup: BeautifulSoup) -> Optional[bool]:
         """
         Extract whether Commission explicitly rejected making a legislative proposal.
-        
+
         Returns:
             True if rejection stated, False otherwise
         """
@@ -173,72 +179,73 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             matcher = self._get_classifier(soup)
             rejection_type = matcher.check_rejection_type()
             return bool(rejection_type)
-            
+
         except Exception as e:
             raise ValueError(
                 f"Error extracting proposal rejection status for {self.registration_number}: {str(e)}"
             ) from e
-    
-    def _extract_text_with_keyword_filter(self, sibling, keywords: list) -> Optional[str]:
+
+    def _extract_text_with_keyword_filter(
+        self, sibling, keywords: list
+    ) -> Optional[str]:
         """
         Extract text from element if it contains any of the keywords.
-        
+
         Args:
             sibling: BeautifulSoup element to extract from
             keywords: List of keywords to filter by
-            
+
         Returns:
             Extracted text or None if no keyword match
         """
-        if sibling.name not in ['p', 'li', 'ul', 'ol']:
+        if sibling.name not in ["p", "li", "ul", "ol"]:
             return None
-        
-        if sibling.name in ['ul', 'ol']:
-            list_items = sibling.find_all('li')
+
+        if sibling.name in ["ul", "ol"]:
+            list_items = sibling.find_all("li")
             matching_texts = []
             for li in list_items:
                 text = li.get_text(strip=True)
                 if any(keyword in text.lower() for keyword in keywords):
                     matching_texts.append(text)
-            return ' '.join(matching_texts) if matching_texts else None
+            return " ".join(matching_texts) if matching_texts else None
         else:
             text = sibling.get_text(strip=True)
             if any(keyword in text.lower() for keyword in keywords):
                 return text
             return None
-    
+
     def _extract_mixed_response_reasoning(self, answer_section) -> str:
         """
         Extract reasoning for mixed response (both commitment and rejection).
         Finds all text mentioning 'legislative proposal'.
-        
+
         Args:
             answer_section: BeautifulSoup element of Answer section
-            
+
         Returns:
             Combined text of all relevant paragraphs
-            
+
         Raises:
             ValueError: If no relevant text found
         """
         legislative_proposal_paragraphs = []
-        
+
         for sibling in answer_section.find_next_siblings():
             if self._should_skip_element(sibling):
-                if sibling.name == 'h2':
+                if sibling.name == "h2":
                     break
                 continue
-            
+
             extracted_text = self._extract_text_with_keyword_filter(
-                sibling, 
-                ['legislative proposal']
+                sibling, ["legislative proposal"]
             )
             if extracted_text:
                 legislative_proposal_paragraphs.append(extracted_text)
-        
+
         if legislative_proposal_paragraphs:
-            return ' '.join(legislative_proposal_paragraphs)
-        
+            return " ".join(legislative_proposal_paragraphs)
+
         raise ValueError(
             f"Failed to extract rejection reasoning for mixed response: {self.registration_number}.\n"
             f"The Commission committed to some legislative action but rejected other aims.\n"
@@ -246,36 +253,35 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             f"legislative_proposal_paragraphs:\n{legislative_proposal_paragraphs}\n"
             f"answer_section:\n{answer_section}\n"
         )
-    
+
     def _extract_pure_rejection_reasoning(self, answer_section) -> str:
         """
         Extract reasoning for pure rejection (no commitment).
         Finds all text containing rejection keywords.
-        
+
         Args:
             answer_section: BeautifulSoup element of Answer section
-            
+
         Returns:
             Combined text of all relevant paragraphs or fallback message
         """
         rejection_sentences = []
-        
+
         for sibling in answer_section.find_next_siblings():
             if self._should_skip_element(sibling):
-                if sibling.name == 'h2':
+                if sibling.name == "h2":
                     break
                 continue
-            
+
             extracted_text = self._extract_text_with_keyword_filter(
-                sibling,
-                self.REJECTION_REASONING_KEYWORDS
+                sibling, self.REJECTION_REASONING_KEYWORDS
             )
             if extracted_text:
                 rejection_sentences.append(extracted_text)
-        
+
         if rejection_sentences:
-            return ' '.join(rejection_sentences)
-        
+            return " ".join(rejection_sentences)
+
         return "The Commission decided not to make a legislative proposal."
 
     def extract_rejection_reasoning(self, soup: BeautifulSoup) -> Optional[str]:
@@ -283,45 +289,44 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         Extract the reasoning provided by Commission for rejecting legislative proposal.
         Returns full text explanation or None if not rejected.
         For mixed responses (both commitment and rejection), extracts all relevant context.
-        
+
         Returns:
             String containing rejection reasoning, or None if no rejection found
-        
+
         Raises:
             ValueError: If Answer section is not found or is empty
         """
         try:
             matcher = self._get_classifier(soup)
             rejection_type = matcher.check_rejection_type()
-            
+
             if not rejection_type:
                 return None
-            
+
             answer_section = self._find_answer_section(soup)
             if not answer_section:
                 return None
-            
+
             has_commitment = matcher.check_committed()
-            
+
             if has_commitment:
                 return self._extract_mixed_response_reasoning(answer_section)
             else:
                 return self._extract_pure_rejection_reasoning(answer_section)
-            
+
         except Exception as e:
             raise ValueError(
                 f"Error extracting rejection reasoning for {self.registration_number}: {str(e)}"
             ) from e
 
-
     def extract_applicable_date(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract the date when regulation/directive became applicable (implementation deadline).
         Format: YYYY-MM-DD
-        
+
         Returns:
             Date string in YYYY-MM-DD format or None if not applicable
-            
+
         Raises:
             ValueError: If Answer section not found
         """
@@ -331,51 +336,51 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 raise ValueError(
                     f"Could not find Answer section for initiative {self.registration_number}"
                 )
-            
+
             # Check if this initiative has applicable status
             matcher = self._get_classifier(soup)
             if not matcher.check_applicable():
                 return None
-            
+
             # Patterns to search for applicable dates
             applicable_patterns = [
                 # "became applicable 18 months later, i.e. on 27 March 2021"
-                r'became applicable.*?on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+                r"became applicable.*?on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
                 # "became applicable immediately"
-                r'became applicable immediately',
+                r"became applicable immediately",
                 # "applicable from 27 March 2021"
-                r'applicable from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+                r"applicable from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
                 # "and applicable from 27 March 2021"
-                r'and applicable from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+                r"and applicable from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
                 # "applies from 27 March 2021"
-                r'applies from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+                r"applies from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
                 # "apply from 27 March 2021"
-                r'apply from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+                r"apply from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
             ]
-            
+
             # Search through all siblings after Answer section
             for sibling in answer_section.find_next_siblings():
                 if self._should_skip_element(sibling):
-                    if sibling.name == 'h2':
+                    if sibling.name == "h2":
                         continue  # Don't break, check other sections too
                     continue
-                
+
                 text = sibling.get_text(strip=False)
-                
+
                 # Check for "immediately" case first
-                if 'became applicable immediately' in text.lower():
+                if "became applicable immediately" in text.lower():
                     # Try to find entry into force date nearby
                     force_match = re.search(
-                        r'entered into force on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})',
+                        r"entered into force on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
                         text,
-                        re.IGNORECASE
+                        re.IGNORECASE,
                     )
                     if force_match:
                         date_str = force_match.group(1).strip()
                         parsed_date = self._parse_date_string(date_str)
                         if parsed_date:
                             return parsed_date
-                
+
                 # Check each pattern
                 for pattern in applicable_patterns:
                     match = re.search(pattern, text, re.IGNORECASE)
@@ -385,9 +390,9 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                             parsed_date = self._parse_date_string(date_str)
                             if parsed_date:
                                 return parsed_date
-            
+
             return None
-            
+
         except Exception as e:
             raise ValueError(
                 f"Error extracting applicable date for {self.registration_number}: {str(e)}"
@@ -396,34 +401,34 @@ class LegislativeOutcomeExtractor(BaseExtractor):
     def _parse_date_string(self, date_str: str) -> Optional[str]:
         """
         Parse various date formats to YYYY-MM-DD.
-        
+
         Args:
             date_str: Date string in formats like "27 March 2021", "27/03/2021"
-            
+
         Returns:
             Date in YYYY-MM-DD format or None if parsing fails
         """
         from datetime import datetime
-        
+
         # Common date formats in ECI responses
         date_formats = [
-            '%d %B %Y',      # 27 March 2021
-            '%d/%m/%Y',      # 27/03/2021
-            '%d-%m-%Y',      # 27-03-2021
-            '%Y-%m-%d',      # 2021-03-27 (already in target format)
-            '%d %b %Y',      # 27 Mar 2021
-            '%B %Y',         # February 2024 (month and year only)
-            '%b %Y',         # Mar 2024 (abbreviated month and year)
-            '%Y',
+            "%d %B %Y",  # 27 March 2021
+            "%d/%m/%Y",  # 27/03/2021
+            "%d-%m-%Y",  # 27-03-2021
+            "%Y-%m-%d",  # 2021-03-27 (already in target format)
+            "%d %b %Y",  # 27 Mar 2021
+            "%B %Y",  # February 2024 (month and year only)
+            "%b %Y",  # Mar 2024 (abbreviated month and year)
+            "%Y",
         ]
-        
+
         for fmt in date_formats:
             try:
                 parsed = datetime.strptime(date_str.strip(), fmt)
-                return parsed.strftime('%Y-%m-%d')
+                return parsed.strftime("%Y-%m-%d")
             except ValueError:
                 continue
-        
+
         return None
 
     def extract_commissions_deadlines(self, soup: BeautifulSoup) -> Optional[str]:
@@ -431,212 +436,222 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         Extract all Commission deadlines mentioned in the response as JSON.
         Returns a dictionary where keys are dates (YYYY-MM-DD) and values are phrases connected to those dates.
         Returns None if no deadlines are mentioned.
-        
+
         Format: JSON string like:
         {
             "2018-05-31": "committed to come forward with a legislative proposal",
             "2026-03-31": "will communicate on the most appropriate action",
             "2024-12-31": "complete the impact assessment"
         }
-        
+
         Returns:
             JSON string with date->phrase mapping or None if no deadlines found
-            
+
         Raises:
             ValueError: If Answer section not found
         """
         try:
             import json
-            
+
             answer_section = self._find_answer_section(soup)
             if not answer_section:
                 raise ValueError(
                     f"Could not find Answer section for initiative {self.registration_number}"
                 )
-            
+
             # Comprehensive deadline patterns covering various commitment types
             deadline_patterns = [
                 # Legislative proposal patterns (action BEFORE deadline)
-                r'committed to come forward with a legislative proposal[,\s]+by\s+([^.,;]+)',
-                r'intention to table a legislative proposal[,\s]+by\s+([^.,;]+)',
-                r'communicated its intention to table a legislative proposal[,\s]+by\s+([^.,;]+)',
-                r'to table a legislative proposal[,\s]+by\s+([^.,;]+)',
-                r'will table a legislative proposal[,\s]+by\s+([^.,;]+)',
-                r'to propose legislation[,\s]+by\s+([^.,;]+)',
-                
+                r"committed to come forward with a legislative proposal[,\s]+by\s+([^.,;]+)",
+                r"intention to table a legislative proposal[,\s]+by\s+([^.,;]+)",
+                r"communicated its intention to table a legislative proposal[,\s]+by\s+([^.,;]+)",
+                r"to table a legislative proposal[,\s]+by\s+([^.,;]+)",
+                r"will table a legislative proposal[,\s]+by\s+([^.,;]+)",
+                r"to propose legislation[,\s]+by\s+([^.,;]+)",
                 # Communication patterns (action BEFORE deadline)
-                r'will (?:then )?communicate[,\s]+by\s+([^.,;]+)',
-                r'committed to communicate[,\s]+by\s+([^.,;]+)',
-                r'will then communicate[,\s]+by\s+([^.,;]+)',
-                
+                r"will (?:then )?communicate[,\s]+by\s+([^.,;]+)",
+                r"committed to communicate[,\s]+by\s+([^.,;]+)",
+                r"will then communicate[,\s]+by\s+([^.,;]+)",
                 # Assessment and study patterns (action BEFORE deadline)
-                r'launch.*?(?:impact )?assessment[,\s]+by\s+([^.,;]+)',
-                r'conduct.*?study[,\s]+by\s+([^.,;]+)',
-                r'carry out.*?(?:assessment|study)[,\s]+by\s+([^.,;]+)',
-                r'scientific opinion[,\s]+by\s+([^.,;]+)',
-                r'efsa.*?(?:to )?provide.*?(?:opinion|assessment)[,\s]+by\s+([^.,;]+)',
-                r'complete.*?(?:assessment|study|evaluation)[,\s]+by\s+([^.,;]+)',
-                r'external study to be carried out.*?by\s+([^.,;]+)',
-                
+                r"launch.*?(?:impact )?assessment[,\s]+by\s+([^.,;]+)",
+                r"conduct.*?study[,\s]+by\s+([^.,;]+)",
+                r"carry out.*?(?:assessment|study)[,\s]+by\s+([^.,;]+)",
+                r"scientific opinion[,\s]+by\s+([^.,;]+)",
+                r"efsa.*?(?:to )?provide.*?(?:opinion|assessment)[,\s]+by\s+([^.,;]+)",
+                r"complete.*?(?:assessment|study|evaluation)[,\s]+by\s+([^.,;]+)",
+                r"external study to be carried out.*?by\s+([^.,;]+)",
                 # Roadmap patterns (action BEFORE deadline)
-                r'roadmap.*?(?:is planned|planned|completed?)[,\s]+by\s+([^.,;]+)',
-                r'finalisation.*?roadmap.*?by\s+([^.,;]+)',
-                r'work on.*?roadmap.*?by\s+([^.,;]+)',
-                
+                r"roadmap.*?(?:is planned|planned|completed?)[,\s]+by\s+([^.,;]+)",
+                r"finalisation.*?roadmap.*?by\s+([^.,;]+)",
+                r"work on.*?roadmap.*?by\s+([^.,;]+)",
                 # Report and update patterns (action BEFORE deadline)
-                r'provide.*?report[,\s]+by\s+([^.,;]+)',
-                r'provide.*?(?:update|information|data|details)[,\s]+by\s+([^.,;]+)',
-                r'will report[,\s]+by\s+([^.,;]+)',
-                r'(?:produce|publish).*?report[,\s]+by\s+([^.,;]+)',
-                r'report.*?to be produced.*?(?:by|in)\s+([^.,;]+)',
-                r'to\s+be\s+produced\s+in\s+([^.,;]+)',
-                
+                r"provide.*?report[,\s]+by\s+([^.,;]+)",
+                r"provide.*?(?:update|information|data|details)[,\s]+by\s+([^.,;]+)",
+                r"will report[,\s]+by\s+([^.,;]+)",
+                r"(?:produce|publish).*?report[,\s]+by\s+([^.,;]+)",
+                r"report.*?to be produced.*?(?:by|in)\s+([^.,;]+)",
+                r"to\s+be\s+produced\s+in\s+([^.,;]+)",
                 # Other commitment patterns (action BEFORE deadline)
-                r'preparatory work.*?(?:with a view to )?launch.*?by\s+([^.,;]+)',
-                r'call for evidence.*?by\s+([^.,;]+)',
-                
+                r"preparatory work.*?(?:with a view to )?launch.*?by\s+([^.,;]+)",
+                r"call for evidence.*?by\s+([^.,;]+)",
                 # DEADLINE-FIRST patterns (deadline BEFORE action)
-                r'by\s+([^.,;]+),\s+provide.*?(?:information|data|details)',
-                r'by\s+([^.,;]+),\s+the\s+commission\s+will\s+(?:communicate|report|provide)',
-                r'by\s+([^.,;]+),\s+(?:to\s+)?(?:phase\s+out|ban|prohibit|implement)',
+                r"by\s+([^.,;]+),\s+provide.*?(?:information|data|details)",
+                r"by\s+([^.,;]+),\s+the\s+commission\s+will\s+(?:communicate|report|provide)",
+                r"by\s+([^.,;]+),\s+(?:to\s+)?(?:phase\s+out|ban|prohibit|implement)",
             ]
-            
+
             deadlines_dict = {}
-            
+
             # Search through all siblings after Answer section
             for sibling in answer_section.find_next_siblings():
                 if self._should_skip_element(sibling):
-                    if sibling.name == 'h2':
+                    if sibling.name == "h2":
                         break
                     continue
-                
+
                 text = sibling.get_text(strip=False)
                 text_lower = text.lower()
-                
+
                 # Check each pattern
                 for pattern in deadline_patterns:
                     # Find all matches in this element (handles multiple deadlines per element)
                     for match in re.finditer(pattern, text_lower, re.IGNORECASE):
                         deadline_text = match.group(1).strip()
-                        
+
                         if deadline_text:
                             # Clean and convert the deadline
                             deadline_cleaned = self._clean_deadline_text(deadline_text)
                             if deadline_cleaned:
-                                deadline_date = self._convert_deadline_to_date(deadline_cleaned)
+                                deadline_date = self._convert_deadline_to_date(
+                                    deadline_cleaned
+                                )
                                 if deadline_date:
                                     # Extract the complete sentence containing this deadline
-                                    sentence = self._extract_complete_sentence(text, match.start())
-                                    
+                                    sentence = self._extract_complete_sentence(
+                                        text, match.start()
+                                    )
+
                                     if sentence:
                                         # Clean up whitespace
-                                        sentence = re.sub(r'\s+', ' ', sentence).strip()
-                                        
+                                        sentence = re.sub(r"\s+", " ", sentence).strip()
+
                                         # If we already have this date, append to existing phrase
                                         if deadline_date in deadlines_dict:
                                             # Only append if it's different content
-                                            if sentence not in deadlines_dict[deadline_date]:
-                                                deadlines_dict[deadline_date] += f"; {sentence}"
+                                            if (
+                                                sentence
+                                                not in deadlines_dict[deadline_date]
+                                            ):
+                                                deadlines_dict[
+                                                    deadline_date
+                                                ] += f"; {sentence}"
                                         else:
                                             deadlines_dict[deadline_date] = sentence
-            
+
             # Return None if no deadlines found, otherwise return JSON string
             if not deadlines_dict:
                 return None
-            
+
             return json.dumps(deadlines_dict, ensure_ascii=False, indent=2)
-            
+
         except Exception as e:
             raise ValueError(
                 f"Error extracting commission deadlines for {self.registration_number}: {str(e)}"
             ) from e
 
-    def _extract_complete_sentence(self, text: str, match_position: int) -> Optional[str]:
+    def _extract_complete_sentence(
+        self, text: str, match_position: int
+    ) -> Optional[str]:
         """
         Extract the complete sentence containing the deadline match.
-        
+
         Args:
             text: Full text to search within
             match_position: Position of the regex match in the text
-            
+
         Returns:
             Complete sentence or None if extraction fails
         """
         # Find the start of the sentence (look backwards for sentence boundary)
         sentence_start = 0
-        
+
         # Look backwards from match position for sentence start markers
         for i in range(match_position - 1, -1, -1):
             char = text[i]
-            
+
             # Sentence boundaries: period, question mark, exclamation, or start of text
-            if char in '.!?':
+            if char in ".!?":
                 # Make sure it's not an abbreviation (check for space after)
                 if i + 1 < len(text) and text[i + 1].isspace():
                     sentence_start = i + 1
                     break
             # Also break at bullet points or list markers
-            elif char == '•' or (char == '\n' and i > 0 and text[i-1] == '\n'):
+            elif char == "•" or (char == "\n" and i > 0 and text[i - 1] == "\n"):
                 sentence_start = i + 1
                 break
-        
+
         # Find the end of the sentence (look forwards for sentence boundary)
         sentence_end = len(text)
-        
+
         # Look forwards from match position for sentence end markers
         for i in range(match_position, len(text)):
             char = text[i]
-            
+
             # Sentence boundaries: period, question mark, exclamation
-            if char in '.!?':
+            if char in ".!?":
                 # Include the punctuation and stop
                 sentence_end = i + 1
                 break
             # Also break at newlines indicating paragraph breaks
-            elif char == '\n' and i + 1 < len(text) and text[i + 1] == '\n':
+            elif char == "\n" and i + 1 < len(text) and text[i + 1] == "\n":
                 sentence_end = i
                 break
-        
+
         # Extract and clean the sentence
         sentence = text[sentence_start:sentence_end].strip()
-        
+
         # Remove leading punctuation or whitespace
-        sentence = sentence.lstrip('.,;:•\n\r\t ')
-        
+        sentence = sentence.lstrip(".,;:•\n\r\t ")
+
         return sentence if sentence else None
 
     def _clean_deadline_text(self, deadline: str) -> Optional[str]:
         """
         Clean deadline text by removing trailing words that aren't part of the date.
-        
+
         Args:
             deadline: Raw deadline text
-            
+
         Returns:
             Cleaned deadline text or None if invalid
         """
         # Remove common trailing phrases
-        deadline = re.sub(r'\s+(?:to|for|in order to|with|amongst|among).*$', '', deadline, flags=re.IGNORECASE)
-        
+        deadline = re.sub(
+            r"\s+(?:to|for|in order to|with|amongst|among).*$",
+            "",
+            deadline,
+            flags=re.IGNORECASE,
+        )
+
         # Remove trailing commas, semicolons, periods
-        deadline = deadline.rstrip('.,;')
-        
+        deadline = deadline.rstrip(".,;")
+
         # Validate it contains a year (4 digits)
-        if not re.search(r'\d{4}', deadline):
+        if not re.search(r"\d{4}", deadline):
             return None
-        
+
         return deadline.strip()
 
     def _convert_deadline_to_date(self, deadline: str) -> Optional[str]:
         """
         Convert deadline text to YYYY-MM-DD format (last day of month/year).
-        
+
         Args:
             deadline: Cleaned deadline text like "may 2018", "the end of 2023", "end 2024", "2019"
-            
+
         Returns:
             Date string in YYYY-MM-DD format (last day of period) or None if parsing fails
-            
+
         Examples:
             - "May 2018" → "2018-05-31"
             - "the end of 2023" → "2023-12-31"
@@ -646,67 +661,69 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             - "March 2026" → "2026-03-31"
             - "early 2026" → "2026-03-31"
         """
-        
+
         deadline_lower = deadline.lower().strip()
-        
+
         # Validate it contains a year (4 digits)
-        if not re.search(r'\d{4}', deadline_lower):
+        if not re.search(r"\d{4}", deadline_lower):
             return None
-        
+
         # Pattern 1: "the end of YYYY" or "end of YYYY"
-        endof_match = re.match(r'(?:the\s+)?end\s+of\s+(\d{4})', deadline_lower)
+        endof_match = re.match(r"(?:the\s+)?end\s+of\s+(\d{4})", deadline_lower)
         if endof_match:
             year = int(endof_match.group(1))
             return f"{year}-12-31"
-        
+
         # Pattern 1b: "end YYYY" (without "of")
-        end_match = re.match(r'end\s+(\d{4})', deadline_lower)
+        end_match = re.match(r"end\s+(\d{4})", deadline_lower)
         if end_match:
             year = int(end_match.group(1))
             return f"{year}-12-31"
-        
+
         # Pattern 2: "early YYYY" (interpret as end of Q1 = March 31)
-        early_match = re.match(r'early\s+(\d{4})', deadline_lower)
+        early_match = re.match(r"early\s+(\d{4})", deadline_lower)
         if early_match:
             year = int(early_match.group(1))
             return f"{year}-03-31"
-        
+
         # Pattern 3: "Month YYYY" (e.g., "May 2018", "march 2026")
-        monthyear_match = re.match(r'([a-z]+)\s+(\d{4})', deadline_lower)
+        monthyear_match = re.match(r"([a-z]+)\s+(\d{4})", deadline_lower)
         if monthyear_match:
             month_name = monthyear_match.group(1).capitalize()
             year = int(monthyear_match.group(2))
-            
+
             # Parse month name to month number
             try:
-                month_date = datetime.strptime(month_name, '%B')  # Full month name
+                month_date = datetime.strptime(month_name, "%B")  # Full month name
                 month_num = month_date.month
             except ValueError:
                 try:
-                    month_date = datetime.strptime(month_name, '%b')  # Abbreviated month name
+                    month_date = datetime.strptime(
+                        month_name, "%b"
+                    )  # Abbreviated month name
                     month_num = month_date.month
                 except ValueError:
                     return None
-            
+
             # Get last day of the month
             last_day = calendar.monthrange(year, month_num)[1]
             return f"{year}-{month_num:02d}-{last_day:02d}"
-        
+
         # Pattern 4: Just a year "YYYY" (e.g., "2019") - NEW PATTERN
-        year_only_match = re.match(r'^(\d{4})$', deadline_lower)
+        year_only_match = re.match(r"^(\d{4})$", deadline_lower)
         if year_only_match:
             year = int(year_only_match.group(1))
             return f"{year}-12-31"
-        
+
         return None
-        
+
     # TODO: need a refactor
     def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract LEGISLATIVE actions - proposals, adoptions, laws, regulations, directives.
         Excludes: rejection statements, enforcement activities, policy actions.
         Returns JSON string with list of legislative actions or None
-        
+
         Each action contains:
         - type: Type of action (e.g., "Regulation Proposal", "Directive Revision", "Tariff Codes Creation")
         - description: Brief description of the action
@@ -718,55 +735,67 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             # Check if proposal was rejected
             matcher = self._get_classifier(soup)
             rejection_type = matcher.check_rejection_type()
-            
+
             # If rejected with no commitment, return None
             if rejection_type and not matcher.check_committed():
                 return None
-            
+
             # If only commitment stated but no actual proposals, return None
-            if matcher.check_committed() and not (matcher.check_adopted() or matcher.check_applicable()):
+            if matcher.check_committed() and not (
+                matcher.check_adopted() or matcher.check_applicable()
+            ):
                 # Check if there are actual proposals mentioned in follow-up section
-                follow_up_section = soup.find('h2', id='Follow-up')
+                follow_up_section = soup.find("h2", id="Follow-up")
                 if not follow_up_section:
                     return None
-            
+
             # Extract all legislative actions
             actions = []
-            
+
             # Find Answer and Follow-up sections
             answer_section = self._find_answer_section(soup)
-            follow_up_section = soup.find('h2', id='Follow-up') or soup.find('h2', string=re.compile(r'Follow[- ]up', re.IGNORECASE))
-            updates_section = soup.find('h2', id='Updates-on-the-Commissions-proposals') or soup.find('h2', string=re.compile(r'Updates.*proposal', re.IGNORECASE))
-            
+            follow_up_section = soup.find("h2", id="Follow-up") or soup.find(
+                "h2", string=re.compile(r"Follow[- ]up", re.IGNORECASE)
+            )
+            updates_section = soup.find(
+                "h2", id="Updates-on-the-Commissions-proposals"
+            ) or soup.find("h2", string=re.compile(r"Updates.*proposal", re.IGNORECASE))
+
             # Section priorities: Updates > Follow-up > Answer
             search_sections = []
             if updates_section:
-                search_sections.append(('updates', updates_section))
+                search_sections.append(("updates", updates_section))
             if follow_up_section:
-                search_sections.append(('follow_up', follow_up_section))
+                search_sections.append(("follow_up", follow_up_section))
             if answer_section:
-                search_sections.append(('answer', answer_section))
-            
+                search_sections.append(("answer", answer_section))
+
             # Extract actions from each section
             for section_type, section in search_sections:
-                section_actions = self._extract_actions_from_section(section, section_type)
+                section_actions = self._extract_actions_from_section(
+                    section, section_type
+                )
                 actions.extend(section_actions)
-            
+
             # If no actions found, return None
             if not actions:
                 return None
-            
+
             # Remove duplicates (same type, description, and date)
             unique_actions = []
             seen = set()
             for action in actions:
-                key = (action.get('type', ''), action.get('description', ''), action.get('date', ''))
+                key = (
+                    action.get("type", ""),
+                    action.get("description", ""),
+                    action.get("date", ""),
+                )
                 if key not in seen:
                     seen.add(key)
                     unique_actions.append(action)
-            
+
             return json.dumps(unique_actions, ensure_ascii=False, indent=2)
-            
+
         except Exception as e:
             raise ValueError(
                 f"Error extracting legislative action for {self.registration_number}: {str(e)}"
@@ -775,202 +804,220 @@ class LegislativeOutcomeExtractor(BaseExtractor):
     def _extract_actions_from_section(self, section, section_type: str) -> list:
         """
         Extract legislative actions from a specific section
-        
+
         Args:
             section: BeautifulSoup element of the section
             section_type: Type of section ('answer', 'follow_up', 'updates')
-        
+
         Returns:
             List of action dictionaries
         """
         actions = []
-        
+
         # Legislative action patterns
         action_patterns = [
             # Proposals
             {
-                'pattern': r'(?:proposal|proposed|tabled).*?(?:regulation|directive|law|amendment)',
-                'type_hint': 'proposal',
-                'status': 'proposed'
+                "pattern": r"(?:proposal|proposed|tabled).*?(?:regulation|directive|law|amendment)",
+                "type_hint": "proposal",
+                "status": "proposed",
             },
             # Adoptions
             {
-                'pattern': r'(?:adopted|approved).*?(?:regulation|directive|law|amendment)',
-                'type_hint': 'adoption',
-                'status': 'adopted'
+                "pattern": r"(?:adopted|approved).*?(?:regulation|directive|law|amendment)",
+                "type_hint": "adoption",
+                "status": "adopted",
             },
             # In force
             {
-                'pattern': r'(?:entered into force|became applicable|applies from|came into force|apply from)',
-                'type_hint': 'in_force',
-                'status': 'in_force'
+                "pattern": r"(?:entered into force|became applicable|applies from|came into force|apply from)",
+                "type_hint": "in_force",
+                "status": "in_force",
             },
             # Revisions
             {
-                'pattern': r'(?:revision|revised|recast).*?(?:directive|regulation)',
-                'type_hint': 'revision',
-                'status': 'proposed'
+                "pattern": r"(?:revision|revised|recast).*?(?:directive|regulation)",
+                "type_hint": "revision",
+                "status": "proposed",
             },
             # Withdrawn
             {
-                'pattern': r'(?:withdrawn|withdraw|withdrew)',
-                'type_hint': 'withdrawal',
-                'status': 'withdrawn'
+                "pattern": r"(?:withdrawn|withdraw|withdrew)",
+                "type_hint": "withdrawal",
+                "status": "withdrawn",
             },
             # Planned/Future
             {
-                'pattern': r'(?:will apply|planned|to be adopted|foresees).*?(?:from|by|in).*?\d{4}',
-                'type_hint': 'planned',
-                'status': 'planned'
+                "pattern": r"(?:will apply|planned|to be adopted|foresees).*?(?:from|by|in).*?\d{4}",
+                "type_hint": "planned",
+                "status": "planned",
             },
             # Creation of codes/standards
             {
-                'pattern': r'(?:created|creation|new|adopted|establish).*?(?:tariff codes?|cn codes?|standards)',
-                'type_hint': 'creation',
-                'status': 'planned'
-            }
+                "pattern": r"(?:created|creation|new|adopted|establish).*?(?:tariff codes?|cn codes?|standards)",
+                "type_hint": "creation",
+                "status": "planned",
+            },
         ]
-        
+
         # Iterate through siblings after section header
         for sibling in section.find_next_siblings():
             # Stop at next h2 section
-            if sibling.name == 'h2':
+            if sibling.name == "h2":
                 break
-            
+
             # Process paragraphs and standalone list items
-            if sibling.name in ['p', 'li']:
-                self._process_element_for_legislative_action(sibling, action_patterns, actions)
-            
-            elif sibling.name in ['ul', 'ol']:
+            if sibling.name in ["p", "li"]:
+                self._process_element_for_legislative_action(
+                    sibling, action_patterns, actions
+                )
+
+            elif sibling.name in ["ul", "ol"]:
                 # Process each list item individually
-                for li in sibling.find_all('li', recursive=False):
-                    self._process_element_for_legislative_action(li, action_patterns, actions)
-        
+                for li in sibling.find_all("li", recursive=False):
+                    self._process_element_for_legislative_action(
+                        li, action_patterns, actions
+                    )
+
         return actions
 
-    def _process_element_for_legislative_action(self, element, action_patterns: list, actions: list):
+    def _process_element_for_legislative_action(
+        self, element, action_patterns: list, actions: list
+    ):
         """Process a single HTML element (p or li) for legislative actions"""
 
         # Get text with newlines separating each tag
-        text = element.get_text(separator='\n', strip=True)
-        
+        text = element.get_text(separator="\n", strip=True)
+
         # NORMALIZE WHITESPACE: Replace multiple whitespace (including newlines) with single space
-        text = re.sub(r'\s+', ' ', text).strip()
-        
+        text = re.sub(r"\s+", " ", text).strip()
+
         text_lower = text.lower()
 
         skip_words = [
-            'roadmap', 'tasked', 'will communicate', 'will report', 'impact assessment',
-            'stakeholder', 'consultation', 'workshop', 'meeting', 'better enforcement',
-            'in parallel to the legislation', 'seek specific supporting measures',
+            "roadmap",
+            "tasked",
+            "will communicate",
+            "will report",
+            "impact assessment",
+            "stakeholder",
+            "consultation",
+            "workshop",
+            "meeting",
+            "better enforcement",
+            "in parallel to the legislation",
+            "seek specific supporting measures",
         ]
 
         # Skip non-legislative content
         if any(word in text_lower for word in skip_words):
             return
-        
+
         # Find ALL matching patterns, then pick the most specific status
         matches = []
         for pattern_info in action_patterns:
-            if re.search(pattern_info['pattern'], text_lower, re.IGNORECASE | re.DOTALL):
+            if re.search(
+                pattern_info["pattern"], text_lower, re.IGNORECASE | re.DOTALL
+            ):
                 matches.append(pattern_info)
-        
+
         if not matches:
             return
-        
+
         # Status priority: in_force > withdrawn > adopted > proposed > planned
         status_priority = {
-            'in_force': 5,
-            'withdrawn': 4,
-            'adopted': 3,
-            'proposed': 2,
-            'planned': 1
+            "in_force": 5,
+            "withdrawn": 4,
+            "adopted": 3,
+            "proposed": 2,
+            "planned": 1,
         }
-        
+
         # Pick the pattern with highest priority status
-        best_match = max(matches, key=lambda p: status_priority.get(p['status'], 0))
-        
+        best_match = max(matches, key=lambda p: status_priority.get(p["status"], 0))
+
         action = self._parse_legislative_action(element, text, best_match)
         if action:
             actions.append(action)
 
-
-    def _parse_legislative_action(self, element, text: str, pattern_info: dict) -> Optional[dict]:
+    def _parse_legislative_action(
+        self, element, text: str, pattern_info: dict
+    ) -> Optional[dict]:
         """
         Parse a legislative action from text element.
-        
+
         Args:
             element: BeautifulSoup element containing the action
             text: Text content
             pattern_info: Pattern information dictionary
-            
+
         Returns:
             Action dictionary or None
         """
-        MONTH_NAMES_PATTERN = '|'.join(calendar.month_name[1:])
-        
+        MONTH_NAMES_PATTERN = "|".join(calendar.month_name[1:])
+
         # Extract dates from text
         date_patterns = [
-            rf'(\d{{1,2}}\s+(?:{MONTH_NAMES_PATTERN})\s+\d{{4}})',  # 12 January 2023
-            rf'(?:in|by|from)\s+((?:{MONTH_NAMES_PATTERN})\s+\d{{4}})',  # in May 2024
-            r'(\d{1,2}/\d{1,2}/\d{4})',  # 15/03/2022
-            r'(\d{4}-\d{2}-\d{2})',  # 2023-01-12
-            rf'(?:by|in|from)\s+(\d{{4}})',  # in 2024
-            rf'(?:by|in|from)\s+(?:end\s+of\s+)?(\d{{4}})',  # by end of 2024
+            rf"(\d{{1,2}}\s+(?:{MONTH_NAMES_PATTERN})\s+\d{{4}})",  # 12 January 2023
+            rf"(?:in|by|from)\s+((?:{MONTH_NAMES_PATTERN})\s+\d{{4}})",  # in May 2024
+            r"(\d{1,2}/\d{1,2}/\d{4})",  # 15/03/2022
+            r"(\d{4}-\d{2}-\d{2})",  # 2023-01-12
+            rf"(?:by|in|from)\s+(\d{{4}})",  # in 2024
+            rf"(?:by|in|from)\s+(?:end\s+of\s+)?(\d{{4}})",  # by end of 2024
         ]
-        
+
         found_date = None
-        status = pattern_info['status']
-        
+        status = pattern_info["status"]
+
         # Map status to keyword phrases with priority order
         status_keywords = {
-            'in_force': [
-                ('apply from', 3),  # Highest priority for in_force
-                ('applies from', 3),
-                ('rules apply from', 3),
-                ('entered into force', 2),
-                ('came into force', 2),
-                ('became applicable', 2),
+            "in_force": [
+                ("apply from", 3),  # Highest priority for in_force
+                ("applies from", 3),
+                ("rules apply from", 3),
+                ("entered into force", 2),
+                ("came into force", 2),
+                ("became applicable", 2),
             ],
-            'adopted': [('adopted', 1), ('approved', 1)],
-            'proposed': [('proposal', 1), ('proposed', 1), ('tabled', 1)],
-            'withdrawn': [('withdrawn', 1), ('withdraw', 1)],
-            'planned': [('will apply', 1), ('planned', 1), ('foresees', 1)],
+            "adopted": [("adopted", 1), ("approved", 1)],
+            "proposed": [("proposal", 1), ("proposed", 1), ("tabled", 1)],
+            "withdrawn": [("withdrawn", 1), ("withdraw", 1)],
+            "planned": [("will apply", 1), ("planned", 1), ("foresees", 1)],
         }
-        
+
         text_lower = text.lower()
         keywords = status_keywords.get(status, [])
-        
+
         # Try to find date in context of status keyword
         best_date = None
         best_priority = 0
-        
+
         for keyword_info in keywords:
             if isinstance(keyword_info, tuple):
                 keyword, priority = keyword_info
             else:
                 keyword = keyword_info
                 priority = 1
-                
+
             if keyword not in text_lower:
                 continue
-            
+
             # Find the position of the keyword
             keyword_pos = text_lower.find(keyword)
-            
+
             # Extract text starting from keyword position
             text_from_keyword = text[keyword_pos:]
-            
+
             # Find the end of the sentence/clause (., ; or end of text)
             clause_end = len(text_from_keyword)
-            for delimiter in ['. ', '; ']:
+            for delimiter in [". ", "; "]:
                 pos = text_from_keyword.find(delimiter)
                 if pos != -1 and pos < clause_end:
                     clause_end = pos
-            
+
             # Extract the clause containing the keyword
-            clause = text_from_keyword[:clause_end + 1]
-            
+            clause = text_from_keyword[: clause_end + 1]
+
             # Try to find a date in this clause
             for date_pattern in date_patterns:
                 match = re.search(date_pattern, clause, re.IGNORECASE)
@@ -983,9 +1030,9 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                             best_date = parsed
                             best_priority = priority
                         break
-        
+
         found_date = best_date
-        
+
         # Fallback: if no date found near status keyword, try the whole text
         if not found_date:
             for date_pattern in date_patterns:
@@ -996,99 +1043,99 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                     if parsed:
                         found_date = parsed
                         break
-        
+
         # Extract action type and description
-        action_type = self._extract_action_type(text, pattern_info['type_hint'])
+        action_type = self._extract_action_type(text, pattern_info["type_hint"])
         description = self._extract_action_description(text)
-        
+
         # Get document URLs if any
         doc_url = None
-        link = element.find('a', href=True)
+        link = element.find("a", href=True)
         if link:
-            href = link.get('href', '')
-            if 'eur-lex' in href or 'europa.eu' in href:
+            href = link.get("href", "")
+            if "eur-lex" in href or "europa.eu" in href:
                 doc_url = href
-        
-        action = {
-            'type': action_type,
-            'description': description,  # Limit description length
-            'status': pattern_info['status']
-        }
-        
-        if found_date:
-            action['date'] = found_date
-        
-        if doc_url:
-            action['document_url'] = doc_url
-        
-        return action
 
+        action = {
+            "type": action_type,
+            "description": description,  # Limit description length
+            "status": pattern_info["status"],
+        }
+
+        if found_date:
+            action["date"] = found_date
+
+        if doc_url:
+            action["document_url"] = doc_url
+
+        return action
 
     def _extract_action_type(self, text: str, type_hint: str) -> str:
         """Extract the type of legislative action"""
         text_lower = text.lower()
-        
+
         # Specific type patterns
-        if 'tariff codes' in text_lower or 'tariff code' in text_lower:
-            return 'Tariff Codes Creation'
+        if "tariff codes" in text_lower or "tariff code" in text_lower:
+            return "Tariff Codes Creation"
 
-        elif 'standards' in text_lower and ('minimum' in text_lower or 'hygiene' in text_lower):
-            return 'Standards Adoption'
+        elif "standards" in text_lower and (
+            "minimum" in text_lower or "hygiene" in text_lower
+        ):
+            return "Standards Adoption"
 
-        elif 'revision' in text_lower or 'revised' in text_lower or 'recast' in text_lower:
-
-            if 'directive' in text_lower:
-                return 'Directive Revision'
-            elif 'regulation' in text_lower:
-                return 'Regulation Revision'
+        elif (
+            "revision" in text_lower
+            or "revised" in text_lower
+            or "recast" in text_lower
+        ):
+            if "directive" in text_lower:
+                return "Directive Revision"
+            elif "regulation" in text_lower:
+                return "Regulation Revision"
             else:
-                return 'Legislative Revision'
+                return "Legislative Revision"
 
-        elif 'amendment' in text_lower:
-            return 'Amendment'
+        elif "amendment" in text_lower:
+            return "Amendment"
 
-        elif 'proposal' in text_lower or 'proposed' in text_lower:
-
-            if 'regulation' in text_lower:
-                return 'Regulation Proposal'
-            elif 'directive' in text_lower:
-                return 'Directive Proposal'
-            elif 'law' in text_lower:
-                return 'Law Proposal'
+        elif "proposal" in text_lower or "proposed" in text_lower:
+            if "regulation" in text_lower:
+                return "Regulation Proposal"
+            elif "directive" in text_lower:
+                return "Directive Proposal"
+            elif "law" in text_lower:
+                return "Law Proposal"
             else:
-                return 'Legislative Proposal'
+                return "Legislative Proposal"
 
-        elif 'adopted' in text_lower or 'adoption' in text_lower:
-
-            if 'regulation' in text_lower:
-                return 'Regulation Adoption'
-            elif 'directive' in text_lower:
-                return 'Directive Adoption'
-            elif 'law' in text_lower:
-                return 'Law Adoption'
+        elif "adopted" in text_lower or "adoption" in text_lower:
+            if "regulation" in text_lower:
+                return "Regulation Adoption"
+            elif "directive" in text_lower:
+                return "Directive Adoption"
+            elif "law" in text_lower:
+                return "Law Adoption"
             else:
-                return 'Legislative Adoption'
+                return "Legislative Adoption"
 
-        elif 'entered into force' in text_lower or 'became applicable' in text_lower:
+        elif "entered into force" in text_lower or "became applicable" in text_lower:
+            return "Law Entered Into Force"
 
-            return 'Law Entered Into Force'
-
-        elif 'withdrawn' in text_lower or 'withdraw' in text_lower:
-
-            if 'regulation' in text_lower:
-                return 'Regulation Withdrawal'
-            elif 'directive' in text_lower:
-                return 'Directive Withdrawal'
+        elif "withdrawn" in text_lower or "withdraw" in text_lower:
+            if "regulation" in text_lower:
+                return "Regulation Withdrawal"
+            elif "directive" in text_lower:
+                return "Directive Withdrawal"
             else:
-                return 'Proposal Withdrawal'
+                return "Proposal Withdrawal"
         else:
-            return 'Legislative Action'
+            return "Legislative Action"
 
     def _extract_action_description(self, text: str) -> str:
         """Extract a clean description of the action"""
         # Clean up the text
-        text = re.sub(r'\s+', ' ', text).strip()
-        
+        text = re.sub(r"\s+", " ", text).strip()
+
         return text.strip()
 
     def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
@@ -1099,219 +1146,283 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         """
         try:
             import json
-            
+
             # Find Answer and Follow-up sections
             answer_section = self._find_answer_section(soup)
-            follow_up_section = soup.find('h2', id='Follow-up') or soup.find('h2', string=re.compile(r'Follow[- ]up', re.IGNORECASE))
-            
+            follow_up_section = soup.find("h2", id="Follow-up") or soup.find(
+                "h2", string=re.compile(r"Follow[- ]up", re.IGNORECASE)
+            )
+
             # Section priorities: Follow-up > Answer
             search_sections = []
             if follow_up_section:
-                search_sections.append(('follow_up', follow_up_section))
+                search_sections.append(("follow_up", follow_up_section))
             if answer_section:
-                search_sections.append(('answer', answer_section))
-            
+                search_sections.append(("answer", answer_section))
+
             if not search_sections:
                 return None
-            
+
             # Extract actions from each section
             actions = []
             for section_type, section in search_sections:
-                section_actions = self._extract_non_legislative_actions_from_section(section, section_type)
+                section_actions = self._extract_non_legislative_actions_from_section(
+                    section, section_type
+                )
                 actions.extend(section_actions)
-            
+
             # If no actions found, return None
             if not actions:
                 return None
-            
+
             # Remove duplicates (same type, description, and date)
             unique_actions = []
             seen = set()
             for action in actions:
-                key = (action.get('type', ''), action.get('description', ''), action.get('date', ''))
+                key = (
+                    action.get("type", ""),
+                    action.get("description", ""),
+                    action.get("date", ""),
+                )
                 if key not in seen:
                     seen.add(key)
                     unique_actions.append(action)
-            
+
             return json.dumps(unique_actions, ensure_ascii=False, indent=2)
-            
+
         except Exception as e:
-            raise ValueError(f"Error extracting non-legislative action for {self.registration_number}: {str(e)}") from e
+            raise ValueError(
+                f"Error extracting non-legislative action for {self.registration_number}: {str(e)}"
+            ) from e
 
-
-    def _extract_non_legislative_actions_from_section(self, section, section_type: str) -> list:
+    def _extract_non_legislative_actions_from_section(
+        self, section, section_type: str
+    ) -> list:
         """
         Extract non-legislative actions from a specific section
-        
+
         Args:
             section: BeautifulSoup element of the section
             section_type: Type of section ('answer', 'follow_up')
-        
+
         Returns:
             List of action dictionaries
         """
         actions = []
-        
+
         # Non-legislative action patterns with their types
         action_patterns = [
             # 1. Monitoring
             {
-                'keywords': [
-                    'monitoring', 'monitor', 'active monitoring', 'will monitor',
-                    'better enforce', 'strengthen enforcement', 'enforcement',
-                    'ensure compliance', 'ensuring compliance', 'compliance',
-                    'support member states', 'guarantee equal treatment', 
-                    'withhold payments', 'conditional funding', 'withhold the corresponding payments',
+                "keywords": [
+                    "monitoring",
+                    "monitor",
+                    "active monitoring",
+                    "will monitor",
+                    "better enforce",
+                    "strengthen enforcement",
+                    "enforcement",
+                    "ensure compliance",
+                    "ensuring compliance",
+                    "compliance",
+                    "support member states",
+                    "guarantee equal treatment",
+                    "withhold payments",
+                    "conditional funding",
+                    "withhold the corresponding payments",
                 ],
-                'type': 'Monitoring and Enforcement',
+                "type": "Monitoring and Enforcement",
             },
             # 2. Policy implementation
             {
-                'keywords': [
-                    'will continue', 'continue to', 'ensure', 'ensuring',
-                    'guarantee', 'maintain', 'maintaining',
-                    'non-discriminatory access', 'equal access',
-                    'implementation', 'implementing', 'safeguard',
-                    'set of benchmarks'
-                    
+                "keywords": [
+                    "will continue",
+                    "continue to",
+                    "ensure",
+                    "ensuring",
+                    "guarantee",
+                    "maintain",
+                    "maintaining",
+                    "non-discriminatory access",
+                    "equal access",
+                    "implementation",
+                    "implementing",
+                    "safeguard",
+                    "set of benchmarks",
                 ],
-                'type': 'Policy Implementation',
+                "type": "Policy Implementation",
             },
             # Scientific activities
             {
-                'keywords': [
-                    'scientific conference', 'scientific opinion', 'efsa',
-                    'workshop', 'colloquium'
+                "keywords": [
+                    "scientific conference",
+                    "scientific opinion",
+                    "efsa",
+                    "workshop",
+                    "colloquium",
                 ],
-                'type': 'Scientific Activity',
+                "type": "Scientific Activity",
             },
             # Funding Programme
             {
-                'keywords': [
-                    'funding', 'horizon europe', 'erasmus', 'creative europe',
-                    'cohesion policy', 'cohesion funding', 'union funding',
-                    'multiannual financial framework', 'mff'
+                "keywords": [
+                    "funding",
+                    "horizon europe",
+                    "erasmus",
+                    "creative europe",
+                    "cohesion policy",
+                    "cohesion funding",
+                    "union funding",
+                    "multiannual financial framework",
+                    "mff",
                 ],
-                'type': 'Funding Programme',
+                "type": "Funding Programme",
             },
             # Impact assessments and consultations
             {
-                'keywords': [
-                    'impact assessment', 'public consultation', 'call for evidence',
-                    'consultation on',
+                "keywords": [
+                    "impact assessment",
+                    "public consultation",
+                    "call for evidence",
+                    "consultation on",
                 ],
-                'type': 'Impact Assessment and Consultation',
+                "type": "Impact Assessment and Consultation",
             },
             # Stakeholder dialogue
             {
-                'keywords': [
-                    'stakeholder', 'partnership', 'stakeholder dialogue'
-                ],
-                'type': 'Stakeholder Dialogue',
+                "keywords": ["stakeholder", "partnership", "stakeholder dialogue"],
+                "type": "Stakeholder Dialogue",
             },
             # International cooperation
             {
-                'keywords': [
-                    'international cooperation', 'reaching out', 'international partners',
-                    'international level', 'international fora', 'international commission',
-                    'un general assembly', 'ICCAT', 'best practices between Member States',
-                    'Sustainable Development Goals EU', 'EU-wide public consultation',
-                    'advocating universal access'
+                "keywords": [
+                    "international cooperation",
+                    "reaching out",
+                    "international partners",
+                    "international level",
+                    "international fora",
+                    "international commission",
+                    "un general assembly",
+                    "ICCAT",
+                    "best practices between Member States",
+                    "Sustainable Development Goals EU",
+                    "EU-wide public consultation",
+                    "advocating universal access",
                 ],
-                'type': 'International Cooperation',
+                "type": "International Cooperation",
             },
             # Data collection and transparency
             {
-                'keywords': [
-                    'data collection', 'transparency', 'benchmarking', 'eurobarometer',
-                    'report was published', 'publication'
+                "keywords": [
+                    "data collection",
+                    "transparency",
+                    "benchmarking",
+                    "eurobarometer",
+                    "report was published",
+                    "publication",
                 ],
-                'type': 'Data Collection and Transparency',
+                "type": "Data Collection and Transparency",
             },
             # Strategy policy
             {
-                'keywords': [
-                    'roadmap', 'strategic plan', 'strengthened', 'modernised',
-                    'enhanced', 'policy framework', 'mechanism', 'mechanisms in place',
+                "keywords": [
+                    "roadmap",
+                    "strategic plan",
+                    "strengthened",
+                    "modernised",
+                    "enhanced",
+                    "policy framework",
+                    "mechanism",
+                    "mechanisms in place",
                 ],
-                'type': 'Policy Roadmap and Strategy',
+                "type": "Policy Roadmap and Strategy",
             },
         ]
-        
+
         # Iterate through siblings after section header
         current = section.next_sibling
 
         while current:
             # Stop at next h2 section
-            if hasattr(current, 'name') and current.name == 'h2':
+            if hasattr(current, "name") and current.name == "h2":
                 break
 
-            if not hasattr(current, 'name'):
+            if not hasattr(current, "name"):
                 current = current.next_sibling
                 continue
 
             # Process paragraph elements
-            if current.name == 'p':
-                self._process_element_for_non_legislative_action(current, action_patterns, actions)
+            if current.name == "p":
+                self._process_element_for_non_legislative_action(
+                    current, action_patterns, actions
+                )
 
             # CRITICAL FIX: Process unordered lists
             # Many Commission commitments are in <ul><li> structures
-            elif current.name == 'ul':
+            elif current.name == "ul":
                 # Get all direct <li> children (not nested lists)
-                list_items = current.find_all('li', recursive=False)
+                list_items = current.find_all("li", recursive=False)
 
                 for li in list_items:
-                    self._process_element_for_non_legislative_action(li, action_patterns, actions)
+                    self._process_element_for_non_legislative_action(
+                        li, action_patterns, actions
+                    )
 
             # Also handle ordered lists
-            elif current.name == 'ol':
-                list_items = current.find_all('li', recursive=False)
+            elif current.name == "ol":
+                list_items = current.find_all("li", recursive=False)
 
                 for li in list_items:
-                    self._process_element_for_non_legislative_action(li, action_patterns, actions)
+                    self._process_element_for_non_legislative_action(
+                        li, action_patterns, actions
+                    )
 
             current = current.next_sibling
 
         return actions
 
-
-    def _process_element_for_non_legislative_action(self, element, action_patterns: list, actions: list):
+    def _process_element_for_non_legislative_action(
+        self, element, action_patterns: list, actions: list
+    ):
         """Process a single HTML element (p or li) for non-legislative actions"""
-        
+
         # Get text with normalized whitespace
-        text = element.get_text(separator=' ', strip=True)
-        text = re.sub(r'\s+', ' ', text).strip()
+        text = element.get_text(separator=" ", strip=True)
+        text = re.sub(r"\s+", " ", text).strip()
         text_lower = text.lower()
-        
+
         # Skip if empty or too short
         if len(text) < 20:
             return
-            
+
         # Section headers end with ':' and are short (< 100 chars)
-        if text.endswith(':') and len(text) < 100:
+        if text.endswith(":") and len(text) < 100:
             return
 
         # Skip legislative keywords (these belong to legislative actions)
         legislative_keywords = [
-            'entered into force', 'became applicable', 'withdrawal',
-            'decided not to submit a legislative proposal',
-            'come forward with a legislative proposal',
-            'table a legislative proposal', 'no new legislation',
-            'came into force on',
-            'amendment to the directive',
-            'amendment to the regulation',
-            'amending directive',
-            'amending regulation',
-            'revision of legislation',
-            'labelling requirements',
-            'mandatory labelling'
+            "entered into force",
+            "became applicable",
+            "withdrawal",
+            "decided not to submit a legislative proposal",
+            "come forward with a legislative proposal",
+            "table a legislative proposal",
+            "no new legislation",
+            "came into force on",
+            "amendment to the directive",
+            "amendment to the regulation",
+            "amending directive",
+            "amending regulation",
+            "revision of legislation",
+            "labelling requirements",
+            "mandatory labelling",
         ]
 
         header_sections = [
             "transparency and benchmarking:",
-            "Implementation and review of existing EU legislation:"
+            "Implementation and review of existing EU legislation:",
         ]
-        
+
         # If contains legislative keywords, skip (unless it's about enforcement)
         if any(keyword in text_lower for keyword in legislative_keywords):
             return
@@ -1319,51 +1430,52 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         # other trouble phrases
         if any(keyword in text_lower for keyword in header_sections):
             return
-        
+
         # Find matching pattern
         matched_pattern = None
         for pattern_info in action_patterns:
-            if any(keyword in text_lower for keyword in pattern_info['keywords']):
+            if any(keyword in text_lower for keyword in pattern_info["keywords"]):
                 matched_pattern = pattern_info
                 break
-        
+
         # If no pattern matched, skip
         if not matched_pattern:
             return
-        
+
         # Parse the action
         action = self._parse_non_legislative_action(element, text, matched_pattern)
         if action:
             actions.append(action)
 
-
-    def _parse_non_legislative_action(self, element, text: str, pattern_info: dict) -> Optional[dict]:
+    def _parse_non_legislative_action(
+        self, element, text: str, pattern_info: dict
+    ) -> Optional[dict]:
         """
         Parse a non-legislative action from text element.
-        
+
         Args:
             element: BeautifulSoup element containing the action
             text: Text content
             pattern_info: Pattern information dictionary
-            
+
         Returns:
             Action dictionary or None
         """
-        
-        MONTH_NAMES_PATTERN = '|'.join(calendar.month_name[1:])
-        
+
+        MONTH_NAMES_PATTERN = "|".join(calendar.month_name[1:])
+
         # Extract dates from text
         date_patterns = [
-            rf'(\d{{1,2}}\s+(?:{MONTH_NAMES_PATTERN})\s+\d{{4}})',  # 12 January 2023
-            rf'(?:in|by|from)\s+((?:{MONTH_NAMES_PATTERN})\s+\d{{4}})',  # in May 2024
-            r'(\d{1,2}/\d{1,2}/\d{4})',  # 15/03/2022
-            r'(\d{4}-\d{2}-\d{2})',  # 2023-01-12
-            rf'(?:by|in|from)\s+(\d{{4}})',  # in 2024
-            rf'(?:by|in|from)\s+(?:end\s+of\s+)?(\d{{4}})',  # by end of 2024
+            rf"(\d{{1,2}}\s+(?:{MONTH_NAMES_PATTERN})\s+\d{{4}})",  # 12 January 2023
+            rf"(?:in|by|from)\s+((?:{MONTH_NAMES_PATTERN})\s+\d{{4}})",  # in May 2024
+            r"(\d{1,2}/\d{1,2}/\d{4})",  # 15/03/2022
+            r"(\d{4}-\d{2}-\d{2})",  # 2023-01-12
+            rf"(?:by|in|from)\s+(\d{{4}})",  # in 2024
+            rf"(?:by|in|from)\s+(?:end\s+of\s+)?(\d{{4}})",  # by end of 2024
         ]
-        
+
         found_date = None
-        
+
         # Try to find date in text
         for date_pattern in date_patterns:
             match = re.search(date_pattern, text, re.IGNORECASE)
@@ -1373,17 +1485,14 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 if parsed:
                     found_date = parsed
                     break
-        
+
         # Extract clean description (first sentence or up to 300 chars)
         description = self._extract_action_description(text)
-        
+
         # Build action dictionary
-        action = {
-            'type': pattern_info['type'],
-            'description': description
-        }
-        
+        action = {"type": pattern_info["type"], "description": description}
+
         if found_date:
-            action['date'] = found_date
-        
+            action["date"] = found_date
+
         return action
