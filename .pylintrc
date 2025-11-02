@@ -8,4 +8,11 @@
 # - Explicit else blocks improve code readability and intent clarity
 # - Makes it obvious that all cases are covered (exhaustive conditionals)
 # - Prevents bugs where code runs unexpectedly without a clear else statement
-disable=logging-fstring-interpolation,no-else-return
+#
+# Disable no-else-break (R1723):
+# - Developer disagrees that else/elif after break is unnecessary
+# - similar reasons like in no-else-return case (R1705)
+#
+# # Disable invalid-name (C0103):
+# - Produces false positives by treating all module-level variables as constants
+disable=logging-fstring-interpolation,no-else-return,no-else-break,invalid-name

@@ -4,11 +4,12 @@ Delegates to specialized sub-extractors
 """
 
 import calendar
-from datetime import datetime
 import json
 import re
-from bs4 import BeautifulSoup
+from datetime import datetime
 from typing import Optional
+
+from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
 from .classifiers.status_matcher import LegislativeOutcomeClassifier
@@ -101,7 +102,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         content = self._extract_legislative_content(soup)
         if not content:
             raise ValueError(
-                f"Could not extract legislative content for initiative {self.registration_number}.\n"
+                "Could not extract legislative content for "
+                f"initiative {self.registration_number}.\n"
                 f"Answer section may be missing or empty."
             )
         return LegislativeOutcomeClassifier(content)
@@ -143,8 +145,10 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                     content[:500] + "..." if len(content) > 500 else content
                 )
                 raise ValueError(
-                    f"Could not determine legislative status for initiative:\n{self.registration_number}\n"
-                    f"No known status patterns matched. Content preview:\n{content_preview}\n"
+                    "Could not determine legislative status for initiative:"
+                    f"\n{self.registration_number}\n"
+                    f"No known status patterns matched. Content preview:"
+                    f"\n{content_preview}\n"
                 ) from e
             raise
         except Exception as e:
@@ -165,7 +169,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
         except Exception as e:
             raise ValueError(
-                f"Error extracting proposal commitment status for {self.registration_number}: {str(e)}"
+                "Error extracting proposal commitment status for "
+                f"{self.registration_number}: {str(e)}"
             ) from e
 
     def extract_proposal_rejected(self, soup: BeautifulSoup) -> Optional[bool]:
@@ -182,7 +187,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
         except Exception as e:
             raise ValueError(
-                f"Error extracting proposal rejection status for {self.registration_number}: {str(e)}"
+                "Error extracting proposal rejection status for "
+                f"{self.registration_number}: {str(e)}"
             ) from e
 
     def _extract_text_with_keyword_filter(
@@ -247,7 +253,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             return " ".join(legislative_proposal_paragraphs)
 
         raise ValueError(
-            f"Failed to extract rejection reasoning for mixed response: {self.registration_number}.\n"
+            "Failed to extract rejection reasoning for mixed response: "
+            f"{self.registration_number}.\n"
             f"The Commission committed to some legislative action but rejected other aims.\n"
             f"No paragraphs containing 'legislative proposal' were found in the Answer section.\n"
             f"legislative_proposal_paragraphs:\n{legislative_proposal_paragraphs}\n"
@@ -408,7 +415,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         Returns:
             Date in YYYY-MM-DD format or None if parsing fails
         """
-        from datetime import datetime
 
         # Common date formats in ECI responses
         date_formats = [
@@ -434,7 +440,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
     def extract_commissions_deadlines(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract all Commission deadlines mentioned in the response as JSON.
-        Returns a dictionary where keys are dates (YYYY-MM-DD) and values are phrases connected to those dates.
+        Returns a dictionary where keys are dates (YYYY-MM-DD) and
+        values are phrases connected to those dates.
         Returns None if no deadlines are mentioned.
 
         Format: JSON string like:
@@ -451,7 +458,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             ValueError: If Answer section not found
         """
         try:
-            import json
 
             answer_section = self._find_answer_section(soup)
             if not answer_section:
@@ -962,8 +968,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             rf"(?:in|by|from)\s+((?:{MONTH_NAMES_PATTERN})\s+\d{{4}})",  # in May 2024
             r"(\d{1,2}/\d{1,2}/\d{4})",  # 15/03/2022
             r"(\d{4}-\d{2}-\d{2})",  # 2023-01-12
-            rf"(?:by|in|from)\s+(\d{{4}})",  # in 2024
-            rf"(?:by|in|from)\s+(?:end\s+of\s+)?(\d{{4}})",  # by end of 2024
+            r"(?:by|in|from)\s+(\d{{4}})",  # in 2024
+            r"(?:by|in|from)\s+(?:end\s+of\s+)?(\d{{4}})",  # by end of 2024
         ]
 
         found_date = None
@@ -1045,7 +1051,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                         break
 
         # Extract action type and description
-        action_type = self._extract_action_type(text, pattern_info["type_hint"])
+        action_type = self._extract_action_type(text)
         description = self._extract_action_description(text)
 
         # Get document URLs if any
@@ -1070,7 +1076,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
         return action
 
-    def _extract_action_type(self, text: str, type_hint: str) -> str:
+    def _extract_action_type(self, text: str) -> str:
         """Extract the type of legislative action"""
         text_lower = text.lower()
 
@@ -1145,7 +1151,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         Returns JSON string or None
         """
         try:
-            import json
 
             # Find Answer and Follow-up sections
             answer_section = self._find_answer_section(soup)
@@ -1156,18 +1161,18 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             # Section priorities: Follow-up > Answer
             search_sections = []
             if follow_up_section:
-                search_sections.append(("follow_up", follow_up_section))
+                search_sections.append(follow_up_section)
             if answer_section:
-                search_sections.append(("answer", answer_section))
+                search_sections.append(answer_section)
 
             if not search_sections:
                 return None
 
             # Extract actions from each section
             actions = []
-            for section_type, section in search_sections:
+            for section in search_sections:
                 section_actions = self._extract_non_legislative_actions_from_section(
-                    section, section_type
+                    section
                 )
                 actions.extend(section_actions)
 
@@ -1195,15 +1200,12 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 f"Error extracting non-legislative action for {self.registration_number}: {str(e)}"
             ) from e
 
-    def _extract_non_legislative_actions_from_section(
-        self, section, section_type: str
-    ) -> list:
+    def _extract_non_legislative_actions_from_section(self, section) -> list:
         """
         Extract non-legislative actions from a specific section
 
         Args:
             section: BeautifulSoup element of the section
-            section_type: Type of section ('answer', 'follow_up')
 
         Returns:
             List of action dictionaries
@@ -1443,18 +1445,17 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             return
 
         # Parse the action
-        action = self._parse_non_legislative_action(element, text, matched_pattern)
+        action = self._parse_non_legislative_action(text, matched_pattern)
         if action:
             actions.append(action)
 
     def _parse_non_legislative_action(
-        self, element, text: str, pattern_info: dict
+        self, text: str, pattern_info: dict
     ) -> Optional[dict]:
         """
         Parse a non-legislative action from text element.
 
         Args:
-            element: BeautifulSoup element containing the action
             text: Text content
             pattern_info: Pattern information dictionary
 
@@ -1470,8 +1471,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             rf"(?:in|by|from)\s+((?:{MONTH_NAMES_PATTERN})\s+\d{{4}})",  # in May 2024
             r"(\d{1,2}/\d{1,2}/\d{4})",  # 15/03/2022
             r"(\d{4}-\d{2}-\d{2})",  # 2023-01-12
-            rf"(?:by|in|from)\s+(\d{{4}})",  # in 2024
-            rf"(?:by|in|from)\s+(?:end\s+of\s+)?(\d{{4}})",  # by end of 2024
+            r"(?:by|in|from)\s+(\d{{4}})",  # in 2024
+            r"(?:by|in|from)\s+(?:end\s+of\s+)?(\d{{4}})",  # by end of 2024
         ]
 
         found_date = None

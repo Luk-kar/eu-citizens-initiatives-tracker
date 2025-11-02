@@ -22,9 +22,6 @@ class MultimediaDocumentationExtractor(BaseExtractor):
             # Find all ecl-file divs (file download components)
             ecl_files = soup.find_all("div", class_=lambda x: x and "ecl-file" in x)
 
-            # Track if we found a factsheet element
-            factsheet_found = False
-
             # Look for the one with "Factsheet" in the title
             for file_div in ecl_files:
                 # Find the title element
@@ -46,14 +43,16 @@ class MultimediaDocumentationExtractor(BaseExtractor):
 
                         if not download_link:
                             raise ValueError(
-                                f"Factsheet element found but download link is missing for {self.registration_number}"
+                                f"Factsheet element found but download link is "
+                                f"missing for {self.registration_number}"
                             )
 
                         href = download_link.get("href", "").strip()
 
                         if not href:
                             raise ValueError(
-                                f"Factsheet download link found but href is empty for {self.registration_number}"
+                                f"Factsheet download link found but href is empty "
+                                f"for {self.registration_number}"
                             )
 
                         # Successfully found factsheet with valid URL
