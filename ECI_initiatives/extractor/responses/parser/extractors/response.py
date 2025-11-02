@@ -77,7 +77,8 @@ class CommissionResponseExtractor(BaseExtractor):
 
         except Exception as e:
             raise ValueError(
-                f"Error extracting commission communication date for {self.registration_number}: {str(e)}"
+                "Error extracting commission communication date for "
+                f"{self.registration_number}: {str(e)}"
             ) from e
 
     def extract_official_communication_document_urls(
@@ -153,7 +154,8 @@ class CommissionResponseExtractor(BaseExtractor):
 
         except Exception as e:
             raise ValueError(
-                f"Error extracting commission communication URL for {self.registration_number}: {str(e)}"
+                "Error extracting commission communication URL for "
+                f"{self.registration_number}: {str(e)}"
             ) from e
 
     def extract_commission_answer_text(self, soup: BeautifulSoup) -> str:
@@ -176,7 +178,8 @@ class CommissionResponseExtractor(BaseExtractor):
 
             if not answer_header:
                 raise ValueError(
-                    f"Could not find 'Answer of the European Commission' section for {self.registration_number}"
+                    "Could not find 'Answer of the European Commission' section for "
+                    f"{self.registration_number}"
                 )
 
             # Collect all content between this header and the Follow-up header
@@ -209,7 +212,8 @@ class CommissionResponseExtractor(BaseExtractor):
 
             if not content_parts:
                 raise ValueError(
-                    f"No content found in 'Answer of the European Commission' section for {self.registration_number}"
+                    "No content found in 'Answer of the European Commission' section for "
+                    f"{self.registration_number}"
                 )
 
             return "\n".join(content_parts).strip()
@@ -219,7 +223,8 @@ class CommissionResponseExtractor(BaseExtractor):
             raise
         except Exception as e:
             raise ValueError(
-                f"Error extracting communication main conclusion for {self.registration_number}: {str(e)}"
+                "Error extracting communication main conclusion for "
+                f"{self.registration_number}: {str(e)}"
             ) from e
 
     def _extract_element_with_links(self, element) -> str:
