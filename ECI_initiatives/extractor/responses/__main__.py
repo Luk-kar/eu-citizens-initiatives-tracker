@@ -9,7 +9,7 @@ from .processor import ECIResponseDataProcessor
 
 def main():
     """Main entry point"""
-    
+
     processor = ECIResponseDataProcessor()
     processor.run()
 
