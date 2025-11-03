@@ -1,7 +1,5 @@
 """ECI commission response implementation status definitions."""
 
-from typing import Dict, Optional
-
 
 class ECIImplementationStatus:
     """

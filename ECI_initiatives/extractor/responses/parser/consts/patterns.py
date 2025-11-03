@@ -1,7 +1,5 @@
 """Regex patterns for deadline and date extraction."""
 
-from typing import List
-
 # Deadline extraction patterns for Commission commitments
 DEADLINE_PATTERNS = [
     # Legislative proposal patterns (action BEFORE deadline)

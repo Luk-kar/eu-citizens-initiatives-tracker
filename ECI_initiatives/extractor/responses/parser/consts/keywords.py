@@ -1,7 +1,5 @@
 """Keyword lists for classification and filtering."""
 
-from typing import List
-
 # Keywords that indicate rejection reasoning
 REJECTION_REASONING_KEYWORDS = [
     "will not make",
