@@ -1,19 +1,20 @@
-"""Constants and definitions for ECI response parsing"""
+"""
+Legislative outcome status definitions, hierarchies, and
+keyword patterns for ECI response classification.
+"""
 
-from .status_definitions import (
-    REJECTION_REASONING_KEYWORDS,
-    ECIImplementationStatus,
-    LegislativeStatus,
-    NonLegislativeAction,
-    DEADLINE_PATTERNS,
-    APPLICABLE_DATE_PATTERNS,
-)
+from .eci_status import ECIImplementationStatus
+from .legislative_status import LegislativeStatus
+from .non_legislative_actions import NonLegislativeAction
+from .keywords import REJECTION_REASONING_KEYWORDS, SKIP_WORDS_LEGISLATIVE
+from .patterns import DEADLINE_PATTERNS, APPLICABLE_DATE_PATTERNS
 
 __all__ = [
-    "REJECTION_REASONING_KEYWORDS",
     "ECIImplementationStatus",
     "LegislativeStatus",
     "NonLegislativeAction",
+    "REJECTION_REASONING_KEYWORDS",
+    "SKIP_WORDS_LEGISLATIVE",
     "DEADLINE_PATTERNS",
     "APPLICABLE_DATE_PATTERNS",
 ]
