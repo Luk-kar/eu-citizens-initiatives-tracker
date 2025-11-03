@@ -2,10 +2,7 @@
 
 from typing import Optional
 
-from ...consts import (
-    TECHNICAL_TO_CITIZEN_STATUS,
-    STATUS_HIERARCHY,
-)
+from ...consts import ECIImplementationStatus
 
 
 class LegislativeOutcomeClassifier:
@@ -80,24 +77,6 @@ class LegislativeOutcomeClassifier:
         "preparatory work",
         "with a view to launch",
     ]
-
-    # Citizen-friendly status names mapping
-    STATUS_CITIZEN_NAMES = {
-        # Success
-        "applicable": "Law Active",
-        "adopted": "Law Approved",
-        "committed": "Law Promised",
-        # In Progress
-        "assessment_pending": "Being Studied",
-        "roadmap_development": "Action Plan Created",
-        # Rejection (Negative Emphasis)
-        "rejected_already_covered": "Rejected - Already Covered",
-        "rejected_with_actions": "Rejected - Alternative Actions",
-        "rejected": "Rejected",
-        # Other
-        "non_legislative_action": "Policy Changes Only",
-        "proposal_pending_adoption": "Proposals Under Review",
-    }
 
     def __init__(self, content: str):
         """
@@ -336,15 +315,15 @@ class LegislativeOutcomeClassifier:
         """
         Extract technical status code by checking all patterns in priority order
 
-        Status hierarchy (highest to lowest):
-        1. applicable
-        2. adopted
-        3. committed
-        4. assessment_pending
-        5. roadmap_development
+        Status hierarchy (highest to lowest priority):
+        1. applicable (Law Active)
+        2. adopted (Law Approved)
+        3. committed (Law Promised)
+        4. assessment_pending (Being Studied)
+        5. roadmap_development (Action Plan Created)
         6. rejected_already_covered / rejected_with_actions / rejected
-        7. non_legislative_action
-        8. proposal_pending_adoption
+        7. non_legislative_action (Policy Changes Only)
+        8. proposal_pending_adoption (Proposals Under Review)
 
         Returns:
             Technical status code (e.g., 'applicable', 'committed', etc.)
@@ -355,14 +334,26 @@ class LegislativeOutcomeClassifier:
 
         # Define status checks in priority order (highest to lowest)
         status_checks = [
-            ("applicable", self.check_applicable),
-            ("adopted", self.check_adopted),
-            ("committed", self.check_committed),
-            ("assessment_pending", self.check_assessment_pending),
-            ("roadmap_development", self.check_roadmap_development),
+            (ECIImplementationStatus.APPLICABLE.legal_term, self.check_applicable),
+            (ECIImplementationStatus.ADOPTED.legal_term, self.check_adopted),
+            (ECIImplementationStatus.COMMITTED.legal_term, self.check_committed),
+            (
+                ECIImplementationStatus.ASSESSMENT_PENDING.legal_term,
+                self.check_assessment_pending,
+            ),
+            (
+                ECIImplementationStatus.ROADMAP_DEVELOPMENT.legal_term,
+                self.check_roadmap_development,
+            ),
             (None, self.check_rejection_type),  # Returns status name directly
-            ("non_legislative_action", self.check_non_legislative_action),
-            ("proposal_pending_adoption", self.check_proposal_pending),
+            (
+                ECIImplementationStatus.NON_LEGISLATIVE_ACTION.legal_term,
+                self.check_non_legislative_action,
+            ),
+            (
+                ECIImplementationStatus.PROPOSAL_PENDING_ADOPTION.legal_term,
+                self.check_proposal_pending,
+            ),
         ]
 
         # Check each status in priority order
@@ -388,6 +379,11 @@ class LegislativeOutcomeClassifier:
             technical_status: Technical status code (e.g., 'applicable')
 
         Returns:
-            Citizen-friendly status name (e.g., 'New Law in Force')
+            Citizen-friendly status name (e.g., 'Law Active')
         """
-        return self.STATUS_CITIZEN_NAMES.get(technical_status, technical_status)
+        status = ECIImplementationStatus.get_status_by_term(technical_status)
+
+        if status:
+            return status.human_readable_explanation
+
+        return technical_status

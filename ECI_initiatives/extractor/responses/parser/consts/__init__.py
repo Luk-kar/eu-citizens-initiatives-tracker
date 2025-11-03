@@ -2,8 +2,7 @@
 
 from .status_definitions import (
     REJECTION_REASONING_KEYWORDS,
-    STATUS_HIERARCHY,
-    TECHNICAL_TO_CITIZEN_STATUS,
+    ECIImplementationStatus,
     STATUS_PRIORITY,
     STATUS_KEYWORDS,
     LEGISLATIVE_ACTION_PATTERNS,
@@ -15,8 +14,7 @@ from .status_definitions import (
 
 __all__ = [
     "REJECTION_REASONING_KEYWORDS",
-    "STATUS_HIERARCHY",
-    "TECHNICAL_TO_CITIZEN_STATUS",
+    "ECIImplementationStatus",
     "STATUS_PRIORITY",
     "STATUS_KEYWORDS",
     "LEGISLATIVE_ACTION_PATTERNS",
