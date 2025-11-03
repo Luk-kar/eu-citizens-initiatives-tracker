@@ -15,30 +15,23 @@ from bs4 import BeautifulSoup
 from ..base.base_extractor import BaseExtractor
 from .classifiers.status_matcher import LegislativeOutcomeClassifier
 
+from ..consts import (
+    REJECTION_REASONING_KEYWORDS,
+    STATUS_HIERARCHY,
+    LEGISLATIVE_ACTION_PATTERNS,
+    NON_LEGISLATIVE_ACTION_PATTERNS,
+    SKIP_WORDS_LEGISLATIVE,
+    DEADLINE_PATTERNS,
+    APPLICABLE_DATE_PATTERNS,
+    STATUS_KEYWORDS,
+    STATUS_PRIORITY,
+)
+
 
 class LegislativeOutcomeExtractor(BaseExtractor):
     """Extractor for legislative outcome and proposal status data"""
 
     # Keywords that indicate rejection reasoning
-    REJECTION_REASONING_KEYWORDS = [
-        "will not make",
-        "will not propose",
-        "decided not to",
-        "no legislative proposal",
-        "neither scientific nor legal grounds",
-        "existing legislation",
-        "existing funding framework",
-        "already covered",
-        "no repeal",
-        "differs from",
-        "not to submit",
-        "fall outside",
-        "outside of eu competence",
-        "outside the eu competence",
-        "not within eu competence",
-        "beyond eu competence",
-        "interfere with",
-    ]
 
     def __init__(self, registration_number: Optional[str] = None):
         """
@@ -282,7 +275,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 continue
 
             extracted_text = self._extract_text_with_keyword_filter(
-                sibling, self.REJECTION_REASONING_KEYWORDS
+                sibling, REJECTION_REASONING_KEYWORDS
             )
             if extracted_text:
                 rejection_sentences.append(extracted_text)
@@ -467,46 +460,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 )
 
             # Comprehensive deadline patterns covering various commitment types
-            deadline_patterns = [
-                # Legislative proposal patterns (action BEFORE deadline)
-                r"committed to come forward with a legislative proposal[,\s]+by\s+([^.,;]+)",
-                r"intention to table a legislative proposal[,\s]+by\s+([^.,;]+)",
-                r"communicated its intention to table a legislative proposal[,\s]+by\s+([^.,;]+)",
-                r"to table a legislative proposal[,\s]+by\s+([^.,;]+)",
-                r"will table a legislative proposal[,\s]+by\s+([^.,;]+)",
-                r"to propose legislation[,\s]+by\s+([^.,;]+)",
-                # Communication patterns (action BEFORE deadline)
-                r"will (?:then )?communicate[,\s]+by\s+([^.,;]+)",
-                r"committed to communicate[,\s]+by\s+([^.,;]+)",
-                r"will then communicate[,\s]+by\s+([^.,;]+)",
-                # Assessment and study patterns (action BEFORE deadline)
-                r"launch.*?(?:impact )?assessment[,\s]+by\s+([^.,;]+)",
-                r"conduct.*?study[,\s]+by\s+([^.,;]+)",
-                r"carry out.*?(?:assessment|study)[,\s]+by\s+([^.,;]+)",
-                r"scientific opinion[,\s]+by\s+([^.,;]+)",
-                r"efsa.*?(?:to )?provide.*?(?:opinion|assessment)[,\s]+by\s+([^.,;]+)",
-                r"complete.*?(?:assessment|study|evaluation)[,\s]+by\s+([^.,;]+)",
-                r"external study to be carried out.*?by\s+([^.,;]+)",
-                # Roadmap patterns (action BEFORE deadline)
-                r"roadmap.*?(?:is planned|planned|completed?)[,\s]+by\s+([^.,;]+)",
-                r"finalisation.*?roadmap.*?by\s+([^.,;]+)",
-                r"work on.*?roadmap.*?by\s+([^.,;]+)",
-                # Report and update patterns (action BEFORE deadline)
-                r"provide.*?report[,\s]+by\s+([^.,;]+)",
-                r"provide.*?(?:update|information|data|details)[,\s]+by\s+([^.,;]+)",
-                r"will report[,\s]+by\s+([^.,;]+)",
-                r"(?:produce|publish).*?report[,\s]+by\s+([^.,;]+)",
-                r"report.*?to be produced.*?(?:by|in)\s+([^.,;]+)",
-                r"to\s+be\s+produced\s+in\s+([^.,;]+)",
-                # Other commitment patterns (action BEFORE deadline)
-                r"preparatory work.*?(?:with a view to )?launch.*?by\s+([^.,;]+)",
-                r"call for evidence.*?by\s+([^.,;]+)",
-                # DEADLINE-FIRST patterns (deadline BEFORE action)
-                r"by\s+([^.,;]+),\s+provide.*?(?:information|data|details)",
-                r"by\s+([^.,;]+),\s+the\s+commission\s+will\s+(?:communicate|report|provide)",
-                r"by\s+([^.,;]+),\s+(?:to\s+)?(?:phase\s+out|ban|prohibit|implement)",
-            ]
-
             deadlines_dict = {}
 
             # Search through all siblings after Answer section
@@ -520,7 +473,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 text_lower = text.lower()
 
                 # Check each pattern
-                for pattern in deadline_patterns:
+                for pattern in DEADLINE_PATTERNS:
                     # Find all matches in this element (handles multiple deadlines per element)
                     for match in re.finditer(pattern, text_lower, re.IGNORECASE):
                         deadline_text = match.group(1).strip()
@@ -929,17 +882,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         if not matches:
             return
 
-        # Status priority: in_force > withdrawn > adopted > proposed > planned
-        status_priority = {
-            "in_force": 5,
-            "withdrawn": 4,
-            "adopted": 3,
-            "proposed": 2,
-            "planned": 1,
-        }
-
         # Pick the pattern with highest priority status
-        best_match = max(matches, key=lambda p: status_priority.get(p["status"], 0))
+        best_match = max(matches, key=lambda p: STATUS_PRIORITY.get(p["status"], 0))
 
         action = self._parse_legislative_action(element, text, best_match)
         if action:
@@ -975,23 +919,9 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         status = pattern_info["status"]
 
         # Map status to keyword phrases with priority order
-        status_keywords = {
-            "in_force": [
-                ("apply from", 3),  # Highest priority for in_force
-                ("applies from", 3),
-                ("rules apply from", 3),
-                ("entered into force", 2),
-                ("came into force", 2),
-                ("became applicable", 2),
-            ],
-            "adopted": [("adopted", 1), ("approved", 1)],
-            "proposed": [("proposal", 1), ("proposed", 1), ("tabled", 1)],
-            "withdrawn": [("withdrawn", 1), ("withdraw", 1)],
-            "planned": [("will apply", 1), ("planned", 1), ("foresees", 1)],
-        }
 
         text_lower = text.lower()
-        keywords = status_keywords.get(status, [])
+        keywords = STATUS_KEYWORDS.get(status, [])
 
         # Try to find date in context of status keyword
         best_date = None

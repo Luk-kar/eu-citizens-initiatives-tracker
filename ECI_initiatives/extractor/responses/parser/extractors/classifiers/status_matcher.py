@@ -2,6 +2,11 @@
 
 from typing import Optional
 
+from ...consts import (
+    TECHNICAL_TO_CITIZEN_STATUS,
+    STATUS_HIERARCHY,
+)
+
 
 class LegislativeOutcomeClassifier:
     """Helper class for matching legislative status patterns in ECI response text"""
