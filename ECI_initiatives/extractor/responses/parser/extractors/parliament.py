@@ -13,6 +13,8 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
+from ..base.date_parser import build_month_dict
+
 from .submission import SubmissionDataExtractor
 
 
@@ -83,12 +85,7 @@ class ParliamentActivityExtractor(BaseExtractor):
             if not date_match:
                 raise ValueError("No date found after key phrase.")
 
-            month_map = {
-                calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)
-            }
-            month_map.update(
-                {calendar.month_abbr[i].lower(): str(i).zfill(2) for i in range(1, 13)}
-            )
+            month_map = build_month_dict()
 
             if pattern == patterns[0]:
                 day, month_name, year = date_match.groups()
