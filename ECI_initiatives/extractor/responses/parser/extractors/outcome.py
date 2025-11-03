@@ -17,7 +17,6 @@ from .classifiers.status_matcher import LegislativeOutcomeClassifier
 
 from ..consts import (
     REJECTION_REASONING_KEYWORDS,
-    # STATUS_HIERARCHY,
     LEGISLATIVE_ACTION_PATTERNS,
     NON_LEGISLATIVE_ACTION_PATTERNS,
     SKIP_WORDS_LEGISLATIVE,
