@@ -3,9 +3,7 @@
 from .status_definitions import (
     REJECTION_REASONING_KEYWORDS,
     ECIImplementationStatus,
-    STATUS_PRIORITY,
-    STATUS_KEYWORDS,
-    LEGISLATIVE_ACTION_PATTERNS,
+    LegislativeStatus,
     NON_LEGISLATIVE_ACTION_PATTERNS,
     SKIP_WORDS_LEGISLATIVE,
     DEADLINE_PATTERNS,
@@ -15,9 +13,7 @@ from .status_definitions import (
 __all__ = [
     "REJECTION_REASONING_KEYWORDS",
     "ECIImplementationStatus",
-    "STATUS_PRIORITY",
-    "STATUS_KEYWORDS",
-    "LEGISLATIVE_ACTION_PATTERNS",
+    "LegislativeStatus",
     "NON_LEGISLATIVE_ACTION_PATTERNS",
     "SKIP_WORDS_LEGISLATIVE",
     "DEADLINE_PATTERNS",

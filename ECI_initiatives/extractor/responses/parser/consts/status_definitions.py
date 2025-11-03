@@ -1,5 +1,8 @@
 """Legislative outcome status definitions, hierarchies, and keyword patterns for ECI response classification."""
 
+from dataclasses import dataclass
+from typing import List, Tuple, Dict, Optional
+
 # Keywords that indicate rejection reasoning
 REJECTION_REASONING_KEYWORDS = [
     "will not make",
@@ -23,6 +26,13 @@ REJECTION_REASONING_KEYWORDS = [
 
 
 class ECIImplementationStatus:
+    """
+    Defines all possible ECI commission response
+    implementation statuses with:
+    - technical legal terms
+    - human readable outcome
+    - priority hierarchy
+    """
 
     class Status:
         def __init__(
@@ -74,83 +84,101 @@ class ECIImplementationStatus:
         return cls.BY_LEGAL_TERM.get(legal_term)
 
 
-# Status priority for matching (higher number = higher priority)
-STATUS_PRIORITY = {
-    "in_force": 5,
-    "withdrawn": 4,
-    "adopted": 3,
-    "proposed": 2,
-    "planned": 1,
-}
+class LegislativeStatus:
 
-# Status-specific keywords with priority for date extraction
-STATUS_KEYWORDS = {
-    "in_force": [
-        ("apply from", 3),  # Highest priority for in_force
-        ("applies from", 3),
-        ("rules apply from", 3),
-        ("entered into force", 2),
-        ("came into force", 2),
-        ("became applicable", 2),
-    ],
-    "adopted": [
-        ("adopted", 1),
-        ("approved", 1),
-    ],
-    "proposed": [
-        ("proposal", 1),
-        ("proposed", 1),
-        ("tabled", 1),
-    ],
-    "withdrawn": [
-        ("withdrawn", 1),
-        ("withdraw", 1),
-    ],
-    "planned": [
-        ("will apply", 1),
-        ("planned", 1),
-        ("foresees", 1),
-    ],
-}
+    @dataclass
+    class Status:
+        """Represents a legislative status with all associated metadata."""
 
-# NOTE Legislative action patterns for classification
-LEGISLATIVE_ACTION_PATTERNS = [
-    {
-        "pattern": r"(?:proposal|proposed|tabled).*?(?:regulation|directive|law|amendment)",
-        "type_hint": "proposal",
-        "status": "proposed",
-    },
-    {
-        "pattern": r"(?:adopted|approved).*?(?:regulation|directive|law|amendment)",
-        "type_hint": "adoption",
-        "status": "adopted",
-    },
-    {
-        "pattern": r"(?:entered into force|became applicable|applies from|came into force|apply from)",
-        "type_hint": "in_force",
-        "status": "in_force",
-    },
-    {
-        "pattern": r"(?:revision|revised|recast).*?(?:directive|regulation)",
-        "type_hint": "revision",
-        "status": "proposed",
-    },
-    {
-        "pattern": r"(?:withdrawn|withdraw|withdrew)",
-        "type_hint": "withdrawal",
-        "status": "withdrawn",
-    },
-    {
-        "pattern": r"(?:will apply|planned|to be adopted|foresees).*?(?:from|by|in).*?\d{4}",
-        "type_hint": "planned",
-        "status": "planned",
-    },
-    {
-        "pattern": r"(?:created|creation|new|adopted|establish).*?(?:tariff codes?|cn codes?|standards)",
-        "type_hint": "creation",
-        "status": "planned",
-    },
-]
+        name: str
+        priority: int
+        keywords: List[Tuple[str, int]]
+        action_patterns: List[Dict[str, str]]
+
+    # Define all statuses as class attributes
+    IN_FORCE = Status(
+        name="in_force",
+        priority=1,
+        keywords=[
+            ("apply from", 3),
+            ("applies from", 3),
+            ("rules apply from", 3),
+            ("entered into force", 2),
+            ("came into force", 2),
+            ("became applicable", 2),
+        ],
+        action_patterns=[
+            r"(?:entered into force|became applicable|applies from|came into force|apply from)",
+        ],
+    )
+
+    WITHDRAWN = Status(
+        name="withdrawn",
+        priority=2,
+        keywords=[
+            ("withdrawn", 1),
+            ("withdraw", 1),
+        ],
+        action_patterns=[
+            r"(?:withdrawn|withdraw|withdrew)",
+        ],
+    )
+
+    ADOPTED = Status(
+        name="adopted",
+        priority=3,
+        keywords=[
+            ("adopted", 1),
+            ("approved", 1),
+        ],
+        action_patterns=[
+            r"(?:adopted|approved).*?(?:regulation|directive|law|amendment)",
+        ],
+    )
+
+    PROPOSED = Status(
+        name="proposed",
+        priority=4,
+        keywords=[
+            ("proposal", 1),
+            ("proposed", 1),
+            ("tabled", 1),
+        ],
+        action_patterns=[
+            r"(?:proposal|proposed|tabled).*?(?:regulation|directive|law|amendment)",
+            r"(?:revision|revised|recast).*?(?:directive|regulation)",
+        ],
+    )
+
+    PLANNED = Status(
+        name="planned",
+        priority=5,
+        keywords=[
+            ("will apply", 1),
+            ("planned", 1),
+            ("foresees", 1),
+        ],
+        action_patterns=[
+            r"(?:will apply|planned|to be adopted|foresees).*?(?:from|by|in).*?\d{4}",
+            r"(?:created|creation|new|adopted|establish).*?(?:tariff codes?|cn codes?|standards)",
+        ],
+    )
+
+    # Lookup dictionaries for convenience
+    BY_NAME: Dict[str, Status] = {
+        "in_force": IN_FORCE,
+        "withdrawn": WITHDRAWN,
+        "adopted": ADOPTED,
+        "proposed": PROPOSED,
+        "planned": PLANNED,
+    }
+
+    ALL_STATUSES: List[Status] = [IN_FORCE, WITHDRAWN, ADOPTED, PROPOSED, PLANNED]
+
+    @classmethod
+    def get_status(cls, name: str) -> Optional[Status]:
+        """Get Status object by name."""
+        return cls.BY_NAME.get(name)
 
 
 # NOTE Non-legislative action patterns with types

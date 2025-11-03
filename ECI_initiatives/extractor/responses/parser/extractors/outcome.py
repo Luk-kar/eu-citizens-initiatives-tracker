@@ -17,13 +17,11 @@ from .classifiers.status_matcher import LegislativeOutcomeClassifier
 
 from ..consts import (
     REJECTION_REASONING_KEYWORDS,
-    LEGISLATIVE_ACTION_PATTERNS,
     NON_LEGISLATIVE_ACTION_PATTERNS,
     SKIP_WORDS_LEGISLATIVE,
     DEADLINE_PATTERNS,
     APPLICABLE_DATE_PATTERNS,
-    STATUS_KEYWORDS,
-    STATUS_PRIORITY,
+    LegislativeStatus,
 )
 
 
@@ -771,51 +769,16 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         """
         actions = []
 
-        # Legislative action patterns
-        action_patterns = [
-            # Proposals
-            {
-                "pattern": r"(?:proposal|proposed|tabled).*?(?:regulation|directive|law|amendment)",
-                "type_hint": "proposal",
-                "status": "proposed",
-            },
-            # Adoptions
-            {
-                "pattern": r"(?:adopted|approved).*?(?:regulation|directive|law|amendment)",
-                "type_hint": "adoption",
-                "status": "adopted",
-            },
-            # In force
-            {
-                "pattern": r"(?:entered into force|became applicable|applies from|came into force|apply from)",
-                "type_hint": "in_force",
-                "status": "in_force",
-            },
-            # Revisions
-            {
-                "pattern": r"(?:revision|revised|recast).*?(?:directive|regulation)",
-                "type_hint": "revision",
-                "status": "proposed",
-            },
-            # Withdrawn
-            {
-                "pattern": r"(?:withdrawn|withdraw|withdrew)",
-                "type_hint": "withdrawal",
-                "status": "withdrawn",
-            },
-            # Planned/Future
-            {
-                "pattern": r"(?:will apply|planned|to be adopted|foresees).*?(?:from|by|in).*?\d{4}",
-                "type_hint": "planned",
-                "status": "planned",
-            },
-            # Creation of codes/standards
-            {
-                "pattern": r"(?:created|creation|new|adopted|establish).*?(?:tariff codes?|cn codes?|standards)",
-                "type_hint": "creation",
-                "status": "planned",
-            },
-        ]
+        # Build action patterns from LegislativeStatus
+        action_patterns = []
+        for status in LegislativeStatus.ALL_STATUSES:
+            for pattern in status.action_patterns:
+                action_patterns.append(
+                    {
+                        "pattern": pattern,
+                        "status_obj": status,  # Store the Status object
+                    }
+                )
 
         # Iterate through siblings after section header
         for sibling in section.find_next_siblings():
@@ -881,8 +844,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         if not matches:
             return
 
-        # Pick the pattern with highest priority status
-        best_match = max(matches, key=lambda p: STATUS_PRIORITY.get(p["status"], 0))
+        # Pick the pattern with highest priority status (lower priority number = higher priority)
+        best_match = min(matches, key=lambda p: p["status_obj"].priority)
 
         action = self._parse_legislative_action(element, text, best_match)
         if action:
@@ -897,7 +860,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         Args:
             element: BeautifulSoup element containing the action
             text: Text content
-            pattern_info: Pattern information dictionary
+            pattern_info: Pattern information dictionary with status_obj
 
         Returns:
             Action dictionary or None
@@ -915,24 +878,18 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         ]
 
         found_date = None
-        status = pattern_info["status"]
-
-        # Map status to keyword phrases with priority order
+        status_obj = pattern_info["status_obj"]
 
         text_lower = text.lower()
-        keywords = STATUS_KEYWORDS.get(status, [])
+
+        # Get keywords from the Status object
+        keywords = status_obj.keywords
 
         # Try to find date in context of status keyword
         best_date = None
         best_priority = 0
 
-        for keyword_info in keywords:
-            if isinstance(keyword_info, tuple):
-                keyword, priority = keyword_info
-            else:
-                keyword = keyword_info
-                priority = 1
-
+        for keyword, priority in keywords:
             if keyword not in text_lower:
                 continue
 
@@ -992,8 +949,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
         action = {
             "type": action_type,
-            "description": description,  # Limit description length
-            "status": pattern_info["status"],
+            "description": description,
+            "status": status_obj.name,  # Use the status name from Status object
         }
 
         if found_date:
