@@ -17,8 +17,7 @@ from .classifiers.status_matcher import LegislativeOutcomeClassifier
 
 from ..consts import (
     REJECTION_REASONING_KEYWORDS,
-    NON_LEGISLATIVE_ACTION_PATTERNS,
-    SKIP_WORDS_LEGISLATIVE,
+    NonLegislativeAction,
     DEADLINE_PATTERNS,
     APPLICABLE_DATE_PATTERNS,
     LegislativeStatus,
@@ -812,26 +811,11 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         # NORMALIZE WHITESPACE: Replace multiple whitespace (including newlines) with single space
         text = re.sub(r"\s+", " ", text).strip()
 
-        text_lower = text.lower()
-
-        skip_words = [
-            "roadmap",
-            "tasked",
-            "will communicate",
-            "will report",
-            "impact assessment",
-            "stakeholder",
-            "consultation",
-            "workshop",
-            "meeting",
-            "better enforcement",
-            "in parallel to the legislation",
-            "seek specific supporting measures",
-        ]
-
-        # Skip non-legislative content
-        if any(word in text_lower for word in skip_words):
+        # Skip non-legislative content using the class method
+        if NonLegislativeAction.should_skip_for_legislative(text):
             return
+
+        text_lower = text.lower()
 
         # Find ALL matching patterns, then pick the most specific status
         matches = []
@@ -1097,135 +1081,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         """
         actions = []
 
-        # Non-legislative action patterns with their types
-        action_patterns = [
-            # 1. Monitoring
-            {
-                "keywords": [
-                    "monitoring",
-                    "monitor",
-                    "active monitoring",
-                    "will monitor",
-                    "better enforce",
-                    "strengthen enforcement",
-                    "enforcement",
-                    "ensure compliance",
-                    "ensuring compliance",
-                    "compliance",
-                    "support member states",
-                    "guarantee equal treatment",
-                    "withhold payments",
-                    "conditional funding",
-                    "withhold the corresponding payments",
-                ],
-                "type": "Monitoring and Enforcement",
-            },
-            # 2. Policy implementation
-            {
-                "keywords": [
-                    "will continue",
-                    "continue to",
-                    "ensure",
-                    "ensuring",
-                    "guarantee",
-                    "maintain",
-                    "maintaining",
-                    "non-discriminatory access",
-                    "equal access",
-                    "implementation",
-                    "implementing",
-                    "safeguard",
-                    "set of benchmarks",
-                ],
-                "type": "Policy Implementation",
-            },
-            # Scientific activities
-            {
-                "keywords": [
-                    "scientific conference",
-                    "scientific opinion",
-                    "efsa",
-                    "workshop",
-                    "colloquium",
-                ],
-                "type": "Scientific Activity",
-            },
-            # Funding Programme
-            {
-                "keywords": [
-                    "funding",
-                    "horizon europe",
-                    "erasmus",
-                    "creative europe",
-                    "cohesion policy",
-                    "cohesion funding",
-                    "union funding",
-                    "multiannual financial framework",
-                    "mff",
-                ],
-                "type": "Funding Programme",
-            },
-            # Impact assessments and consultations
-            {
-                "keywords": [
-                    "impact assessment",
-                    "public consultation",
-                    "call for evidence",
-                    "consultation on",
-                ],
-                "type": "Impact Assessment and Consultation",
-            },
-            # Stakeholder dialogue
-            {
-                "keywords": ["stakeholder", "partnership", "stakeholder dialogue"],
-                "type": "Stakeholder Dialogue",
-            },
-            # International cooperation
-            {
-                "keywords": [
-                    "international cooperation",
-                    "reaching out",
-                    "international partners",
-                    "international level",
-                    "international fora",
-                    "international commission",
-                    "un general assembly",
-                    "ICCAT",
-                    "best practices between Member States",
-                    "Sustainable Development Goals EU",
-                    "EU-wide public consultation",
-                    "advocating universal access",
-                ],
-                "type": "International Cooperation",
-            },
-            # Data collection and transparency
-            {
-                "keywords": [
-                    "data collection",
-                    "transparency",
-                    "benchmarking",
-                    "eurobarometer",
-                    "report was published",
-                    "publication",
-                ],
-                "type": "Data Collection and Transparency",
-            },
-            # Strategy policy
-            {
-                "keywords": [
-                    "roadmap",
-                    "strategic plan",
-                    "strengthened",
-                    "modernised",
-                    "enhanced",
-                    "policy framework",
-                    "mechanism",
-                    "mechanisms in place",
-                ],
-                "type": "Policy Roadmap and Strategy",
-            },
-        ]
-
         # Iterate through siblings after section header
         current = section.next_sibling
 
@@ -1240,37 +1095,25 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
             # Process paragraph elements
             if current.name == "p":
-                self._process_element_for_non_legislative_action(
-                    current, action_patterns, actions
-                )
+                self._process_element_for_non_legislative_action(current, actions)
 
-            # CRITICAL FIX: Process unordered lists
-            # Many Commission commitments are in <ul><li> structures
+            # Process unordered lists
             elif current.name == "ul":
-                # Get all direct <li> children (not nested lists)
                 list_items = current.find_all("li", recursive=False)
-
                 for li in list_items:
-                    self._process_element_for_non_legislative_action(
-                        li, action_patterns, actions
-                    )
+                    self._process_element_for_non_legislative_action(li, actions)
 
-            # Also handle ordered lists
+            # Process ordered lists
             elif current.name == "ol":
                 list_items = current.find_all("li", recursive=False)
-
                 for li in list_items:
-                    self._process_element_for_non_legislative_action(
-                        li, action_patterns, actions
-                    )
+                    self._process_element_for_non_legislative_action(li, actions)
 
             current = current.next_sibling
 
         return actions
 
-    def _process_element_for_non_legislative_action(
-        self, element, action_patterns: list, actions: list
-    ):
+    def _process_element_for_non_legislative_action(self, element, actions: list):
         """Process a single HTML element (p or li) for non-legislative actions"""
 
         # Get text with normalized whitespace
@@ -1318,19 +1161,15 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         if any(keyword in text_lower for keyword in header_sections):
             return
 
-        # Find matching pattern
-        matched_pattern = None
-        for pattern_info in action_patterns:
-            if any(keyword in text_lower for keyword in pattern_info["keywords"]):
-                matched_pattern = pattern_info
-                break
+        # Classify the text using NonLegislativeAction
+        action_type = NonLegislativeAction.classify_text(text)
 
         # If no pattern matched, skip
-        if not matched_pattern:
+        if not action_type:
             return
 
         # Parse the action
-        action = self._parse_non_legislative_action(text, matched_pattern)
+        action = self._parse_non_legislative_action(text, action_type)
         if action:
             actions.append(action)
 
@@ -1376,7 +1215,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         description = self._extract_action_description(text)
 
         # Build action dictionary
-        action = {"type": pattern_info["type"], "description": description}
+        action = {"type": pattern_info.name, "description": description}
 
         if found_date:
             action["date"] = found_date

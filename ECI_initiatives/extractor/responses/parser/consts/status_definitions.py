@@ -181,10 +181,24 @@ class LegislativeStatus:
         return cls.BY_NAME.get(name)
 
 
-# NOTE Non-legislative action patterns with types
-NON_LEGISLATIVE_ACTION_PATTERNS = [
-    {
-        "keywords": [
+from dataclasses import dataclass
+from typing import List, Dict, Optional
+
+
+class NonLegislativeAction:
+    """Defines non-legislative action types with keywords for classification and filtering."""
+
+    @dataclass
+    class ActionType:
+        """Represents a non-legislative action type with associated keywords."""
+
+        name: str
+        keywords: List[str]
+
+    # Define all non-legislative action types as class attributes
+    MONITORING_ENFORCEMENT = ActionType(
+        name="Monitoring and Enforcement",
+        keywords=[
             "monitoring",
             "monitor",
             "active monitoring",
@@ -201,10 +215,11 @@ NON_LEGISLATIVE_ACTION_PATTERNS = [
             "conditional funding",
             "withhold the corresponding payments",
         ],
-        "type": "Monitoring and Enforcement",
-    },
-    {
-        "keywords": [
+    )
+
+    POLICY_IMPLEMENTATION = ActionType(
+        name="Policy Implementation",
+        keywords=[
             "will continue",
             "continue to",
             "ensure",
@@ -219,20 +234,22 @@ NON_LEGISLATIVE_ACTION_PATTERNS = [
             "safeguard",
             "set of benchmarks",
         ],
-        "type": "Policy Implementation",
-    },
-    {
-        "keywords": [
+    )
+
+    SCIENTIFIC_ACTIVITY = ActionType(
+        name="Scientific Activity",
+        keywords=[
             "scientific conference",
             "scientific opinion",
             "efsa",
             "workshop",
             "colloquium",
         ],
-        "type": "Scientific Activity",
-    },
-    {
-        "keywords": [
+    )
+
+    FUNDING_PROGRAMME = ActionType(
+        name="Funding Programme",
+        keywords=[
             "funding",
             "horizon europe",
             "erasmus",
@@ -243,27 +260,30 @@ NON_LEGISLATIVE_ACTION_PATTERNS = [
             "multiannual financial framework",
             "mff",
         ],
-        "type": "Funding Programme",
-    },
-    {
-        "keywords": [
+    )
+
+    IMPACT_ASSESSMENT_CONSULTATION = ActionType(
+        name="Impact Assessment and Consultation",
+        keywords=[
             "impact assessment",
             "public consultation",
             "call for evidence",
             "consultation on",
         ],
-        "type": "Impact Assessment and Consultation",
-    },
-    {
-        "keywords": [
+    )
+
+    STAKEHOLDER_DIALOGUE = ActionType(
+        name="Stakeholder Dialogue",
+        keywords=[
             "stakeholder",
             "partnership",
             "stakeholder dialogue",
         ],
-        "type": "Stakeholder Dialogue",
-    },
-    {
-        "keywords": [
+    )
+
+    INTERNATIONAL_COOPERATION = ActionType(
+        name="International Cooperation",
+        keywords=[
             "international cooperation",
             "reaching out",
             "international partners",
@@ -277,10 +297,11 @@ NON_LEGISLATIVE_ACTION_PATTERNS = [
             "EU-wide public consultation",
             "advocating universal access",
         ],
-        "type": "International Cooperation",
-    },
-    {
-        "keywords": [
+    )
+
+    DATA_COLLECTION_TRANSPARENCY = ActionType(
+        name="Data Collection and Transparency",
+        keywords=[
             "data collection",
             "transparency",
             "benchmarking",
@@ -288,10 +309,11 @@ NON_LEGISLATIVE_ACTION_PATTERNS = [
             "report was published",
             "publication",
         ],
-        "type": "Data Collection and Transparency",
-    },
-    {
-        "keywords": [
+    )
+
+    POLICY_ROADMAP_STRATEGY = ActionType(
+        name="Policy Roadmap and Strategy",
+        keywords=[
             "roadmap",
             "strategic plan",
             "strengthened",
@@ -301,11 +323,85 @@ NON_LEGISLATIVE_ACTION_PATTERNS = [
             "mechanism",
             "mechanisms in place",
         ],
-        "type": "Policy Roadmap and Strategy",
-    },
-]
+    )
 
-# NOTE Words that indicate non-legislative content to skip during extraction
+    # All action types for iteration
+    ALL_ACTION_TYPES: List[ActionType] = [
+        MONITORING_ENFORCEMENT,
+        POLICY_IMPLEMENTATION,
+        SCIENTIFIC_ACTIVITY,
+        FUNDING_PROGRAMME,
+        IMPACT_ASSESSMENT_CONSULTATION,
+        STAKEHOLDER_DIALOGUE,
+        INTERNATIONAL_COOPERATION,
+        DATA_COLLECTION_TRANSPARENCY,
+        POLICY_ROADMAP_STRATEGY,
+    ]
+
+    # Keywords that indicate non-legislative content to skip during legislative action extraction
+    SKIP_WORDS_LEGISLATIVE = [
+        "roadmap",
+        "tasked",
+        "will communicate",
+        "will report",
+        "impact assessment",
+        "stakeholder",
+        "consultation",
+        "workshop",
+        "meeting",
+        "better enforcement",
+        "in parallel to the legislation",
+        "seek specific supporting measures",
+    ]
+
+    @classmethod
+    def classify_text(cls, text: str) -> Optional[ActionType]:
+        """
+        Classify text by matching keywords to action types.
+
+        Args:
+            text: Text to classify (should be lowercased)
+
+        Returns:
+            ActionType if match found, None otherwise
+        """
+        text_lower = text.lower()
+
+        for action_type in cls.ALL_ACTION_TYPES:
+            if any(keyword in text_lower for keyword in action_type.keywords):
+                return action_type
+
+        return None
+
+    @classmethod
+    def should_skip_for_legislative(cls, text: str) -> bool:
+        """
+        Check if text should be skipped during legislative action extraction.
+
+        Args:
+            text: Text to check (should be lowercased)
+
+        Returns:
+            True if text contains skip keywords, False otherwise
+        """
+        text_lower = text.lower()
+        return any(word in text_lower for word in cls.SKIP_WORDS_LEGISLATIVE)
+
+    @classmethod
+    def get_all_keywords(cls) -> List[str]:
+        """
+        Get all keywords from all action types.
+
+        Returns:
+            Flat list of all keywords
+        """
+        keywords = []
+        for action_type in cls.ALL_ACTION_TYPES:
+            keywords.extend(action_type.keywords)
+        return keywords
+
+
+# Words that indicate non-legislative content to skip during extraction
 SKIP_WORDS_LEGISLATIVE = [
     "roadmap",
     "tasked",
@@ -321,7 +417,7 @@ SKIP_WORDS_LEGISLATIVE = [
     "seek specific supporting measures",
 ]
 
-# NOTE Deadline extraction patterns for Commission commitments
+# Deadline extraction patterns for Commission commitments
 DEADLINE_PATTERNS = [
     # Legislative proposal patterns (action BEFORE deadline)
     r"committed to come forward with a legislative proposal[,\s]+by\s+([^.,;]+)",
