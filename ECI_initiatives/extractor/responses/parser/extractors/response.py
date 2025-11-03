@@ -12,6 +12,7 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
+from ..base.date_parser import build_month_dict
 
 
 class CommissionResponseExtractor(BaseExtractor):
@@ -48,9 +49,7 @@ class CommissionResponseExtractor(BaseExtractor):
             if not commission_paragraph:
                 return None
 
-            month_dict = {
-                calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)
-            }
+            month_dict = build_month_dict()
 
             date_pattern = (
                 r"Commission adopted a Communication on\s+(\d{1,2})\s+(\w+)\s+(\d{4})"
