@@ -22,19 +22,3 @@ REJECTION_REASONING_KEYWORDS = [
     "beyond eu competence",
     "interfere with",
 ]
-
-# Words that indicate non-legislative content to skip during extraction
-SKIP_WORDS_LEGISLATIVE = [
-    "roadmap",
-    "tasked",
-    "will communicate",
-    "will report",
-    "impact assessment",
-    "stakeholder",
-    "consultation",
-    "workshop",
-    "meeting",
-    "better enforcement",
-    "in parallel to the legislation",
-    "seek specific supporting measures",
-]
