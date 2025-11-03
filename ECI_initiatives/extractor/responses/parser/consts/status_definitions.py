@@ -1,4 +1,8 @@
-"""Legislative outcome status definitions, hierarchies, and keyword patterns for ECI response classification."""
+"""
+Legislative outcome status
+definitions, hierarchies, and
+keyword patterns for ECI response classification.
+"""
 
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional
@@ -35,6 +39,15 @@ class ECIImplementationStatus:
     """
 
     class Status:
+        """
+        Initialize a Status object.
+
+        Args:
+            legal_term: Technical status code (e.g., 'applicable', 'adopted')
+            human_readable_explanation: Citizen-friendly status name (e.g., 'Law Active', 'Law Approved')
+            priority: Priority level for status matching (lower number = higher priority)
+        """
+
         def __init__(
             self, legal_term: str, human_readable_explanation: str, priority: int
         ):
@@ -85,10 +98,22 @@ class ECIImplementationStatus:
 
 
 class LegislativeStatus:
+    """
+    Defines legislative action statuses with
+    keywords, patterns, and priority hierarchy for classification.
+    """
 
     @dataclass
     class Status:
-        """Represents a legislative status with all associated metadata."""
+        """
+        Represents a legislative status with associated metadata.
+
+        Attributes:
+            name: Status identifier (e.g., 'in_force', 'adopted')
+            priority: Priority level for matching (lower number = higher priority)
+            keywords: List of (keyword, weight) tuples for date extraction context
+            action_patterns: List of regex patterns to match this status in text
+        """
 
         name: str
         priority: int
@@ -181,16 +206,18 @@ class LegislativeStatus:
         return cls.BY_NAME.get(name)
 
 
-from dataclasses import dataclass
-from typing import List, Dict, Optional
-
-
 class NonLegislativeAction:
     """Defines non-legislative action types with keywords for classification and filtering."""
 
     @dataclass
     class ActionType:
-        """Represents a non-legislative action type with associated keywords."""
+        """
+        Represents a non-legislative action type with associated metadata.
+
+        Attributes:
+            name: Human-readable action type name (e.g., 'Monitoring and Enforcement', 'Funding Programme')
+            keywords: List of keywords used to classify text as this action type
+        """
 
         name: str
         keywords: List[str]
