@@ -12,7 +12,7 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
-from ..base.date_parser import build_month_dict
+from ..consts.dates import month_map
 
 
 class CommissionResponseExtractor(BaseExtractor):
@@ -49,8 +49,6 @@ class CommissionResponseExtractor(BaseExtractor):
             if not commission_paragraph:
                 return None
 
-            month_dict = build_month_dict()
-
             date_pattern = (
                 r"Commission adopted a Communication on\s+(\d{1,2})\s+(\w+)\s+(\d{4})"
             )
@@ -61,7 +59,7 @@ class CommissionResponseExtractor(BaseExtractor):
                 month_name = match.group(2).lower()
                 year = match.group(3)
 
-                month_str = month_dict.get(month_name)
+                month_str = month_map.get(month_name)
                 if month_str is None:
                     raise ValueError(f"Invalid month name: {month_name}")
 
