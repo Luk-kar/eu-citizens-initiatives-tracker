@@ -1,3 +1,9 @@
+"""
+Extracts European Parliament engagement data including
+hearing dates, plenary debate information,
+and associated video recording URLs.
+"""
+
 import calendar
 import html
 import re

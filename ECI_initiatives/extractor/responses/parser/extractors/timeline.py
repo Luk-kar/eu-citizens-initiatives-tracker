@@ -1,3 +1,9 @@
+"""
+Extracts procedural timeline milestones including
+Commission meeting dates and
+officials met during the Article 15 consultation process.
+"""
+
 import calendar
 import re
 from datetime import datetime

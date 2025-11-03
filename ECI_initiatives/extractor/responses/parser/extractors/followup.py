@@ -1,3 +1,9 @@
+"""
+Extracts follow-up activity information including
+roadmaps, workshops, partnership programs, and
+court case references from post-response sections.
+"""
+
 from typing import Optional
 
 from bs4 import BeautifulSoup

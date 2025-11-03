@@ -1,3 +1,8 @@
+"""
+Extracts multimedia resources and documentation links including
+Commission factsheets and campaign website information.
+"""
+
 from typing import Optional
 
 from bs4 import BeautifulSoup

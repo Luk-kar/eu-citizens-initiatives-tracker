@@ -1,3 +1,9 @@
+"""
+Performs structural analysis by extracting related
+EU legislation references, petition platforms used, and
+calculating follow-up durations.
+"""
+
 from typing import Optional
 
 from bs4 import BeautifulSoup

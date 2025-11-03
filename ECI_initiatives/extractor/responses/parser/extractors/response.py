@@ -1,3 +1,9 @@
+"""
+Extracts European Commission response details including
+communication adoption dates, document URLs, and
+answer text from successful ECI pages.
+"""
+
 import calendar
 import re
 import json

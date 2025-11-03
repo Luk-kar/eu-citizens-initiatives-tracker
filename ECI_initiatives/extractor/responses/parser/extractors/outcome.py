@@ -1,6 +1,7 @@
 """
-Legislative outcome extraction - coordinator
-Delegates to specialized sub-extractors
+Extracts legislative outcome data by
+classifying Commission responses, determining proposal status, and
+identifying legislative actions taken.
 """
 
 import calendar

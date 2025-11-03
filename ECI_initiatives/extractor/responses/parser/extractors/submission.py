@@ -1,3 +1,9 @@
+"""
+Extracts submission-related data including
+the submission date, normalized text content, and
+news announcement URLs from the submission section.
+"""
+
 import re
 from datetime import datetime
 from typing import Optional

@@ -1,4 +1,8 @@
-"""Basic metadata extraction: URLs and titles"""
+"""
+Extracts basic initiative metadata including
+response page URLs and
+initiative detail page URLs from HTML structure.
+"""
 
 import re
 from bs4 import BeautifulSoup
