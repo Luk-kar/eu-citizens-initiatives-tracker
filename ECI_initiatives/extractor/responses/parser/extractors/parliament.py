@@ -13,6 +13,7 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
+from ..base.text_utilities import normalize_whitespace
 from ..consts.dates import month_map
 
 from .submission import SubmissionDataExtractor
@@ -33,7 +34,7 @@ class ParliamentActivityExtractor(BaseExtractor):
                 raise ValueError("No submission text found in HTML.")
 
             text = submission_text.lower()
-            text = re.sub(r"\s+", " ", text).strip()
+            text = normalize_whitespace(text)
 
             key_phrases = [
                 "public hearing took place",
