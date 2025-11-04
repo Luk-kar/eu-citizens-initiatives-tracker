@@ -11,6 +11,7 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
+from .html_sections import find_submission_section
 
 
 class SubmissionDataExtractor(BaseExtractor):
@@ -19,18 +20,7 @@ class SubmissionDataExtractor(BaseExtractor):
     def extract_submission_text(self, soup: BeautifulSoup) -> str:
         """Extract normalized text from all paragraphs in the submission section"""
         try:
-            submission_section = soup.find("h2", id="Submission-and-examination")
-
-            if not submission_section:
-                submission_section = soup.find(
-                    "h2",
-                    string=re.compile(r"Submission and examination", re.IGNORECASE),
-                )
-
-            if not submission_section:
-                raise ValueError(
-                    f"No submission section found for {self.registration_number}"
-                )
+            submission_section = find_submission_section(soup, self.registration_number)
 
             paragraphs = []
             for sibling in submission_section.find_next_siblings():

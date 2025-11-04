@@ -17,6 +17,7 @@ from ..base.text_utilities import normalize_whitespace
 from ..consts.dates import month_map
 
 from .submission import SubmissionDataExtractor
+from .html_sections import find_submission_section
 
 
 class ParliamentActivityExtractor(BaseExtractor):
@@ -109,16 +110,7 @@ class ParliamentActivityExtractor(BaseExtractor):
     def extract_parliament_hearing_video_urls(self, soup: BeautifulSoup) -> dict:
         """Extracts all relevant video recording URLs from the 'public hearing' paragraph"""
         try:
-            submission_section = soup.find("h2", id="Submission-and-examination")
-            if not submission_section:
-                submission_section = soup.find(
-                    "h2",
-                    string=re.compile(r"Submission and examination", re.IGNORECASE),
-                )
-            if not submission_section:
-                raise ValueError(
-                    f"No submission section found for {self.registration_number}"
-                )
+            submission_section = find_submission_section(soup, self.registration_number)
 
             for sibling in submission_section.find_next_siblings():
                 if sibling.name == "h2":
@@ -164,16 +156,7 @@ class ParliamentActivityExtractor(BaseExtractor):
     def extract_plenary_debate_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract date of plenary debate in Parliament"""
         try:
-            submission_section = soup.find("h2", id="Submission-and-examination")
-            if not submission_section:
-                submission_section = soup.find(
-                    "h2",
-                    string=re.compile(r"Submission and examination", re.IGNORECASE),
-                )
-            if not submission_section:
-                raise ValueError(
-                    f"No submission section found for {self.registration_number}"
-                )
+            submission_section = find_submission_section(soup, self.registration_number)
 
             paragraphs = submission_section.find_next_siblings("p")
 
@@ -241,16 +224,7 @@ class ParliamentActivityExtractor(BaseExtractor):
     def extract_plenary_debate_video_urls(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract video recording URL of plenary debate as JSON"""
         try:
-            submission_section = soup.find("h2", id="Submission-and-examination")
-            if not submission_section:
-                submission_section = soup.find(
-                    "h2",
-                    string=re.compile(r"Submission and examination", re.IGNORECASE),
-                )
-            if not submission_section:
-                raise ValueError(
-                    f"No submission section found for {self.registration_number}"
-                )
+            submission_section = find_submission_section(soup, self.registration_number)
 
             paragraphs = submission_section.find_next_siblings("p")
 

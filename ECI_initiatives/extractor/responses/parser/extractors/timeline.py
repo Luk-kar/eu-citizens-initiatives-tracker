@@ -12,6 +12,7 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
+from .html_sections import find_submission_section
 
 
 class ProceduralTimelineExtractor(BaseExtractor):
@@ -20,18 +21,7 @@ class ProceduralTimelineExtractor(BaseExtractor):
     def extract_commission_meeting_date(self, soup: BeautifulSoup) -> str:
         """Extract date of meeting with Commission officials (Article 15)"""
         try:
-            submission_section = soup.find("h2", id="Submission-and-examination")
-
-            if not submission_section:
-                submission_section = soup.find(
-                    "h2",
-                    string=re.compile(r"Submission and examination", re.IGNORECASE),
-                )
-
-            if not submission_section:
-                raise ValueError(
-                    f"No submission section for {self.registration_number}"
-                )
+            submission_section = find_submission_section(soup, self.registration_number)
 
             paragraphs = []
             for sibling in submission_section.find_next_siblings():
@@ -91,18 +81,7 @@ class ProceduralTimelineExtractor(BaseExtractor):
     def extract_commission_officials_met(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract names and titles of Commissioners/Vice-Presidents who met"""
         try:
-            submission_section = soup.find("h2", id="Submission-and-examination")
-
-            if not submission_section:
-                submission_section = soup.find(
-                    "h2",
-                    string=re.compile(r"Submission and examination", re.IGNORECASE),
-                )
-
-            if not submission_section:
-                raise ValueError(
-                    f"No submission section for {self.registration_number}"
-                )
+            submission_section = find_submission_section(soup, self.registration_number)
 
             paragraphs = []
             for sibling in submission_section.find_next_siblings():

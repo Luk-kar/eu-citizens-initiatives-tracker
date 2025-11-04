@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
 from ..consts.dates import month_map
+from .html_sections import find_submission_section
 
 
 class CommissionResponseExtractor(BaseExtractor):
@@ -23,17 +24,7 @@ class CommissionResponseExtractor(BaseExtractor):
     ) -> Optional[str]:
         """Extract date Commission adopted official Communication"""
         try:
-            submission_section = soup.find("h2", id="Submission-and-examination")
-
-            if not submission_section:
-                submission_section = soup.find(
-                    "h2",
-                    string=re.compile(r"Submission and examination", re.IGNORECASE),
-                )
-            if not submission_section:
-                raise ValueError(
-                    f"No submission section found for {self.registration_number}"
-                )
+            submission_section = find_submission_section(soup, self.registration_number)
 
             paragraphs = submission_section.find_next_siblings("p")
 
@@ -89,16 +80,7 @@ class CommissionResponseExtractor(BaseExtractor):
     ) -> Optional[str]:
         """Extract link to full PDF of Commission Communication as JSON"""
         try:
-            submission_section = soup.find("h2", id="Submission-and-examination")
-            if not submission_section:
-                submission_section = soup.find(
-                    "h2",
-                    string=re.compile(r"Submission and examination", re.IGNORECASE),
-                )
-            if not submission_section:
-                raise ValueError(
-                    f"No submission section found for {self.registration_number}"
-                )
+            submission_section = find_submission_section(soup, self.registration_number)
 
             paragraphs = submission_section.find_next_siblings("p")
 
