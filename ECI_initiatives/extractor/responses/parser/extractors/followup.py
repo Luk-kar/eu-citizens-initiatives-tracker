@@ -258,26 +258,175 @@ class FollowUpActivityExtractor(BaseExtractor):
             ) from e
 
     def extract_has_partnership_programs(self, soup: BeautifulSoup) -> Optional[bool]:
+        """
+        Check if initiative has partnership programs mentioned in follow-up.
+
+        Looks for keywords like "partnerships", "partnership programs", "public-public partnerships",
+        etc. in the Follow-up section.
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            True if partnership programs are mentioned, False otherwise, None on error
+
+        Raises:
+            ValueError: If critical error occurs during detection
+        """
         try:
-            return None
+            # Use shared lookup method to find Follow-up section
+            result = self._find_followup_section(soup)
+
+            if not result:
+                return False
+
+            followup_section, section_marker = result
+
+            # Extract all text from Follow-up section
+            followup_text = followup_section.find_next_sibling()
+            full_text = ""
+
+            while followup_text and followup_text.name != "h2":
+                if section_marker == "h4" and followup_text.name == "h4":
+                    break
+
+                if followup_text.name:
+                    full_text += followup_text.get_text(
+                        separator=" ", strip=True
+                    ).lower()
+
+                followup_text = followup_text.find_next_sibling()
+
+            # Check for partnership-related keywords
+            partnership_keywords = [
+                "partnership",
+                "partnerships",
+                "public-public partnership",
+                "water operators",
+                "partner",
+            ]
+
+            for keyword in partnership_keywords:
+                if keyword in full_text:
+                    return True
+
+            return False
+
         except Exception as e:
             raise ValueError(
-                f"Error checking roadmap for {self.registration_number}: {str(e)}"
+                f"Error checking partnership programs for {self.registration_number}: {str(e)}"
             ) from e
 
     def extract_has_roadmap(self, soup: BeautifulSoup) -> Optional[bool]:
-        """Check if initiative has a roadmap"""
+        """
+        Check if initiative has a roadmap mentioned in follow-up.
+
+        Looks for keywords like "roadmap", "roadmap to phase out", etc. in the Follow-up section.
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            True if roadmap is mentioned, False otherwise, None on error
+
+        Raises:
+            ValueError: If critical error occurs during detection
+        """
         try:
-            return None
+            # Use shared lookup method to find Follow-up section
+            result = self._find_followup_section(soup)
+
+            if not result:
+                return False
+
+            followup_section, section_marker = result
+
+            # Extract all text from Follow-up section
+            followup_text = followup_section.find_next_sibling()
+            full_text = ""
+
+            while followup_text and followup_text.name != "h2":
+                if section_marker == "h4" and followup_text.name == "h4":
+                    break
+
+                if followup_text.name:
+                    full_text += followup_text.get_text(
+                        separator=" ", strip=True
+                    ).lower()
+
+                followup_text = followup_text.find_next_sibling()
+
+            # Check for roadmap-related keywords
+            roadmap_keywords = ["roadmap", "road map", "roadmaps"]
+
+            for keyword in roadmap_keywords:
+                if keyword in full_text:
+                    return True
+
+            return False
+
         except Exception as e:
             raise ValueError(
                 f"Error checking roadmap for {self.registration_number}: {str(e)}"
             ) from e
 
     def extract_has_workshop(self, soup: BeautifulSoup) -> Optional[bool]:
-        """Check if initiative has workshop activities"""
+        """
+        Check if initiative has workshop activities mentioned in follow-up.
+
+        Looks for keywords like "workshop", "conference", "stakeholder meeting", etc.
+        in the Follow-up section.
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            True if workshop activities are mentioned, False otherwise, None on error
+
+        Raises:
+            ValueError: If critical error occurs during detection
+        """
         try:
-            return None
+            # Use shared lookup method to find Follow-up section
+            result = self._find_followup_section(soup)
+
+            if not result:
+                return False
+
+            followup_section, section_marker = result
+
+            # Extract all text from Follow-up section
+            followup_text = followup_section.find_next_sibling()
+            full_text = ""
+
+            while followup_text and followup_text.name != "h2":
+                if section_marker == "h4" and followup_text.name == "h4":
+                    break
+
+                if followup_text.name:
+                    full_text += followup_text.get_text(
+                        separator=" ", strip=True
+                    ).lower()
+
+                followup_text = followup_text.find_next_sibling()
+
+            # Check for workshop-related keywords
+            workshop_keywords = [
+                "workshop",
+                "workshops",
+                "conference",
+                "conferences",
+                "stakeholder meeting",
+                "stakeholder meetings",
+                "dedicated workshop",
+            ]
+
+            for keyword in workshop_keywords:
+                if keyword in full_text:
+                    return True
+
+            return False
+
         except Exception as e:
             raise ValueError(
                 f"Error checking workshop for {self.registration_number}: {str(e)}"
