@@ -4234,7 +4234,7 @@ class TestFollowUpActivities:
         soup = BeautifulSoup(html_with_boundary, "html.parser")
         result = self.parser.followup_activity.extract_followup_events(soup)
 
-        assert isinstance(result, list), "Should return list"
+        assert isinstance(result, list), f"Should return list:\n{result}"
         assert len(result) == 2, "Should stop at 'Other information' marker"
         assert "This should not be included" not in str(result)
 
@@ -4397,19 +4397,409 @@ class TestFollowUpActivities:
         assert "implementation progress" in result[0]
 
     def test_has_roadmap_detection(self):
-        """Test detection of roadmap presence."""
-        # Placeholder - implement when HTML structure is known
-        pass
+        """Test detection of roadmap presence in follow-up section."""
+
+        # Test 1: Roadmap detected with keyword "roadmap"
+        html_with_roadmap = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The Commission started work on a roadmap to phase out animal testing.</p>
+                <p>This roadmap will be implemented over the next 5 years.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_roadmap, "html.parser")
+        result = self.parser.followup_activity.extract_has_roadmap(soup)
+        assert result is True, "Should detect 'roadmap' keyword in Follow-up section"
+
+        # Test 2: Roadmap detected with space variant "road map"
+        html_with_road_map = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The Commission issued a road map for implementation.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_road_map, "html.parser")
+        result = self.parser.followup_activity.extract_has_roadmap(soup)
+        assert result is True, "Should detect 'road map' variant"
+
+        # Test 3: Roadmap detected with plural "roadmaps"
+        html_with_roadmaps = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>Multiple roadmaps have been developed to address the initiative.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_roadmaps, "html.parser")
+        result = self.parser.followup_activity.extract_has_roadmap(soup)
+        assert result is True, "Should detect plural 'roadmaps'"
+
+        # Test 4: No roadmap in Follow-up section
+        html_no_roadmap = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The Commission implemented legislative measures.</p>
+                <p>Stakeholder meetings were held to discuss implementation.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_no_roadmap, "html.parser")
+        result = self.parser.followup_activity.extract_has_roadmap(soup)
+        assert result is False, "Should return False when no roadmap mentioned"
+
+        # Test 5: Case-insensitive detection (uppercase)
+        html_roadmap_uppercase = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>A ROADMAP was adopted for phasing out practices.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_roadmap_uppercase, "html.parser")
+        result = self.parser.followup_activity.extract_has_roadmap(soup)
+        assert result is True, "Should detect roadmap case-insensitively"
+
+        # Test 6: No Follow-up section exists
+        html_no_followup = """
+        <html>
+            <body>
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>Initiative submitted on 1 January 2020.</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_no_followup, "html.parser")
+        result = self.parser.followup_activity.extract_has_roadmap(soup)
+        assert result is False, "Should return False when no Follow-up section"
+
+        # Test 7: h4 Follow-up pattern with roadmap
+        html_h4_roadmap = """
+        <html>
+            <body>
+                <h2 id="Answer-of-the-European-Commission-and-follow-up">
+                    Answer and Follow-up
+                </h2>
+                <h4>Follow-up</h4>
+                <p>The Commission developed a roadmap for sustainable implementation.</p>
+                <h4>Other information</h4>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_h4_roadmap, "html.parser")
+        result = self.parser.followup_activity.extract_has_roadmap(soup)
+        assert result is True, "Should detect roadmap in h4 Follow-up pattern"
+
+        # Test 8: Roadmap word appears but outside Follow-up section
+        html_roadmap_outside = """
+        <html>
+            <body>
+                <h2 id="Answer-of-the-European-Commission">Answer</h2>
+                <p>The roadmap was mentioned in the answer section.</p>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>No additional information provided.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_roadmap_outside, "html.parser")
+        result = self.parser.followup_activity.extract_has_roadmap(soup)
+        assert result is False, "Should only check content within Follow-up section"
 
     def test_has_workshop_detection(self):
-        """Test detection of workshop activities."""
-        # Placeholder - implement when HTML structure is known
-        pass
+        """Test detection of workshop activities in follow-up section."""
+
+        # Test 1: Workshop detected with keyword "workshop"
+        html_with_workshop = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>A workshop on innovative partnerships was organized in November 2023.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_workshop, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is True, "Should detect 'workshop' keyword"
+
+        # Test 2: Workshop detected with plural "workshops"
+        html_with_workshops = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>Multiple workshops were held throughout 2023 and 2024.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_workshops, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is True, "Should detect plural 'workshops'"
+
+        # Test 3: Conference detected as workshop activity
+        html_with_conference = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>An international conference on biodiversity was held in Brussels.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_conference, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is True, "Should detect 'conference' as workshop-type activity"
+
+        # Test 4: Stakeholder meeting detected
+        html_with_stakeholder_meeting = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>Stakeholder meetings were organized in quarterly intervals.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_stakeholder_meeting, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is True, "Should detect 'stakeholder meeting'"
+
+        # Test 5: Multiple stakeholder meetings
+        html_with_stakeholder_meetings = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>Stakeholder meetings were conducted quarterly to review progress.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_stakeholder_meetings, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is True, "Should detect 'stakeholder meetings' plural"
+
+        # Test 6: No workshop activity in Follow-up
+        html_no_workshop = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The Commission published implementation guidelines.</p>
+                <p>Legislative measures were adopted in 2023.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_no_workshop, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is False, "Should return False when no workshop mentioned"
+
+        # Test 7: Case-insensitive detection
+        html_workshop_uppercase = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>A WORKSHOP and CONFERENCE were organized in 2024.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_workshop_uppercase, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is True, "Should detect workshop case-insensitively"
+
+        # Test 8: No Follow-up section
+        html_no_followup = """
+        <html>
+            <body>
+                <h2 id="Answer-of-the-European-Commission">Answer</h2>
+                <p>A workshop was discussed in the answer section.</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_no_followup, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is False, "Should return False when no Follow-up section"
+
+        # Test 9: h4 Follow-up with workshop
+        html_h4_workshop = """
+        <html>
+            <body>
+                <h2 id="Answer-of-the-European-Commission-and-follow-up">
+                    Answer and Follow-up
+                </h2>
+                <h4>Follow-up</h4>
+                <p>A dedicated workshop on Strengthening support to regional languages occurred in November 2023.</p>
+                <h4>Other information</h4>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_h4_workshop, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is True, "Should detect workshop in h4 Follow-up pattern"
 
     def test_partnership_programs_extraction(self):
-        """Test extraction of partnership programs information."""
-        # Placeholder - implement when HTML structure is known
-        pass
+        """Test detection of partnership programs in follow-up section."""
+
+        # Test 1: Partnership detected with keyword "partnership"
+        html_with_partnership = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The Commission provided support to partnerships between water operators.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_partnership, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is True, "Should detect 'partnership' keyword"
+
+        # Test 2: Multiple partnerships detected
+        html_with_partnerships = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>Multiple partnerships and collaborative agreements were established.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_partnerships, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is True, "Should detect plural 'partnerships'"
+
+        # Test 3: Public-public partnership detected
+        html_with_ppp = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>Support to public-public partnerships in the water sector was provided.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_ppp, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is True, "Should detect 'public-public partnership'"
+
+        # Test 4: Water operators partnership detected
+        html_with_water_operators = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>Partnerships between water operators were fostered through capacity building.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_water_operators, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is True, "Should detect 'water operators' keyword"
+
+        # Test 5: Generic "partner" keyword detected
+        html_with_partner = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The Commission partnered with international organizations.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_partner, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is True, "Should detect 'partner' keyword"
+
+        # Test 6: No partnership programs mentioned
+        html_no_partnership = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The Commission adopted legislative measures.</p>
+                <p>Implementation guidelines were published.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_no_partnership, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is False, "Should return False when no partnership mentioned"
+
+        # Test 7: Case-insensitive detection
+        html_partnership_uppercase = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>PARTNERSHIPS with international actors were established in 2023.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_partnership_uppercase, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is True, "Should detect partnership case-insensitively"
+
+        # Test 8: No Follow-up section
+        html_no_followup = """
+        <html>
+            <body>
+                <h2 id="Answer-of-the-European-Commission">Answer</h2>
+                <p>Partnerships are mentioned in the answer section.</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_no_followup, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is False, "Should return False when no Follow-up section"
+
+        # Test 9: h4 Follow-up with partnership
+        html_h4_partnership = """
+        <html>
+            <body>
+                <h2 id="Answer-of-the-European-Commission-and-follow-up">
+                    Answer and Follow-up
+                </h2>
+                <h4>Follow-up</h4>
+                <p>The Commission fostered partnerships between water operators in developing countries.</p>
+                <h4>Other information</h4>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_h4_partnership, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is True, "Should detect partnership in h4 Follow-up pattern"
+
+        # Test 10: Partnership mentioned but in subsection list
+        html_partnership_in_list = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p><strong>Implementation actions:</strong></p>
+                <ul>
+                    <li>Support to partnerships between water operators and facilitating technology transfer</li>
+                    <li>Capacity building for public-public partnerships in water services</li>
+                </ul>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_partnership_in_list, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert (
+            result is True
+        ), "Should detect partnership even when mentioned in subsection lists"
 
     def test_court_cases_referenced(self):
         """Test extraction of Court of Justice case numbers."""

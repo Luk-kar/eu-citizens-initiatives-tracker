@@ -142,17 +142,17 @@ class FollowUpActivityExtractor(BaseExtractor):
         The Follow-up content can appear:
         1. As a separate <h2 id="Follow-up"> section
         2. As an <h4>Follow-up</h4> subsection within "Answer of the European Commission
-           and follow-up" section
+        and follow-up" section
 
         Subsections are identified by <strong> tags within paragraphs that precede list content.
         Links are preserved in the format: "link text (url)"
 
         Returns:
             - List[str] if section has no subsections, e.g.:
-              ["Item 1", "Item 2 (https://example.com)", "Item 3"]
+            ["Item 1", "Item 2 (https://example.com)", "Item 3"]
 
             - Dict[str, List[str]] if section has subsections, e.g.:
-              {
+            {
                 "Legislative action": [
                     "Amendment to Directive... (https://url1)",
                     "Proposal for revision... (https://url2)"
@@ -160,7 +160,7 @@ class FollowUpActivityExtractor(BaseExtractor):
                 "Implementation and review": [
                     "Report 1... (https://url3)"
                 ]
-              }
+            }
 
             - None if no Follow-up section exists
 
@@ -198,6 +198,10 @@ class FollowUpActivityExtractor(BaseExtractor):
                         if strong_tag:
                             subsection_text = strong_tag.get_text(strip=True)
 
+                            # Check for boundary marker BEFORE processing as subsection
+                            if subsection_text.startswith("Other information"):
+                                break
+
                             # Save previous subsection if exists
                             if current_subsection and current_subsection_items:
                                 subsections[current_subsection] = (
@@ -214,10 +218,6 @@ class FollowUpActivityExtractor(BaseExtractor):
                         # Regular paragraph (no strong tag)
                         # Use link-preserving extraction
                         text = self._extract_text_with_links(current_element)
-
-                        # Skip "Other information" marker
-                        if text.strip().startswith("Other information"):
-                            break
 
                         if text:
                             if current_subsection:
