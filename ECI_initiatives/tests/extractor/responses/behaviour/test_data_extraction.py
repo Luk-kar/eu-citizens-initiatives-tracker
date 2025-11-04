@@ -3869,7 +3869,8 @@ class TestFollowUpActivities:
 
     def test_has_followup_section_detection(self):
         """Test detection of follow-up section presence."""
-        # Test 1: Standard Follow-up section with id attribute
+
+        # Test 1: Standard Follow-up section with id attribute (h2 pattern)
         html_with_id = """
         <html>
             <body>
@@ -3882,7 +3883,7 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_has_followup_section(soup)
         assert result is True, "Should detect Follow-up section with id attribute"
 
-        # Test 2: Follow-up section with strong tags
+        # Test 2: Follow-up section with strong tags (h2 pattern variant)
         html_with_strong = """
         <html>
             <body>
@@ -3895,21 +3896,41 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_has_followup_section(soup)
         assert result is True, "Should detect Follow-up section with strong tags"
 
-        # Test 3: Follow-up section without id (text-only match)
-        html_text_only = """
+        # Test 3: h4 Follow-up with whitespace and newlines (Minority SafePack pattern)
+        html_h4_with_whitespace = """
         <html>
             <body>
-                <h2>Follow-up</h2>
-                <p>Content describing follow-up activities...</p>
+                <h2 id="Answer-of-the-European-Commission-and-follow-up">
+                    Answer of the European Commission and follow-up
+                </h2>
+                <h4>
+                    Follow-up
+                </h4>
+                <p>The Commission monitors the implementation...</p>
             </body>
         </html>
         """
-        soup = BeautifulSoup(html_text_only, "html.parser")
+        soup = BeautifulSoup(html_h4_with_whitespace, "html.parser")
         result = self.parser.followup_activity.extract_has_followup_section(soup)
-        assert result is True, "Should detect Follow-up section by text content"
+        assert (
+            result is True
+        ), "Should detect h4 Follow-up with whitespace/newlines (regex pattern)"
 
-        # Test 4: Case-insensitive matching
-        html_lowercase = """
+        # Test 4: Case-insensitive matching with h4
+        html_h4_lowercase = """
+        <html>
+            <body>
+                <h4>follow-up</h4>
+                <p>Follow-up activities content...</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_h4_lowercase, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert result is True, "Should handle case-insensitive Follow-up text in h4"
+
+        # Test 5: Case-insensitive matching with h2 (legacy test)
+        html_h2_lowercase = """
         <html>
             <body>
                 <h2>follow-up</h2>
@@ -3917,11 +3938,13 @@ class TestFollowUpActivities:
             </body>
         </html>
         """
-        soup = BeautifulSoup(html_lowercase, "html.parser")
+        soup = BeautifulSoup(html_h2_lowercase, "html.parser")
         result = self.parser.followup_activity.extract_has_followup_section(soup)
-        assert result is True, "Should handle case-insensitive Follow-up text"
+        assert (
+            result is False
+        ), "Should NOT detect h2 without id (not a primary pattern)"
 
-        # Test 5: No Follow-up section present
+        # Test 6: No Follow-up section present
         html_no_followup = """
         <html>
             <body>
@@ -3936,7 +3959,7 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_has_followup_section(soup)
         assert result is False, "Should return False when no Follow-up section exists"
 
-        # Test 6: Follow-up as h3 heading (should not match)
+        # Test 7: Follow-up as h3 heading (should not match)
         html_wrong_heading = """
         <html>
             <body>
@@ -3948,9 +3971,9 @@ class TestFollowUpActivities:
         """
         soup = BeautifulSoup(html_wrong_heading, "html.parser")
         result = self.parser.followup_activity.extract_has_followup_section(soup)
-        assert result is False, "Should only match h2 headings, not h3"
+        assert result is False, "Should only match h2 id or h4 tags, not h3"
 
-        # Test 7: Real-world example from 2022_000002_en.html
+        # Test 8: Real-world example from 2022_000002_en.html (Fur Free Europe - h2 pattern)
         html_real_world_1 = """
         <html>
             <body>
@@ -3969,7 +3992,7 @@ class TestFollowUpActivities:
             result is True
         ), "Should detect real-world Follow-up section from Fur Free Europe"
 
-        # Test 8: Real-world example from 2012_000003_en.html (extensive follow-up)
+        # Test 9: Real-world example from 2012_000003_en.html (Right2Water - h2 with strong)
         html_real_world_2 = """
         <html>
             <body>
@@ -3994,13 +4017,45 @@ class TestFollowUpActivities:
             result is True
         ), "Should detect real-world Follow-up section from Right2Water"
 
-        # Test 9: Empty HTML document
+        # Test 10: Real-world example from 2017_000004_en.html (Minority SafePack - h4 pattern)
+        html_real_world_3 = """
+        <html>
+            <body>
+                <h2 id="Answer-of-the-European-Commission-and-follow-up">
+                    Answer of the European Commission and follow-up
+                </h2>
+                <h4>
+                    Official document:
+                </h4>
+                <ul>
+                    <li><a href="https://ec.europa.eu/transparency/...">Communication</a></li>
+                </ul>
+                <p>Main conclusions of the Communication:</p>
+                <p>Inclusion and respect for the rich cultural diversity...</p>
+                <h4>
+                    Follow-up
+                </h4>
+                <p>The Commission monitors the implementation of a number of EU initiatives...</p>
+                <ul>
+                    <li>List item 1</li>
+                    <li>List item 2</li>
+                </ul>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_real_world_3, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert (
+            result is True
+        ), "Should detect real-world Follow-up section from Minority SafePack (h4 with whitespace)"
+
+        # Test 11: Empty HTML document
         html_empty = "<html><body></body></html>"
         soup = BeautifulSoup(html_empty, "html.parser")
         result = self.parser.followup_activity.extract_has_followup_section(soup)
         assert result is False, "Should return False for empty document"
 
-        # Test 10: Similar text but not exact match
+        # Test 12: Similar text but not exact match (boundary test)
         html_similar_text = """
         <html>
             <body>
@@ -4011,7 +4066,24 @@ class TestFollowUpActivities:
         """
         soup = BeautifulSoup(html_similar_text, "html.parser")
         result = self.parser.followup_activity.extract_has_followup_section(soup)
-        assert result is True, "Should match 'Follow-up Actions'"
+        assert (
+            result is False
+        ), "Should not match 'Follow-up Actions' - requires exact 'Follow-up' match"
+
+        # Test 13: h4 with extra text (should not match - exact match required)
+        html_h4_with_extra = """
+        <html>
+            <body>
+                <h4>Follow-up Information</h4>
+                <p>Content here...</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_h4_with_extra, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert (
+            result is False
+        ), "Should not match h4 with extra text - regex requires exact 'Follow-up'"
 
     def test_followup_events_extraction(self):
         """Test extraction of follow-up events information."""

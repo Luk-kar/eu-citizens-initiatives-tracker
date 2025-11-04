@@ -12,31 +12,71 @@ import re
 from ..base.base_extractor import BaseExtractor
 
 
+import re
+from typing import Optional, Tuple
+from bs4 import BeautifulSoup, Tag
+from ..base.base_extractor import BaseExtractor
+
+
 class FollowUpActivityExtractor(BaseExtractor):
     """Extracts follow-up activities data"""
 
+    def _find_followup_section(self, soup: BeautifulSoup) -> Optional[Tuple[Tag, str]]:
+        """
+        Find Follow-up section and return both the tag and section type.
+
+        This private helper method encapsulates the logic for locating the Follow-up
+        section in either h2 or h4 format.
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            Tuple of (section_tag, section_marker) where:
+            - section_tag: BeautifulSoup Tag object for the Follow-up heading
+            - section_marker: String "h2" or "h4" indicating the heading type
+            Returns None if no Follow-up section is found
+
+        Examples:
+            >>> tag, marker = self._find_followup_section(soup)
+            >>> if tag:
+            >>>     print(f"Found {marker} tag")
+        """
+        # Primary pattern: <h2 id="Follow-up">
+        followup_section = soup.find("h2", id="Follow-up")
+        if followup_section:
+            return (followup_section, "h2")
+
+        # Fallback pattern: <h4>Follow-up</h4> (handles whitespace and case variations)
+        followup_section = soup.find(
+            "h4", string=re.compile(r"^\s*follow-up\s*$", re.IGNORECASE)
+        )
+        if followup_section:
+            return (followup_section, "h4")
+
+        # No Follow-up section found
+        return None
+
     def extract_has_followup_section(self, soup: BeautifulSoup) -> Optional[bool]:
-        """Check if page includes follow-up activities section"""
+        """
+        Check if page includes follow-up activities section.
 
+        Detects Follow-up sections in two formats:
+        1. <h2 id="Follow-up"> - standard format
+        2. <h4>Follow-up</h4> - subsection format (handles whitespace)
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            True if Follow-up section exists, False otherwise
+
+        Raises:
+            ValueError: If critical error occurs during detection
+        """
         try:
-            # Primary search: <h2 id="Follow-up">
-            followup_section = soup.find("h2", id="Follow-up")
-
-            if followup_section:
-                return True
-
-            # Fallback: Search by text content (case-insensitive)
-            # Handles variations like <h2><strong>Follow-up</strong></h2>
-
-            followup_section = soup.find(
-                "h4", string=re.compile(r"^\s*follow-up\s*$", re.IGNORECASE)
-            )
-
-            if followup_section:
-                return True
-
-            # No Follow-up section found
-            return False
+            result = self._find_followup_section(soup)
+            return result is not None
 
         except Exception as e:
             raise ValueError(
@@ -50,7 +90,7 @@ class FollowUpActivityExtractor(BaseExtractor):
         Extracts all content from the Follow-up section. The Follow-up content can appear:
         1. As a separate <h2 id="Follow-up"> section
         2. As an <h4>Follow-up</h4> subsection within "Answer of the European Commission
-        and follow-up" section
+           and follow-up" section
 
         When a Follow-up section exists, extraction continues until:
         - Next h2 tag (main section boundary)
@@ -68,25 +108,14 @@ class FollowUpActivityExtractor(BaseExtractor):
             ValueError: If critical error occurs during extraction
         """
         try:
-            followup_section = None
-            section_marker = None
+            # Use the shared lookup method
+            result = self._find_followup_section(soup)
 
-            # Primary pattern: h2 with id="Follow-up"
-            followup_section = soup.find("h2", id="Follow-up")
-            if followup_section:
-                section_marker = "h2"
-
-            # Fallback pattern: h4 with text "Follow-up"
-            if not followup_section:
-                followup_section = soup.find(
-                    "h4", string=re.compile(r"^\s*follow-up\s*$", re.IGNORECASE)
-                )
-                if followup_section:
-                    section_marker = "h4"
-
-            if not followup_section:
+            if not result:
                 # No Follow-up section exists
                 return None
+
+            followup_section, section_marker = result
 
             # Collect all content until boundary marker or "Other information"
             content_parts = []
