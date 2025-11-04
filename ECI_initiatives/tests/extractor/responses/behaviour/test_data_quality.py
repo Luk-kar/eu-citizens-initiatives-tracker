@@ -28,7 +28,7 @@ from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecor
 
 class TestECIResponseDataModel:
     """Tests for ECI Response data model."""
-    
+
     def test_to_dict_method(self):
         """Test that to_dict() converts ECI Response to dictionary."""
         response = ECICommissionResponseRecord(
@@ -62,43 +62,49 @@ class TestECIResponseDataModel:
             has_workshop=None,
             has_partnership_programs=None,
             court_cases_referenced=None,
-            latest_update_date=None,
+            latest_date=None,
             commission_factsheet_url="https://example.com/factsheet.pdf",
             dedicated_website=False,
             related_eu_legislation=None,
             petition_platforms_used=None,
             follow_up_duration_months=None,
             created_timestamp="2024-10-14T10:00:00",
-            last_updated="2024-10-14T10:00:00"
+            last_updated="2024-10-14T10:00:00",
         )
-        
+
         result = response.to_dict()
-        
+
         assert isinstance(result, dict), "to_dict() should return dictionary"
-        assert result['registration_number'] == "2024/000001", "Should contain registration_number"
-        assert result['initiative_title'] == "Test Initiative", "Should contain initiative_title"
-        assert result['final_outcome_status'] == "Law Promised", "Should contain final_outcome_status"
+        assert (
+            result["registration_number"] == "2024/000001"
+        ), "Should contain registration_number"
+        assert (
+            result["initiative_title"] == "Test Initiative"
+        ), "Should contain initiative_title"
+        assert (
+            result["final_outcome_status"] == "Law Promised"
+        ), "Should contain final_outcome_status"
 
 
 class TestRequiredFieldValidation:
     """Tests for required field validation."""
-    
+
     def test_registration_number_never_none(self):
         """Test that registration_number is never None in CSV."""
         pass
-    
+
     def test_response_url_never_none(self):
         """Test that response_url is never None in CSV."""
         pass
-    
+
     def test_initiative_url_never_none(self):
         """Test that initiative_url is never None in CSV."""
         pass
-    
+
     def test_initiative_title_never_none(self):
         """Test that initiative_title is never None in CSV."""
         pass
-    
+
     def test_timestamps_never_none(self):
         """Test that created_timestamp and last_updated are never None."""
         pass
@@ -106,7 +112,7 @@ class TestRequiredFieldValidation:
 
 class TestOptionalFieldHandling:
     """Tests for optional field handling."""
-    
+
     def test_optional_dates_can_be_none(self):
         """Test that optional date fields can be None."""
         response = ECICommissionResponseRecord(
@@ -140,16 +146,16 @@ class TestOptionalFieldHandling:
             has_workshop=None,
             has_partnership_programs=None,
             court_cases_referenced=None,
-            latest_update_date=None,
+            latest_date=None,
             commission_factsheet_url="",
             dedicated_website=False,
             related_eu_legislation=None,
             petition_platforms_used=None,
             follow_up_duration_months=None,
             created_timestamp="2024-10-14T10:00:00",
-            last_updated="2024-10-14T10:00:00"
+            last_updated="2024-10-14T10:00:00",
         )
-        
+
         # Should not raise any errors
         assert response.commission_submission_date is None
         assert response.commission_meeting_date is None
@@ -158,15 +164,15 @@ class TestOptionalFieldHandling:
 
 class TestJSONFieldValidation:
     """Tests for JSON field validation."""
-    
+
     def test_json_fields_are_valid_or_none(self):
         """Test that JSON fields are either valid JSON or None."""
         pass
-    
+
     def test_laws_actions_json_format(self):
         """Test that laws_actions is valid JSON array."""
         pass
-    
+
     def test_policies_actions_json_format(self):
         """Test that policies_actions is valid JSON array."""
         pass
@@ -174,43 +180,43 @@ class TestJSONFieldValidation:
 
 class TestLegislativeOutcomeFields:
     """Tests for legislative outcome priority columns."""
-    
+
     def test_final_outcome_status_valid_values(self):
         """Test that final_outcome_status contains only valid enum values."""
         pass
-    
+
     def test_commission_promised_new_law_is_boolean(self):
         """Test that commission_promised_new_law is boolean or None."""
         pass
-    
+
     def test_commission_rejected_initiative_is_boolean(self):
         """Test that commission_rejected_initiative is boolean or None."""
         pass
-    
+
     def test_commission_rejection_reason_only_when_rejected(self):
         """Test that commission_rejection_reason is only populated when commission_rejected_initiative is True."""
         pass
-    
+
     def test_commission_deadline_formats(self):
         """Test that commission deadline fields are valid ISO date format (YYYY-MM-DD)."""
         pass
-    
+
     def test_law_implementation_date_format(self):
         """Test that law_implementation_date is valid ISO date format."""
         pass
-    
+
     def test_laws_actions_structure(self):
         """Test that laws_actions JSON has required keys: type, action, status, deadline."""
         pass
-    
+
     def test_policies_actions_structure(self):
         """Test that policies_actions JSON has required keys: type, action, status, deadline."""
         pass
-    
+
     def test_mutual_exclusivity_commitment_rejection(self):
         """Test that commission_promised_new_law and commission_rejected_initiative are not both True."""
         pass
-    
+
     def test_deadline_chronology(self):
         """Test that commission deadlines follow logical order: study -> decision -> legislation."""
         pass
@@ -218,15 +224,15 @@ class TestLegislativeOutcomeFields:
 
 class TestCSVStructure:
     """Tests for CSV structure integrity."""
-    
+
     def test_all_rows_same_column_count(self):
         """Test that all CSV rows have same column count as headers."""
         pass
-    
+
     def test_no_duplicate_registration_numbers(self):
         """Test that no duplicate registration numbers appear in CSV."""
         pass
-    
+
     def test_csv_headers_match_dataclass_fields(self):
         """Test that CSV headers match ECICommissionResponse dataclass fields."""
         pass
@@ -234,11 +240,11 @@ class TestCSVStructure:
 
 class TestDataIntegrity:
     """Tests for data integrity across processing."""
-    
+
     def test_follow_up_duration_calculation_accuracy(self):
         """Test that follow_up_duration_months is calculated correctly."""
         pass
-    
+
     def test_boolean_fields_are_boolean_type(self):
         """Test that boolean fields contain boolean values, not strings."""
         response = ECICommissionResponseRecord(
@@ -272,27 +278,27 @@ class TestDataIntegrity:
             has_workshop=False,
             has_partnership_programs=None,
             court_cases_referenced=None,
-            latest_update_date=None,
+            latest_date=None,
             commission_factsheet_url="",
             dedicated_website=True,
             related_eu_legislation=None,
             petition_platforms_used=None,
             follow_up_duration_months=None,
             created_timestamp="2024-10-14T10:00:00",
-            last_updated="2024-10-14T10:00:00"
+            last_updated="2024-10-14T10:00:00",
         )
-        
+
         assert isinstance(response.has_followup_section, bool)
         assert isinstance(response.dedicated_website, bool)
         assert isinstance(response.commission_promised_new_law, bool)
         assert isinstance(response.commission_rejected_initiative, bool)
         assert isinstance(response.has_roadmap, bool)
         assert isinstance(response.has_workshop, bool)
-    
+
     def test_date_chronology_validation(self):
         """Test that dates follow logical chronological order."""
         pass
-    
+
     def test_json_parsing_does_not_fail(self):
         """Test that all JSON fields can be parsed without errors."""
         pass

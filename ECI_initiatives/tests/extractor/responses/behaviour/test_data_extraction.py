@@ -4973,7 +4973,7 @@ class TestFollowUpActivities:
             # Pass invalid input (not BeautifulSoup object)
             self.parser.followup_activity.extract_court_cases_referenced(None)
 
-    def test_latest_update_date_extraction(self):
+    def test_latest_date_extraction(self):
         """Test extraction of most recent date from follow-up section."""
         # Placeholder - implement when HTML structure is known
         pass

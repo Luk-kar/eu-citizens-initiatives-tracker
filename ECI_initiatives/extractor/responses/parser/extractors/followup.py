@@ -515,10 +515,192 @@ class FollowUpActivityExtractor(BaseExtractor):
                 f"Error extracting court cases for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_latest_update_date(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract most recent date from follow-up section"""
+    def _extract_dates_from_followup_section(
+        self, soup: BeautifulSoup
+    ) -> Optional[list[str]]:
+        """
+        Extract all date strings from the Follow-up section.
+
+        This private helper method finds all potential date strings in common formats
+        within the Follow-up section and returns them as a list for further processing.
+
+        Date formats matched:
+            - "27 March 2021" (full month name)
+            - "27 Mar 2021" (abbreviated month name)
+            - "27/03/2021" (slash-separated)
+            - "27-03-2021" (dash-separated)
+            - "2021-03-27" (ISO format)
+            - "February 2024" (month and year only)
+            - "Mar 2024" (abbreviated month and year)
+            - "2024" (year only)
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            List of date strings found in the Follow-up section, or None if no
+            Follow-up section exists. Returns empty list if section exists but
+            no dates are found.
+
+        Raises:
+            ValueError: If critical error occurs during extraction
+        """
         try:
-            return None
+            # Use shared lookup method to find Follow-up section
+            result = self._find_followup_section(soup)
+
+            if not result:
+                # No Follow-up section exists
+                return None
+
+            followup_section, section_marker = result
+
+            # Extract all text from Follow-up section
+            followup_text = followup_section.find_next_sibling()
+            full_text = ""
+
+            while followup_text and followup_text.name != "h2":
+                if section_marker == "h4" and followup_text.name == "h4":
+                    break
+
+                if followup_text.name:
+                    full_text += followup_text.get_text(separator=" ", strip=True) + " "
+
+                followup_text = followup_text.find_next_sibling()
+
+            # Regex pattern to find all potential dates
+            # Matches patterns like: "27 March 2021", "March 2021", "27/03/2021", etc.
+            date_pattern = (
+                r"(?:(?:\d{1,2}\s+)?(?:January|February|March|April|May|June|"
+                r"July|August|September|October|November|December|"
+                r"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4})|"
+                r"(?:\d{1,2}[-/]\d{1,2}[-/]\d{2,4})|"
+                r"(?:\d{4}[-/]\d{1,2}[-/]\d{1,2})|"
+                r"(?:\b\d{4}\b)"
+            )
+
+            date_matches = re.findall(date_pattern, full_text, re.IGNORECASE)
+
+            return date_matches if date_matches else []
+
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting dates from followup section for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def extract_latest_date(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extract most recent date from follow-up section that is not later than today.
+
+        Finds the most recent date in the Follow-up section that does not exceed
+        the current date, filtering out any future-dated entries.
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            Latest date found in YYYY-MM-DD format that is <= today's date.
+            Returns None if no valid dates are found, no dates exist in the Follow-up
+            section, or if the Follow-up section doesn't exist.
+
+        Raises:
+            ValueError: If critical error occurs during extraction
+        """
+        try:
+            from datetime import datetime
+
+            # Use shared helper to extract all dates from Follow-up section
+            date_matches = self._extract_dates_from_followup_section(soup)
+
+            if not date_matches:
+                return None
+
+            # Import parse_date_string from date_parser
+            from ..base.date_parser import parse_date_string
+
+            # Parse all found dates and keep track of valid ones
+            parsed_dates = []
+
+            for date_str in date_matches:
+                parsed = parse_date_string(date_str)
+                if parsed:
+                    parsed_dates.append(parsed)
+
+            if not parsed_dates:
+                return None
+
+            # Get current date
+            today = datetime.now().date()
+
+            # Filter dates to only include those not later than today
+            valid_dates = []
+            for date_str in parsed_dates:
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+                if date_obj <= today:
+                    valid_dates.append(date_str)
+
+            if not valid_dates:
+                return None
+
+            # Sort dates and return the latest valid date
+            valid_dates.sort()
+            return valid_dates[-1]
+
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting latest update date for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def extract_most_future_date(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extract most recent date from follow-up section.
+
+        Searches the Follow-up section for any date strings in common formats
+        and returns the most recent (latest) date found.
+
+        Date formats supported:
+            - "27 March 2021" (full month name)
+            - "27 Mar 2021" (abbreviated month name)
+            - "27/03/2021" (slash-separated)
+            - "27-03-2021" (dash-separated)
+            - "2021-03-27" (ISO format)
+            - "February 2024" (month and year only)
+            - "Mar 2024" (abbreviated month and year)
+            - "2024" (year only)
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            Latest date found in YYYY-MM-DD format, or None if no dates are found
+            or if the Follow-up section doesn't exist
+
+        Raises:
+            ValueError: If critical error occurs during extraction
+        """
+        try:
+            # Use shared helper to extract all dates from Follow-up section
+            date_matches = self._extract_dates_from_followup_section(soup)
+
+            if not date_matches:
+                return None
+
+            # Import parse_date_string from date_parser
+            from ..base.date_parser import parse_date_string
+
+            # Parse all found dates and keep track of valid ones
+            parsed_dates = []
+
+            for date_str in date_matches:
+                parsed = parse_date_string(date_str)
+                if parsed:
+                    parsed_dates.append(parsed)
+
+            if not parsed_dates:
+                return None
+
+            # Sort dates and return the latest (maximum date)
+            parsed_dates.sort()
+            return parsed_dates[-1]
+
         except Exception as e:
             raise ValueError(
                 f"Error extracting latest update date for {self.registration_number}: {str(e)}"

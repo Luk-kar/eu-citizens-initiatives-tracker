@@ -58,7 +58,7 @@ class ECICommissionResponseRecord:
     has_workshop: Optional[bool]
     has_partnership_programs: Optional[str]
     court_cases_referenced: Optional[str]
-    latest_update_date: Optional[str]
+    latest_date: Optional[str]
 
     # Multimedia and Documentation Links
     commission_factsheet_url: str

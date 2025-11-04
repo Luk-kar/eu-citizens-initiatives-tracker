@@ -108,7 +108,7 @@ class ECIResponseHTMLParser:
                     soup
                 )
             )
-            latest_update_date = self.followup_activity.extract_latest_update_date(soup)
+            latest_date = self.followup_activity.extract_latest_date(soup)
 
             # Create and return ECI Response object using extractors
             response = ECICommissionResponseRecord(
@@ -192,7 +192,7 @@ class ECIResponseHTMLParser:
                 court_cases_referenced=self.followup_activity.extract_court_cases_referenced(
                     soup
                 ),
-                latest_update_date=latest_update_date,
+                latest_date=latest_date,
                 # Multimedia and Documentation Links
                 commission_factsheet_url=self.multimedia_docs.extract_commission_factsheet_url(
                     soup
@@ -208,7 +208,7 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 follow_up_duration_months=self.structural_analysis.calculate_follow_up_duration_months(
-                    official_communication_adoption_date, latest_update_date
+                    official_communication_adoption_date, latest_date
                 ),
                 # Metadata
                 created_timestamp=current_timestamp,
