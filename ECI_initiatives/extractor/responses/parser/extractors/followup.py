@@ -12,8 +12,64 @@ from bs4 import BeautifulSoup, Tag
 from ..base.base_extractor import BaseExtractor
 
 
+import re
+from typing import Optional, Tuple, Union, Dict, List
+from bs4 import BeautifulSoup, Tag, NavigableString
+from ..base.base_extractor import BaseExtractor
+
+
 class FollowUpActivityExtractor(BaseExtractor):
     """Extracts follow-up activities data"""
+
+    def _extract_text_with_links(self, element: Tag, separator: str = " ") -> str:
+        """
+        Extract text from element while preserving link URLs.
+
+        Links are formatted as: "link text (url)"
+
+        Args:
+            element: BeautifulSoup Tag to extract text from
+            separator: String to use between text parts (default: space)
+
+        Returns:
+            Extracted text with links preserved in format "text (url)"
+
+        Example:
+            >>> html = '<p>See <a href="https://example.com">press release</a></p>'
+            >>> text = self._extract_text_with_links(soup.find('p'))
+            >>> print(text)
+            'See press release (https://example.com)'
+        """
+        parts = []
+
+        for child in element.children:
+            if isinstance(child, NavigableString):
+                # Text node
+                text = str(child).strip()
+                if text:
+                    parts.append(text)
+            else:
+                # Tag
+                if child.name == "a":
+                    # Link tag: extract text and href
+                    link_text = child.get_text(strip=True)
+                    href = child.get("href", "")
+                    if link_text and href:
+                        parts.append(f"{link_text} ({href})")
+                    elif link_text:
+                        parts.append(link_text)
+                elif child.name in ["strong", "em", "span", "b", "i"]:
+                    # Inline formatting tags: just get text
+                    text = child.get_text(strip=True)
+                    if text:
+                        parts.append(text)
+                else:
+                    # Other tags (br, nested elements, etc): recursively process
+                    text = child.get_text(separator=separator, strip=True)
+                    if text:
+                        parts.append(text)
+
+        return separator.join(parts)
 
     def _find_followup_section(self, soup: BeautifulSoup) -> Optional[Tuple[Tag, str]]:
         """
@@ -76,7 +132,7 @@ class FollowUpActivityExtractor(BaseExtractor):
         self, soup: BeautifulSoup
     ) -> Optional[Union[List[str], Dict[str, List[str]]]]:
         """
-        Extract follow-up events information as structured JSON.
+        Extract follow-up events information as structured JSON with links preserved.
 
         Extracts content from the Follow-up section and returns it in one of three formats:
         1. List[str] - Simple list of text items (no subsections)
@@ -89,15 +145,21 @@ class FollowUpActivityExtractor(BaseExtractor):
            and follow-up" section
 
         Subsections are identified by <strong> tags within paragraphs that precede list content.
+        Links are preserved in the format: "link text (url)"
 
         Returns:
             - List[str] if section has no subsections, e.g.:
-              ["Item 1", "Item 2", "Item 3"]
+              ["Item 1", "Item 2 (https://example.com)", "Item 3"]
 
             - Dict[str, List[str]] if section has subsections, e.g.:
               {
-                "Legislative action": ["Amendment to Directive...", "Proposal for revision..."],
-                "Implementation and review": ["Report 1...", "Report 2..."]
+                "Legislative action": [
+                    "Amendment to Directive... (https://url1)",
+                    "Proposal for revision... (https://url2)"
+                ],
+                "Implementation and review": [
+                    "Report 1... (https://url3)"
+                ]
               }
 
             - None if no Follow-up section exists
@@ -150,7 +212,8 @@ class FollowUpActivityExtractor(BaseExtractor):
                             continue
 
                         # Regular paragraph (no strong tag)
-                        text = current_element.get_text(separator=" ", strip=True)
+                        # Use link-preserving extraction
+                        text = self._extract_text_with_links(current_element)
 
                         # Skip "Other information" marker
                         if text.strip().startswith("Other information"):
@@ -163,9 +226,9 @@ class FollowUpActivityExtractor(BaseExtractor):
                                 content_parts.append(text)
 
                     elif current_element.name == "ul":
-                        # Process list items
+                        # Process list items with link preservation
                         for li in current_element.find_all("li", recursive=False):
-                            text = li.get_text(separator=" ", strip=True)
+                            text = self._extract_text_with_links(li)
                             if text:
                                 if current_subsection:
                                     current_subsection_items.append(text)
