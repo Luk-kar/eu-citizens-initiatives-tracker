@@ -3869,8 +3869,149 @@ class TestFollowUpActivities:
 
     def test_has_followup_section_detection(self):
         """Test detection of follow-up section presence."""
-        # Placeholder - implement when HTML structure is known
-        pass
+        # Test 1: Standard Follow-up section with id attribute
+        html_with_id = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>This section provides regularly updated information...</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_id, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert result is True, "Should detect Follow-up section with id attribute"
+
+        # Test 2: Follow-up section with strong tags
+        html_with_strong = """
+        <html>
+            <body>
+                <h2 id="Follow-up"><strong>Follow-up</strong></h2>
+                <p>On 9 February 2024, Commissioner Stella Kyriakides met...</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_strong, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert result is True, "Should detect Follow-up section with strong tags"
+
+        # Test 3: Follow-up section without id (text-only match)
+        html_text_only = """
+        <html>
+            <body>
+                <h2>Follow-up</h2>
+                <p>Content describing follow-up activities...</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_text_only, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert result is True, "Should detect Follow-up section by text content"
+
+        # Test 4: Case-insensitive matching
+        html_lowercase = """
+        <html>
+            <body>
+                <h2>follow-up</h2>
+                <p>Follow-up activities content...</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_lowercase, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert result is True, "Should handle case-insensitive Follow-up text"
+
+        # Test 5: No Follow-up section present
+        html_no_followup = """
+        <html>
+            <body>
+                <h2 id="Submission-and-examination">Submission and examination</h2>
+                <p>Initiative was submitted on 14 June 2023...</p>
+                <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+                <p>The Commission adopted a Communication...</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_no_followup, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert result is False, "Should return False when no Follow-up section exists"
+
+        # Test 6: Follow-up as h3 heading (should not match)
+        html_wrong_heading = """
+        <html>
+            <body>
+                <h2>Answer of the European Commission</h2>
+                <h3>Follow-up</h3>
+                <p>Subsection content...</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_wrong_heading, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert result is False, "Should only match h2 headings, not h3"
+
+        # Test 7: Real-world example from 2022_000002_en.html
+        html_real_world_1 = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>On 9 February 2024, Commissioner Stella Kyriakides met with the organisers 
+                of 'Fur Free Europe' to discuss the Commission's reply to the initiative.</p>
+                <p>The Commission's work on the accompanying actions, as announced in the 
+                Communication, has been progressing. See the 
+                <a href="https://example.com">dedicated website</a> for details.</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_real_world_1, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert (
+            result is True
+        ), "Should detect real-world Follow-up section from Fur Free Europe"
+
+        # Test 8: Real-world example from 2012_000003_en.html (extensive follow-up)
+        html_real_world_2 = """
+        <html>
+            <body>
+                <h2 id="Follow-up"><strong>Follow-up</strong></h2>
+                <p>This section provides regularly updated information on the follow-up 
+                actions by the European Commission.</p>
+                <p><strong>Legislative action:</strong></p>
+                <ul>
+                    <li>Amendment details with dates and links...</li>
+                    <li>Proposal for revision with dates and links...</li>
+                </ul>
+                <p><strong>Implementation and review of existing EU legislation:</strong></p>
+                <ul>
+                    <li>Implementation reports...</li>
+                </ul>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_real_world_2, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert (
+            result is True
+        ), "Should detect real-world Follow-up section from Right2Water"
+
+        # Test 9: Empty HTML document
+        html_empty = "<html><body></body></html>"
+        soup = BeautifulSoup(html_empty, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert result is False, "Should return False for empty document"
+
+        # Test 10: Similar text but not exact match
+        html_similar_text = """
+        <html>
+            <body>
+                <h2>Follow-up Actions</h2>
+                <p>Description of follow-up activities...</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_similar_text, "html.parser")
+        result = self.parser.followup_activity.extract_has_followup_section(soup)
+        assert result is True, "Should match 'Follow-up Actions'"
 
     def test_followup_events_extraction(self):
         """Test extraction of follow-up events information."""
