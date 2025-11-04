@@ -144,7 +144,8 @@ class FollowUpActivityExtractor(BaseExtractor):
         2. As an <h4>Follow-up</h4> subsection within "Answer of the European Commission
         and follow-up" section
 
-        Subsections are identified by <strong> tags within paragraphs that precede list content.
+        Subsections are identified by <strong> tags that contain the ONLY content of a paragraph,
+        typically ending with a colon (e.g., "<p><strong>Legislative action:</strong></p>").
         Links are preserved in the format: "link text (url)"
 
         Returns:
@@ -195,7 +196,29 @@ class FollowUpActivityExtractor(BaseExtractor):
                     # Check if this is a subsection header (paragraph with strong tag)
                     if current_element.name == "p":
                         strong_tag = current_element.find("strong")
+
+                        # Check if this is a SUBSECTION HEADER pattern:
+                        # The paragraph contains ONLY a <strong> tag (possibly with colon/punctuation)
+                        # and nothing else of substance
+                        is_subsection_header = False
                         if strong_tag:
+                            # Get the full paragraph text
+                            para_text = self._extract_text_with_links(
+                                current_element
+                            ).strip()
+                            strong_text = strong_tag.get_text(strip=True)
+
+                            # A subsection header has the strong text as its primary content
+                            # (allowing for trailing colons or punctuation)
+                            # Check if the full text is essentially just the strong text
+                            if (
+                                para_text.rstrip(":").rstrip()
+                                == strong_text.rstrip(":").rstrip()
+                            ):
+                                is_subsection_header = True
+
+                        if is_subsection_header:
+                            strong_tag = current_element.find("strong")
                             subsection_text = strong_tag.get_text(strip=True)
 
                             # Check for boundary marker BEFORE processing as subsection
@@ -215,7 +238,7 @@ class FollowUpActivityExtractor(BaseExtractor):
                             current_element = current_element.find_next_sibling()
                             continue
 
-                        # Regular paragraph (no strong tag)
+                        # Regular paragraph (could have inline strong tags)
                         # Use link-preserving extraction
                         text = self._extract_text_with_links(current_element)
 
