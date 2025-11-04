@@ -4803,8 +4803,173 @@ class TestFollowUpActivities:
 
     def test_court_cases_referenced(self):
         """Test extraction of Court of Justice case numbers."""
-        # Placeholder - implement when HTML structure is known
-        pass
+
+        # Test Case 1: Save Cruelty Free Cosmetics (2021_000006)
+        # Contains General Court cases: T-655/20, T-656/20
+        soup_2021_000006 = BeautifulSoup(
+            """
+            <html>
+                <body>
+                    <p>Judgments of the General Court on the relationship between REACH 
+                    and the Cosmetic Products Regulation</p>
+                    <p>T-655/20 and T-656/20</p>
+                    <p>As stated in the response to the first objective of the initiative – 
+                    'protect and strengthen the cosmetics animal testing ban' - the interface 
+                    between the REACH Regulation and the Cosmetic Products Regulation was at 
+                    the time being assessed by the Court of Justice of the European Union. 
+                    The General Court issued its judgments on 22 November 2023 and clarified...</p>
+                </body>
+            </html>
+            """,
+            "html.parser",
+        )
+        result = self.parser.followup_activity.extract_court_cases_referenced(
+            soup_2021_000006
+        )
+        self.assertIsNotNone(result)
+        self.assertIn("general_court", result)
+        self.assertEqual(set(result["general_court"]), {"T-655/20", "T-656/20"})
+        self.assertNotIn("court_of_justice", result)
+        self.assertNotIn("ombudsman_decisions", result)
+
+        # Test Case 2: Minority SafePack (2017_000004)
+        # Contains General Court case and Court of Justice case
+        soup_2017_000004 = BeautifulSoup(
+            """
+            <html>
+                <body>
+                    <p>In a judgement of 9 November 2022 (case T-158/21), the General Court 
+                    of the Court of Justice of the European Union dismissed the request of 
+                    the organisers' group of 'Minority SafePack' to annul the Commission 
+                    Communication C(2021) 171. The court held that the Commission has not 
+                    erred in law nor infringed its obligations to state sufficient reasons 
+                    in its communication, in which the Commission stated that no further 
+                    legislation was necessary at this stage to achieve the objectives sought 
+                    by the ECI.</p>
+                    <p>The organisers filed an appeal against this judgment with the Court 
+                    of Justice on 21 January 2023. The appeal was dismissed by the Court 
+                    judgment of 5 June 2025. Case C-26/23 dismissed.</p>
+                </body>
+            </html>
+            """,
+            "html.parser",
+        )
+        result = self.parser.followup_activity.extract_court_cases_referenced(
+            soup_2017_000004
+        )
+        self.assertIsNotNone(result)
+        self.assertIn("general_court", result)
+        self.assertIn("court_of_justice", result)
+        self.assertEqual(result["general_court"], ["T-158/21"])
+        self.assertEqual(result["court_of_justice"], ["C-26/23"])
+        self.assertNotIn("ombudsman_decisions", result)
+
+        # Test Case 3: Stop Vivisection (2012_000007)
+        # Contains Ombudsman decision: 78/182
+        soup_2012_000007 = BeautifulSoup(
+            """
+            <html>
+                <body>
+                    <p>On 18 April 2017, the European Ombudsman issued a decision 
+                    concerning the initiative 'Stop Vivisection'. The Ombudsman concluded 
+                    that there was no maladministration by the Commission. Case 78/182 
+                    was concluded.</p>
+                </body>
+            </html>
+            """,
+            "html.parser",
+        )
+        result = self.parser.followup_activity.extract_court_cases_referenced(
+            soup_2012_000007
+        )
+        self.assertIsNotNone(result)
+        self.assertIn("ombudsman_decisions", result)
+        self.assertEqual(result["ombudsman_decisions"], ["78/182"])
+        self.assertNotIn("general_court", result)
+        self.assertNotIn("court_of_justice", result)
+
+        # Test Case 4: No court cases present
+        soup_no_cases = BeautifulSoup(
+            """
+            <html>
+                <body>
+                    <p>This initiative has no court cases referenced.</p>
+                    <p>It contains some text but no case numbers like T-123/45 or C-45/67.</p>
+                </body>
+            </html>
+            """,
+            "html.parser",
+        )
+        result = self.parser.followup_activity.extract_court_cases_referenced(
+            soup_no_cases
+        )
+        self.assertIsNone(result)
+
+        # Test Case 5: Multiple cases of same type with duplicates
+        soup_duplicates = BeautifulSoup(
+            """
+            <html>
+                <body>
+                    <p>As mentioned in case T-100/20, the court found...</p>
+                    <p>This was related to T-100/20 again.</p>
+                    <p>Also case T-200/21 was decided.</p>
+                </body>
+            </html>
+            """,
+            "html.parser",
+        )
+        result = self.parser.followup_activity.extract_court_cases_referenced(
+            soup_duplicates
+        )
+        self.assertIsNotNone(result)
+        self.assertIn("general_court", result)
+        self.assertEqual(len(result["general_court"]), 2)
+        self.assertEqual(result["general_court"], ["T-100/20", "T-200/21"])
+
+        # Test Case 6: All three types of cases together
+        soup_all_cases = BeautifulSoup(
+            """
+            <html>
+                <body>
+                    <p>Case T-655/20 and T-656/20 were General Court cases.</p>
+                    <p>An appeal was filed as case C-26/23.</p>
+                    <p>Additionally, the Ombudsman decision 78/182 was relevant.</p>
+                </body>
+            </html>
+            """,
+            "html.parser",
+        )
+        result = self.parser.followup_activity.extract_court_cases_referenced(
+            soup_all_cases
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(set(result["general_court"]), {"T-655/20", "T-656/20"})
+        self.assertEqual(result["court_of_justice"], ["C-26/23"])
+        self.assertEqual(result["ombudsman_decisions"], ["78/182"])
+
+        # Test Case 7: En-dash variant (–) instead of hyphen (-)
+        soup_endash = BeautifulSoup(
+            """
+            <html>
+                <body>
+                    <p>Case T–655/20 and C–26/23 with en-dashes.</p>
+                </body>
+            </html>
+            """,
+            "html.parser",
+        )
+        result = self.parser.followup_activity.extract_court_cases_referenced(
+            soup_endash
+        )
+        self.assertIsNotNone(result)
+        self.assertIn("general_court", result)
+        self.assertIn("court_of_justice", result)
+
+        # Test Case 8: Exception handling
+        with self.assertRaises(ValueError) as context:
+            # Pass invalid input (not BeautifulSoup object)
+            self.parser.followup_activity.extract_court_cases_referenced(None)
+        self.assertIn("Error extracting court cases", str(context.exception))
 
     def test_latest_update_date_extraction(self):
         """Test extraction of most recent date from follow-up section."""

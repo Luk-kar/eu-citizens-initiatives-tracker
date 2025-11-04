@@ -455,19 +455,61 @@ class FollowUpActivityExtractor(BaseExtractor):
                 f"Error checking workshop for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_partnership_programs(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract partnership programs information"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(
-                f"Error extracting partnership programs for {self.registration_number}: {str(e)}"
-            ) from e
+    def extract_court_cases_referenced(self, soup: BeautifulSoup) -> Optional[dict]:
+        """Extract Court of Justice case numbers categorized by court type
 
-    def extract_court_cases_referenced(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract Court of Justice case numbers"""
+        Returns JSON with structure:
+        {
+            "general_court": ["T-655/20", "T-656/20"],
+            "court_of_justice": ["C-26/23"],
+            "ombudsman_decisions": ["78/182"]
+        }
+
+        Returns None if no court cases are found.
+        """
         try:
-            return None
+            # Get all text content from the page
+            text = soup.get_text()
+
+            # Regex patterns for each court type
+            general_court_pattern = r"\b[T][-–]\d{2,6}/\d{2}\b"
+            court_of_justice_pattern = r"\b[C][-–]\d{2,6}/\d{2}\b"
+            ombudsman_pattern = r"\b\d{2,4}/\d{3}\b"
+
+            # Find all matches for each type
+            general_court_matches = re.findall(general_court_pattern, text)
+            court_of_justice_matches = re.findall(court_of_justice_pattern, text)
+            ombudsman_matches = re.findall(ombudsman_pattern, text)
+
+            # Remove duplicates while preserving order
+            def deduplicate(matches: list[str]) -> list[str]:
+                seen = set()
+                result = []
+                for match in matches:
+                    if match not in seen:
+                        result.append(match)
+                        seen.add(match)
+                return result
+
+            general_court = deduplicate(general_court_matches)
+            court_of_justice = deduplicate(court_of_justice_matches)
+            ombudsman = deduplicate(ombudsman_matches)
+
+            # Return None if no cases found
+            if not (general_court or court_of_justice or ombudsman):
+                return None
+
+            # Build result dictionary with only non-empty categories
+            result = {}
+            if general_court:
+                result["general_court"] = general_court
+            if court_of_justice:
+                result["court_of_justice"] = court_of_justice
+            if ombudsman:
+                result["ombudsman_decisions"] = ombudsman
+
+            return result
+
         except Exception as e:
             raise ValueError(
                 f"Error extracting court cases for {self.registration_number}: {str(e)}"
