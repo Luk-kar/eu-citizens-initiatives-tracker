@@ -4,17 +4,11 @@ roadmaps, workshops, partnership programs, and
 court case references from post-response sections.
 """
 
-from typing import Optional
-
-from bs4 import BeautifulSoup
 import re
+from typing import Optional, Tuple, Union, Dict, List
 
-from ..base.base_extractor import BaseExtractor
-
-
-import re
-from typing import Optional, Tuple
 from bs4 import BeautifulSoup, Tag
+
 from ..base.base_extractor import BaseExtractor
 
 
@@ -36,11 +30,6 @@ class FollowUpActivityExtractor(BaseExtractor):
             - section_tag: BeautifulSoup Tag object for the Follow-up heading
             - section_marker: String "h2" or "h4" indicating the heading type
             Returns None if no Follow-up section is found
-
-        Examples:
-            >>> tag, marker = self._find_followup_section(soup)
-            >>> if tag:
-            >>>     print(f"Found {marker} tag")
         """
         # Primary pattern: <h2 id="Follow-up">
         followup_section = soup.find("h2", id="Follow-up")
@@ -83,26 +72,35 @@ class FollowUpActivityExtractor(BaseExtractor):
                 f"Error checking followup section for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_followup_events(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_followup_events(
+        self, soup: BeautifulSoup
+    ) -> Optional[Union[List[str], Dict[str, List[str]]]]:
         """
-        Extract follow-up events information.
+        Extract follow-up events information as structured JSON.
 
-        Extracts all content from the Follow-up section. The Follow-up content can appear:
+        Extracts content from the Follow-up section and returns it in one of three formats:
+        1. List[str] - Simple list of text items (no subsections)
+        2. Dict[str, List[str]] - Dictionary with subsection names as keys and lists of items as values
+        3. None - If no Follow-up section exists
+
+        The Follow-up content can appear:
         1. As a separate <h2 id="Follow-up"> section
         2. As an <h4>Follow-up</h4> subsection within "Answer of the European Commission
            and follow-up" section
 
-        When a Follow-up section exists, extraction continues until:
-        - Next h2 tag (main section boundary)
-        - Next h4 tag (subsection boundary) - only for h4 pattern
-        - "Other information" marker (section conclusion)
-        - End of content
-
-        Args:
-            soup: BeautifulSoup parsed HTML document
+        Subsections are identified by <strong> tags within paragraphs that precede list content.
 
         Returns:
-            String containing all Follow-up section text, or None if section not found
+            - List[str] if section has no subsections, e.g.:
+              ["Item 1", "Item 2", "Item 3"]
+
+            - Dict[str, List[str]] if section has subsections, e.g.:
+              {
+                "Legislative action": ["Amendment to Directive...", "Proposal for revision..."],
+                "Implementation and review": ["Report 1...", "Report 2..."]
+              }
+
+            - None if no Follow-up section exists
 
         Raises:
             ValueError: If critical error occurs during extraction
@@ -117,8 +115,11 @@ class FollowUpActivityExtractor(BaseExtractor):
 
             followup_section, section_marker = result
 
-            # Collect all content until boundary marker or "Other information"
+            # Collect all content with subsection awareness
             content_parts = []
+            subsections = {}
+            current_subsection = None
+            current_subsection_items = []
             current_element = followup_section.find_next_sibling()
 
             while current_element:
@@ -129,23 +130,64 @@ class FollowUpActivityExtractor(BaseExtractor):
                     break
 
                 if current_element.name:  # Only process actual HTML tags
-                    text = current_element.get_text(separator=" ", strip=True)
+                    # Check if this is a subsection header (paragraph with strong tag)
+                    if current_element.name == "p":
+                        strong_tag = current_element.find("strong")
+                        if strong_tag:
+                            subsection_text = strong_tag.get_text(strip=True)
 
-                    if text:
-                        # Stop if we encounter "Other information" marker
+                            # Save previous subsection if exists
+                            if current_subsection and current_subsection_items:
+                                subsections[current_subsection] = (
+                                    current_subsection_items
+                                )
+                                current_subsection_items = []
+
+                            # Start new subsection
+                            current_subsection = subsection_text
+                            # IMPORTANT: Must move to next sibling BEFORE continue
+                            current_element = current_element.find_next_sibling()
+                            continue
+
+                        # Regular paragraph (no strong tag)
+                        text = current_element.get_text(separator=" ", strip=True)
+
+                        # Skip "Other information" marker
                         if text.strip().startswith("Other information"):
                             break
 
-                        content_parts.append(text)
+                        if text:
+                            if current_subsection:
+                                current_subsection_items.append(text)
+                            else:
+                                content_parts.append(text)
+
+                    elif current_element.name == "ul":
+                        # Process list items
+                        for li in current_element.find_all("li", recursive=False):
+                            text = li.get_text(separator=" ", strip=True)
+                            if text:
+                                if current_subsection:
+                                    current_subsection_items.append(text)
+                                else:
+                                    content_parts.append(text)
 
                 current_element = current_element.find_next_sibling()
 
-            if content_parts:
-                # Join all paragraphs and lists with double newlines for readability
-                return "\n\n".join(content_parts)
+            # Save last subsection if exists
+            if current_subsection and current_subsection_items:
+                subsections[current_subsection] = current_subsection_items
 
-            # Follow-up section exists but is empty
-            return None
+            # Return structured data
+            if subsections:
+                # Has subsections: return dict
+                return subsections if subsections else None
+            elif content_parts:
+                # No subsections: return list
+                return content_parts
+            else:
+                # Empty follow-up section
+                return None
 
         except Exception as e:
             raise ValueError(
