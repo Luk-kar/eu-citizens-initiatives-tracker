@@ -18,6 +18,7 @@ from ..base.date_parser import (
     parse_date_string,
     convert_deadline_to_date,
 )
+from ..base.text_utilities import normalize_whitespace, remove_leading_punctuation
 
 from ..consts import (
     REJECTION_REASONING_KEYWORDS,
@@ -64,7 +65,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 all_text.append(sibling.get_text(strip=False))
 
         content = " ".join(all_text).lower()
-        content = re.sub(r"\s+", " ", content).strip()
+        content = normalize_whitespace(content)
 
         return content
 
@@ -461,7 +462,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
                                     if sentence:
                                         # Clean up whitespace
-                                        sentence = re.sub(r"\s+", " ", sentence).strip()
+                                        sentence = normalize_whitespace(sentence)
 
                                         # If we already have this date, append to existing phrase
                                         if deadline_date in deadlines_dict:
@@ -539,7 +540,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         sentence = text[sentence_start:sentence_end].strip()
 
         # Remove leading punctuation or whitespace
-        sentence = sentence.lstrip(".,;:•\n\r\t ")
+        sentence = remove_leading_punctuation(sentence)
 
         return sentence if sentence else None
 
@@ -706,7 +707,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         text = element.get_text(separator="\n", strip=True)
 
         # NORMALIZE WHITESPACE: Replace multiple whitespace (including newlines) with single space
-        text = re.sub(r"\s+", " ", text).strip()
+        text = normalize_whitespace(text)
 
         # Skip non-legislative content using the class method
         if NonLegislativeAction.should_skip_for_legislative(text):
@@ -818,7 +819,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
         # Extract action type and description
         action_type = self._extract_action_type(text)
-        description = self._extract_action_description(text)
+        description = normalize_whitespace(text)
 
         # Get document URLs if any
         doc_url = None
@@ -902,13 +903,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 return "Proposal Withdrawal"
         else:
             return "Legislative Action"
-
-    def _extract_action_description(self, text: str) -> str:
-        """Extract a clean description of the action"""
-        # Clean up the text
-        text = re.sub(r"\s+", " ", text).strip()
-
-        return text.strip()
 
     def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
         """
@@ -1015,7 +1009,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
         # Get text with normalized whitespace
         text = element.get_text(separator=" ", strip=True)
-        text = re.sub(r"\s+", " ", text).strip()
+        text = normalize_whitespace(text)
         text_lower = text.lower()
 
         # Skip if empty or too short
@@ -1109,7 +1103,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                     break
 
         # Extract clean description (first sentence or up to 300 chars)
-        description = self._extract_action_description(text)
+        description = normalize_whitespace(text)
 
         # Build action dictionary
         action = {"type": pattern_info.name, "description": description}

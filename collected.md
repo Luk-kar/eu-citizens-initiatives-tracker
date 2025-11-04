@@ -738,6 +738,10 @@ from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
 from .classifiers.status_matcher import LegislativeOutcomeClassifier
+from ..base.date_parser import (
+    parse_date_string,
+    convert_deadline_to_date,
+)
 
 from ..consts import (
     REJECTION_REASONING_KEYWORDS,
@@ -1098,7 +1102,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                     )
                     if force_match:
                         date_str = force_match.group(1).strip()
-                        parsed_date = self._parse_date_string(date_str)
+                        parsed_date = parse_date_string(date_str)
                         if parsed_date:
                             return parsed_date
 
@@ -1108,7 +1112,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                     if match:
                         if match.groups():  # Has captured group
                             date_str = match.group(1).strip()
-                            parsed_date = self._parse_date_string(date_str)
+                            parsed_date = parse_date_string(date_str)
                             if parsed_date:
                                 return parsed_date
 
@@ -1118,38 +1122,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             raise ValueError(
                 f"Error extracting applicable date for {self.registration_number}: {str(e)}"
             ) from e
-
-    def _parse_date_string(self, date_str: str) -> Optional[str]:
-        """
-        Parse various date formats to YYYY-MM-DD.
-
-        Args:
-            date_str: Date string in formats like "27 March 2021", "27/03/2021"
-
-        Returns:
-            Date in YYYY-MM-DD format or None if parsing fails
-        """
-
-        # Common date formats in ECI responses
-        date_formats = [
-            "%d %B %Y",  # 27 March 2021
-            "%d/%m/%Y",  # 27/03/2021
-            "%d-%m-%Y",  # 27-03-2021
-            "%Y-%m-%d",  # 2021-03-27 (already in target format)
-            "%d %b %Y",  # 27 Mar 2021
-            "%B %Y",  # February 2024 (month and year only)
-            "%b %Y",  # Mar 2024 (abbreviated month and year)
-            "%Y",
-        ]
-
-        for fmt in date_formats:
-            try:
-                parsed = datetime.strptime(date_str.strip(), fmt)
-                return parsed.strftime("%Y-%m-%d")
-            except ValueError:
-                continue
-
-        return None
 
     def extract_commissions_deadlines(self, soup: BeautifulSoup) -> Optional[str]:
         """
@@ -1202,7 +1174,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                             # Clean and convert the deadline
                             deadline_cleaned = self._clean_deadline_text(deadline_text)
                             if deadline_cleaned:
-                                deadline_date = self._convert_deadline_to_date(
+                                deadline_date = convert_deadline_to_date(
                                     deadline_cleaned
                                 )
                                 if deadline_date:
@@ -1321,81 +1293,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             return None
 
         return deadline.strip()
-
-    def _convert_deadline_to_date(self, deadline: str) -> Optional[str]:
-        """
-        Convert deadline text to YYYY-MM-DD format (last day of month/year).
-
-        Args:
-            deadline: Cleaned deadline text like "may 2018", "the end of 2023", "end 2024", "2019"
-
-        Returns:
-            Date string in YYYY-MM-DD format (last day of period) or None if parsing fails
-
-        Examples:
-            - "May 2018" → "2018-05-31"
-            - "the end of 2023" → "2023-12-31"
-            - "end of 2024" → "2024-12-31"
-            - "end 2024" → "2024-12-31"
-            - "2019" → "2019-12-31"
-            - "March 2026" → "2026-03-31"
-            - "early 2026" → "2026-03-31"
-        """
-
-        deadline_lower = deadline.lower().strip()
-
-        # Validate it contains a year (4 digits)
-        if not re.search(r"\d{4}", deadline_lower):
-            return None
-
-        # Pattern 1: "the end of YYYY" or "end of YYYY"
-        endof_match = re.match(r"(?:the\s+)?end\s+of\s+(\d{4})", deadline_lower)
-        if endof_match:
-            year = int(endof_match.group(1))
-            return f"{year}-12-31"
-
-        # Pattern 1b: "end YYYY" (without "of")
-        end_match = re.match(r"end\s+(\d{4})", deadline_lower)
-        if end_match:
-            year = int(end_match.group(1))
-            return f"{year}-12-31"
-
-        # Pattern 2: "early YYYY" (interpret as end of Q1 = March 31)
-        early_match = re.match(r"early\s+(\d{4})", deadline_lower)
-        if early_match:
-            year = int(early_match.group(1))
-            return f"{year}-03-31"
-
-        # Pattern 3: "Month YYYY" (e.g., "May 2018", "march 2026")
-        monthyear_match = re.match(r"([a-z]+)\s+(\d{4})", deadline_lower)
-        if monthyear_match:
-            month_name = monthyear_match.group(1).capitalize()
-            year = int(monthyear_match.group(2))
-
-            # Parse month name to month number
-            try:
-                month_date = datetime.strptime(month_name, "%B")  # Full month name
-                month_num = month_date.month
-            except ValueError:
-                try:
-                    month_date = datetime.strptime(
-                        month_name, "%b"
-                    )  # Abbreviated month name
-                    month_num = month_date.month
-                except ValueError:
-                    return None
-
-            # Get last day of the month
-            last_day = calendar.monthrange(year, month_num)[1]
-            return f"{year}-{month_num:02d}-{last_day:02d}"
-
-        # Pattern 4: Just a year "YYYY" (e.g., "2019") - NEW PATTERN
-        year_only_match = re.match(r"^(\d{4})$", deadline_lower)
-        if year_only_match:
-            year = int(year_only_match.group(1))
-            return f"{year}-12-31"
-
-        return None
 
     # TODO: need a refactor
     def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
@@ -1622,7 +1519,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 match = re.search(date_pattern, clause, re.IGNORECASE)
                 if match:
                     date_str = match.group(1)
-                    parsed = self._parse_date_string(date_str)
+                    parsed = parse_date_string(date_str)
                     if parsed:
                         # Update if this is higher priority
                         if priority > best_priority:
@@ -1638,7 +1535,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 match = re.search(date_pattern, text, re.IGNORECASE)
                 if match:
                     date_str = match.group(1)
-                    parsed = self._parse_date_string(date_str)
+                    parsed = parse_date_string(date_str)
                     if parsed:
                         found_date = parsed
                         break
@@ -1930,7 +1827,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             match = re.search(date_pattern, text, re.IGNORECASE)
             if match:
                 date_str = match.group(1)
-                parsed = self._parse_date_string(date_str)
+                parsed = parse_date_string(date_str)
                 if parsed:
                     found_date = parsed
                     break
@@ -1965,6 +1862,8 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
+from ..consts.dates import month_map
+
 from .submission import SubmissionDataExtractor
 
 
@@ -2034,13 +1933,6 @@ class ParliamentActivityExtractor(BaseExtractor):
 
             if not date_match:
                 raise ValueError("No date found after key phrase.")
-
-            month_map = {
-                calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)
-            }
-            month_map.update(
-                {calendar.month_abbr[i].lower(): str(i).zfill(2) for i in range(1, 13)}
-            )
 
             if pattern == patterns[0]:
                 day, month_name, year = date_match.groups()
@@ -2269,6 +2161,7 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
+from ..consts.dates import month_map
 
 
 class CommissionResponseExtractor(BaseExtractor):
@@ -2305,10 +2198,6 @@ class CommissionResponseExtractor(BaseExtractor):
             if not commission_paragraph:
                 return None
 
-            month_dict = {
-                calendar.month_name[i].lower(): str(i).zfill(2) for i in range(1, 13)
-            }
-
             date_pattern = (
                 r"Commission adopted a Communication on\s+(\d{1,2})\s+(\w+)\s+(\d{4})"
             )
@@ -2319,7 +2208,7 @@ class CommissionResponseExtractor(BaseExtractor):
                 month_name = match.group(2).lower()
                 year = match.group(3)
 
-                month_str = month_dict.get(month_name)
+                month_str = month_map.get(month_name)
                 if month_str is None:
                     raise ValueError(f"Invalid month name: {month_name}")
 
