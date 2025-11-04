@@ -344,22 +344,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             if not matcher.check_applicable():
                 return None
 
-            # Patterns to search for applicable dates
-            applicable_patterns = [
-                # "became applicable 18 months later, i.e. on 27 March 2021"
-                r"became applicable.*?on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
-                # "became applicable immediately"
-                r"became applicable immediately",
-                # "applicable from 27 March 2021"
-                r"applicable from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
-                # "and applicable from 27 March 2021"
-                r"and applicable from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
-                # "applies from 27 March 2021"
-                r"applies from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
-                # "apply from 27 March 2021"
-                r"apply from\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
-            ]
-
             # Search through all siblings after Answer section
             for sibling in answer_section.find_next_siblings():
                 if self._should_skip_element(sibling):
@@ -384,7 +368,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                             return parsed_date
 
                 # Check each pattern
-                for pattern in applicable_patterns:
+                for pattern in APPLICABLE_DATE_PATTERNS:
                     match = re.search(pattern, text, re.IGNORECASE)
                     if match:
                         if match.groups():  # Has captured group
