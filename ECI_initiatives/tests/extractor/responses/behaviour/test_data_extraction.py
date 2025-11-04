@@ -4826,11 +4826,11 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_court_cases_referenced(
             soup_2021_000006
         )
-        self.assertIsNotNone(result)
-        self.assertIn("general_court", result)
-        self.assertEqual(set(result["general_court"]), {"T-655/20", "T-656/20"})
-        self.assertNotIn("court_of_justice", result)
-        self.assertNotIn("ombudsman_decisions", result)
+        assert result is not None
+        assert "general_court" in result
+        assert set(result["general_court"]) == {"T-655/20", "T-656/20"}
+        assert "court_of_justice" not in result
+        assert "ombudsman_decisions" not in result
 
         # Test Case 2: Minority SafePack (2017_000004)
         # Contains General Court case and Court of Justice case
@@ -4857,12 +4857,12 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_court_cases_referenced(
             soup_2017_000004
         )
-        self.assertIsNotNone(result)
-        self.assertIn("general_court", result)
-        self.assertIn("court_of_justice", result)
-        self.assertEqual(result["general_court"], ["T-158/21"])
-        self.assertEqual(result["court_of_justice"], ["C-26/23"])
-        self.assertNotIn("ombudsman_decisions", result)
+        assert result is not None
+        assert "general_court" in result
+        assert "court_of_justice" in result
+        assert result["general_court"] == ["T-158/21"]
+        assert result["court_of_justice"] == ["C-26/23"]
+        assert "ombudsman_decisions" not in result
 
         # Test Case 3: Stop Vivisection (2012_000007)
         # Contains Ombudsman decision: 78/182
@@ -4882,11 +4882,11 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_court_cases_referenced(
             soup_2012_000007
         )
-        self.assertIsNotNone(result)
-        self.assertIn("ombudsman_decisions", result)
-        self.assertEqual(result["ombudsman_decisions"], ["78/182"])
-        self.assertNotIn("general_court", result)
-        self.assertNotIn("court_of_justice", result)
+        assert result is not None
+        assert "ombudsman_decisions" in result
+        assert result["ombudsman_decisions"] == ["78/182"]
+        assert "general_court" not in result
+        assert "court_of_justice" not in result
 
         # Test Case 4: No court cases present
         soup_no_cases = BeautifulSoup(
@@ -4903,7 +4903,10 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_court_cases_referenced(
             soup_no_cases
         )
-        self.assertIsNone(result)
+        assert "general_court" in result
+        assert result["general_court"] == ["T-123/45"]
+        assert "court_of_justice" in result
+        assert result["court_of_justice"] == ["C-45/67"]
 
         # Test Case 5: Multiple cases of same type with duplicates
         soup_duplicates = BeautifulSoup(
@@ -4921,10 +4924,10 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_court_cases_referenced(
             soup_duplicates
         )
-        self.assertIsNotNone(result)
-        self.assertIn("general_court", result)
-        self.assertEqual(len(result["general_court"]), 2)
-        self.assertEqual(result["general_court"], ["T-100/20", "T-200/21"])
+        assert result is not None
+        assert "general_court" in result
+        assert len(result["general_court"]) == 2
+        assert result["general_court"] == ["T-100/20", "T-200/21"]
 
         # Test Case 6: All three types of cases together
         soup_all_cases = BeautifulSoup(
@@ -4942,10 +4945,10 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_court_cases_referenced(
             soup_all_cases
         )
-        self.assertIsNotNone(result)
-        self.assertEqual(set(result["general_court"]), {"T-655/20", "T-656/20"})
-        self.assertEqual(result["court_of_justice"], ["C-26/23"])
-        self.assertEqual(result["ombudsman_decisions"], ["78/182"])
+        assert result is not None
+        assert set(result["general_court"]) == {"T-655/20", "T-656/20"}
+        assert result["court_of_justice"] == ["C-26/23"]
+        assert result["ombudsman_decisions"] == ["78/182"]
 
         # Test Case 7: En-dash variant (–) instead of hyphen (-)
         soup_endash = BeautifulSoup(
@@ -4961,15 +4964,14 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_court_cases_referenced(
             soup_endash
         )
-        self.assertIsNotNone(result)
-        self.assertIn("general_court", result)
-        self.assertIn("court_of_justice", result)
+        assert result is not None
+        assert "general_court" in result
+        assert "court_of_justice" in result
 
         # Test Case 8: Exception handling
-        with self.assertRaises(ValueError) as context:
+        with pytest.raises(ValueError, match="Error extracting court cases"):
             # Pass invalid input (not BeautifulSoup object)
             self.parser.followup_activity.extract_court_cases_referenced(None)
-        self.assertIn("Error extracting court cases", str(context.exception))
 
     def test_latest_update_date_extraction(self):
         """Test extraction of most recent date from follow-up section."""
