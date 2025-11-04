@@ -13,6 +13,8 @@ from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
 from ..consts.dates import month_map
+from ..base.date_parser import format_date_from_match
+
 from .html_sections import find_submission_section, build_links_dict
 
 
@@ -61,13 +63,7 @@ class CommissionResponseExtractor(BaseExtractor):
             )
             match = re.search(date_pattern_slash, commission_paragraph, re.IGNORECASE)
 
-            if match:
-                day = match.group(1).zfill(2)
-                month = match.group(2).zfill(2)
-                year = match.group(3)
-                return f"{day}-{month}-{year}"
-
-            return None
+            return format_date_from_match(match)
 
         except Exception as e:
             raise ValueError(

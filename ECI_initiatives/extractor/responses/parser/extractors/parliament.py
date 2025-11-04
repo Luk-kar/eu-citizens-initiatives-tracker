@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
 from ..base.text_utilities import normalize_whitespace
+from ..base.date_parser import format_date_from_match
 from ..consts.dates import month_map
 
 from .submission import SubmissionDataExtractor
@@ -208,13 +209,7 @@ class ParliamentActivityExtractor(BaseExtractor):
             )
             match = re.search(date_pattern_slash, debate_paragraph, re.IGNORECASE)
 
-            if match:
-                day = match.group(1).zfill(2)
-                month = match.group(2).zfill(2)
-                year = match.group(3)
-                return f"{day}-{month}-{year}"
-
-            return None
+            return format_date_from_match(match)
 
         except Exception as e:
             raise ValueError(

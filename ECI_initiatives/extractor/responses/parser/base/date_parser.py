@@ -142,3 +142,27 @@ def get_month_names_pattern() -> str:
         "January|February|March|April|May|June|July|August|September|October|November|December"
     """
     return "|".join(calendar.month_name[1:])
+
+
+def format_date_from_match(
+    match, day_group=1, month_group=2, year_group=3
+) -> Optional[str]:
+    """
+    Format a date string from regex match groups.
+
+    Args:
+        match: Regex match object with date components
+        day_group: Group index for day (default 1)
+        month_group: Group index for month (default 2)
+        year_group: Group index for year (default 3)
+
+    Returns:
+        Formatted date string in DD-MM-YYYY format, or None if match is None
+    """
+    if not match:
+        return None
+
+    day = match.group(day_group).zfill(2)
+    month = match.group(month_group).zfill(2)
+    year = match.group(year_group)
+    return f"{day}-{month}-{year}"
