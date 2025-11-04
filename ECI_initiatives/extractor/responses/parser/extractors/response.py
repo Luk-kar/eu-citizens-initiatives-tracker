@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
 from ..consts.dates import month_map
-from .html_sections import find_submission_section
+from .html_sections import find_submission_section, build_links_dict
 
 
 class CommissionResponseExtractor(BaseExtractor):
@@ -102,16 +102,7 @@ class CommissionResponseExtractor(BaseExtractor):
 
             links = commission_paragraph_element.find_all("a")
 
-            if not links:
-                return None
-
-            links_dict = {}
-            for link in links:
-                link_text = link.get_text(strip=True)
-                link_url = link.get("href", "")
-
-                if link_text and link_url:
-                    links_dict[link_text] = link_url
+            links_dict = build_links_dict(links)
 
             if not links_dict:
                 return None
