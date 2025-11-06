@@ -63,7 +63,7 @@ class ECICommissionResponseRecord:
 
     # Multimedia and Documentation Links
     commission_factsheet_url: str
-    dedicated_website: bool
+    followup_dedicated_website: Optional[str]
 
     # Structural Analysis Flags
     related_eu_legislation: Optional[str]

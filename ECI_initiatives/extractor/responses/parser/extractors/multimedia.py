@@ -74,6 +74,6 @@ class MultimediaDocumentationExtractor(BaseExtractor):
                 f"Error extracting factsheet URL for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_has_dedicated_website(self, soup: BeautifulSoup) -> Optional[bool]:
+    def extract_followup_dedicated_website(self, soup: BeautifulSoup) -> Optional[bool]:
         """Check if organizers maintained campaign website"""
         return False

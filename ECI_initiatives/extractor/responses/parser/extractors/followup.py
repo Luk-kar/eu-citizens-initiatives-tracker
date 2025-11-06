@@ -646,3 +646,7 @@ class FollowUpActivityExtractor(BaseExtractor):
             raise ValueError(
                 f"Error extracting latest update date for {self.registration_number}: {str(e)}"
             ) from e
+
+    def extract_followup_dedicated_website(self, soup: BeautifulSoup) -> Optional[bool]:
+        """Check if organizers maintained campaign website"""
+        return False

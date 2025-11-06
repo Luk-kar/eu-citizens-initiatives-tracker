@@ -195,11 +195,11 @@ class ECIResponseHTMLParser:
                 ),
                 latest_date=latest_date,
                 most_future_date=most_future_date,
-                # Multimedia and Documentation Links
-                commission_factsheet_url=self.multimedia_docs.extract_commission_factsheet_url(
+                followup_dedicated_website=self.multimedia_docs.extract_followup_dedicated_website(
                     soup
                 ),
-                dedicated_website=self.multimedia_docs.extract_has_dedicated_website(
+                # Multimedia and Documentation Links
+                commission_factsheet_url=self.multimedia_docs.extract_commission_factsheet_url(
                     soup
                 ),
                 # Structural Analysis Flags

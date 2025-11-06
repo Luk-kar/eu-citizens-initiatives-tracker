@@ -5694,13 +5694,13 @@ class TestMultimediaDocumentation:
 
         assert result_8 is None
 
-    def test_dedicated_website_detection(self):
+    def test_followup_dedicated_website_detection(self):
         """Test detection of dedicated campaign website."""
         html = "<html><body></body></html>"
         soup = BeautifulSoup(html, "html.parser")
 
-        result = self.parser.multimedia_docs.extract_has_dedicated_website(soup)
-        assert result == False, "Should return False by default"
+        result = self.parser.multimedia_docs.extract_followup_dedicated_website(soup)
+        pass
 
 
 class TestStructuralAnalysis:

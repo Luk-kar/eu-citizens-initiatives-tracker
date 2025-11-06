@@ -65,7 +65,7 @@ class TestECIResponseDataModel:
             latest_date=None,
             most_future_date=None,
             commission_factsheet_url="https://example.com/factsheet.pdf",
-            dedicated_website=False,
+            followup_dedicated_website=None,
             related_eu_legislation=None,
             petition_platforms_used=None,
             follow_up_duration_months=None,
@@ -150,7 +150,7 @@ class TestOptionalFieldHandling:
             latest_date=None,
             most_future_date=None,
             commission_factsheet_url="",
-            dedicated_website=False,
+            followup_dedicated_website=None,
             related_eu_legislation=None,
             petition_platforms_used=None,
             follow_up_duration_months=None,
@@ -283,7 +283,7 @@ class TestDataIntegrity:
             latest_date=None,
             most_future_date=None,
             commission_factsheet_url="",
-            dedicated_website=True,
+            followup_dedicated_website="https://some-follow-up.eu",
             related_eu_legislation=None,
             petition_platforms_used=None,
             follow_up_duration_months=None,
@@ -292,7 +292,7 @@ class TestDataIntegrity:
         )
 
         assert isinstance(response.has_followup_section, bool)
-        assert isinstance(response.dedicated_website, bool)
+        assert isinstance(response.followup_dedicated_website, str)
         assert isinstance(response.commission_promised_new_law, bool)
         assert isinstance(response.commission_rejected_initiative, bool)
         assert isinstance(response.has_roadmap, bool)
