@@ -6137,28 +6137,3 @@ class TestStructuralAnalysis:
         """Test calculation of follow-up duration in months."""
         # Placeholder - implement when date parsing is implemented
         pass
-
-
-class TestHelperMethods:
-    """Tests for helper methods."""
-
-    @classmethod
-    def setup_class(cls):
-        """Setup parser instance."""
-        logger = ResponsesExtractorLogger().setup()
-        cls.parser = ECIResponseHTMLParser(logger=logger)
-
-    def test_parse_date_iso_format(self):
-        """Test date parsing to ISO format."""
-        # Placeholder - implement when date parsing is implemented
-        pass
-
-    def test_clean_text_whitespace_removal(self):
-        """Test text cleaning removes extra whitespace."""
-        # Placeholder - implement when text cleaning is implemented
-        pass
-
-    def test_extract_all_video_urls(self):
-        """Test extraction of all video URLs from page."""
-        # Placeholder - implement when HTML structure is known
-        pass
