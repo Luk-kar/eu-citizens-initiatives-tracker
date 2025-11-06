@@ -16,20 +16,26 @@ from ..base.base_extractor import BaseExtractor
 class StructuralAnalysisExtractor(BaseExtractor):
     """Extracts structural analysis data"""
 
-    def extract_referenced_legislation(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_referenced_legislation_by_id(
+        self, soup: BeautifulSoup
+    ) -> Optional[str]:
         """Extract references to specific Regulations or Directives"""
         try:
+            from urllib.parse import unquote
+
             # Get text content from the soup
             text = soup.get_text()
 
-            # FIRST: Extract CELEX numbers from href attributes in links
+            # FIRST: Extract CELEX numbers from href attributes in links (with URL decoding)
             celex_from_links = []
-            celex_links = soup.find_all("a", href=re.compile(r"CELEX:", re.IGNORECASE))
+            celex_links = soup.find_all("a", href=re.compile(r"CELEX", re.IGNORECASE))
             for link in celex_links:
                 href = link.get("href", "")
+                # DECODE URL to handle %3A, %26, etc.
+                decoded_href = unquote(href)
                 match = re.search(
                     r"CELEX[=:]([0-9]{5}[A-Z]{1,2}[0-9]{4}[A-Z]?[0-9]{0,4})",
-                    href,
+                    decoded_href,
                     re.IGNORECASE,
                 )
                 if match:
@@ -44,7 +50,9 @@ class StructuralAnalysisExtractor(BaseExtractor):
             )
             for link in all_oj_links:
                 href = link.get("href", "")
-                match = re.search(oj_pattern, href, re.IGNORECASE)
+                # DECODE URL to handle encoded characters
+                decoded_href = unquote(href)
+                match = re.search(oj_pattern, decoded_href, re.IGNORECASE)
                 if match:
                     series = match.group(1).upper()
                     year = match.group(2)

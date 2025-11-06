@@ -66,7 +66,7 @@ class ECICommissionResponseRecord:
     followup_dedicated_website: Optional[str]
 
     # Structural Analysis Flags
-    referenced_legislation: Optional[str]
+    referenced_legislation_by_id: Optional[str]
     follow_up_duration_months: Optional[int]
 
     # Metadata
