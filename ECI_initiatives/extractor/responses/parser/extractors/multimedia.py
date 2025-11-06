@@ -74,6 +74,43 @@ class MultimediaDocumentationExtractor(BaseExtractor):
                 f"Error extracting factsheet URL for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_followup_dedicated_website(self, soup: BeautifulSoup) -> Optional[bool]:
-        """Check if organizers maintained campaign website"""
-        return False
+    def extract_followup_dedicated_website(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extract the URL of the dedicated website for follow-up response
+
+        Returns:
+            Optional[str]: URL to the dedicated website, or None if no such link exists
+
+        Raises:
+            ValueError: If dedicated website element exists but href is missing or invalid
+        """
+
+        try:
+            # Find all anchor tags
+            links = soup.find_all("a", href=True)
+
+            # Look for links with text containing "dedicated website" or "dedicated page"
+            for link in links:
+                link_text = link.get_text(strip=True).lower()
+
+                if "dedicated website" in link_text or "dedicated page" in link_text:
+                    href = link.get("href", "").strip()
+
+                    if not href:
+                        raise ValueError(
+                            f"Dedicated website link found but href is empty "
+                            f"for {self.registration_number}"
+                        )
+
+                    # Return the first matching link URL
+                    return href
+
+            # No dedicated website link found - this is OK, return None
+            return None
+
+        except ValueError:
+            # Re-raise ValueError as-is
+            raise
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting dedicated website URL for {self.registration_number}: {str(e)}"
+            ) from e

@@ -647,6 +647,60 @@ class FollowUpActivityExtractor(BaseExtractor):
                 f"Error extracting latest update date for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_followup_dedicated_website(self, soup: BeautifulSoup) -> Optional[bool]:
-        """Check if organizers maintained campaign website"""
-        return False
+    def extract_most_future_date(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extract most recent date from follow-up section.
+
+
+        Searches the Follow-up section for any date strings in common formats
+        and returns the most recent (latest) date found.
+
+
+        Date formats supported:
+            - "27 March 2021" (full month name)
+            - "27 Mar 2021" (abbreviated month name)
+            - "27/03/2021" (slash-separated)
+            - "27-03-2021" (dash-separated)
+            - "2021-03-27" (ISO format)
+            - "February 2024" (month and year only)
+            - "Mar 2024" (abbreviated month and year)
+            - "2024" (year only)
+
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+
+        Returns:
+            Latest date found in YYYY-MM-DD format, or None if no dates are found
+            or if the Follow-up section doesn't exist
+
+
+        Raises:
+            ValueError: If critical error occurs during extraction
+        """
+        try:
+            # Use shared helper to extract all dates from Follow-up section
+            date_matches = self._extract_dates_from_followup_section(soup)
+
+            if not date_matches:
+                return None
+
+            # Parse all found dates and keep track of valid ones
+            parsed_dates = []
+
+            for date_str in date_matches:
+                parsed = parse_any_date_format(date_str)
+                if parsed:
+                    parsed_dates.append(parsed)
+
+            if not parsed_dates:
+                return None
+
+            # Sort dates and return the latest (maximum date)
+            parsed_dates.sort()
+            return parsed_dates[-1]
+
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting latest update date for {self.registration_number}: {str(e)}"
+            ) from e
