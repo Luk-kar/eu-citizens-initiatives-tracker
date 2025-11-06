@@ -109,6 +109,7 @@ class ECIResponseHTMLParser:
                 )
             )
             latest_date = self.followup_activity.extract_latest_date(soup)
+            most_future_date = self.followup_activity.extract_most_future_date(soup)
 
             # Create and return ECI Response object using extractors
             response = ECICommissionResponseRecord(
@@ -193,6 +194,7 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 latest_date=latest_date,
+                most_future_date=most_future_date,
                 # Multimedia and Documentation Links
                 commission_factsheet_url=self.multimedia_docs.extract_commission_factsheet_url(
                     soup

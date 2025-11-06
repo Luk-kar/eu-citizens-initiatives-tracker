@@ -195,6 +195,7 @@ REQUIRED_RESPONSES_CSV_COLUMNS = [
     "has_partnership_programs",
     "court_cases_referenced",
     "latest_date",
+    "most_future_date",
     "commission_factsheet_url",
     "dedicated_website",
     "related_eu_legislation",
