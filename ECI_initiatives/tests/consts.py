@@ -198,7 +198,7 @@ REQUIRED_RESPONSES_CSV_COLUMNS = [
     "most_future_date",
     "commission_factsheet_url",
     "followup_dedicated_website",
-    "related_eu_legislation",
+    "referenced_legislation",
     "follow_up_duration_months",
     "created_timestamp",
     "last_updated",

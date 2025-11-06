@@ -203,7 +203,7 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 # Structural Analysis Flags
-                related_eu_legislation=self.structural_analysis.extract_related_eu_legislation(
+                referenced_legislation=self.structural_analysis.extract_referenced_legislation(
                     soup
                 ),
                 follow_up_duration_months=self.structural_analysis.calculate_follow_up_duration_months(

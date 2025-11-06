@@ -5944,7 +5944,7 @@ class TestStructuralAnalysis:
         logger = ResponsesExtractorLogger().setup()
         cls.parser = ECIResponseHTMLParser(logger=logger)
 
-    def test_related_eu_legislation(self):
+    def test_referenced_legislation(self):
         """Test extraction of related EU legislation references."""
         # Placeholder - implement when HTML structure is known
         pass

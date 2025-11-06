@@ -14,7 +14,7 @@ from ..base.base_extractor import BaseExtractor
 class StructuralAnalysisExtractor(BaseExtractor):
     """Extracts structural analysis data"""
 
-    def extract_related_eu_legislation(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_referenced_legislation(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract references to specific Regulations or Directives"""
         try:
             return None
