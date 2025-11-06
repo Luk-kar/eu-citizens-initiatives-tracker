@@ -4,18 +4,14 @@ roadmaps, workshops, partnership programs, and
 court case references from post-response sections.
 """
 
+from datetime import date, datetime
 import re
 from typing import Optional, Tuple, Union, Dict, List
 
-from bs4 import BeautifulSoup, Tag
-
-from ..base.base_extractor import BaseExtractor
-
-
-import re
-from typing import Optional, Tuple, Union, Dict, List
 from bs4 import BeautifulSoup, Tag, NavigableString
+
 from ..base.base_extractor import BaseExtractor
+from ..base.date_parser import parse_any_date_format
 
 
 class FollowUpActivityExtractor(BaseExtractor):
@@ -588,6 +584,11 @@ class FollowUpActivityExtractor(BaseExtractor):
                 f"Error extracting dates from followup section for {self.registration_number}: {str(e)}"
             ) from e
 
+    def _get_today_date(self) -> date:
+        """Return today's date."""
+
+        return datetime.now().date()
+
     def extract_latest_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract most recent date from follow-up section that is not later than today.
 
@@ -606,7 +607,6 @@ class FollowUpActivityExtractor(BaseExtractor):
             ValueError: If critical error occurs during extraction
         """
         try:
-            from datetime import datetime
 
             # Use shared helper to extract all dates from Follow-up section
             date_matches = self._extract_dates_from_followup_section(soup)
@@ -614,14 +614,11 @@ class FollowUpActivityExtractor(BaseExtractor):
             if not date_matches:
                 return None
 
-            # Import parse_date_string from date_parser
-            from ..base.date_parser import parse_date_string
-
             # Parse all found dates and keep track of valid ones
             parsed_dates = []
 
             for date_str in date_matches:
-                parsed = parse_date_string(date_str)
+                parsed = parse_any_date_format(date_str)
                 if parsed:
                     parsed_dates.append(parsed)
 
@@ -629,7 +626,7 @@ class FollowUpActivityExtractor(BaseExtractor):
                 return None
 
             # Get current date
-            today = datetime.now().date()
+            today = self._get_today_date()
 
             # Filter dates to only include those not later than today
             valid_dates = []
@@ -683,14 +680,11 @@ class FollowUpActivityExtractor(BaseExtractor):
             if not date_matches:
                 return None
 
-            # Import parse_date_string from date_parser
-            from ..base.date_parser import parse_date_string
-
             # Parse all found dates and keep track of valid ones
             parsed_dates = []
 
             for date_str in date_matches:
-                parsed = parse_date_string(date_str)
+                parsed = parse_any_date_format(date_str)
                 if parsed:
                     parsed_dates.append(parsed)
 

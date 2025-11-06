@@ -13,8 +13,11 @@ Tests focus on behavior of extraction methods:
 """
 
 # Standard library
-from pathlib import Path
 import json
+from pathlib import Path
+from unittest.mock import Mock, patch
+from typing import Optional
+from datetime import date as date_type, datetime
 
 # Third party
 import pytest
@@ -28,12 +31,6 @@ from ECI_initiatives.extractor.responses.parser.extractors.outcome import (
 from ECI_initiatives.extractor.responses.responses_logger import (
     ResponsesExtractorLogger,
 )
-
-
-from typing import Optional
-from datetime import date as date_type
-import pytest
-from bs4 import BeautifulSoup
 
 
 class BaseParserTest:
@@ -4974,9 +4971,219 @@ class TestFollowUpActivities:
             self.parser.followup_activity.extract_court_cases_referenced(None)
 
     def test_latest_date_extraction(self):
-        """Test extraction of most recent date from follow-up section."""
-        # Placeholder - implement when HTML structure is known
-        pass
+        """Test extraction of most recent date from follow-up section.
+
+        Tests multiple date formats and ensures the latest date is returned
+        when multiple dates are present. Also verifies filtering of future dates.
+        """
+
+        # Mock today's date to 2025-11-06 for consistent testing
+        mock_today = date_type(2025, 11, 6)
+
+        with patch.object(
+            self.parser.followup_activity, "_get_today_date", return_value=mock_today
+        ):
+
+            # Test case 1: Multiple dates with various formats - should return latest
+            html_multiple_dates = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <p>The Commission published a report on 15 January 2020.</p>
+                    <p>A workshop was held on 27 March 2021.</p>
+                    <p>The roadmap was updated in February 2024.</p>
+                    <p>Final review scheduled for 2028.</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_multiple_dates, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+
+            # 2025 as year-only becomes 2025-12-31, but should be filtered as future
+            # Latest valid date is February 2024 -> 2024-02-29
+            assert result == "2024-02-29", f"Expected '2024-02-29', got '{result}'"
+
+            # Test case 2: Single date with full month name
+            html_single_date = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <p>The report was published on 27 March 2021.</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_single_date, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result == "2021-03-27", f"Expected '2021-03-27', got '{result}'"
+
+            # Test case 3: Abbreviated month name
+            html_abbreviated = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <p>Updated on 15 Apr 2023.</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_abbreviated, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result == "2023-04-15", f"Expected '2023-04-15', got '{result}'"
+
+            # Test case 4: Slash-separated date format
+            html_slash_format = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <p>Published 27/03/2021</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_slash_format, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result == "2021-03-27", f"Expected '2021-03-27', got '{result}'"
+
+            # Test case 5: ISO date format
+            html_iso_format = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <p>Effective from 2021-03-27</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_iso_format, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result == "2021-03-27", f"Expected '2021-03-27', got '{result}'"
+
+            # Test case 6: Month and year only
+            html_month_year = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <p>Expected by February 2024</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_month_year, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result == "2024-02-29", f"Expected '2024-02-29', got '{result}'"
+
+            # Test case 7: No Follow-up section
+            html_no_section = """
+            <html>
+                <body>
+                    <h2>Other Section</h2>
+                    <p>Some content with a date 27 March 2021</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_no_section, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result is None, f"Expected None, got '{result}'"
+
+            # Test case 8: Follow-up section with no dates
+            html_no_dates = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <p>The Commission is monitoring the situation.</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_no_dates, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result is None, f"Expected None, got '{result}'"
+
+            # Test case 9: Future date filtering - should exclude dates after mocked today (2025-11-06)
+            html_future_dates = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <p>Past update on 15 January 2020.</p>
+                    <p>Future deadline in 2027.</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_future_dates, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            # Should return the past date, not the future one
+            assert result == "2020-01-15", f"Expected '2020-01-15', got '{result}'"
+
+            # Test case 10: h4 Follow-up subsection format
+            html_h4_format = """
+            <html>
+                <body>
+                    <h2>Answer of the European Commission and follow-up</h2>
+                    <p>Some answer content.</p>
+                    <h4>Follow-up</h4>
+                    <p>The roadmap was published on 10 June 2022.</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_h4_format, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result == "2022-06-10", f"Expected '2022-06-10', got '{result}'"
+
+            # Test case 11: Mixed date formats - latest should win
+            html_mixed_formats = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <p>Initial report 15/01/2020</p>
+                    <p>Update on 27 March 2021</p>
+                    <p>Final version March 2023</p>
+                    <p>Published 2022-06-10</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_mixed_formats, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result == "2023-03-31", f"Expected '2023-03-31', got '{result}'"
+
+            # Test case 12: Dates in nested elements (lists, paragraphs)
+            html_nested = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <ul>
+                        <li>Workshop held on 5 May 2021</li>
+                        <li>Report published <strong>10 December 2022</strong></li>
+                    </ul>
+                    <p>Additional consultation in <em>January 2023</em></p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_nested, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result == "2023-01-31", f"Expected '2023-01-31', got '{result}'"
+
+            # Test case 13: All future dates - should return None
+            html_all_future = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <p>Scheduled for 2027</p>
+                    <p>Expected by 2028</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_all_future, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result is None, f"Expected None for all future dates, got '{result}'"
+
+            # Test case 14: Date on the boundary (exact mock today)
+            html_today_date = """
+            <html>
+                <body>
+                    <h2 id="Follow-up">Follow-up</h2>
+                    <p>Updated on 6 November 2025.</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_today_date, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            # Today's date should be included (<=)
+            assert result == "2025-11-06", f"Expected '2025-11-06', got '{result}'"
 
 
 class TestMultimediaDocumentation:
