@@ -206,9 +206,6 @@ class ECIResponseHTMLParser:
                 related_eu_legislation=self.structural_analysis.extract_related_eu_legislation(
                     soup
                 ),
-                petition_platforms_used=self.structural_analysis.extract_petition_platforms_used(
-                    soup
-                ),
                 follow_up_duration_months=self.structural_analysis.calculate_follow_up_duration_months(
                     official_communication_adoption_date, latest_date
                 ),

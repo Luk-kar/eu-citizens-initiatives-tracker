@@ -23,15 +23,6 @@ class StructuralAnalysisExtractor(BaseExtractor):
                 f"Error extracting related EU legislation for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_petition_platforms_used(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract external platforms mentioned"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(
-                f"Error extracting petition platforms for {self.registration_number}: {str(e)}"
-            ) from e
-
     def calculate_follow_up_duration_months(
         self, commission_date: Optional[str], latest_update: Optional[str]
     ) -> Optional[int]:

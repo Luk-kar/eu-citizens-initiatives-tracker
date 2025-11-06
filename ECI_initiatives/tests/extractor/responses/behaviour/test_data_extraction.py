@@ -5949,11 +5949,6 @@ class TestStructuralAnalysis:
         # Placeholder - implement when HTML structure is known
         pass
 
-    def test_petition_platforms_used(self):
-        """Test extraction of petition platforms mentioned."""
-        # Placeholder - implement when HTML structure is known
-        pass
-
     def test_follow_up_duration_calculation(self):
         """Test calculation of follow-up duration in months."""
         # Placeholder - implement when date parsing is implemented

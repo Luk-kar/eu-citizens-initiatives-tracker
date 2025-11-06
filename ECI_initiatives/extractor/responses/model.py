@@ -67,7 +67,6 @@ class ECICommissionResponseRecord:
 
     # Structural Analysis Flags
     related_eu_legislation: Optional[str]
-    petition_platforms_used: Optional[str]
     follow_up_duration_months: Optional[int]
 
     # Metadata
