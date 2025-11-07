@@ -199,6 +199,7 @@ REQUIRED_RESPONSES_CSV_COLUMNS = [
     "commission_factsheet_url",
     "followup_dedicated_website",
     "referenced_legislation_by_id",
+    "referenced_legislation_by_name",
     "follow_up_duration_months",
     "created_timestamp",
     "last_updated",

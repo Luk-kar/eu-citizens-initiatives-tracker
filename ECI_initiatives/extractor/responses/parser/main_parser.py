@@ -206,6 +206,9 @@ class ECIResponseHTMLParser:
                 referenced_legislation_by_id=self.structural_analysis.extract_referenced_legislation_by_id(
                     soup
                 ),
+                referenced_legislation_by_name=self.structural_analysis.extract_referenced_legislation_by_name(
+                    soup
+                ),
                 follow_up_duration_months=self.structural_analysis.calculate_follow_up_duration_months(
                     official_communication_adoption_date, latest_date
                 ),
