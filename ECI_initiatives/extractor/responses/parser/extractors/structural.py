@@ -229,6 +229,9 @@ class StructuralAnalysisExtractor(BaseExtractor):
         if not any(result.values()):
             return None
 
+        # Remove empty keys from result
+        result = {key: value for key, value in result.items() if value}
+
         # Return as JSON string
         return json.dumps(result, indent=2, ensure_ascii=False)
 
