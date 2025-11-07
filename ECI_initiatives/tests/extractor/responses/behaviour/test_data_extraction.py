@@ -6134,7 +6134,143 @@ class TestStructuralAnalysis:
         self.assertEqual(result15_dict["Regulation"], ["1234/2020"])
 
     def test_referenced_legislation_by_name(self):
-        pass
+
+        # 1. Basic extraction - Directive
+        html1 = (
+            "<div>This proposal is in line with the Water Framework Directive.</div>"
+        )
+        soup1 = BeautifulSoup(html1, "html.parser")
+        result1 = self.extractor.extract_referenced_legislation_by_name(soup1)
+        assert result1 is not None
+        res1 = json.loads(result1)
+        assert res1["directives"] == ["Water Framework Directive"]
+
+        # 2. Basic extraction - Regulation and Charter
+        html2 = "<div>This complies with the General Data Protection Regulation and the Charter of Fundamental Rights.</div>"
+        soup2 = BeautifulSoup(html2, "html.parser")
+        result2 = self.extractor.extract_referenced_legislation_by_name(soup2)
+        assert result2 is not None
+        res2 = json.loads(result2)
+        assert "regulations" in res2 and res2["regulations"] == [
+            "General Data Protection Regulation"
+        ]
+        assert "charters" in res2 and res2["charters"] == [
+            "Charter of Fundamental Rights"
+        ]
+
+        # 3. Orchids Regulation and multiple directives (conjunction splitting)
+        html3 = (
+            "<p>The Habitats Directive and Birds Directive have been considered.</p>"
+            "<p>See also Orchids Regulation.</p>"
+        )
+        soup3 = BeautifulSoup(html3, "html.parser")
+        result3 = self.extractor.extract_referenced_legislation_by_name(soup3)
+        res3 = json.loads(result3)
+        assert sorted(res3["directives"]) == ["Birds Directive", "Habitats Directive"]
+        assert res3["regulations"] == ["Orchids Regulation"]
+
+        # 4. Treaties - TFEU and named
+        html4 = (
+            "<div>Actions are subject to TEU, TFEU, the Treaty on the Functioning of the European Union, "
+            "and Lisbon Treaty. Refer also to Charter of Fundamental Rights.</div>"
+        )
+        soup4 = BeautifulSoup(html4, "html.parser")
+        result4 = self.extractor.extract_referenced_legislation_by_name(soup4)
+        res4 = json.loads(result4)
+        assert sorted(res4["treaties"]) == [
+            "Lisbon Treaty",
+            "TEU",
+            "TFEU",
+            "Treaty on the Functioning of the European Union",
+        ]
+        assert res4["charters"] == ["Charter of Fundamental Rights"]
+
+        # 5. Remove empty/standalone/generic - only real Directive kept
+        html5 = "<div>Proposal for a Directive, the Directive, and the Animal Welfare Directive.</div>"
+        soup5 = BeautifulSoup(html5, "html.parser")
+        result5 = self.extractor.extract_referenced_legislation_by_name(soup5)
+        res5 = json.loads(result5)
+        assert res5["directives"] == ["Animal Welfare Directive"]
+
+        # 6. Leading articles removed
+        html6 = "<div>The Water Framework Directive, a Floods Directive and an Allergy Regulation.</div>"
+        soup6 = BeautifulSoup(html6, "html.parser")
+        result6 = self.extractor.extract_referenced_legislation_by_name(soup6)
+        res6 = json.loads(result6)
+        assert sorted(res6["directives"]) == [
+            "Floods Directive",
+            "Water Framework Directive",
+        ]
+        assert res6["regulations"] == ["Allergy Regulation"]
+
+        # 7. Deduplication and non-inclusion of generic
+        html7 = "<div>General Food Law Regulation and General Food Law Regulation and Proposal for Regulation</div>"
+        soup7 = BeautifulSoup(html7, "html.parser")
+        result7 = self.extractor.extract_referenced_legislation_by_name(soup7)
+        res7 = json.loads(result7)
+        assert res7["regulations"] == ["General Food Law Regulation"]
+
+        # 8. Compound with newlines and conjunctions
+        html8 = (
+            "<div>Water Framework Directive\nBirds Directive and Floods Directive</div>"
+        )
+        soup8 = BeautifulSoup(html8, "html.parser")
+        result8 = self.extractor.extract_referenced_legislation_by_name(soup8)
+        res8 = json.loads(result8)
+        assert sorted(res8["directives"]) == [
+            "Birds Directive",
+            "Floods Directive",
+            "Water Framework Directive",
+        ]
+
+        # 9. Charter alternative capture (named)
+        html9 = "<div>European Social Charter and Youth Charter were mentioned.</div>"
+        soup9 = BeautifulSoup(html9, "html.parser")
+        result9 = self.extractor.extract_referenced_legislation_by_name(soup9)
+        res9 = json.loads(result9)
+        assert sorted(res9["charters"]) == ["European Social Charter", "Youth Charter"]
+
+        # 10. No match returns None
+        html10 = "<div>This sentence contains no legislation references at all.</div>"
+        soup10 = BeautifulSoup(html10, "html.parser")
+        result10 = self.extractor.extract_referenced_legislation_by_name(soup10)
+        assert result10 is None
+
+        # 11. Empty soup returns None
+        soup11 = BeautifulSoup("", "html.parser")
+        result11 = self.extractor.extract_referenced_legislation_by_name(soup11)
+        assert result11 is None
+
+        # 12. Tags inside strong are unwrapped and counted
+        html12 = "<div><strong>Biodiversity Regulation</strong> is critical. The Water Framework Directive applies.</div>"
+        soup12 = BeautifulSoup(html12, "html.parser")
+        result12 = self.extractor.extract_referenced_legislation_by_name(soup12)
+        res12 = json.loads(result12)
+        assert res12["regulations"] == ["Biodiversity Regulation"]
+        assert res12["directives"] == ["Water Framework Directive"]
+
+        # 13. Charter and Treaty in same sentence
+        html13 = (
+            "<div>By the Charter of Fundamental Rights and the Maastricht Treaty.</div>"
+        )
+        soup13 = BeautifulSoup(html13, "html.parser")
+        result13 = self.extractor.extract_referenced_legislation_by_name(soup13)
+        res13 = json.loads(result13)
+        assert res13["charters"] == ["Charter of Fundamental Rights"]
+        assert res13["treaties"] == ["Maastricht Treaty"]
+
+        # 14. Case-insensitivity, weird spacing/hyphens
+        html14 = "<div>The habitat   Directive and the general-data-protection Regulation apply.</div>"
+        soup14 = BeautifulSoup(html14, "html.parser")
+        result14 = self.extractor.extract_referenced_legislation_by_name(soup14)
+        res14 = json.loads(result14)
+        # Should pick up "habitat Directive" and "general-data-protection Regulation"
+        assert "directives" in res14 and any(
+            "habitat Directive" in s for s in res14["directives"]
+        )
+        assert "regulations" in res14 and any(
+            "general-data-protection Regulation" in s for s in res14["regulations"]
+        )
 
     def test_follow_up_duration_calculation(self):
         """Test calculation of follow-up duration in months."""
