@@ -141,8 +141,8 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
         # Initialize result structure
         result: Dict[str, List[str]] = {
-            "treaty": [],
-            "charter": [],
+            "treaties": [],
+            "charters": [],
             "directives": [],
             "regulations": [],
         }
@@ -188,8 +188,8 @@ class StructuralAnalysisExtractor(BaseExtractor):
                         match = (
                             match[0] if match[0] else match[1] if len(match) > 1 else ""
                         )
-                    if match and match not in result["treaty"]:
-                        result["treaty"].append(match.strip())
+                    if match and match not in result["treaties"]:
+                        result["treaties"].append(match.strip())
 
         # Extract charters using specific patterns
         charter_patterns = [
@@ -205,8 +205,8 @@ class StructuralAnalysisExtractor(BaseExtractor):
                         match = (
                             match[0] if match[0] else match[1] if len(match) > 1 else ""
                         )
-                    if match and match not in result["charter"]:
-                        result["charter"].append(match.strip())
+                    if match and match not in result["charters"]:
+                        result["charters"].append(match.strip())
 
         # Clean up: remove leading articles
         def clean_leading_articles(items: List[str]) -> List[str]:
@@ -238,7 +238,6 @@ class StructuralAnalysisExtractor(BaseExtractor):
                 f"A {keyword}",
                 f"an {keyword}",
                 f"An {keyword}",
-                f"EU {keyword}",
             ]
 
             # Common prefixes that make the item too generic
@@ -258,8 +257,16 @@ class StructuralAnalysisExtractor(BaseExtractor):
                 item_lower = item_stripped.lower()
 
                 # Check if item is exactly a standalone keyword (case-insensitive)
-                if item_lower in [v.lower() for v in standalone_variations]:
+                if item_lower in [
+                    variation.lower() for variation in standalone_variations
+                ]:
                     continue  # Skip this item
+
+                # Check EU separately with word boundary
+                if re.match(
+                    r"^EU\s+" + re.escape(keyword) + r"$", item_stripped, re.IGNORECASE
+                ):
+                    continue  # Skip only exact "EU Regulation" matches
 
                 # Check if item is just a generic prefix + keyword
                 is_generic = False
@@ -342,7 +349,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
             return split_items
 
         # Clean, filter standalone keywords, and deduplicate all categories
-        for key in ["directives", "regulations", "treaty", "charter"]:
+        for key in ["directives", "regulations", "treaties", "charters"]:
             result[key] = clean_leading_articles(result[key])
 
             # Determine the keyword to filter
@@ -354,11 +361,11 @@ class StructuralAnalysisExtractor(BaseExtractor):
                 items = split_multiple_legislations(result[key], "Regulation")
                 items = filter_standalone_keywords(items, "Regulation")
                 result[key] = items
-            elif key == "treaty":
+            elif key == "treaties":
                 items = split_multiple_legislations(result[key], "Treaty")
                 items = filter_standalone_keywords(items, "Treaty")
                 result[key] = items
-            elif key == "charter":
+            elif key == "charters":
                 items = split_multiple_legislations(result[key], "Charter")
                 items = filter_standalone_keywords(items, "Charter")
                 result[key] = items
