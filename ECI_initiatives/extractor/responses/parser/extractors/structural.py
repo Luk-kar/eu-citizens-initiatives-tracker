@@ -147,22 +147,23 @@ class StructuralAnalysisExtractor(BaseExtractor):
             "regulations": [],
         }
 
+        # Assemble the complete pattern
+        titles_pattern = r"\b[A-Z]\w*(?:(?:\s+(?:of|and|the|for|on|in|to)|\s*['\-]\s*)?\s*[A-Z]\w*)+\b"
+
         # Define regex patterns (using NON-GREEDY quantifiers {0,6}?)
         patterns = {
             "regulations": [
-                r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,6}?)\s+Regulation\b"
+                r"\b([A-Z][A-Za-z]+(?:\s+(?:[A-Z][A-Za-z]+|of|and|the|for|on|in|to))*?)\s+Directive\b"
             ],
-            "directives": [
-                r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,6}?)\s+Directive\b"
-            ],
-            "treaty": [
-                r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
-                r"\b(TEU|TFEU)\b",
-                r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5}?)\s+Treaty\b",
-            ],
-            "charter": [
-                r"Charter\s+of\s+(?:the\s+)?Fundamental\s+Rights(?:\s+of\s+the\s+European\s+Union)?"
-            ],
+            "directives": [directive_pattern],
+            # "treaty": [
+            #     r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
+            #     r"\b(TEU|TFEU)\b",
+            #     r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5}?)\s+Treaty\b",
+            # ],
+            # "charter": [
+            #     r"Charter\s+of\s+(?:the\s+)?Fundamental\s+Rights(?:\s+of\s+the\s+European\s+Union)?"
+            # ],
         }
 
         # Extract each type of legislation
@@ -192,8 +193,8 @@ class StructuralAnalysisExtractor(BaseExtractor):
                     continue
 
                 # Skip if starts with articles
-                if match.startswith(("The ", "the ", "A ", "a ", "An ", "an ")):
-                    continue
+                # if match.startswith(("The ", "the ", "A ", "a ", "An ", "an ")):
+                #     continue
 
                 # Skip very short matches (likely noise)
                 if len(match) < 3:
@@ -204,20 +205,20 @@ class StructuralAnalysisExtractor(BaseExtractor):
                     continue
 
                 # For regulations/directives: additional filtering
-                if category in ["regulations", "directives"]:
-                    # Must start with uppercase
-                    if not match[0].isupper():
-                        continue
+                # if category in ["regulations", "directives"]:
+                #     # Must start with uppercase
+                #     if not match[0].isupper():
+                #         continue
 
-                    # Skip if too long (more than 7 words)
-                    if len(match.split()) > 7:
-                        continue
+                #     # Skip if too long (more than 7 words)
+                #     if len(match.split()) > 7:
+                #         continue
 
-                    # Skip if contains too many connector words
-                    words = match.split()
-                    connectors = ["and", "the", "of", "or", "for", "in", "on", "to"]
-                    if sum(1 for w in words if w.lower() in connectors) > 3:
-                        continue
+                #     # Skip if contains too many connector words
+                #     words = match.split()
+                #     connectors = ["and", "the", "of", "or", "for", "in", "on", "to"]
+                #     if sum(1 for w in words if w.lower() in connectors) > 3:
+                #         continue
 
                 # Add if not already in list (case-insensitive deduplication)
                 if not any(m.lower() == match.lower() for m in filtered_matches):
