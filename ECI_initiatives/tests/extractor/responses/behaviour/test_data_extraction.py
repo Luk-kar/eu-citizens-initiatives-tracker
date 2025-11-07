@@ -6133,6 +6133,9 @@ class TestStructuralAnalysis:
         self.assertIn("Regulation", result15_dict)
         self.assertEqual(result15_dict["Regulation"], ["1234/2020"])
 
+    def test_referenced_legislation_by_name(self):
+        pass
+
     def test_follow_up_duration_calculation(self):
         """Test calculation of follow-up duration in months."""
         # Placeholder - implement when date parsing is implemented

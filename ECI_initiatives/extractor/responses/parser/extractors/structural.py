@@ -136,8 +136,12 @@ class StructuralAnalysisExtractor(BaseExtractor):
         Returns:
             JSON string with extracted legislation, or None if no legislation found
         """
-        # Get all text from the document
-        text = soup.get_text(separator=" ", strip=True)
+        # Unwrap all <strong> tags (removes tag but keeps text)
+        for strong_tag in soup.find_all("strong"):
+            strong_tag.unwrap()
+
+        # Now apply newline separator to all remaining tags
+        text = soup.get_text(separator="\n", strip=True)
 
         # Initialize result structure
         result: Dict[str, List[str]] = {
@@ -303,7 +307,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
         def split_multiple_legislations(items: List[str], keyword: str) -> List[str]:
             """
-            Split items that contain multiple legislations connected by 'and', 'or', etc.
+            Split items that contain multiple legislations connected by 'and', 'or', or newlines.
             Removes the original combined items.
 
             Example:
@@ -313,38 +317,50 @@ class StructuralAnalysisExtractor(BaseExtractor):
             split_items = []
 
             for item in items:
-                # Count how many times the keyword appears
-                keyword_count = len(
-                    re.findall(rf"\b{re.escape(keyword)}\b", item, re.IGNORECASE)
-                )
+                # First split by newlines
+                newline_parts = item.split("\n")
 
-                if keyword_count > 1:
-                    # Multiple keywords found - split and DON'T keep the original
-                    parts = re.split(
-                        rf"\b{re.escape(keyword)}\b", item, flags=re.IGNORECASE
+                for newline_part in newline_parts:
+                    newline_part = newline_part.strip()
+                    if not newline_part:
+                        continue
+
+                    # Count how many times the keyword appears in this part
+                    keyword_count = len(
+                        re.findall(
+                            rf"\b{re.escape(keyword)}\b", newline_part, re.IGNORECASE
+                        )
                     )
 
-                    for i in range(len(parts) - 1):
-                        # Each part (except the last) should be followed by the keyword
-                        part = parts[i].strip()
-
-                        # Remove trailing conjunction from the part
-                        part = re.sub(
-                            r"\s*(?:and|or)\s*$", "", part, flags=re.IGNORECASE
+                    if keyword_count > 1:
+                        # Multiple keywords found - split and DON'T keep the original
+                        parts = re.split(
+                            rf"\b{re.escape(keyword)}\b",
+                            newline_part,
+                            flags=re.IGNORECASE,
                         )
 
-                        # Remove leading conjunction from the part
-                        part = re.sub(
-                            r"^\s*(?:and|or)\s*", "", part, flags=re.IGNORECASE
-                        )
+                        for i in range(len(parts) - 1):
+                            # Each part (except the last) should be followed by the keyword
+                            part = parts[i].strip()
 
-                        if part:
-                            # Reconstruct with keyword
-                            split_items.append(f"{part} {keyword}".strip())
-                    # NOTE: We do NOT append the original combined item
-                else:
-                    # Single keyword - keep as is
-                    split_items.append(item)
+                            # Remove trailing conjunction from the part
+                            part = re.sub(
+                                r"\s*(?:and|or)\s*$", "", part, flags=re.IGNORECASE
+                            )
+
+                            # Remove leading conjunction from the part
+                            part = re.sub(
+                                r"^\s*(?:and|or)\s*", "", part, flags=re.IGNORECASE
+                            )
+
+                            if part:
+                                # Reconstruct with keyword
+                                split_items.append(f"{part} {keyword}".strip())
+                        # NOTE: We do NOT append the original combined item
+                    else:
+                        # Single keyword - keep as is
+                        split_items.append(newline_part)
 
             return split_items
 
