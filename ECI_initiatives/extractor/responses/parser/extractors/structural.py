@@ -225,6 +225,61 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
             return cleaned
 
+        def filter_standalone_keywords(items: List[str], keyword: str) -> List[str]:
+            """Remove items that are just the keyword alone or with common prefixes"""
+            filtered = []
+
+            # Standalone variations (just the keyword with articles)
+            standalone_variations = [
+                keyword,
+                f"the {keyword}",
+                f"The {keyword}",
+                f"a {keyword}",
+                f"A {keyword}",
+                f"an {keyword}",
+                f"An {keyword}",
+                f"EU {keyword}",
+            ]
+
+            # Common prefixes that make the item too generic
+            generic_prefixes = [
+                "Proposal for",
+                "proposal for",
+                "Revised",
+                "revised",
+                "New",
+                "new",
+                "Draft",
+                "draft",
+            ]
+
+            for item in items:
+                item_stripped = item.strip()
+                item_lower = item_stripped.lower()
+
+                # Check if item is exactly a standalone keyword (case-insensitive)
+                if item_lower in [v.lower() for v in standalone_variations]:
+                    continue  # Skip this item
+
+                # Check if item is just a generic prefix + keyword
+                is_generic = False
+                for prefix in generic_prefixes:
+                    # Pattern: "Proposal for Regulation" or "Proposal for the Regulation"
+                    if item_lower == f"{prefix.lower()} {keyword.lower()}":
+                        is_generic = True
+                        break
+                    if item_lower == f"{prefix.lower()} the {keyword.lower()}":
+                        is_generic = True
+                        break
+                    if item_lower == f"{prefix.lower()} a {keyword.lower()}":
+                        is_generic = True
+                        break
+
+                if not is_generic:
+                    filtered.append(item)
+
+            return filtered
+
         # Deduplicate (case-insensitive)
         def deduplicate_items(items: List[str]) -> List[str]:
             """Remove duplicates (case-insensitive)"""
@@ -239,9 +294,20 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
             return sorted(unique)
 
-        # Clean and deduplicate all categories
-        for key in result.keys():
+        # Clean, filter standalone keywords, and deduplicate all categories
+        for key in ["directives", "regulations", "treaty", "charter"]:
             result[key] = clean_leading_articles(result[key])
+
+            # Determine the keyword to filter
+            if key == "directives":
+                result[key] = filter_standalone_keywords(result[key], "Directive")
+            elif key == "regulations":
+                result[key] = filter_standalone_keywords(result[key], "Regulation")
+            elif key == "treaty":
+                result[key] = filter_standalone_keywords(result[key], "Treaty")
+            elif key == "charter":
+                result[key] = filter_standalone_keywords(result[key], "Charter")
+
             result[key] = deduplicate_items(result[key])
 
         # Remove empty keys from result
@@ -250,7 +316,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
         if not result:
             return None
 
-        return result
+        return json.dumps(result, indent=2, ensure_ascii=False)
 
     def calculate_follow_up_duration_months(
         self, commission_date: Optional[str], latest_update: Optional[str]
