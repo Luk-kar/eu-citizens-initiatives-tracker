@@ -147,94 +147,107 @@ class StructuralAnalysisExtractor(BaseExtractor):
             "regulations": [],
         }
 
-        # Assemble the complete pattern
-        titles_pattern = r"\b[A-Z]\w*(?:(?:\s+(?:of|and|the|for|on|in|to)|\s*['\-]\s*)?\s*[A-Z]\w*)+\b"
+        # Step 1: Divide text into parts by sentence dividers (. ; ,)
+        sentence_parts = re.split(r"[.;,]", text)
 
-        # Define regex patterns (using NON-GREEDY quantifiers {0,6}?)
-        patterns = {
-            "regulations": [
-                r"\b([A-Z][A-Za-z]+(?:\s+(?:[A-Z][A-Za-z]+|of|and|the|for|on|in|to))*?)\s+Directive\b"
-            ],
-            "directives": [directive_pattern],
-            # "treaty": [
-            #     r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
-            #     r"\b(TEU|TFEU)\b",
-            #     r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5}?)\s+Treaty\b",
-            # ],
-            # "charter": [
-            #     r"Charter\s+of\s+(?:the\s+)?Fundamental\s+Rights(?:\s+of\s+the\s+European\s+Union)?"
-            # ],
-        }
+        # Step 2: Filter out parts containing legislation keywords
+        keywords = ["Directive", "Regulation", "Law", "Treaty", "Charter"]
+        filtered_parts = []
 
-        # Extract each type of legislation
-        for category, pattern_list in patterns.items():
-            matches = []
+        for part in sentence_parts:
+            if any(keyword in part for keyword in keywords):
+                filtered_parts.append(part.strip())
 
-            for pattern in pattern_list:
-                # Find all matches (case-insensitive)
-                found = re.findall(pattern, text, re.IGNORECASE)
+        # Step 3: Extract directives and regulations using regex
+        directive_pattern = r"\b[A-Z]\w*(?:(?:\s+(?:of|and|the|for|on|in|to)|\s*[\'‐]\s*)?\s*[A-Z]\w*)*(?:(?:\s+(?:of|and|the|for|on|in|to)|\s*[\'\-]\s*)?\s*Directive)\b"
+        regulation_pattern = r"\b[A-Z]\w*(?:(?:\s+(?:of|and|the|for|on|in|to)|\s*[\'\-]\s*)?\s*[A-Z]\w*)*(?:(?:\s+(?:of|and|the|for|on|in|to)|\s*[\'\-]\s*)?\s*Regulation)\b"
 
-                # Handle both capture groups and full matches
-                for match in found:
+        for part in filtered_parts:
+            # Extract directives
+            directive_matches = re.findall(directive_pattern, part)
+            for match in directive_matches:
+                result["directives"].append(match.strip())
+
+            # Extract regulations
+            regulation_matches = re.findall(regulation_pattern, part)
+            for match in regulation_matches:
+                result["regulations"].append(match.strip())
+
+        # Extract treaties using specific patterns
+        treaty_patterns = [
+            r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
+            r"\b(TEU|TFEU)\b",
+            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Treaty\b",
+        ]
+
+        for part in filtered_parts:
+            for pattern in treaty_patterns:
+                matches = re.findall(pattern, part)
+                for match in matches:
                     if isinstance(match, tuple):
-                        # If pattern has multiple capture groups, take first non-empty
-                        match_text = next((m for m in match if m), None)
-                    else:
-                        match_text = match
+                        match = (
+                            match[0] if match[0] else match[1] if len(match) > 1 else ""
+                        )
+                    if match and match not in result["treaty"]:
+                        result["treaty"].append(match.strip())
 
-                    if match_text:
-                        matches.append(match_text.strip())
+        # Extract charters using specific patterns
+        charter_patterns = [
+            r"Charter\s+of\s+(?:the\s+)?Fundamental\s+Rights(?:\s+of\s+the\s+European\s+Union)?",
+            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Charter\b",
+        ]
 
-            # Post-process: filter and deduplicate
-            filtered_matches = []
-            for match in matches:
-                # Skip empty matches
-                if not match or not match.strip():
-                    continue
+        for part in filtered_parts:
+            for pattern in charter_patterns:
+                matches = re.findall(pattern, part)
+                for match in matches:
+                    if isinstance(match, tuple):
+                        match = (
+                            match[0] if match[0] else match[1] if len(match) > 1 else ""
+                        )
+                    if match and match not in result["charter"]:
+                        result["charter"].append(match.strip())
 
-                # Skip if starts with articles
-                # if match.startswith(("The ", "the ", "A ", "a ", "An ", "an ")):
-                #     continue
+        # Clean up: remove leading articles
+        def clean_leading_articles(items: List[str]) -> List[str]:
+            """Remove leading articles from each item"""
+            cleaned = []
+            articles = ("The ", "the ", "A ", "a ", "An ", "an ")
 
-                # Skip very short matches (likely noise)
-                if len(match) < 3:
-                    continue
+            for item in items:
+                cleaned_item = item
+                for article in articles:
+                    if cleaned_item.startswith(article):
+                        cleaned_item = cleaned_item[len(article) :]
+                        break
+                if cleaned_item and len(cleaned_item) > 3:
+                    cleaned.append(cleaned_item)
 
-                # Skip if all lowercase
-                if match.islower():
-                    continue
+            return cleaned
 
-                # For regulations/directives: additional filtering
-                # if category in ["regulations", "directives"]:
-                #     # Must start with uppercase
-                #     if not match[0].isupper():
-                #         continue
+        # Deduplicate (case-insensitive)
+        def deduplicate_items(items: List[str]) -> List[str]:
+            """Remove duplicates (case-insensitive)"""
+            seen = set()
+            unique = []
 
-                #     # Skip if too long (more than 7 words)
-                #     if len(match.split()) > 7:
-                #         continue
+            for item in items:
+                item_lower = item.lower()
+                if item_lower not in seen:
+                    seen.add(item_lower)
+                    unique.append(item)
 
-                #     # Skip if contains too many connector words
-                #     words = match.split()
-                #     connectors = ["and", "the", "of", "or", "for", "in", "on", "to"]
-                #     if sum(1 for w in words if w.lower() in connectors) > 3:
-                #         continue
+            return sorted(unique)
 
-                # Add if not already in list (case-insensitive deduplication)
-                if not any(m.lower() == match.lower() for m in filtered_matches):
-                    filtered_matches.append(match)
-
-            result[category] = sorted(filtered_matches)
-
-        # Return None if nothing found
-        if not any(result.values()):
-            return None
+        # Clean and deduplicate all categories
+        for key in result.keys():
+            result[key] = clean_leading_articles(result[key])
+            result[key] = deduplicate_items(result[key])
 
         # Remove empty keys from result
         result = {key: value for key, value in result.items() if value}
 
-        # Return as JSON string
-        return json.dumps(result, indent=2, ensure_ascii=False)
+        return result
 
     def calculate_follow_up_duration_months(
         self, commission_date: Optional[str], latest_update: Optional[str]
