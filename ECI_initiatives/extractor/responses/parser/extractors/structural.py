@@ -247,6 +247,9 @@ class StructuralAnalysisExtractor(BaseExtractor):
         # Remove empty keys from result
         result = {key: value for key, value in result.items() if value}
 
+        if not result:
+            return None
+
         return result
 
     def calculate_follow_up_duration_months(
