@@ -220,7 +220,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
                     if cleaned_item.startswith(article):
                         cleaned_item = cleaned_item[len(article) :]
                         break
-                if cleaned_item and len(cleaned_item) > 3:
+                if cleaned_item:
                     cleaned.append(cleaned_item)
 
             return cleaned
@@ -294,19 +294,74 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
             return sorted(unique)
 
+        def split_multiple_legislations(items: List[str], keyword: str) -> List[str]:
+            """
+            Split items that contain multiple legislations connected by 'and', 'or', etc.
+            Removes the original combined items.
+
+            Example:
+                Input: ["Water Framework Directive and Floods Directive", "Birds Directive"]
+                Output: ["Water Framework Directive", "Floods Directive", "Birds Directive"]
+            """
+            split_items = []
+
+            for item in items:
+                # Count how many times the keyword appears
+                keyword_count = len(
+                    re.findall(rf"\b{re.escape(keyword)}\b", item, re.IGNORECASE)
+                )
+
+                if keyword_count > 1:
+                    # Multiple keywords found - split and DON'T keep the original
+                    parts = re.split(
+                        rf"\b{re.escape(keyword)}\b", item, flags=re.IGNORECASE
+                    )
+
+                    for i in range(len(parts) - 1):
+                        # Each part (except the last) should be followed by the keyword
+                        part = parts[i].strip()
+
+                        # Remove trailing conjunction from the part
+                        part = re.sub(
+                            r"\s*(?:and|or)\s*$", "", part, flags=re.IGNORECASE
+                        )
+
+                        # Remove leading conjunction from the part
+                        part = re.sub(
+                            r"^\s*(?:and|or)\s*", "", part, flags=re.IGNORECASE
+                        )
+
+                        if part:
+                            # Reconstruct with keyword
+                            split_items.append(f"{part} {keyword}".strip())
+                    # NOTE: We do NOT append the original combined item
+                else:
+                    # Single keyword - keep as is
+                    split_items.append(item)
+
+            return split_items
+
         # Clean, filter standalone keywords, and deduplicate all categories
         for key in ["directives", "regulations", "treaty", "charter"]:
             result[key] = clean_leading_articles(result[key])
 
             # Determine the keyword to filter
             if key == "directives":
-                result[key] = filter_standalone_keywords(result[key], "Directive")
+                items = split_multiple_legislations(result[key], "Directive")
+                items = filter_standalone_keywords(items, "Directive")
+                result[key] = items
             elif key == "regulations":
-                result[key] = filter_standalone_keywords(result[key], "Regulation")
+                items = split_multiple_legislations(result[key], "Regulation")
+                items = filter_standalone_keywords(items, "Regulation")
+                result[key] = items
             elif key == "treaty":
-                result[key] = filter_standalone_keywords(result[key], "Treaty")
+                items = split_multiple_legislations(result[key], "Treaty")
+                items = filter_standalone_keywords(items, "Treaty")
+                result[key] = items
             elif key == "charter":
-                result[key] = filter_standalone_keywords(result[key], "Charter")
+                items = split_multiple_legislations(result[key], "Charter")
+                items = filter_standalone_keywords(items, "Charter")
+                result[key] = items
 
             result[key] = deduplicate_items(result[key])
 
