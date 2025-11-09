@@ -300,23 +300,35 @@ class LegislationNameExtractor:
         return filtered
 
     def _deduplicate_items(self, category: str, items: List[str]) -> List[str]:
-        """Remove duplicates (case-insensitive) and return sorted unique items"""
+        """
+        Remove duplicates (case-insensitive) and return sorted unique items.
+        Also removes abbreviation + type duplicates (e.g., "REACH" when "REACH Regulation" exists).
 
-        # 1. Remove exact duplicates
+        Args:
+            category: The category key ("treaties", "charters", "directives", "regulations")
+            items: List of legislation strings
+
+        Returns:
+            Sorted list of unique items
+        """
+        if not items:
+            return []
+
+        # 1. Remove exact duplicates (case-insensitive)
         seen = set()
         unique = []
 
         for item in items:
-            item_lower = item.lower()
-            if item_lower not in seen:
+            item_stripped = item.strip()  # Strip whitespace first
+            item_lower = item_stripped.lower()
+
+            if item_lower not in seen and item_stripped:  # Also check non-empty
                 seen.add(item_lower)
-                unique.append(item)
+                unique.append(item_stripped)  # Append stripped version
 
         # 2. Remove duplicates with abbreviation + legislative_type
         # like in "REACH", "REACH Regulation"
         # remove the standalone "REACH" and keep "REACH Regulation"
-        items_to_remove = []
-
         category_to_type = {
             "treaties": "Treaty",
             "charters": "Charter",
@@ -324,14 +336,18 @@ class LegislationNameExtractor:
             "regulations": "Regulation",
         }
 
-        legislative_type = category_to_type.get(category, category.capitalize())
+        legislative_type = category_to_type.get(category, "")
+
+        if not legislative_type:
+            # If category not recognized, just return unique items sorted
+            return sorted(unique)
+
+        items_to_remove = []
 
         for item in unique:
-            item_stripped = item.strip()
-
             # Check if this item appears with the legislative type suffix in the list
             # e.g., if item is "REACH", check if "REACH Regulation" exists
-            potential_full_form = f"{item_stripped} {legislative_type}"
+            potential_full_form = f"{item} {legislative_type}"
 
             # Check if the full form exists in the list (case-insensitive)
             for other_item in unique:
@@ -846,11 +862,11 @@ class LegislationNameExtractor:
         self._extract_treaties(filtered_parts, result)
         self._extract_charters(filtered_parts, result)
 
-        # Remove duplicates
+        # Normalize
+        result = self._postprocess_legislation_categories(result)
 
+        # Remove duplicates
         for category, items in result.items():
             result[category] = self._deduplicate_items(category, items)
-
-        result = self._postprocess_legislation_categories(result)
 
         return self._serialize_result(result)
