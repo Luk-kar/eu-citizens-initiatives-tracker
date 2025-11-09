@@ -431,10 +431,10 @@ class LegislationNameExtractor:
             Tuple of (all sentence parts, filtered parts containing legislation keywords)
         """
         # Extract text with newline separation
-        text = soup.get_text(separator="\n", strip=True)
+        full_text = soup.get_text(separator="\n", strip=True)
 
         # Step 1: Divide text into parts by sentence dividers (. ; ,)
-        sentence_parts = re.split(r"[.;,]", text)
+        sentence_parts = re.split(r"[.;,]", full_text)
 
         # Step 2: Filter out parts containing legislation keywords
         keywords = ["Directive", "Regulation", "Law", "Treaty", "Charter"]
@@ -444,7 +444,7 @@ class LegislationNameExtractor:
             if any(keyword in part for keyword in keywords):
                 filtered_parts.append(part.strip())
 
-        return sentence_parts, filtered_parts
+        return full_text, filtered_parts
 
     def _extract_directives_and_regulations(
         self, filtered_parts: List[str], result: Dict[str, List[str]]
@@ -471,6 +471,224 @@ class LegislationNameExtractor:
             for match in regulation_matches:
                 result["regulations"].append(match.strip())
 
+    def _extract_treaty_abbreviations(
+        self, full_text: str, result: Dict[str, List[str]]
+    ) -> None:
+        """
+        Extract direct treaty abbreviations (TEU, TFEU) from full text.
+        This ensures critical treaty codes aren't missed by complex patterns.
+
+        Args:
+            full_text: Complete document text to search
+            result: Result dictionary to add matches to treaties category
+        """
+        primary_treaties = [
+            "TEU",  # Treaty on European Union
+            "TFEU",  # Treaty on the Functioning of the European Union
+        ]
+
+        # Historical treaties (Maastricht, Amsterdam, Nice, Lisbon)
+        historical_treaties = [
+            "MA",  # Maastricht Treaty
+            "AM",  # Amsterdam Treaty
+            "NI",  # Nice Treaty
+            "LI",  # Lisbon Treaty
+        ]
+
+        # Other important EU treaty references
+        # but no relevance to the ECI functioning
+        # avoid it not to create false positive cases
+        #   - Single European Act
+        #   - Treaty establishing the European Community
+        #   - Treaty establishing the European Atomic Energy Community
+
+        # Combine all treaty abbreviation lists
+        all_treaty_abbreviations = primary_treaties + historical_treaties
+
+        # Construct the alternation pattern dynamically
+        # Escape special regex characters and join with | (OR operator)
+        escaped_abbreviations = [re.escape(abbr) for abbr in all_treaty_abbreviations]
+        alternation_pattern = "|".join(escaped_abbreviations)
+
+        # Build the complete word boundary pattern
+        treaty_abbr_pattern = rf"\b({alternation_pattern})\b"
+
+        # Find all treaty abbreviations in the full text
+        matches = re.findall(treaty_abbr_pattern, full_text, re.IGNORECASE)
+
+        # Add unique matches to treaties category
+        for match in matches:
+            abbr = match.upper().strip()
+            if abbr not in result["treaties"]:
+                result["treaties"].append(abbr)
+
+    def _extract_charter_abbreviations(
+        self, full_text: str, result: Dict[str, List[str]]
+    ) -> None:
+        """
+        Extract direct charter abbreviations (CFR, etc.) from full text.
+        This ensures critical charter codes aren't missed by complex patterns.
+
+        Args:
+            full_text: Complete document text to search
+            result: Result dictionary to add matches to charters category
+        """
+        # Primary EU charter abbreviations
+        primary_charters = [
+            "CFR",  # Charter of Fundamental Rights
+        ]
+
+        # Other important charter references
+        other_charters = [
+            "ECHR",  # European Convention on Human Rights (often referenced alongside CFR)
+        ]
+
+        # Combine all charter abbreviation lists
+        all_charter_abbreviations = primary_charters + other_charters
+
+        # Construct the alternation pattern dynamically
+        # Escape special regex characters and join with | (OR operator)
+        escaped_abbreviations = [re.escape(abbr) for abbr in all_charter_abbreviations]
+        alternation_pattern = "|".join(escaped_abbreviations)
+
+        # Build the complete word boundary pattern
+        charter_abbr_pattern = rf"\b({alternation_pattern})\b"
+
+        # Find all charter abbreviations in the full text
+        matches = re.findall(charter_abbr_pattern, full_text, re.IGNORECASE)
+
+        # Add unique matches to charters category
+        for match in matches:
+            abbr = match.upper().strip()
+            if abbr and abbr not in result["charters"]:
+                result["charters"].append(abbr)
+
+    def _extract_directive_abbreviations(
+        self, full_text: str, result: Dict[str, List[str]]
+    ) -> None:
+        """
+        Extract direct directive abbreviations (WFD, BHD, etc.) from full text.
+        This ensures critical directive codes aren't missed by complex patterns.
+
+        Args:
+            full_text: Complete document text to search
+            result: Result dictionary to add matches to directives category
+        """
+        # Primary environmental directives
+        environmental_directives = [
+            "WFD",  # Water Framework Directive (2000/60/EC)
+            "BHD",  # Birds and Habitats Directives
+            "FWD",  # Floods Directive (2007/60/EC)
+            "NWD",  # Nitrates Directive (91/676/EEC)
+            "UWWTD",  # Urban Waste Water Treatment Directive (91/271/EEC)
+        ]
+
+        # Air quality and emissions directives
+        air_quality_directives = [
+            "AQD",  # Ambient Air Quality Directive (2008/50/EC)
+            "NEC",  # National Emission Ceilings Directive (2016/2284/EU)
+            "IED",  # Industrial Emissions Directive (2010/75/EU)
+        ]
+
+        # Other important directives
+        other_directives = [
+            "Aarhus",  # Aarhus Convention Implementation (2003/4/EC)
+            "EIA",  # Environmental Impact Assessment Directive (2011/92/EU)
+            "SEA",  # Strategic Environmental Assessment Directive (2001/42/EC)
+            "IPPC",  # Integrated Pollution Prevention and Control (now IED)
+        ]
+
+        # Combine all directive abbreviation lists
+        all_directive_abbreviations = (
+            environmental_directives + air_quality_directives + other_directives
+        )
+
+        # Construct the alternation pattern dynamically
+        escaped_abbreviations = [
+            re.escape(abbr) for abbr in all_directive_abbreviations
+        ]
+        alternation_pattern = "|".join(escaped_abbreviations)
+
+        # Build the complete word boundary pattern
+        directive_abbr_pattern = rf"\b({alternation_pattern})\b"
+
+        # Find all directive abbreviations in the full text
+        matches = re.findall(directive_abbr_pattern, full_text, re.IGNORECASE)
+
+        # Add unique matches to directives category
+        for match in matches:
+            abbr = match.upper().strip()
+            if abbr and abbr not in result["directives"]:
+                result["directives"].append(abbr)
+
+    def _extract_regulation_abbreviations(
+        self, full_text: str, result: Dict[str, List[str]]
+    ) -> None:
+        """
+        Extract direct regulation abbreviations (REACH, GDPR, etc.) from full text.
+        This ensures critical regulation codes aren't missed by complex patterns.
+
+        Args:
+            full_text: Complete document text to search
+            result: Result dictionary to add matches to regulations category
+        """
+        # Primary data protection and chemicals regulations
+        data_chemicals_regs = [
+            "GDPR",  # General Data Protection Regulation (2016/679)
+            "REACH",  # Registration, Evaluation, Authorisation and Restriction of Chemicals (1907/2006)
+            "RoHS",  # Restriction of Hazardous Substances (2011/65/EU)
+            "WEEE",  # Waste Electrical and Electronic Equipment (2012/19/EU)
+        ]
+
+        # Financial regulations
+        financial_regs = [
+            "EMIR",  # European Market Infrastructure Regulation (648/2012)
+            "MiFIR",  # Markets in Financial Instruments Regulation (600/2014)
+            "CRR",  # Capital Requirements Regulation (575/2013)
+            "CRD",  # Capital Requirements Directive (but often referenced as regulation)
+        ]
+
+        # Environmental and climate regulations
+        environmental_regs = [
+            "ETS",  # Emissions Trading System Regulation
+            "FQD",  # Fuel Quality Directive (but often treated as regulation context)
+            "LULUCF",  # Land Use, Land-Use Change and Forestry Regulation
+        ]
+
+        # Other important regulations
+        other_regulations = [
+            "PIC",  # Prior Informed Consent Regulation (649/2012)
+            "POPs",  # Persistent Organic Pollutants Regulation (850/2004)
+            "CLP",  # Classification, Labelling and Packaging Regulation (1272/2008)
+            "Biocides",  # Biocidal Products Regulation (528/2012)
+        ]
+
+        # Combine all regulation abbreviation lists
+        all_regulation_abbreviations = (
+            data_chemicals_regs
+            + financial_regs
+            + environmental_regs
+            + other_regulations
+        )
+
+        # Construct the alternation pattern dynamically
+        escaped_abbreviations = [
+            re.escape(abbr) for abbr in all_regulation_abbreviations
+        ]
+        alternation_pattern = "|".join(escaped_abbreviations)
+
+        # Build the complete word boundary pattern
+        regulation_abbr_pattern = rf"\b({alternation_pattern})\b"
+
+        # Find all regulation abbreviations in the full text
+        matches = re.findall(regulation_abbr_pattern, full_text, re.IGNORECASE)
+
+        # Add unique matches to regulations category
+        for match in matches:
+            abbr = match.upper().strip()
+            if abbr and abbr not in result["regulations"]:
+                result["regulations"].append(abbr)
+
     def _extract_treaties(
         self, filtered_parts: List[str], result: Dict[str, List[str]]
     ) -> None:
@@ -483,7 +701,6 @@ class LegislationNameExtractor:
         """
         treaty_patterns = [
             r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
-            r"\b(TEU|TFEU)\b",
             r"\b((?:[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Treaty)\b",
         ]
 
@@ -575,7 +792,7 @@ class LegislationNameExtractor:
         """
         soup = self._preprocess_html(soup)
 
-        _, filtered_parts = self._extract_text_parts(soup)
+        full_text, filtered_parts = self._extract_text_parts(soup)
 
         result: Dict[str, List[str]] = {
             "treaties": [],
@@ -583,6 +800,12 @@ class LegislationNameExtractor:
             "directives": [],
             "regulations": [],
         }
+
+        # Extract treaty abbreviations directly (before complex patterns)
+        self._extract_treaty_abbreviations(full_text, result)
+        self._extract_charter_abbreviations(full_text, result)
+        self._extract_directive_abbreviations(full_text, result)
+        self._extract_regulation_abbreviations(full_text, result)
 
         # Extract specific legislation types results
         self._extract_directives_and_regulations(filtered_parts, result)
