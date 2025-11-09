@@ -189,6 +189,40 @@ class StructuralAnalysisExtractor(BaseExtractor):
             for match in regulation_matches:
                 result["regulations"].append(match.strip())
 
+        def _extract_pattern_matches(
+            filtered_parts: List[str],
+            patterns: List[str],
+            result_key: str,
+            result: Dict[str, List[str]],
+        ) -> None:
+            """
+            Generic pattern extraction helper for treaties, charters, and similar categories.
+
+            Args:
+                filtered_parts: List of text parts containing legislation keywords
+                patterns: List of regex patterns to match against
+                result_key: The key in result dict to store matches (e.g., "treaties", "charters")
+                result: The result dictionary to append matches to
+            """
+            for part in filtered_parts:
+                for pattern in patterns:
+                    matches = re.findall(pattern, part)
+
+                    for match in matches:
+                        # Handle tuple matches from capturing groups
+                        if isinstance(match, tuple):
+                            # For patterns with multiple groups, take first non-empty group
+                            # This handles cases like (group1, group2) where one might be empty
+                            match = (
+                                match[0]
+                                if match[0]
+                                else match[1] if len(match) > 1 and match[1] else ""
+                            )
+
+                        # Only add non-empty matches that aren't already present
+                        if match and match and match not in result[result_key]:
+                            result[result_key].append(match.strip())
+
         # Extract treaties using specific patterns
         treaty_patterns = [
             r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
@@ -196,16 +230,12 @@ class StructuralAnalysisExtractor(BaseExtractor):
             r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Treaty\b",
         ]
 
-        for part in filtered_parts:
-            for pattern in treaty_patterns:
-                matches = re.findall(pattern, part)
-                for match in matches:
-                    if isinstance(match, tuple):
-                        match = (
-                            match[0] if match[0] else match[1] if len(match) > 1 else ""
-                        )
-                    if match and match not in result["treaties"]:
-                        result["treaties"].append(match.strip())
+        _extract_pattern_matches(
+            filtered_parts=filtered_parts,
+            patterns=treaty_patterns,
+            result_key="treaties",
+            result=result,
+        )
 
         # Extract charters using specific patterns
         charter_patterns = [
@@ -213,16 +243,12 @@ class StructuralAnalysisExtractor(BaseExtractor):
             r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Charter\b",
         ]
 
-        for part in filtered_parts:
-            for pattern in charter_patterns:
-                matches = re.findall(pattern, part)
-                for match in matches:
-                    if isinstance(match, tuple):
-                        match = (
-                            match[0] if match[0] else match[1] if len(match) > 1 else ""
-                        )
-                    if match and match not in result["charters"]:
-                        result["charters"].append(match.strip())
+        _extract_pattern_matches(
+            filtered_parts=filtered_parts,
+            patterns=charter_patterns,
+            result_key="charters",
+            result=result,
+        )
 
         # Clean up: remove leading articles
         def clean_leading_articles(items: List[str]) -> List[str]:
