@@ -137,25 +137,42 @@ class StructuralAnalysisExtractor(BaseExtractor):
             JSON string with extracted legislation, or None if no legislation found
         """
 
-        # Common regex components
-        COMMON_PREP_POSITIONS = r"(?:of|and|the|for|on|in|to)"
-        COMMON_WORD_CONNECTORS = r"(?:\s+(?:of|and|the|for|on|in|to)|\s*[\'‐]\s*)"
-        COMMON_QUOTES_HYPHENS = r"\s*[\'\-]\s*"
+        # EU Legislation Components
+        EU_LEGISLATION_PREPOSITIONS = r"(?:of|and|the|for|on|in|to)"
+        EU_NAME_SPACERS = r"(?:\s+(?:of|and|the|for|on|in|to)|\s*[\'‐]\s*)"
+        EU_PUNCTUATION_LINKS = r"\s*[\'\-]\s*"
 
-        # Word unit pattern for title case words
-        WORD_UNIT = r"[A-Z]\w*"
+        # Title case patterns for directive/regulation names
+        TITLE_CASE_WORD = r"[A-Z]\w*"
+        LEGISLATION_NAME_ENDING = rf"(?:{EU_NAME_SPACERS}|{EU_PUNCTUATION_LINKS})"
 
-        # Preposition and connector pattern for ending
-        END_CONNECTOR = rf"(?:{COMMON_WORD_CONNECTORS}|{COMMON_QUOTES_HYPHENS})"
+        # Core pattern for EU legislation names, catches:
+        #
+        # "Drinking Water Directive", "Floods Directive", "Water Framework Directive",
+        # "Sustainable Use Directive", "AVMSD Directive", "Audiovisual Media Services Directive",
+        # "Cosmetic Products Regulation", "EU Cosmetics Regulation", "REACH Regulation",
+        # "General Food Law Regulation", "Common Provisions Regulation", "ECI Regulation",
+        # "Nature Restoration Law", "Sustainable Use of Plant Protection Products Regulation"
 
-        # Regex patterns for treaty extraction
+        EU_LEGISLATION_NAME_PATTERN = (
+            rf"\b{TITLE_CASE_WORD}(?:{EU_NAME_SPACERS}?{TITLE_CASE_WORD})*"
+            rf"(?:{LEGISLATION_NAME_ENDING}?{TITLE_CASE_WORD})*"
+        )
+
+        # Regex patterns for treaty extraction, catches:
+        #
+        # "TEU", "TFEU", "Treaty on the European Union",
+        # "Treaty on Functioning of the European Union", "Lisbon Treaty", "Maastricht Treaty"
         TREATY_PATTERNS = [
             r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
             r"\b(TEU|TFEU)\b",
             r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){{0,5}})\s+Treaty\b",
         ]
 
-        # Regex patterns for charter extraction
+        # Regex patterns for charter extraction, catches:
+        #
+        # "Charter of Fundamental Rights", "Charter of Fundamental Rights of the European Union",
+        # "European Social Charter", "Youth Charter"
         CHARTER_PATTERNS = [
             r"Charter\s+of\s+(?:the\s+)?Fundamental\s+Rights(?:\s+of\s+the\s+European\s+Union)?",
             r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){{0,5}})\s+Charter\b",
@@ -188,14 +205,20 @@ class StructuralAnalysisExtractor(BaseExtractor):
                 filtered_parts.append(part.strip())
 
         # Step 3: Extract directives and regulations using regex
-        # Base pattern for name extraction: word units connected by prepositions/connectors
-        base_name_pattern = rf"\b{WORD_UNIT}(?:{COMMON_WORD_CONNECTORS}?{WORD_UNIT})*(?:{END_CONNECTOR}?{WORD_UNIT})*"
 
         # Create patterns using format string method
-        directive_pattern = base_name_pattern + rf"(?:{END_CONNECTOR}?\s*Directive)\b"
-        regulation_pattern = base_name_pattern + rf"(?:{END_CONNECTOR}?\s*Regulation)\b"
+        directive_pattern = (
+            EU_LEGISLATION_NAME_PATTERN
+            + rf"(?:{LEGISLATION_NAME_ENDING}?\s*Directive)\b"
+        )
+
+        regulation_pattern = (
+            EU_LEGISLATION_NAME_PATTERN
+            + rf"(?:{LEGISLATION_NAME_ENDING}?\s*Regulation)\b"
+        )
 
         for part in filtered_parts:
+
             # Extract directives
             directive_matches = re.findall(directive_pattern, part)
             for match in directive_matches:
@@ -208,25 +231,33 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
         # Extract treaties using specific patterns
         for part in filtered_parts:
+
             for pattern in self.TREATY_PATTERNS:
                 matches = re.findall(pattern, part)
+
                 for match in matches:
                     if isinstance(match, tuple):
+
                         match = (
                             match[0] if match[0] else match[1] if len(match) > 1 else ""
                         )
+
                     if match and match not in result["treaties"]:
                         result["treaties"].append(match.strip())
 
         # Extract charters using specific patterns
         for part in filtered_parts:
+
             for pattern in self.CHARTER_PATTERNS:
                 matches = re.findall(pattern, part)
+
                 for match in matches:
                     if isinstance(match, tuple):
+
                         match = (
                             match[0] if match[0] else match[1] if len(match) > 1 else ""
                         )
+
                     if match and match not in result["charters"]:
                         result["charters"].append(match.strip())
 
@@ -293,13 +324,16 @@ class StructuralAnalysisExtractor(BaseExtractor):
                 # Check if item is just a generic prefix + keyword
                 is_generic = False
                 for prefix in generic_prefixes:
+
                     # Pattern: "Proposal for Regulation" or "Proposal for the Regulation"
                     if item_lower == f"{prefix.lower()} {keyword.lower()}":
                         is_generic = True
                         break
+
                     if item_lower == f"{prefix.lower()} the {keyword.lower()}":
                         is_generic = True
                         break
+
                     if item_lower == f"{prefix.lower()} a {keyword.lower()}":
                         is_generic = True
                         break
@@ -312,11 +346,13 @@ class StructuralAnalysisExtractor(BaseExtractor):
         # Deduplicate (case-insensitive)
         def deduplicate_items(items: List[str]) -> List[str]:
             """Remove duplicates (case-insensitive)"""
+
             seen = set()
             unique = []
 
             for item in items:
                 item_lower = item.lower()
+
                 if item_lower not in seen:
                     seen.add(item_lower)
                     unique.append(item)
@@ -335,10 +371,12 @@ class StructuralAnalysisExtractor(BaseExtractor):
             split_items = []
 
             for item in items:
+
                 # First split by newlines
                 newline_parts = item.split("\n")
 
                 for newline_part in newline_parts:
+
                     newline_part = newline_part.strip()
                     if not newline_part:
                         continue
@@ -353,6 +391,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
                     )
 
                     if keyword_count > 1:
+
                         # Multiple keywords found - split and DON'T keep the original
                         parts = re.split(
                             rf"\b{{{re.escape(keyword)}}}\b",
@@ -377,6 +416,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
                             if part:
                                 # Reconstruct with keyword
                                 split_items.append(f"{part} {keyword}".strip())
+
                         # NOTE: We do NOT append the original combined item
                     else:
                         # Single keyword - keep as is
