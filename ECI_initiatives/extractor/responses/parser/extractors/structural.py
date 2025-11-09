@@ -213,7 +213,7 @@ class LegislationNameExtractor:
                     if match and match and match not in result[result_key]:
                         result[result_key].append(match.strip())
 
-    def clean_leading_articles(self, items: List[str]) -> List[str]:
+    def _clean_leading_articles(self, items: List[str]) -> List[str]:
         """Remove leading articles from each item ('The', 'the', 'A', 'a', etc.)"""
         cleaned = []
         articles = ("The ", "the ", "A ", "a ", "An ", "an ")
@@ -229,7 +229,7 @@ class LegislationNameExtractor:
 
         return cleaned
 
-    def filter_standalone_keywords(self, items: List[str], keyword: str) -> List[str]:
+    def _filter_standalone_keywords(self, items: List[str], keyword: str) -> List[str]:
         """
         Remove items that are just the keyword alone or with common generic prefixes.
         Filters out overly generic references like "EU Directive" or "Proposal for Regulation".
@@ -299,7 +299,7 @@ class LegislationNameExtractor:
 
         return filtered
 
-    def deduplicate_items(self, items: List[str]) -> List[str]:
+    def _deduplicate_items(self, items: List[str]) -> List[str]:
         """Remove duplicates (case-insensitive) and return sorted unique items"""
         seen = set()
         unique = []
@@ -312,7 +312,7 @@ class LegislationNameExtractor:
 
         return sorted(unique)
 
-    def split_multiple_legislations(self, items: List[str], keyword: str) -> List[str]:
+    def _split_multiple_legislations(self, items: List[str], keyword: str) -> List[str]:
         """
         Split items that contain multiple legislations connected by 'and', 'or', or newlines.
         Removes the original combined items and reconstructs individual references.
@@ -463,27 +463,27 @@ class LegislationNameExtractor:
 
         # Clean, filter standalone keywords, and deduplicate all categories
         for key in ["directives", "regulations", "treaties", "charters"]:
-            result[key] = self.clean_leading_articles(result[key])
+            result[key] = self._clean_leading_articles(result[key])
 
             # Determine the keyword to filter
             if key == "directives":
-                items = self.split_multiple_legislations(result[key], "Directive")
-                items = self.filter_standalone_keywords(items, "Directive")
+                items = self._split_multiple_legislations(result[key], "Directive")
+                items = self._filter_standalone_keywords(items, "Directive")
                 result[key] = items
             elif key == "regulations":
-                items = self.split_multiple_legislations(result[key], "Regulation")
-                items = self.filter_standalone_keywords(items, "Regulation")
+                items = self._split_multiple_legislations(result[key], "Regulation")
+                items = self._filter_standalone_keywords(items, "Regulation")
                 result[key] = items
             elif key == "treaties":
-                items = self.split_multiple_legislations(result[key], "Treaty")
-                items = self.filter_standalone_keywords(items, "Treaty")
+                items = self._split_multiple_legislations(result[key], "Treaty")
+                items = self._filter_standalone_keywords(items, "Treaty")
                 result[key] = items
             elif key == "charters":
-                items = self.split_multiple_legislations(result[key], "Charter")
-                items = self.filter_standalone_keywords(items, "Charter")
+                items = self._split_multiple_legislations(result[key], "Charter")
+                items = self._filter_standalone_keywords(items, "Charter")
                 result[key] = items
 
-            result[key] = self.deduplicate_items(result[key])
+            result[key] = self._deduplicate_items(result[key])
 
         # Remove empty keys from result
         result = {key: value for key, value in result.items() if value}
