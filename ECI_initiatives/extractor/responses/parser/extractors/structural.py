@@ -378,6 +378,34 @@ class LegislationNameExtractor:
 
         return split_items
 
+    def _process_legislation_category(
+        self, key: str, result: Dict[str, List[str]], keyword_map: Dict[str, str]
+    ) -> None:
+        """
+        Process a single legislation category: clean articles, split multiples,
+        filter standalone keywords, and deduplicate items.
+
+        Args:
+            key: The category key ("directives", "regulations", etc.)
+            result: The result dictionary containing the category list
+            keyword_map: Mapping of category keys to their processing keywords
+        """
+        if key not in result or not result[key]:
+            return
+
+        keyword = keyword_map.get(key, key.capitalize())
+
+        # Clean leading articles
+        result[key] = self._clean_leading_articles(result[key])
+
+        # Split multiple legislations and filter standalone keywords
+        items = self._split_multiple_legislations(result[key], keyword)
+        items = self._filter_standalone_keywords(items, keyword)
+        result[key] = items
+
+        # Deduplicate and sort
+        result[key] = self._deduplicate_items(result[key])
+
     def extract_referenced_legislation_by_name(
         self, soup: BeautifulSoup
     ) -> Optional[str]:
@@ -461,29 +489,17 @@ class LegislationNameExtractor:
             result=result,
         )
 
+        # Process each category using the extracted helper method
+        keyword_mapping = {
+            "directives": "Directive",
+            "regulations": "Regulation",
+            "treaties": "Treaty",
+            "charters": "Charter",
+        }
+
         # Clean, filter standalone keywords, and deduplicate all categories
         for key in ["directives", "regulations", "treaties", "charters"]:
-            result[key] = self._clean_leading_articles(result[key])
-
-            # Determine the keyword to filter
-            if key == "directives":
-                items = self._split_multiple_legislations(result[key], "Directive")
-                items = self._filter_standalone_keywords(items, "Directive")
-                result[key] = items
-            elif key == "regulations":
-                items = self._split_multiple_legislations(result[key], "Regulation")
-                items = self._filter_standalone_keywords(items, "Regulation")
-                result[key] = items
-            elif key == "treaties":
-                items = self._split_multiple_legislations(result[key], "Treaty")
-                items = self._filter_standalone_keywords(items, "Treaty")
-                result[key] = items
-            elif key == "charters":
-                items = self._split_multiple_legislations(result[key], "Charter")
-                items = self._filter_standalone_keywords(items, "Charter")
-                result[key] = items
-
-            result[key] = self._deduplicate_items(result[key])
+            self._process_legislation_category(key, result, keyword_mapping)
 
         # Remove empty keys from result
         result = {key: value for key, value in result.items() if value}
