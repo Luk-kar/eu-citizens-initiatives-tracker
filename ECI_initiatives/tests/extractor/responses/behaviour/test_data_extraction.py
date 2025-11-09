@@ -6075,7 +6075,9 @@ class TestStructuralAnalysis:
 
         # TEST 10: Empty soup - should return None
         soup10 = BeautifulSoup("", "html.parser")
-        result10 = self.parser.structural_analysis.extract_referenced_legislation(soup10)
+        result10 = self.parser.structural_analysis.extract_referenced_legislation(
+            soup10
+        )
         self.assertIsNone(result10)
 
         # TEST 11: URL-encoded Official Journal reference
@@ -6085,7 +6087,9 @@ class TestStructuralAnalysis:
         </a>
         """
         soup11 = BeautifulSoup(html11, "html.parser")
-        result11 = self.parser.structural_analysis.extract_referenced_legislation(soup11)
+        result11 = self.parser.structural_analysis.extract_referenced_legislation(
+            soup11
+        )
         result11_dict = json.loads(result11)
         self.assertIn("official_journal", result11_dict)
         self.assertIn("legislation", result11_dict["official_journal"])
@@ -6096,7 +6100,9 @@ class TestStructuralAnalysis:
         <a href="http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv:OJ.L_.2020.45.01.0001.01.ENG">L2</a>
         """
         soup12 = BeautifulSoup(html12, "html.parser")
-        result12 = self.parser.structural_analysis.extract_referenced_legislation(soup12)
+        result12 = self.parser.structural_analysis.extract_referenced_legislation(
+            soup12
+        )
         result12_dict = json.loads(result12)
         self.assertIn("official_journal", result12_dict)
         self.assertIn("legislation", result12_dict["official_journal"])
@@ -6107,7 +6113,9 @@ class TestStructuralAnalysis:
         <a href="http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv:OJ.C_.2020.145.02.0003.02.ENG">C</a>
         """
         soup13 = BeautifulSoup(html13, "html.parser")
-        result13 = self.parser.structural_analysis.extract_referenced_legislation(soup13)
+        result13 = self.parser.structural_analysis.extract_referenced_legislation(
+            soup13
+        )
         result13_dict = json.loads(result13)
         self.assertIn("official_journal", result13_dict)
         self.assertNotIn("legislation", result13_dict["official_journal"])
@@ -6118,7 +6126,9 @@ class TestStructuralAnalysis:
         <div>Directive 2010/63 applies here</div>
         """
         soup14 = BeautifulSoup(html14, "html.parser")
-        result14 = self.parser.structural_analysis.extract_referenced_legislation(soup14)
+        result14 = self.parser.structural_analysis.extract_referenced_legislation(
+            soup14
+        )
         result14_dict = json.loads(result14)
         self.assertIn("Directive", result14_dict)
         self.assertEqual(result14_dict["Directive"], ["2010/63"])
@@ -6128,7 +6138,9 @@ class TestStructuralAnalysis:
         <div>Regulation (EU) No. 1234/2020 on transparency requirements</div>
         """
         soup15 = BeautifulSoup(html15, "html.parser")
-        result15 = self.parser.structural_analysis.extract_referenced_legislation(soup15)
+        result15 = self.parser.structural_analysis.extract_referenced_legislation(
+            soup15
+        )
         result15_dict = json.loads(result15)
         self.assertIn("Regulation", result15_dict)
         self.assertEqual(result15_dict["Regulation"], ["1234/2020"])
@@ -6140,7 +6152,11 @@ class TestStructuralAnalysis:
             "<div>This proposal is in line with the Water Framework Directive.</div>"
         )
         soup1 = BeautifulSoup(html1, "html.parser")
-        result1 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup1)
+        result1 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup1
+            )
+        )
         assert result1 is not None
         res1 = json.loads(result1)
         assert res1["directives"] == ["Water Framework Directive"]
@@ -6148,7 +6164,11 @@ class TestStructuralAnalysis:
         # 2. Basic extraction - Regulation and Charter
         html2 = "<div>This complies with the General Data Protection Regulation and the Charter of Fundamental Rights.</div>"
         soup2 = BeautifulSoup(html2, "html.parser")
-        result2 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup2)
+        result2 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup2
+            )
+        )
         assert result2 is not None
         res2 = json.loads(result2)
         assert "regulations" in res2 and res2["regulations"] == [
@@ -6164,7 +6184,11 @@ class TestStructuralAnalysis:
             "<p>See also Orchids Regulation.</p>"
         )
         soup3 = BeautifulSoup(html3, "html.parser")
-        result3 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup3)
+        result3 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup3
+            )
+        )
         res3 = json.loads(result3)
         assert sorted(res3["directives"]) == ["Birds Directive", "Habitats Directive"]
         assert res3["regulations"] == ["Orchids Regulation"]
@@ -6175,7 +6199,11 @@ class TestStructuralAnalysis:
             "and Lisbon Treaty. Refer also to Charter of Fundamental Rights.</div>"
         )
         soup4 = BeautifulSoup(html4, "html.parser")
-        result4 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup4)
+        result4 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup4
+            )
+        )
         res4 = json.loads(result4)
         assert sorted(res4["treaties"]) == [
             "Lisbon Treaty",
@@ -6188,14 +6216,22 @@ class TestStructuralAnalysis:
         # 5. Remove empty/standalone/generic - only real Directive kept
         html5 = "<div>Proposal for a Directive, the Directive, and the Animal Welfare Directive.</div>"
         soup5 = BeautifulSoup(html5, "html.parser")
-        result5 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup5)
+        result5 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup5
+            )
+        )
         res5 = json.loads(result5)
         assert res5["directives"] == ["Animal Welfare Directive"]
 
         # 6. Leading articles removed
         html6 = "<div>The Water Framework Directive, a Floods Directive and an Allergy Regulation.</div>"
         soup6 = BeautifulSoup(html6, "html.parser")
-        result6 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup6)
+        result6 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup6
+            )
+        )
         res6 = json.loads(result6)
         assert sorted(res6["directives"]) == [
             "Floods Directive",
@@ -6206,7 +6242,11 @@ class TestStructuralAnalysis:
         # 7. Deduplication and non-inclusion of generic
         html7 = "<div>General Food Law Regulation and General Food Law Regulation and Proposal for Regulation</div>"
         soup7 = BeautifulSoup(html7, "html.parser")
-        result7 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup7)
+        result7 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup7
+            )
+        )
         res7 = json.loads(result7)
         assert res7["regulations"] == ["General Food Law Regulation"]
 
@@ -6215,7 +6255,11 @@ class TestStructuralAnalysis:
             "<div>Water Framework Directive\nBirds Directive and Floods Directive</div>"
         )
         soup8 = BeautifulSoup(html8, "html.parser")
-        result8 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup8)
+        result8 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup8
+            )
+        )
         res8 = json.loads(result8)
         assert sorted(res8["directives"]) == [
             "Birds Directive",
@@ -6226,25 +6270,41 @@ class TestStructuralAnalysis:
         # 9. Charter alternative capture (named)
         html9 = "<div>European Social Charter and Youth Charter were mentioned.</div>"
         soup9 = BeautifulSoup(html9, "html.parser")
-        result9 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup9)
+        result9 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup9
+            )
+        )
         res9 = json.loads(result9)
         assert sorted(res9["charters"]) == ["European Social Charter", "Youth Charter"]
 
         # 10. No match returns None
         html10 = "<div>This sentence contains no legislation references at all.</div>"
         soup10 = BeautifulSoup(html10, "html.parser")
-        result10 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup10)
+        result10 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup10
+            )
+        )
         assert result10 is None
 
         # 11. Empty soup returns None
         soup11 = BeautifulSoup("", "html.parser")
-        result11 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup11)
+        result11 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup11
+            )
+        )
         assert result11 is None
 
         # 12. Tags inside strong are unwrapped and counted
         html12 = "<div><strong>Biodiversity Regulation</strong> is critical. The Water Framework Directive applies.</div>"
         soup12 = BeautifulSoup(html12, "html.parser")
-        result12 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup12)
+        result12 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup12
+            )
+        )
         res12 = json.loads(result12)
         assert res12["regulations"] == ["Biodiversity Regulation"]
         assert res12["directives"] == ["Water Framework Directive"]
@@ -6254,7 +6314,11 @@ class TestStructuralAnalysis:
             "<div>By the Charter of Fundamental Rights and the Maastricht Treaty.</div>"
         )
         soup13 = BeautifulSoup(html13, "html.parser")
-        result13 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup13)
+        result13 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup13
+            )
+        )
         res13 = json.loads(result13)
         assert res13["charters"] == ["Charter of Fundamental Rights"]
         assert res13["treaties"] == ["Maastricht Treaty"]
@@ -6262,7 +6326,11 @@ class TestStructuralAnalysis:
         # 14. Case-insensitivity, weird spacing/hyphens
         html14 = "<div>The habitat   Directive and the general-data-protection Regulation apply.</div>"
         soup14 = BeautifulSoup(html14, "html.parser")
-        result14 = self.parser.structural_analysis.extract_referenced_legislation_by_name(soup14)
+        result14 = (
+            self.parser.structural_analysis.extract_referenced_legislation_by_name(
+                soup14
+            )
+        )
         res14 = json.loads(result14)
         # Should pick up "habitat Directive" and "general-data-protection Regulation"
         assert "directives" in res14 and any(

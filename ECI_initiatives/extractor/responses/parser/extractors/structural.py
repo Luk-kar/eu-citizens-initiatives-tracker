@@ -484,7 +484,7 @@ class LegislationNameExtractor:
         treaty_patterns = [
             r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
             r"\b(TEU|TFEU)\b",
-            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Treaty\b",
+            r"\b((?:[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Treaty)\b",
         ]
 
         self._extract_pattern_matches(
