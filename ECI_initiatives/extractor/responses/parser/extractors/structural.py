@@ -488,14 +488,14 @@ class StructuralAnalysisExtractor(BaseExtractor):
             # Remove empty keys from result
             return {key: value for key, value in result.items() if value}
 
-        text = _process_html_to_text(soup)
-
         result = {
             "treaties": [],
             "charters": [],
             "directives": [],
             "regulations": [],
         }
+
+        text = _process_html_to_text(soup)
 
         sentence_parts = _split_into_sentence_parts(text)
 
