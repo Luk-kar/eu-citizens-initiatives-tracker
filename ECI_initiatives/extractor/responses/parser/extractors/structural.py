@@ -163,14 +163,20 @@ class StructuralAnalysisExtractor(BaseExtractor):
                 filtered_parts.append(part.strip())
 
         # Step 3: Extract directives and regulations using regex
-        EU_LEGISLATION_PREPOSITIONS = r"(?:of|and|the|for|on|in|to)"
-        EU_PUNCTUATION_LINKS = r"\s*[\'\‐]\s*"
-        EU_NAME_SPACERS = (
-            rf"(?:\s+{EU_LEGISLATION_PREPOSITIONS}|{EU_PUNCTUATION_LINKS})"
-        )
 
-        directive_pattern = rf"\b[A-Z]\w*(?:{EU_NAME_SPACERS}?\s*[A-Z]\w*)*(?:{EU_NAME_SPACERS}?\s*Directive)\b"
-        regulation_pattern = rf"\b[A-Z]\w*(?:{EU_NAME_SPACERS}?\s*[A-Z]\w*)*(?:{EU_NAME_SPACERS}?\s*Regulation)\b"
+        def _create_legislative_pattern(type_legislation: str) -> str:
+
+            EU_LEGISLATION_PREPOSITIONS = r"(?:of|and|the|for|on|in|to)"
+            EU_PUNCTUATION_LINKS = r"\s*[\'\‐]\s*"
+            EU_NAME_SPACERS = (
+                rf"(?:\s+{EU_LEGISLATION_PREPOSITIONS}|{EU_PUNCTUATION_LINKS})"
+            )
+            TITLE_CASE_WORD = r"[A-Z]\w*"
+
+            return rf"\b{TITLE_CASE_WORD}(?:{EU_NAME_SPACERS}?\s*{TITLE_CASE_WORD})*(?:{EU_NAME_SPACERS}?\s*{type_legislation})\b"
+
+        directive_pattern = _create_legislative_pattern("Directive")
+        regulation_pattern = _create_legislative_pattern("Regulation")
 
         for part in filtered_parts:
             # Extract directives
