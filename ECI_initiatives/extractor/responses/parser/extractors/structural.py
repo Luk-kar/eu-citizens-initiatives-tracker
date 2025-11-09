@@ -299,8 +299,10 @@ class LegislationNameExtractor:
 
         return filtered
 
-    def _deduplicate_items(self, items: List[str]) -> List[str]:
+    def _deduplicate_items(self, category: str, items: List[str]) -> List[str]:
         """Remove duplicates (case-insensitive) and return sorted unique items"""
+
+        # 1. Remove exact duplicates
         seen = set()
         unique = []
 
@@ -310,7 +312,42 @@ class LegislationNameExtractor:
                 seen.add(item_lower)
                 unique.append(item)
 
-        return sorted(unique)
+        # 2. Remove duplicates with abbreviation + legislative_type
+        # like in "REACH", "REACH Regulation"
+        # remove the standalone "REACH" and keep "REACH Regulation"
+        items_to_remove = []
+
+        category_to_type = {
+            "treaties": "Treaty",
+            "charters": "Charter",
+            "directives": "Directive",
+            "regulations": "Regulation",
+        }
+
+        legislative_type = category_to_type.get(category, category.capitalize())
+
+        for item in unique:
+            item_stripped = item.strip()
+
+            # Check if this item appears with the legislative type suffix in the list
+            # e.g., if item is "REACH", check if "REACH Regulation" exists
+            potential_full_form = f"{item_stripped} {legislative_type}"
+
+            # Check if the full form exists in the list (case-insensitive)
+            for other_item in unique:
+                if (
+                    other_item.lower() == potential_full_form.lower()
+                    and other_item != item
+                ):
+                    # Found "REACH Regulation" when checking "REACH"
+                    # Mark the standalone abbreviation for removal
+                    items_to_remove.append(item)
+                    break
+
+        # Remove the marked items
+        final_items = [item for item in unique if item not in items_to_remove]
+
+        return sorted(final_items)
 
     def _split_multiple_legislations(self, items: List[str], keyword: str) -> List[str]:
         """
@@ -402,9 +439,6 @@ class LegislationNameExtractor:
         items = self._split_multiple_legislations(result[key], keyword)
         items = self._filter_standalone_keywords(items, keyword)
         result[key] = items
-
-        # Deduplicate and sort
-        result[key] = self._deduplicate_items(result[key])
 
     def _preprocess_html(self, soup: BeautifulSoup) -> BeautifulSoup:
         """
@@ -811,6 +845,11 @@ class LegislationNameExtractor:
         self._extract_directives_and_regulations(filtered_parts, result)
         self._extract_treaties(filtered_parts, result)
         self._extract_charters(filtered_parts, result)
+
+        # Remove duplicates
+
+        for category, items in result.items():
+            result[category] = self._deduplicate_items(category, items)
 
         result = self._postprocess_legislation_categories(result)
 
