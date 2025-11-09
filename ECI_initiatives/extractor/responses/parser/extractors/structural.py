@@ -164,7 +164,10 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
         # Step 3: Extract directives and regulations using regex
         EU_LEGISLATION_PREPOSITIONS = r"(?:of|and|the|for|on|in|to)"
-        EU_NAME_SPACERS = rf"(?:\s+{EU_LEGISLATION_PREPOSITIONS}|\s*[\'\‐]\s*)"
+        EU_PUNCTUATION_LINKS = r"\s*[\'\‐]\s*"
+        EU_NAME_SPACERS = (
+            rf"(?:\s+{EU_LEGISLATION_PREPOSITIONS}|{EU_PUNCTUATION_LINKS})"
+        )
 
         directive_pattern = rf"\b[A-Z]\w*(?:{EU_NAME_SPACERS}?\s*[A-Z]\w*)*(?:{EU_NAME_SPACERS}?\s*Directive)\b"
         regulation_pattern = rf"\b[A-Z]\w*(?:{EU_NAME_SPACERS}?\s*[A-Z]\w*)*(?:{EU_NAME_SPACERS}?\s*Regulation)\b"
