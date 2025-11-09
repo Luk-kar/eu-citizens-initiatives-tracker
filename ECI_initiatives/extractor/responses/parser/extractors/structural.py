@@ -137,197 +137,262 @@ class StructuralAnalysisExtractor(BaseExtractor):
             JSON string with extracted legislation, or None if no legislation found
         """
 
-        def _create_legislative_pattern(type_legislation: str) -> str:
+        name_extractor = LegislationNameExtractor()
+        return name_extractor.extract_referenced_legislation_by_name(soup)
 
-            EU_LEGISLATION_PREPOSITIONS = r"(?:of|and|the|for|on|in|to)"
-            EU_PUNCTUATION_LINKS = r"\s*[\'\‐]\s*"
-            EU_NAME_SPACERS = (
-                rf"(?:\s+{EU_LEGISLATION_PREPOSITIONS}|{EU_PUNCTUATION_LINKS})"
-            )
-            TITLE_CASE_WORD = r"[A-Z]\w*"
+    def calculate_follow_up_duration_months(
+        self, commission_date: Optional[str], latest_update: Optional[str]
+    ) -> Optional[int]:
+        """Calculate months between Commission response and latest follow-up"""
+        try:
+            return None
+        except Exception as e:
+            raise ValueError(
+                f"Error calculating follow-up duration for {self.registration_number}: {str(e)}"
+            ) from e
 
-            return rf"\b{TITLE_CASE_WORD}(?:{EU_NAME_SPACERS}?\s*{TITLE_CASE_WORD})*(?:{EU_NAME_SPACERS}?\s*{type_legislation})\b"
 
-        def _extract_pattern_matches(
-            filtered_parts: List[str],
-            patterns: List[str],
-            result_key: str,
-            result: Dict[str, List[str]],
-        ) -> None:
-            """
-            Generic pattern extraction helper for treaties, charters, and similar categories.
-            """
-            for part in filtered_parts:
-                for pattern in patterns:
-                    matches = re.findall(pattern, part)
+class LegislationNameExtractor:
+    """
+    Extracts EU legislation references by name from HTML content.
+    Focuses on treaties, charters, directives, and regulations.
+    """
 
-                    for match in matches:
-                        # Handle tuple matches from capturing groups
-                        if isinstance(match, tuple):
-                            # For patterns with multiple groups, take first non-empty group
-                            # This handles cases like (group1, group2) where one might be empty
-                            match = (
-                                match[0]
-                                if match[0]
-                                else match[1] if len(match) > 1 and match[1] else ""
-                            )
+    def _create_legislative_pattern(self, type_legislation: str) -> str:
+        """
+        Creates a regex pattern for extracting legislative names
+        based on title case words and common EU prepositions.
 
-                        # Only add non-empty matches that aren't already present
-                        if match and match and match not in result[result_key]:
-                            result[result_key].append(match.strip())
+        Args:
+            type_legislation: The type of legislation ("Directive", "Regulation", etc.)
 
-        # Clean up: remove leading articles
-        def clean_leading_articles(items: List[str]) -> List[str]:
-            """Remove leading articles from each item"""
-            cleaned = []
-            articles = ("The ", "the ", "A ", "a ", "An ", "an ")
+        Returns:
+            Regex pattern string for matching legislative names
+        """
+        EU_LEGISLATION_PREPOSITIONS = r"(?:of|and|the|for|on|in|to)"
+        EU_PUNCTUATION_LINKS = r"\s*[\'\‐]\s*"
+        EU_NAME_SPACERS = (
+            rf"(?:\s+{EU_LEGISLATION_PREPOSITIONS}|{EU_PUNCTUATION_LINKS})"
+        )
+        TITLE_CASE_WORD = r"[A-Z]\w*"
 
-            for item in items:
-                cleaned_item = item
-                for article in articles:
-                    if cleaned_item.startswith(article):
-                        cleaned_item = cleaned_item[len(article) :]
-                        break
-                if cleaned_item:
-                    cleaned.append(cleaned_item)
+        return rf"\b{TITLE_CASE_WORD}(?:{EU_NAME_SPACERS}?\s*{TITLE_CASE_WORD})*(?:{EU_NAME_SPACERS}?\s*{type_legislation})\b"
 
-            return cleaned
+    def _extract_pattern_matches(
+        self,
+        filtered_parts: List[str],
+        patterns: List[str],
+        result_key: str,
+        result: Dict[str, List[str]],
+    ) -> None:
+        """
+        Generic pattern extraction helper for treaties, charters, and similar categories.
 
-        def filter_standalone_keywords(items: List[str], keyword: str) -> List[str]:
-            """Remove items that are just the keyword alone or with common prefixes"""
-            filtered = []
+        Args:
+            filtered_parts: List of text parts to search through
+            patterns: List of regex patterns to match
+            result_key: Key in result dict to store matches
+            result: Dictionary to store extracted matches
+        """
+        for part in filtered_parts:
+            for pattern in patterns:
+                matches = re.findall(pattern, part)
 
-            # Standalone variations (just the keyword with articles)
-            standalone_variations = [
-                keyword,
-                f"the {keyword}",
-                f"The {keyword}",
-                f"a {keyword}",
-                f"A {keyword}",
-                f"an {keyword}",
-                f"An {keyword}",
-            ]
-
-            # Common prefixes that make the item too generic
-            generic_prefixes = [
-                "Proposal for",
-                "proposal for",
-                "Revised",
-                "revised",
-                "New",
-                "new",
-                "Draft",
-                "draft",
-            ]
-
-            for item in items:
-                item_stripped = item.strip()
-                item_lower = item_stripped.lower()
-
-                # Check if item is exactly a standalone keyword (case-insensitive)
-                if item_lower in [
-                    variation.lower() for variation in standalone_variations
-                ]:
-                    continue  # Skip this item
-
-                # Check EU separately with word boundary
-                if re.match(
-                    r"^EU\s+" + re.escape(keyword) + r"$", item_stripped, re.IGNORECASE
-                ):
-                    continue  # Skip only exact "EU Regulation" matches
-
-                # Check if item is just a generic prefix + keyword
-                is_generic = False
-                for prefix in generic_prefixes:
-                    # Pattern: "Proposal for Regulation" or "Proposal for the Regulation"
-                    if item_lower == f"{prefix.lower()} {keyword.lower()}":
-                        is_generic = True
-                        break
-                    if item_lower == f"{prefix.lower()} the {keyword.lower()}":
-                        is_generic = True
-                        break
-                    if item_lower == f"{prefix.lower()} a {keyword.lower()}":
-                        is_generic = True
-                        break
-
-                if not is_generic:
-                    filtered.append(item)
-
-            return filtered
-
-        # Deduplicate (case-insensitive)
-        def deduplicate_items(items: List[str]) -> List[str]:
-            """Remove duplicates (case-insensitive)"""
-            seen = set()
-            unique = []
-
-            for item in items:
-                item_lower = item.lower()
-                if item_lower not in seen:
-                    seen.add(item_lower)
-                    unique.append(item)
-
-            return sorted(unique)
-
-        def split_multiple_legislations(items: List[str], keyword: str) -> List[str]:
-            """
-            Split items that contain multiple legislations connected by 'and', 'or', or newlines.
-            Removes the original combined items.
-
-            Example:
-                Input: ["Water Framework Directive and Floods Directive", "Birds Directive"]
-                Output: ["Water Framework Directive", "Floods Directive", "Birds Directive"]
-            """
-            split_items = []
-
-            for item in items:
-                # First split by newlines
-                newline_parts = item.split("\n")
-
-                for newline_part in newline_parts:
-                    newline_part = newline_part.strip()
-                    if not newline_part:
-                        continue
-
-                    # Count how many times the keyword appears in this part
-                    keyword_count = len(
-                        re.findall(
-                            rf"\b{re.escape(keyword)}\b", newline_part, re.IGNORECASE
+                for match in matches:
+                    # Handle tuple matches from capturing groups
+                    if isinstance(match, tuple):
+                        # For patterns with multiple groups, take first non-empty group
+                        # This handles cases like (group1, group2) where one might be empty
+                        match = (
+                            match[0]
+                            if match[0]
+                            else match[1] if len(match) > 1 and match[1] else ""
                         )
+
+                    # Only add non-empty matches that aren't already present
+                    if match and match and match not in result[result_key]:
+                        result[result_key].append(match.strip())
+
+    def clean_leading_articles(self, items: List[str]) -> List[str]:
+        """Remove leading articles from each item ('The', 'the', 'A', 'a', etc.)"""
+        cleaned = []
+        articles = ("The ", "the ", "A ", "a ", "An ", "an ")
+
+        for item in items:
+            cleaned_item = item
+            for article in articles:
+                if cleaned_item.startswith(article):
+                    cleaned_item = cleaned_item[len(article) :]
+                    break
+            if cleaned_item:
+                cleaned.append(cleaned_item)
+
+        return cleaned
+
+    def filter_standalone_keywords(self, items: List[str], keyword: str) -> List[str]:
+        """
+        Remove items that are just the keyword alone or with common generic prefixes.
+        Filters out overly generic references like "EU Directive" or "Proposal for Regulation".
+
+        Args:
+            items: List of items to filter
+            keyword: The legislation keyword to filter against ("Directive", "Regulation", etc.)
+
+        Returns:
+            Filtered list excluding standalone/generic keywords
+        """
+        filtered = []
+
+        # Standalone variations (just the keyword with articles)
+        standalone_variations = [
+            keyword,
+            f"the {keyword}",
+            f"The {keyword}",
+            f"a {keyword}",
+            f"A {keyword}",
+            f"an {keyword}",
+            f"An {keyword}",
+        ]
+
+        # Common prefixes that make the item too generic
+        generic_prefixes = [
+            "Proposal for",
+            "proposal for",
+            "Revised",
+            "revised",
+            "New",
+            "new",
+            "Draft",
+            "draft",
+        ]
+
+        for item in items:
+            item_stripped = item.strip()
+            item_lower = item_stripped.lower()
+
+            # Check if item is exactly a standalone keyword (case-insensitive)
+            if item_lower in [variation.lower() for variation in standalone_variations]:
+                continue  # Skip this item
+
+            # Check EU separately with word boundary
+            if re.match(
+                r"^EU\s+" + re.escape(keyword) + r"$", item_stripped, re.IGNORECASE
+            ):
+                continue  # Skip only exact "EU Regulation" matches
+
+            # Check if item is just a generic prefix + keyword
+            is_generic = False
+            for prefix in generic_prefixes:
+                # Pattern: "Proposal for Regulation" or "Proposal for the Regulation"
+                if item_lower == f"{prefix.lower()} {keyword.lower()}":
+                    is_generic = True
+                    break
+                if item_lower == f"{prefix.lower()} the {keyword.lower()}":
+                    is_generic = True
+                    break
+                if item_lower == f"{prefix.lower()} a {keyword.lower()}":
+                    is_generic = True
+                    break
+
+            if not is_generic:
+                filtered.append(item)
+
+        return filtered
+
+    def deduplicate_items(self, items: List[str]) -> List[str]:
+        """Remove duplicates (case-insensitive) and return sorted unique items"""
+        seen = set()
+        unique = []
+
+        for item in items:
+            item_lower = item.lower()
+            if item_lower not in seen:
+                seen.add(item_lower)
+                unique.append(item)
+
+        return sorted(unique)
+
+    def split_multiple_legislations(self, items: List[str], keyword: str) -> List[str]:
+        """
+        Split items that contain multiple legislations connected by 'and', 'or', or newlines.
+        Removes the original combined items and reconstructs individual references.
+
+        Example:
+            Input: ["Water Framework Directive and Floods Directive", "Birds Directive"]
+            Output: ["Water Framework Directive", "Floods Directive", "Birds Directive"]
+
+        Args:
+            items: List of legislation strings
+            keyword: The legislation keyword to split on ("Directive", "Regulation", etc.)
+
+        Returns:
+            List of split individual legislation references
+        """
+        split_items = []
+
+        for item in items:
+            # First split by newlines
+            newline_parts = item.split("\n")
+
+            for newline_part in newline_parts:
+                newline_part = newline_part.strip()
+                if not newline_part:
+                    continue
+
+                # Count how many times the keyword appears in this part
+                keyword_count = len(
+                    re.findall(
+                        rf"\b{re.escape(keyword)}\b", newline_part, re.IGNORECASE
+                    )
+                )
+
+                if keyword_count > 1:
+                    # Multiple keywords found - split and DON'T keep the original
+                    parts = re.split(
+                        rf"\b{re.escape(keyword)}\b",
+                        newline_part,
+                        flags=re.IGNORECASE,
                     )
 
-                    if keyword_count > 1:
-                        # Multiple keywords found - split and DON'T keep the original
-                        parts = re.split(
-                            rf"\b{re.escape(keyword)}\b",
-                            newline_part,
-                            flags=re.IGNORECASE,
+                    for i in range(len(parts) - 1):
+                        # Each part (except the last) should be followed by the keyword
+                        part = parts[i].strip()
+
+                        # Remove trailing conjunction from the part
+                        part = re.sub(
+                            r"\s*(?:and|or)\s*$", "", part, flags=re.IGNORECASE
                         )
 
-                        for i in range(len(parts) - 1):
-                            # Each part (except the last) should be followed by the keyword
-                            part = parts[i].strip()
+                        # Remove leading conjunction from the part
+                        part = re.sub(
+                            r"^\s*(?:and|or)\s*", "", part, flags=re.IGNORECASE
+                        )
 
-                            # Remove trailing conjunction from the part
-                            part = re.sub(
-                                r"\s*(?:and|or)\s*$", "", part, flags=re.IGNORECASE
-                            )
+                        if part:
+                            # Reconstruct with keyword
+                            split_items.append(f"{part} {keyword}".strip())
+                    # NOTE: We do NOT append the original combined item
+                else:
+                    # Single keyword - keep as is
+                    split_items.append(newline_part)
 
-                            # Remove leading conjunction from the part
-                            part = re.sub(
-                                r"^\s*(?:and|or)\s*", "", part, flags=re.IGNORECASE
-                            )
+        return split_items
 
-                            if part:
-                                # Reconstruct with keyword
-                                split_items.append(f"{part} {keyword}".strip())
-                        # NOTE: We do NOT append the original combined item
-                    else:
-                        # Single keyword - keep as is
-                        split_items.append(newline_part)
+    def extract_referenced_legislation_by_name(
+        self, soup: BeautifulSoup
+    ) -> Optional[str]:
+        """
+        Extract references to specific Regulations or Directives by name.
 
-            return split_items
+        Returns JSON string with keys: treaty, charter, directives, regulations
+        Each key contains a list of unique legislation references found.
 
+        Args:
+            soup: BeautifulSoup object of the HTML document
+
+        Returns:
+            JSON string with extracted legislation, or None if no legislation found
+        """
         # Unwrap all <strong> tags (removes tag but keeps text)
         for strong_tag in soup.find_all("strong"):
             strong_tag.unwrap()
@@ -355,9 +420,8 @@ class StructuralAnalysisExtractor(BaseExtractor):
                 filtered_parts.append(part.strip())
 
         # Step 3: Extract directives and regulations using regex
-
-        directive_pattern = _create_legislative_pattern("Directive")
-        regulation_pattern = _create_legislative_pattern("Regulation")
+        directive_pattern = self._create_legislative_pattern("Directive")
+        regulation_pattern = self._create_legislative_pattern("Regulation")
 
         for part in filtered_parts:
             # Extract directives
@@ -377,7 +441,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
             r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Treaty\b",
         ]
 
-        _extract_pattern_matches(
+        self._extract_pattern_matches(
             filtered_parts=filtered_parts,
             patterns=treaty_patterns,
             result_key="treaties",
@@ -390,7 +454,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
             r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Charter\b",
         ]
 
-        _extract_pattern_matches(
+        self._extract_pattern_matches(
             filtered_parts=filtered_parts,
             patterns=charter_patterns,
             result_key="charters",
@@ -399,27 +463,27 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
         # Clean, filter standalone keywords, and deduplicate all categories
         for key in ["directives", "regulations", "treaties", "charters"]:
-            result[key] = clean_leading_articles(result[key])
+            result[key] = self.clean_leading_articles(result[key])
 
             # Determine the keyword to filter
             if key == "directives":
-                items = split_multiple_legislations(result[key], "Directive")
-                items = filter_standalone_keywords(items, "Directive")
+                items = self.split_multiple_legislations(result[key], "Directive")
+                items = self.filter_standalone_keywords(items, "Directive")
                 result[key] = items
             elif key == "regulations":
-                items = split_multiple_legislations(result[key], "Regulation")
-                items = filter_standalone_keywords(items, "Regulation")
+                items = self.split_multiple_legislations(result[key], "Regulation")
+                items = self.filter_standalone_keywords(items, "Regulation")
                 result[key] = items
             elif key == "treaties":
-                items = split_multiple_legislations(result[key], "Treaty")
-                items = filter_standalone_keywords(items, "Treaty")
+                items = self.split_multiple_legislations(result[key], "Treaty")
+                items = self.filter_standalone_keywords(items, "Treaty")
                 result[key] = items
             elif key == "charters":
-                items = split_multiple_legislations(result[key], "Charter")
-                items = filter_standalone_keywords(items, "Charter")
+                items = self.split_multiple_legislations(result[key], "Charter")
+                items = self.filter_standalone_keywords(items, "Charter")
                 result[key] = items
 
-            result[key] = deduplicate_items(result[key])
+            result[key] = self.deduplicate_items(result[key])
 
         # Remove empty keys from result
         result = {key: value for key, value in result.items() if value}
@@ -428,14 +492,3 @@ class StructuralAnalysisExtractor(BaseExtractor):
             return None
 
         return json.dumps(result, indent=2, ensure_ascii=False)
-
-    def calculate_follow_up_duration_months(
-        self, commission_date: Optional[str], latest_update: Optional[str]
-    ) -> Optional[int]:
-        """Calculate months between Commission response and latest follow-up"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(
-                f"Error calculating follow-up duration for {self.registration_number}: {str(e)}"
-            ) from e
