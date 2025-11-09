@@ -283,6 +283,9 @@ class LegislationNameExtractor:
             # Check if item is just a generic prefix + keyword
             is_generic = False
             for prefix in generic_prefixes:
+
+                # print([item, item_lower, prefix.lower(), keyword.lower()])
+
                 # Pattern: "Proposal for Regulation" or "Proposal for the Regulation"
                 if item_lower == f"{prefix.lower()} {keyword.lower()}":
                     is_generic = True
@@ -413,12 +416,12 @@ class LegislationNameExtractor:
 
                         # Remove trailing conjunction from the part
                         part = re.sub(
-                            r"\s*(?:and|or)\s*$", "", part, flags=re.IGNORECASE
+                            r"\s*\b(?:and|or)\b\s*$", "", part, flags=re.IGNORECASE
                         )
 
                         # Remove leading conjunction from the part
                         part = re.sub(
-                            r"^\s*(?:and|or)\s*", "", part, flags=re.IGNORECASE
+                            r"^\s*\b(?:and|or)\b\s*", "", part, flags=re.IGNORECASE
                         )
 
                         if part:
@@ -803,7 +806,7 @@ class LegislationNameExtractor:
         }
 
         # Clean, filter standalone keywords, and deduplicate all categories
-        for key in ["directives", "regulations", "treaties", "charters"]:
+        for key in keyword_mapping.keys():
             self._process_legislation_category(key, result, keyword_mapping)
 
         # Remove empty keys from result
