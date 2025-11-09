@@ -5958,8 +5958,8 @@ class TestStructuralAnalysis:
             soup1
         )
         result1_dict = json.loads(result1)
-        self.assertIn("CELEX", result1_dict)
-        self.assertEqual(result1_dict["CELEX"], ["32024R2522"])
+        assert "CELEX" in result1_dict
+        assert result1_dict["CELEX"] == ["32024R2522"]
 
         # TEST 2: CELEX links with URL encoding (%3A instead of :)
         html2 = """
@@ -5972,8 +5972,8 @@ class TestStructuralAnalysis:
             soup2
         )
         result2_dict = json.loads(result2)
-        self.assertIn("CELEX", result2_dict)
-        self.assertEqual(result2_dict["CELEX"], ["52018PC0179"])
+        assert "CELEX" in result2_dict
+        assert result2_dict["CELEX"] == ["52018PC0179"]
 
         # TEST 3: Directive references with standard format in text
         html3 = """
@@ -5984,8 +5984,8 @@ class TestStructuralAnalysis:
             soup3
         )
         result3_dict = json.loads(result3)
-        self.assertIn("Directive", result3_dict)
-        self.assertEqual(result3_dict["Directive"], ["2010/63/EU"])
+        assert "Directive" in result3_dict
+        assert result3_dict["Directive"] == ["2010/63/EU"]
 
         # TEST 4: Official Journal L series (legislation)
         html4 = """
@@ -5998,9 +5998,9 @@ class TestStructuralAnalysis:
             soup4
         )
         result4_dict = json.loads(result4)
-        self.assertIn("official_journal", result4_dict)
-        self.assertIn("legislation", result4_dict["official_journal"])
-        self.assertEqual(result4_dict["official_journal"]["legislation"], ["2015, 260"])
+        assert "official_journal" in result4_dict
+        assert "legislation" in result4_dict["official_journal"]
+        assert result4_dict["official_journal"]["legislation"] == ["2015, 260"]
 
         # TEST 5: Official Journal C series (information and notices)
         html5 = """
@@ -6013,11 +6013,11 @@ class TestStructuralAnalysis:
             soup5
         )
         result5_dict = json.loads(result5)
-        self.assertIn("official_journal", result5_dict)
-        self.assertIn("information_and_notices", result5_dict["official_journal"])
-        self.assertEqual(
-            result5_dict["official_journal"]["information_and_notices"], ["2020, 145"]
-        )
+        assert "official_journal" in result5_dict
+        assert "information_and_notices" in result5_dict["official_journal"]
+        assert result5_dict["official_journal"]["information_and_notices"] == [
+            "2020, 145"
+        ]
 
         # TEST 6: Article references in text
         html6 = """
@@ -6028,8 +6028,8 @@ class TestStructuralAnalysis:
             soup6
         )
         result6_dict = json.loads(result6)
-        self.assertIn("Article", result6_dict)
-        self.assertEqual(result6_dict["Article"], ["19(2)", "15"])
+        assert "Article" in result6_dict
+        assert result6_dict["Article"] == ["19(2)", "15"]
 
         # TEST 7: Multiple CELEX references (deduplication)
         html7 = """
@@ -6042,9 +6042,9 @@ class TestStructuralAnalysis:
             soup7
         )
         result7_dict = json.loads(result7)
-        self.assertIn("CELEX", result7_dict)
-        self.assertEqual(len(result7_dict["CELEX"]), 2)
-        self.assertEqual(result7_dict["CELEX"], ["32024R2522", "32010L0063"])
+        assert "CELEX" in result7_dict
+        assert len(result7_dict["CELEX"]) == 2
+        assert result7_dict["CELEX"] == ["32024R2522", "32010L0063"]
 
         # TEST 8: Mixed content (directives, regulations, CELEX, articles, OJ references)
         html8 = """
@@ -6065,21 +6065,21 @@ class TestStructuralAnalysis:
         )
         result8_dict = json.loads(result8)
 
-        self.assertIn("Directive", result8_dict)
-        self.assertEqual(result8_dict["Directive"], ["2010/13/EU"])
+        assert "Directive" in result8_dict
+        assert result8_dict["Directive"] == ["2010/13/EU"]
 
-        self.assertIn("Regulation", result8_dict)
-        self.assertEqual(result8_dict["Regulation"], ["1234/2020"])
+        assert "Regulation" in result8_dict
+        assert result8_dict["Regulation"] == ["1234/2020"]
 
-        self.assertIn("CELEX", result8_dict)
-        self.assertIn("32020R0852", result8_dict["CELEX"])
+        assert "CELEX" in result8_dict
+        assert "32020R0852" in result8_dict["CELEX"]
 
-        self.assertIn("official_journal", result8_dict)
-        self.assertIn("legislation", result8_dict["official_journal"])
-        self.assertEqual(result8_dict["official_journal"]["legislation"], ["2020, 45"])
+        assert "official_journal" in result8_dict
+        assert "legislation" in result8_dict["official_journal"]
+        assert result8_dict["official_journal"]["legislation"] == ["2020, 45"]
 
-        self.assertIn("Article", result8_dict)
-        self.assertEqual(result8_dict["Article"], ["15"])
+        assert "Article" in result8_dict
+        assert result8_dict["Article"] == ["15"]
 
         # TEST 9: No matches - should return None
         html9 = """
@@ -6089,14 +6089,14 @@ class TestStructuralAnalysis:
         result9 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
             soup9
         )
-        self.assertIsNone(result9)
+        assert result9 is None
 
         # TEST 10: Empty soup - should return None
         soup10 = BeautifulSoup("", "html.parser")
         result10 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
             soup10
         )
-        self.assertIsNone(result10)
+        assert result10 is None
 
         # TEST 11: URL-encoded Official Journal reference
         html11 = """
@@ -6109,8 +6109,8 @@ class TestStructuralAnalysis:
             soup11
         )
         result11_dict = json.loads(result11)
-        self.assertIn("official_journal", result11_dict)
-        self.assertIn("legislation", result11_dict["official_journal"])
+        assert "official_journal" in result11_dict
+        assert "legislation" in result11_dict["official_journal"]
 
         # TEST 12: Only OJ L series (no C series)
         html12 = """
@@ -6122,9 +6122,9 @@ class TestStructuralAnalysis:
             soup12
         )
         result12_dict = json.loads(result12)
-        self.assertIn("official_journal", result12_dict)
-        self.assertIn("legislation", result12_dict["official_journal"])
-        self.assertNotIn("information_and_notices", result12_dict["official_journal"])
+        assert "official_journal" in result12_dict
+        assert "legislation" in result12_dict["official_journal"]
+        assert "information_and_notices" not in result12_dict["official_journal"]
 
         # TEST 13: Only OJ C series (no L series)
         html13 = """
@@ -6135,9 +6135,9 @@ class TestStructuralAnalysis:
             soup13
         )
         result13_dict = json.loads(result13)
-        self.assertIn("official_journal", result13_dict)
-        self.assertNotIn("legislation", result13_dict["official_journal"])
-        self.assertIn("information_and_notices", result13_dict["official_journal"])
+        assert "official_journal" in result13_dict
+        assert "legislation" not in result13_dict["official_journal"]
+        assert "information_and_notices" in result13_dict["official_journal"]
 
         # TEST 14: Directive without /EU suffix
         html14 = """
@@ -6148,8 +6148,8 @@ class TestStructuralAnalysis:
             soup14
         )
         result14_dict = json.loads(result14)
-        self.assertIn("Directive", result14_dict)
-        self.assertEqual(result14_dict["Directive"], ["2010/63"])
+        assert "Directive" in result14_dict
+        assert result14_dict["Directive"] == ["2010/63"]
 
         # TEST 15: Regulation with standard format
         html15 = """
@@ -6160,8 +6160,8 @@ class TestStructuralAnalysis:
             soup15
         )
         result15_dict = json.loads(result15)
-        self.assertIn("Regulation", result15_dict)
-        self.assertEqual(result15_dict["Regulation"], ["1234/2020"])
+        assert "Regulation" in result15_dict
+        assert result15_dict["Regulation"] == ["1234/2020"]
 
     def test_referenced_legislation_by_name(self):
 
