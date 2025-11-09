@@ -406,6 +406,158 @@ class LegislationNameExtractor:
         # Deduplicate and sort
         result[key] = self._deduplicate_items(result[key])
 
+    def _preprocess_html(self, soup: BeautifulSoup) -> BeautifulSoup:
+        """
+        Preprocess HTML by unwrapping strong tags to flatten text structure.
+
+        Args:
+            soup: BeautifulSoup object of the HTML document
+
+        Returns:
+            Modified BeautifulSoup object with unwrapped strong tags
+        """
+        for strong_tag in soup.find_all("strong"):
+            strong_tag.unwrap()
+        return soup
+
+    def _extract_text_parts(self, soup: BeautifulSoup) -> tuple[List[str], List[str]]:
+        """
+        Extract text from HTML and split into sentence parts.
+
+        Args:
+            soup: Preprocessed BeautifulSoup object
+
+        Returns:
+            Tuple of (all sentence parts, filtered parts containing legislation keywords)
+        """
+        # Extract text with newline separation
+        text = soup.get_text(separator="\n", strip=True)
+
+        # Step 1: Divide text into parts by sentence dividers (. ; ,)
+        sentence_parts = re.split(r"[.;,]", text)
+
+        # Step 2: Filter out parts containing legislation keywords
+        keywords = ["Directive", "Regulation", "Law", "Treaty", "Charter"]
+        filtered_parts = []
+
+        for part in sentence_parts:
+            if any(keyword in part for keyword in keywords):
+                filtered_parts.append(part.strip())
+
+        return sentence_parts, filtered_parts
+
+    def _extract_directives_and_regulations(
+        self, filtered_parts: List[str], result: Dict[str, List[str]]
+    ) -> None:
+        """
+        Extract directives and regulations using dynamic regex patterns.
+
+        Args:
+            filtered_parts: Filtered text parts containing potential legislation
+            result: Result dictionary to populate with matches
+        """
+        # Create patterns for directives and regulations
+        directive_pattern = self._create_legislative_pattern("Directive")
+        regulation_pattern = self._create_legislative_pattern("Regulation")
+
+        for part in filtered_parts:
+            # Extract directives
+            directive_matches = re.findall(directive_pattern, part)
+            for match in directive_matches:
+                result["directives"].append(match.strip())
+
+            # Extract regulations
+            regulation_matches = re.findall(regulation_pattern, part)
+            for match in regulation_matches:
+                result["regulations"].append(match.strip())
+
+    def _extract_treaties(
+        self, filtered_parts: List[str], result: Dict[str, List[str]]
+    ) -> None:
+        """
+        Extract treaty references using specific treaty patterns.
+
+        Args:
+            filtered_parts: Filtered text parts containing potential legislation
+            result: Result dictionary to populate with matches
+        """
+        treaty_patterns = [
+            r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
+            r"\b(TEU|TFEU)\b",
+            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Treaty\b",
+        ]
+
+        self._extract_pattern_matches(
+            filtered_parts=filtered_parts,
+            patterns=treaty_patterns,
+            result_key="treaties",
+            result=result,
+        )
+
+    def _extract_charters(
+        self, filtered_parts: List[str], result: Dict[str, List[str]]
+    ) -> None:
+        """
+        Extract charter references using specific charter patterns.
+
+        Args:
+            filtered_parts: Filtered text parts containing potential legislation
+            result: Result dictionary to populate with matches
+        """
+        charter_patterns = [
+            r"Charter\s+of\s+(?:the\s+)?Fundamental\s+Rights(?:\s+of\s+the\s+European\s+Union)?",
+            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Charter\b",
+        ]
+
+        self._extract_pattern_matches(
+            filtered_parts=filtered_parts,
+            patterns=charter_patterns,
+            result_key="charters",
+            result=result,
+        )
+
+    def _postprocess_legislation_categories(
+        self, result: Dict[str, List[str]]
+    ) -> Dict[str, List[str]]:
+        """
+        Process all legislation categories: clean, filter, and deduplicate.
+
+        Args:
+            result: Result dictionary with raw extracted matches
+
+        Returns:
+            Processed result dictionary with cleaned and deduplicated categories
+        """
+        keyword_mapping = {
+            "directives": "Directive",
+            "regulations": "Regulation",
+            "treaties": "Treaty",
+            "charters": "Charter",
+        }
+
+        # Clean, filter standalone keywords, and deduplicate all categories
+        for key in ["directives", "regulations", "treaties", "charters"]:
+            self._process_legislation_category(key, result, keyword_mapping)
+
+        # Remove empty keys from result
+        result = {key: value for key, value in result.items() if value}
+        return result
+
+    def _serialize_result(self, result: Dict[str, List[str]]) -> Optional[str]:
+        """
+        Serialize the processed result to JSON, or return None if empty.
+
+        Args:
+            result: Processed result dictionary
+
+        Returns:
+            JSON string representation or None if no results
+        """
+        if not result:
+            return None
+
+        return json.dumps(result, indent=2, ensure_ascii=False)
+
     def extract_referenced_legislation_by_name(
         self, soup: BeautifulSoup
     ) -> Optional[str]:
@@ -421,14 +573,10 @@ class LegislationNameExtractor:
         Returns:
             JSON string with extracted legislation, or None if no legislation found
         """
-        # Unwrap all <strong> tags (removes tag but keeps text)
-        for strong_tag in soup.find_all("strong"):
-            strong_tag.unwrap()
+        soup = self._preprocess_html(soup)
 
-        # Now apply newline separator to all remaining tags
-        text = soup.get_text(separator="\n", strip=True)
+        _, filtered_parts = self._extract_text_parts(soup)
 
-        # Initialize result structure
         result: Dict[str, List[str]] = {
             "treaties": [],
             "charters": [],
@@ -436,75 +584,11 @@ class LegislationNameExtractor:
             "regulations": [],
         }
 
-        # Step 1: Divide text into parts by sentence dividers (. ; ,)
-        sentence_parts = re.split(r"[.;,]", text)
+        # Extract specific legislation types results
+        self._extract_directives_and_regulations(filtered_parts, result)
+        self._extract_treaties(filtered_parts, result)
+        self._extract_charters(filtered_parts, result)
 
-        # Step 2: Filter out parts containing legislation keywords
-        keywords = ["Directive", "Regulation", "Law", "Treaty", "Charter"]
-        filtered_parts = []
+        result = self._postprocess_legislation_categories(result)
 
-        for part in sentence_parts:
-            if any(keyword in part for keyword in keywords):
-                filtered_parts.append(part.strip())
-
-        # Step 3: Extract directives and regulations using regex
-        directive_pattern = self._create_legislative_pattern("Directive")
-        regulation_pattern = self._create_legislative_pattern("Regulation")
-
-        for part in filtered_parts:
-            # Extract directives
-            directive_matches = re.findall(directive_pattern, part)
-            for match in directive_matches:
-                result["directives"].append(match.strip())
-
-            # Extract regulations
-            regulation_matches = re.findall(regulation_pattern, part)
-            for match in regulation_matches:
-                result["regulations"].append(match.strip())
-
-        # Extract treaties using specific patterns
-        treaty_patterns = [
-            r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
-            r"\b(TEU|TFEU)\b",
-            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Treaty\b",
-        ]
-
-        self._extract_pattern_matches(
-            filtered_parts=filtered_parts,
-            patterns=treaty_patterns,
-            result_key="treaties",
-            result=result,
-        )
-
-        # Extract charters using specific patterns
-        charter_patterns = [
-            r"Charter\s+of\s+(?:the\s+)?Fundamental\s+Rights(?:\s+of\s+the\s+European\s+Union)?",
-            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Charter\b",
-        ]
-
-        self._extract_pattern_matches(
-            filtered_parts=filtered_parts,
-            patterns=charter_patterns,
-            result_key="charters",
-            result=result,
-        )
-
-        # Process each category using the extracted helper method
-        keyword_mapping = {
-            "directives": "Directive",
-            "regulations": "Regulation",
-            "treaties": "Treaty",
-            "charters": "Charter",
-        }
-
-        # Clean, filter standalone keywords, and deduplicate all categories
-        for key in ["directives", "regulations", "treaties", "charters"]:
-            self._process_legislation_category(key, result, keyword_mapping)
-
-        # Remove empty keys from result
-        result = {key: value for key, value in result.items() if value}
-
-        if not result:
-            return None
-
-        return json.dumps(result, indent=2, ensure_ascii=False)
+        return self._serialize_result(result)
