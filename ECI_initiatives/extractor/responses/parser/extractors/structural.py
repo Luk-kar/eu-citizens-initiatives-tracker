@@ -136,6 +136,31 @@ class StructuralAnalysisExtractor(BaseExtractor):
         Returns:
             JSON string with extracted legislation, or None if no legislation found
         """
+
+        # Common regex components
+        COMMON_PREP_POSITIONS = r"(?:of|and|the|for|on|in|to)"
+        COMMON_WORD_CONNECTORS = r"(?:\s+(?:of|and|the|for|on|in|to)|\s*[\'‐]\s*)"
+        COMMON_QUOTES_HYPHENS = r"\s*[\'\-]\s*"
+
+        # Word unit pattern for title case words
+        WORD_UNIT = r"[A-Z]\w*"
+
+        # Preposition and connector pattern for ending
+        END_CONNECTOR = rf"(?:{COMMON_WORD_CONNECTORS}|{COMMON_QUOTES_HYPHENS})"
+
+        # Regex patterns for treaty extraction
+        TREATY_PATTERNS = [
+            r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
+            r"\b(TEU|TFEU)\b",
+            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){{0,5}})\s+Treaty\b",
+        ]
+
+        # Regex patterns for charter extraction
+        CHARTER_PATTERNS = [
+            r"Charter\s+of\s+(?:the\s+)?Fundamental\s+Rights(?:\s+of\s+the\s+European\s+Union)?",
+            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){{0,5}})\s+Charter\b",
+        ]
+
         # Unwrap all <strong> tags (removes tag but keeps text)
         for strong_tag in soup.find_all("strong"):
             strong_tag.unwrap()
@@ -163,8 +188,12 @@ class StructuralAnalysisExtractor(BaseExtractor):
                 filtered_parts.append(part.strip())
 
         # Step 3: Extract directives and regulations using regex
-        directive_pattern = r"\b[A-Z]\w*(?:(?:\s+(?:of|and|the|for|on|in|to)|\s*[\'‐]\s*)?\s*[A-Z]\w*)*(?:(?:\s+(?:of|and|the|for|on|in|to)|\s*[\'\-]\s*)?\s*Directive)\b"
-        regulation_pattern = r"\b[A-Z]\w*(?:(?:\s+(?:of|and|the|for|on|in|to)|\s*[\'\-]\s*)?\s*[A-Z]\w*)*(?:(?:\s+(?:of|and|the|for|on|in|to)|\s*[\'\-]\s*)?\s*Regulation)\b"
+        # Base pattern for name extraction: word units connected by prepositions/connectors
+        base_name_pattern = rf"\b{WORD_UNIT}(?:{COMMON_WORD_CONNECTORS}?{WORD_UNIT})*(?:{END_CONNECTOR}?{WORD_UNIT})*"
+
+        # Create patterns using format string method
+        directive_pattern = base_name_pattern + rf"(?:{END_CONNECTOR}?\s*Directive)\b"
+        regulation_pattern = base_name_pattern + rf"(?:{END_CONNECTOR}?\s*Regulation)\b"
 
         for part in filtered_parts:
             # Extract directives
@@ -178,14 +207,8 @@ class StructuralAnalysisExtractor(BaseExtractor):
                 result["regulations"].append(match.strip())
 
         # Extract treaties using specific patterns
-        treaty_patterns = [
-            r"Treaty\s+on\s+(?:the\s+)?(?:European\s+Union|Functioning\s+of\s+the\s+European\s+Union)",
-            r"\b(TEU|TFEU)\b",
-            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Treaty\b",
-        ]
-
         for part in filtered_parts:
-            for pattern in treaty_patterns:
+            for pattern in self.TREATY_PATTERNS:
                 matches = re.findall(pattern, part)
                 for match in matches:
                     if isinstance(match, tuple):
@@ -196,13 +219,8 @@ class StructuralAnalysisExtractor(BaseExtractor):
                         result["treaties"].append(match.strip())
 
         # Extract charters using specific patterns
-        charter_patterns = [
-            r"Charter\s+of\s+(?:the\s+)?Fundamental\s+Rights(?:\s+of\s+the\s+European\s+Union)?",
-            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Charter\b",
-        ]
-
         for part in filtered_parts:
-            for pattern in charter_patterns:
+            for pattern in self.CHARTER_PATTERNS:
                 matches = re.findall(pattern, part)
                 for match in matches:
                     if isinstance(match, tuple):
@@ -328,14 +346,16 @@ class StructuralAnalysisExtractor(BaseExtractor):
                     # Count how many times the keyword appears in this part
                     keyword_count = len(
                         re.findall(
-                            rf"\b{re.escape(keyword)}\b", newline_part, re.IGNORECASE
+                            rf"\b{{{re.escape(keyword)}}}\b",
+                            newline_part,
+                            re.IGNORECASE,
                         )
                     )
 
                     if keyword_count > 1:
                         # Multiple keywords found - split and DON'T keep the original
                         parts = re.split(
-                            rf"\b{re.escape(keyword)}\b",
+                            rf"\b{{{re.escape(keyword)}}}\b",
                             newline_part,
                             flags=re.IGNORECASE,
                         )
