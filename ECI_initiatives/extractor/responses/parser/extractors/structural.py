@@ -178,88 +178,40 @@ class StructuralAnalysisExtractor(BaseExtractor):
             r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){{0,5}})\s+Charter\b",
         ]
 
-        # Unwrap all <strong> tags (removes tag but keeps text)
-        for strong_tag in soup.find_all("strong"):
-            strong_tag.unwrap()
+        def _extract_pattern_matches(
+            self,
+            filtered_parts: List[str],
+            patterns: List[str],
+            result_key: str,
+            result: Dict[str, List[str]],
+        ) -> None:
+            """
+            Generic pattern extraction helper for treaties, charters, and similar categories.
 
-        # Now apply newline separator to all remaining tags
-        text = soup.get_text(separator="\n", strip=True)
+            Args:
+                filtered_parts: List of text parts containing legislation keywords
+                patterns: List of regex patterns to match against
+                result_key: The key in result dict to store matches (e.g., "treaties", "charters")
+                result: The result dictionary to append matches to
+            """
+            for part in filtered_parts:
+                for pattern in patterns:
+                    matches = re.findall(pattern, part)
 
-        # Initialize result structure
-        result: Dict[str, List[str]] = {
-            "treaties": [],
-            "charters": [],
-            "directives": [],
-            "regulations": [],
-        }
+                    for match in matches:
+                        # Handle tuple matches from capturing groups
+                        if isinstance(match, tuple):
+                            # For patterns with multiple groups, take first non-empty group
+                            # This handles cases like (group1, group2) where one might be empty
+                            match = (
+                                match[0]
+                                if match[0]
+                                else match[1] if len(match) > 1 and match[1] else ""
+                            )
 
-        # Step 1: Divide text into parts by sentence dividers (. ; ,)
-        sentence_parts = re.split(r"[.;,]", text)
-
-        # Step 2: Filter out parts containing legislation keywords
-        keywords = ["Directive", "Regulation", "Law", "Treaty", "Charter"]
-        filtered_parts = []
-
-        for part in sentence_parts:
-            if any(keyword in part for keyword in keywords):
-                filtered_parts.append(part.strip())
-
-        # Step 3: Extract directives and regulations using regex
-
-        # Create patterns using format string method
-        directive_pattern = (
-            EU_LEGISLATION_NAME_PATTERN
-            + rf"(?:{LEGISLATION_NAME_ENDING}?\s*Directive)\b"
-        )
-
-        regulation_pattern = (
-            EU_LEGISLATION_NAME_PATTERN
-            + rf"(?:{LEGISLATION_NAME_ENDING}?\s*Regulation)\b"
-        )
-
-        for part in filtered_parts:
-
-            # Extract directives
-            directive_matches = re.findall(directive_pattern, part)
-            for match in directive_matches:
-                result["directives"].append(match.strip())
-
-            # Extract regulations
-            regulation_matches = re.findall(regulation_pattern, part)
-            for match in regulation_matches:
-                result["regulations"].append(match.strip())
-
-        # Extract treaties using specific patterns
-        for part in filtered_parts:
-
-            for pattern in self.TREATY_PATTERNS:
-                matches = re.findall(pattern, part)
-
-                for match in matches:
-                    if isinstance(match, tuple):
-
-                        match = (
-                            match[0] if match[0] else match[1] if len(match) > 1 else ""
-                        )
-
-                    if match and match not in result["treaties"]:
-                        result["treaties"].append(match.strip())
-
-        # Extract charters using specific patterns
-        for part in filtered_parts:
-
-            for pattern in self.CHARTER_PATTERNS:
-                matches = re.findall(pattern, part)
-
-                for match in matches:
-                    if isinstance(match, tuple):
-
-                        match = (
-                            match[0] if match[0] else match[1] if len(match) > 1 else ""
-                        )
-
-                    if match and match not in result["charters"]:
-                        result["charters"].append(match.strip())
+                        # Only add non-empty matches that aren't already present
+                        if match and match and match not in result[result_key]:
+                            result[result_key].append(match.strip())
 
         # Clean up: remove leading articles
         def clean_leading_articles(items: List[str]) -> List[str]:
@@ -424,26 +376,104 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
             return split_items
 
+        # Unwrap all <strong> tags (removes tag but keeps text)
+        for strong_tag in soup.find_all("strong"):
+            strong_tag.unwrap()
+
+        # Now apply newline separator to all remaining tags
+        text = soup.get_text(separator="\n", strip=True)
+
+        # Initialize result structure
+        result: Dict[str, List[str]] = {
+            "treaties": [],
+            "charters": [],
+            "directives": [],
+            "regulations": [],
+        }
+
+        # Step 1: Divide text into parts by sentence dividers (. ; ,)
+        sentence_parts = re.split(r"[.;,]", text)
+
+        # Step 2: Filter out parts containing legislation keywords
+        keywords = ["Directive", "Regulation", "Law", "Treaty", "Charter"]
+        filtered_parts = []
+
+        for part in sentence_parts:
+            if any(keyword in part for keyword in keywords):
+                filtered_parts.append(part.strip())
+
+        # Step 3: Extract directives and regulations using regex
+
+        # Create patterns using format string method
+        directive_pattern = (
+            EU_LEGISLATION_NAME_PATTERN
+            + rf"(?:{LEGISLATION_NAME_ENDING}?\s*Directive)\b"
+        )
+
+        regulation_pattern = (
+            EU_LEGISLATION_NAME_PATTERN
+            + rf"(?:{LEGISLATION_NAME_ENDING}?\s*Regulation)\b"
+        )
+
+        for part in filtered_parts:
+
+            # Extract directives
+            directive_matches = re.findall(directive_pattern, part)
+            for match in directive_matches:
+                result["directives"].append(match.strip())
+
+            # Extract regulations
+            regulation_matches = re.findall(regulation_pattern, part)
+            for match in regulation_matches:
+                result["regulations"].append(match.strip())
+
+            # Extract treaties using specific patterns
+            _extract_pattern_matches(
+                filtered_parts=filtered_parts,
+                patterns=TREATY_PATTERNS,
+                result_key="treaties",
+                result=result,
+            )
+
+            # Extract charters using specific patterns
+            _extract_pattern_matches(
+                filtered_parts=filtered_parts,
+                patterns=CHARTER_PATTERNS,
+                result_key="charters",
+                result=result,
+            )
+
         # Clean, filter standalone keywords, and deduplicate all categories
         for key in ["directives", "regulations", "treaties", "charters"]:
             result[key] = clean_leading_articles(result[key])
 
             # Determine the keyword to filter
             if key == "directives":
+
                 items = split_multiple_legislations(result[key], "Directive")
                 items = filter_standalone_keywords(items, "Directive")
+
                 result[key] = items
+
             elif key == "regulations":
+
                 items = split_multiple_legislations(result[key], "Regulation")
                 items = filter_standalone_keywords(items, "Regulation")
+
                 result[key] = items
+
             elif key == "treaties":
+
                 items = split_multiple_legislations(result[key], "Treaty")
                 items = filter_standalone_keywords(items, "Treaty")
+
                 result[key] = items
+
             elif key == "charters":
+
                 items = split_multiple_legislations(result[key], "Charter")
                 items = filter_standalone_keywords(items, "Charter")
+
                 result[key] = items
 
             result[key] = deduplicate_items(result[key])
