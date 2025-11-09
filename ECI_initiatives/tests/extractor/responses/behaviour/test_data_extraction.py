@@ -5954,7 +5954,9 @@ class TestStructuralAnalysis:
         </a>
         """
         soup1 = BeautifulSoup(html1, "html.parser")
-        result1 = self.parser.structural_analysis.extract_referenced_legislation(soup1)
+        result1 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
+            soup1
+        )
         result1_dict = json.loads(result1)
         self.assertIn("CELEX", result1_dict)
         self.assertEqual(result1_dict["CELEX"], ["32024R2522"])
@@ -5966,7 +5968,9 @@ class TestStructuralAnalysis:
         </a>
         """
         soup2 = BeautifulSoup(html2, "html.parser")
-        result2 = self.parser.structural_analysis.extract_referenced_legislation(soup2)
+        result2 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
+            soup2
+        )
         result2_dict = json.loads(result2)
         self.assertIn("CELEX", result2_dict)
         self.assertEqual(result2_dict["CELEX"], ["52018PC0179"])
@@ -5976,7 +5980,9 @@ class TestStructuralAnalysis:
         <div>Directive 2010/63/EU on the protection of animals used for scientific purposes</div>
         """
         soup3 = BeautifulSoup(html3, "html.parser")
-        result3 = self.parser.structural_analysis.extract_referenced_legislation(soup3)
+        result3 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
+            soup3
+        )
         result3_dict = json.loads(result3)
         self.assertIn("Directive", result3_dict)
         self.assertEqual(result3_dict["Directive"], ["2010/63/EU"])
@@ -5988,7 +5994,9 @@ class TestStructuralAnalysis:
         </a>
         """
         soup4 = BeautifulSoup(html4, "html.parser")
-        result4 = self.parser.structural_analysis.extract_referenced_legislation(soup4)
+        result4 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
+            soup4
+        )
         result4_dict = json.loads(result4)
         self.assertIn("official_journal", result4_dict)
         self.assertIn("legislation", result4_dict["official_journal"])
@@ -6001,7 +6009,9 @@ class TestStructuralAnalysis:
         </a>
         """
         soup5 = BeautifulSoup(html5, "html.parser")
-        result5 = self.parser.structural_analysis.extract_referenced_legislation(soup5)
+        result5 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
+            soup5
+        )
         result5_dict = json.loads(result5)
         self.assertIn("official_journal", result5_dict)
         self.assertIn("information_and_notices", result5_dict["official_journal"])
@@ -6014,7 +6024,9 @@ class TestStructuralAnalysis:
         <div>Pursuant to Article 19(2) and Article 15 of the Regulation</div>
         """
         soup6 = BeautifulSoup(html6, "html.parser")
-        result6 = self.parser.structural_analysis.extract_referenced_legislation(soup6)
+        result6 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
+            soup6
+        )
         result6_dict = json.loads(result6)
         self.assertIn("Article", result6_dict)
         self.assertEqual(result6_dict["Article"], ["19(2)", "15"])
@@ -6026,7 +6038,9 @@ class TestStructuralAnalysis:
         <a href="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32010L0063">Second</a>
         """
         soup7 = BeautifulSoup(html7, "html.parser")
-        result7 = self.parser.structural_analysis.extract_referenced_legislation(soup7)
+        result7 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
+            soup7
+        )
         result7_dict = json.loads(result7)
         self.assertIn("CELEX", result7_dict)
         self.assertEqual(len(result7_dict["CELEX"]), 2)
@@ -6046,7 +6060,9 @@ class TestStructuralAnalysis:
         </div>
         """
         soup8 = BeautifulSoup(html8, "html.parser")
-        result8 = self.parser.structural_analysis.extract_referenced_legislation(soup8)
+        result8 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
+            soup8
+        )
         result8_dict = json.loads(result8)
 
         self.assertIn("Directive", result8_dict)
@@ -6070,12 +6086,14 @@ class TestStructuralAnalysis:
         <div>This text contains no legislative references whatsoever.</div>
         """
         soup9 = BeautifulSoup(html9, "html.parser")
-        result9 = self.parser.structural_analysis.extract_referenced_legislation(soup9)
+        result9 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
+            soup9
+        )
         self.assertIsNone(result9)
 
         # TEST 10: Empty soup - should return None
         soup10 = BeautifulSoup("", "html.parser")
-        result10 = self.parser.structural_analysis.extract_referenced_legislation(
+        result10 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
             soup10
         )
         self.assertIsNone(result10)
@@ -6087,7 +6105,7 @@ class TestStructuralAnalysis:
         </a>
         """
         soup11 = BeautifulSoup(html11, "html.parser")
-        result11 = self.parser.structural_analysis.extract_referenced_legislation(
+        result11 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
             soup11
         )
         result11_dict = json.loads(result11)
@@ -6100,7 +6118,7 @@ class TestStructuralAnalysis:
         <a href="http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv:OJ.L_.2020.45.01.0001.01.ENG">L2</a>
         """
         soup12 = BeautifulSoup(html12, "html.parser")
-        result12 = self.parser.structural_analysis.extract_referenced_legislation(
+        result12 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
             soup12
         )
         result12_dict = json.loads(result12)
@@ -6113,7 +6131,7 @@ class TestStructuralAnalysis:
         <a href="http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv:OJ.C_.2020.145.02.0003.02.ENG">C</a>
         """
         soup13 = BeautifulSoup(html13, "html.parser")
-        result13 = self.parser.structural_analysis.extract_referenced_legislation(
+        result13 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
             soup13
         )
         result13_dict = json.loads(result13)
@@ -6126,7 +6144,7 @@ class TestStructuralAnalysis:
         <div>Directive 2010/63 applies here</div>
         """
         soup14 = BeautifulSoup(html14, "html.parser")
-        result14 = self.parser.structural_analysis.extract_referenced_legislation(
+        result14 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
             soup14
         )
         result14_dict = json.loads(result14)
@@ -6138,7 +6156,7 @@ class TestStructuralAnalysis:
         <div>Regulation (EU) No. 1234/2020 on transparency requirements</div>
         """
         soup15 = BeautifulSoup(html15, "html.parser")
-        result15 = self.parser.structural_analysis.extract_referenced_legislation(
+        result15 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
             soup15
         )
         result15_dict = json.loads(result15)
@@ -6331,14 +6349,8 @@ class TestStructuralAnalysis:
                 soup14
             )
         )
-        res14 = json.loads(result14)
-        # Should pick up "habitat Directive" and "general-data-protection Regulation"
-        assert "directives" in res14 and any(
-            "habitat Directive" in s for s in res14["directives"]
-        )
-        assert "regulations" in res14 and any(
-            "general-data-protection Regulation" in s for s in res14["regulations"]
-        )
+
+        assert result14 is None, "Generic legislation terms should be filtered out"
 
     def test_follow_up_duration_calculation(self):
         """Test calculation of follow-up duration in months."""

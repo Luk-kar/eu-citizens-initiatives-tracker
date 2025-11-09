@@ -776,7 +776,7 @@ class LegislationNameExtractor:
         """
         charter_patterns = [
             r"Charter\s+of\s+(?:the\s+)?Fundamental\s+Rights(?:\s+of\s+the\s+European\s+Union)?",
-            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Charter\b",
+            r"\b((?:[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,5})\s+Charter)\b",
         ]
 
         self._extract_pattern_matches(
