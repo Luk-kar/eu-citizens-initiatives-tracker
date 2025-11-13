@@ -468,11 +468,11 @@ class TestStructuralAnalysis:
         - Extraction of actions with multiple dates
         - Extraction of actions without dates
         - Different date formats (DD Month YYYY, Month YYYY, YYYY)
+        - Deadline expressions (early YYYY, end of YYYY, end YYYY)
         - Date normalization to ISO 8601 format
         - Handling of list items and paragraphs
         - Filtering of generic intro text and subsection headers
         - Proper JSON structure with "dates" and "action" fields
-        - Error handling for missing sections
         """
 
         # TEST 1: Single action with full date (DD Month YYYY)
@@ -508,8 +508,8 @@ class TestStructuralAnalysis:
         # First action: full date
         assert res2[0]["dates"] == ["2018-02-01"]
         assert "proposal was adopted" in res2[0]["action"]
-        # Second action: month-year
-        assert res2[1]["dates"] == ["2020-02-01"]
+        # Second action: month-year (converted to last day of month)
+        assert res2[1]["dates"] == ["2020-02-29"]  # Leap year - last day
         assert "entered into force" in res2[1]["action"]
         # Third action: year only
         assert res2[2]["dates"] == ["2023-01-01"]
@@ -598,8 +598,8 @@ class TestStructuralAnalysis:
         # First paragraph
         assert "2023-01-01" in res7[0]["dates"]
         assert "roadmap" in res7[0]["action"]
-        # First list item
-        assert "2026-01-01" in res7[1]["dates"]
+        # First list item with "early 2026" deadline
+        assert "2026-03-31" in res7[1]["dates"]  # early = end of Q1
         assert "Finalisation" in res7[1]["action"]
         # Second list item
         assert "2023-01-01" in res7[2]["dates"]
@@ -721,3 +721,45 @@ class TestStructuralAnalysis:
         soup15 = BeautifulSoup("", "html.parser")
         with pytest.raises(ValueError, match="Follow-up section not found"):
             self.parser.structural_analysis.calculate_follow_up_duration_months(soup15)
+
+        # TEST 16: NEW - Deadline expressions "end of YYYY"
+        html16 = """
+        <h2>Follow-up</h2>
+        <p>The Commission will publish its report by the end of 2024.</p>
+        """
+        soup16 = BeautifulSoup(html16, "html.parser")
+        result16 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+            soup16
+        )
+        res16 = json.loads(result16)
+        assert len(res16) == 1
+        assert "2024-12-31" in res16[0]["dates"]  # end of year = Dec 31
+        assert "report" in res16[0]["action"]
+
+        # TEST 17: NEW - Deadline expression "end YYYY" (without "of")
+        html17 = """
+        <h2>Follow-up</h2>
+        <p>Member States must comply by end 2025.</p>
+        """
+        soup17 = BeautifulSoup(html17, "html.parser")
+        result17 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+            soup17
+        )
+        res17 = json.loads(result17)
+        assert len(res17) == 1
+        assert "2025-12-31" in res17[0]["dates"]
+        assert "comply" in res17[0]["action"]
+
+        # TEST 18: NEW - Month names convert to last day of month
+        html18 = """
+        <h2>Follow-up</h2>
+        <p>The deadline for submissions is May 2018.</p>
+        """
+        soup18 = BeautifulSoup(html18, "html.parser")
+        result18 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+            soup18
+        )
+        res18 = json.loads(result18)
+        assert len(res18) == 1
+        assert "2018-05-31" in res18[0]["dates"]  # Last day of May
+        assert "submissions" in res18[0]["action"]

@@ -14,6 +14,7 @@ from urllib.parse import unquote
 from bs4 import BeautifulSoup
 
 from ..base.base_extractor import BaseExtractor
+from ..base.date_parser import convert_deadline_to_date
 
 
 class StructuralAnalysisExtractor(BaseExtractor):
@@ -374,8 +375,9 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
         Supported formats:
         - DD Month YYYY (e.g., "28 October 2015") → YYYY-MM-DD
-        - Month YYYY (e.g., "February 2018") → YYYY-MM-01
+        - Month YYYY (e.g., "February 2018") → YYYY-MM-01 (first day) or YYYY-MM-DD (last day)
         - YYYY (e.g., "2021") → YYYY-01-01
+        - Deadline expressions (e.g., "early 2026", "end of 2023") → converted appropriately
 
         Args:
             text: Text content to extract dates from
@@ -393,8 +395,10 @@ class StructuralAnalysisExtractor(BaseExtractor):
         date_patterns = [
             # DD Month YYYY (e.g., "28 October 2015", "01 February 2018")
             (rf"\b(\d{{1,2}})\s+({month_names_pattern})\s+(\d{{4}})\b", "dmy"),
+            # Deadline expressions (e.g., "early 2026", "end of 2023", "end 2024")
+            (r"\b(?:early|end(?:\s+of)?)\s+(\d{4})\b", "deadline"),
             # Month YYYY (e.g., "February 2018", "October 2015")
-            (rf"\b({month_names_pattern})\s+(\d{{4}})\b", "my"),
+            (rf"\b({month_names_pattern})\s+(\d{{4}})\b", "deadline"),
             # YYYY only (e.g., "2021", "2023")
             (r"\b(20\d{2})\b", "y"),
         ]
@@ -407,7 +411,6 @@ class StructuralAnalysisExtractor(BaseExtractor):
             matches = list(re.finditer(pattern, text, re.IGNORECASE))
 
             for match in matches:
-
                 # Check if this position overlaps with already used position
                 match_range = range(match.start(), match.end())
 
@@ -415,7 +418,13 @@ class StructuralAnalysisExtractor(BaseExtractor):
                     continue
 
                 try:
-                    iso_date = self._parse_date_match(match, date_type)
+                    if date_type == "deadline":
+                        # Use convert_deadline_to_date for flexible deadline parsing
+                        deadline_text = match.group(0)
+                        iso_date = convert_deadline_to_date(deadline_text)
+                    else:
+                        # Use existing parsing for exact dates
+                        iso_date = self._parse_date_match(match, date_type)
 
                     if iso_date:
                         found_dates.append(iso_date)
