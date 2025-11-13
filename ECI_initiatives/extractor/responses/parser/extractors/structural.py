@@ -168,6 +168,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
         Raises:
             ValueError: If critical error occurs during extraction
         """
+
         try:
             # Find the Follow-up section
             followup_section = self._find_followup_section(soup)
@@ -202,6 +203,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
         Returns:
             Dictionary with 'element' and 'marker' keys, or None if not found
         """
+
         # Try h2 first (primary pattern)
         for h2 in soup.find_all("h2"):
             if "Follow-up" in h2.get_text():
@@ -227,6 +229,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
         Returns:
             List of dictionaries with 'dates' and 'action' keys
         """
+
         follow_up_actions = []
         current_element = section_element.find_next_sibling()
 
@@ -261,6 +264,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
         Returns:
             True if extraction should stop, False otherwise
         """
+
         if element.name == "h2":
             return True
         if section_marker == "h4" and element.name == "h4":
@@ -279,6 +283,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
         Returns:
             Dictionary with 'dates' and 'action' keys, or None if should be skipped
         """
+
         action_text = element.get_text(separator=" ", strip=True)
         action_text = re.sub(r"\s+", " ", action_text)
 
@@ -307,6 +312,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
         Returns:
             List of dictionaries with 'dates' and 'action' keys
         """
+
         actions = []
 
         for li in list_element.find_all("li", recursive=False):
@@ -335,6 +341,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
         Returns:
             True if text should be skipped, False otherwise
         """
+
         skip_patterns = [
             "provides regularly updated information",
             "provides information on the follow-up",
