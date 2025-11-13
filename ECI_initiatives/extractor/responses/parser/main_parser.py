@@ -210,7 +210,7 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 follow_up_duration_months=self.structural_analysis.calculate_follow_up_duration_months(
-                    official_communication_adoption_date, latest_date
+                    soup
                 ),
                 # Metadata
                 created_timestamp=current_timestamp,

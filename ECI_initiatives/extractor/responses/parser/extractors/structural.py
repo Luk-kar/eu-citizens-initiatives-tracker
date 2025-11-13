@@ -140,12 +140,214 @@ class StructuralAnalysisExtractor(BaseExtractor):
         name_extractor = LegislationNameExtractor()
         return name_extractor.extract_referenced_legislation_by_name(soup)
 
-    def calculate_follow_up_duration_months(
-        self, commission_date: Optional[str], latest_update: Optional[str]
-    ) -> Optional[int]:
-        """Calculate months between Commission response and latest follow-up"""
+    def calculate_follow_up_duration_months(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract follow-up actions with associated dates in structured JSON format.
+
+        Returns JSON array with structure:
+        [
+            {
+                "dates": ["2020-01-01", "2021-01-01"],
+                "action": "Following up on its commitment..."
+            },
+            ...
+        ]
+
+        Each action corresponds to a paragraph, list item, or div following the Follow-up header.
+        Dates are extracted from the text and normalized to ISO 8601 format (YYYY-MM-DD).
+        If no dates are found in the action text, the dates array will be empty.
+
+        Args:
+            soup: BeautifulSoup object of the HTML document
+
+        Returns:
+            JSON string with follow-up actions and dates, or None if no follow-up section exists
+
+        Raises:
+            ValueError: If critical error occurs during extraction
+        """
         try:
-            return None
+            # Find the Follow-up section
+            followup_section = None
+            section_marker = None
+
+            # Try h2 first (primary pattern)
+            for h2 in soup.find_all("h2"):
+                if "Follow-up" in h2.get_text():
+                    followup_section = h2
+                    section_marker = "h2"
+                    break
+
+            # If not found, try h4 (secondary pattern)
+            if not followup_section:
+                for h4 in soup.find_all("h4"):
+                    if "Follow-up" in h4.get_text():
+                        followup_section = h4
+                        section_marker = "h4"
+                        break
+
+            if not followup_section:
+                return None
+
+            # Date patterns to extract dates from text (ordered by specificity)
+            date_patterns = [
+                # DD Month YYYY (e.g., "28 October 2015", "01 February 2018")
+                (
+                    r"\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b",
+                    "dmy",
+                ),
+                # Month YYYY (e.g., "February 2018", "October 2015")
+                (
+                    r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b",
+                    "my",
+                ),
+                # YYYY only (e.g., "2021", "2023")
+                (r"\b(20\d{2})\b", "y"),
+            ]
+
+            month_map = {
+                "January": 1,
+                "February": 2,
+                "March": 3,
+                "April": 4,
+                "May": 5,
+                "June": 6,
+                "July": 7,
+                "August": 8,
+                "September": 9,
+                "October": 10,
+                "November": 11,
+                "December": 12,
+            }
+
+            def extract_dates_from_text(text: str) -> List[str]:
+                """
+                Extract and normalize dates from text to ISO format.
+                Only keeps the most specific date at each text position.
+                """
+                found_dates = []
+                used_positions: set = set()
+
+                # Process patterns in order of specificity
+                for pattern, date_type in date_patterns:
+                    matches = list(re.finditer(pattern, text, re.IGNORECASE))
+
+                    for match in matches:
+                        # Check if this position overlaps with already used position
+                        match_range = range(match.start(), match.end())
+                        if any(pos in used_positions for pos in match_range):
+                            continue
+
+                        try:
+                            if date_type == "dmy":
+                                day = int(match.group(1))
+                                month_name = match.group(2)
+                                year = int(match.group(3))
+                                month = month_map.get(month_name.capitalize(), 1)
+                                iso_date = f"{year:04d}-{month:02d}-{day:02d}"
+                                found_dates.append(iso_date)
+                                # Mark this position as used
+                                for pos in match_range:
+                                    used_positions.add(pos)
+
+                            elif date_type == "my":
+                                month_name = match.group(1)
+                                year = int(match.group(2))
+                                month = month_map.get(month_name.capitalize(), 1)
+                                iso_date = f"{year:04d}-{month:02d}-01"
+                                found_dates.append(iso_date)
+                                # Mark this position as used
+                                for pos in match_range:
+                                    used_positions.add(pos)
+
+                            elif date_type == "y":
+                                year = int(match.group(1))
+                                iso_date = f"{year:04d}-01-01"
+                                found_dates.append(iso_date)
+                                # Mark this position as used
+                                for pos in match_range:
+                                    used_positions.add(pos)
+                        except (ValueError, AttributeError):
+                            continue
+
+                # Remove duplicates while preserving order
+                return list(dict.fromkeys(found_dates))
+
+            # Collect content after Follow-up section
+            follow_up_actions = []
+            current_element = followup_section.find_next_sibling()
+
+            while current_element:
+                # Stop at next major heading
+                if current_element.name == "h2":
+                    break
+                if section_marker == "h4" and current_element.name == "h4":
+                    break
+
+                # Process paragraphs and divs
+                if current_element.name in ["p", "div"]:
+                    # Get text content
+                    action_text = current_element.get_text(separator=" ", strip=True)
+
+                    # Clean up whitespace
+                    action_text = re.sub(r"\s+", " ", action_text)
+
+                    # Skip very short content
+                    if len(action_text) < 30:
+                        current_element = current_element.find_next_sibling()
+                        continue
+
+                    # Skip generic intro paragraphs or subsection headers
+                    skip_patterns = [
+                        "provides regularly updated information",
+                        "provides information on the follow-up",
+                        "this section provides",
+                    ]
+
+                    should_skip = False
+                    for pattern in skip_patterns:
+                        if pattern in action_text.lower():
+                            should_skip = True
+                            break
+
+                    # Also skip if it's just a subsection header (ends with colon and is short)
+                    if action_text.endswith(":") and len(action_text) < 100:
+                        should_skip = True
+
+                    if not should_skip:
+                        # Extract dates from the text
+                        dates = extract_dates_from_text(action_text)
+
+                        # Add to results
+                        follow_up_actions.append(
+                            {"dates": dates, "action": action_text}
+                        )
+
+                # Process unordered/ordered lists - extract individual list items
+                elif current_element.name in ["ul", "ol"]:
+                    for li in current_element.find_all("li", recursive=False):
+                        action_text = li.get_text(separator=" ", strip=True)
+                        action_text = re.sub(r"\s+", " ", action_text)
+
+                        # Skip very short items
+                        if len(action_text) < 30:
+                            continue
+
+                        # Extract dates from the text
+                        dates = extract_dates_from_text(action_text)
+
+                        # Add to results
+                        follow_up_actions.append(
+                            {"dates": dates, "action": action_text}
+                        )
+
+                current_element = current_element.find_next_sibling()
+
+            if not follow_up_actions:
+                return None
+
+            return json.dumps(follow_up_actions, ensure_ascii=False)
+
         except Exception as e:
             raise ValueError(
                 f"Error calculating follow-up duration for {self.registration_number}: {str(e)}"
