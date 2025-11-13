@@ -763,3 +763,20 @@ class TestStructuralAnalysis:
         assert len(res18) == 1
         assert "2018-05-31" in res18[0]["dates"]  # Last day of May
         assert "submissions" in res18[0]["action"]
+
+        # TEST 19: - Both explicit date and deadline expression with same month
+        html19 = """
+        <h2>Follow-up</h2>
+        <p>The consultation started on 28 February 2018 and closed by end of February 2018.</p>
+        """
+        soup19 = BeautifulSoup(html19, "html.parser")
+        result19 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+            soup19
+        )
+        res19 = json.loads(result19)
+        assert len(res19) == 1
+        # Should extract both dates: specific date and end of month
+        assert (
+            "2018-02-29" not in res19[0]["dates"]
+        )  # 2018 is not a leap year, so Feb 28
+        assert "2018-02-28" in res19[0]["dates"]

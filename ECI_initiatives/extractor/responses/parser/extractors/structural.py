@@ -396,7 +396,10 @@ class StructuralAnalysisExtractor(BaseExtractor):
             # DD Month YYYY (e.g., "28 October 2015", "01 February 2018")
             (rf"\b(\d{{1,2}})\s+({month_names_pattern})\s+(\d{{4}})\b", "dmy"),
             # Deadline expressions (e.g., "early 2026", "end of 2023", "end 2024")
-            (r"\b(?:early|end(?:\s+of)?)\s+(\d{4})\b", "deadline"),
+            (
+                rf"\b(?:early|end(?:\s+of)?)\s+(?:({month_names_pattern})\s+)?(\d{{4}})\b",
+                "deadline",
+            ),
             # Month YYYY (e.g., "February 2018", "October 2015")
             (rf"\b({month_names_pattern})\s+(\d{{4}})\b", "deadline"),
             # YYYY only (e.g., "2021", "2023")
