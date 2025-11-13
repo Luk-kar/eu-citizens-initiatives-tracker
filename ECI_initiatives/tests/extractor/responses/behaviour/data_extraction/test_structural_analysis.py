@@ -625,8 +625,10 @@ class TestStructuralAnalysis:
         <p>This is the Commission's response.</p>
         """
         soup9 = BeautifulSoup(html9, "html.parser")
-        with pytest.raises(ValueError, match="Follow-up section not found"):
-            self.parser.structural_analysis.extract_followup_actions_with_dates(soup9)
+        result9 = self.parser.structural_analysis.extract_followup_actions_with_dates(
+            soup9
+        )
+        assert result9 is None
 
         # TEST 10: Follow-up section with no valid content raises ValueError
         html10 = """
@@ -719,8 +721,10 @@ class TestStructuralAnalysis:
 
         # TEST 15: Empty soup raises ValueError
         soup15 = BeautifulSoup("", "html.parser")
-        with pytest.raises(ValueError, match="Follow-up section not found"):
-            self.parser.structural_analysis.extract_followup_actions_with_dates(soup15)
+        result15 = self.parser.structural_analysis.extract_followup_actions_with_dates(
+            soup15
+        )
+        assert result15 is None
 
         # TEST 16: Deadline expressions "end of YYYY"
         html16 = """

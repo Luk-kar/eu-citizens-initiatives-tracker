@@ -165,18 +165,18 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
         Returns:
             JSON string with follow-up actions and dates, or None if no follow-up section exists
+            or no valid actions are found
 
         Raises:
             ValueError: If critical error occurs during extraction
         """
-
         try:
             # Find the Follow-up section
             followup_section = self._find_followup_section(soup)
+
+            # like 2019_000007_en petition
             if not followup_section:
-                raise ValueError(
-                    f"Follow-up section not found for initiative {self.registration_number}"
-                )
+                return None
 
             # Collect and process follow-up actions
             follow_up_actions = self._extract_followup_actions(followup_section)
