@@ -6,7 +6,8 @@ calculating follow-up durations.
 
 import re
 import json
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Union
+from urllib.parse import unquote
 
 from bs4 import BeautifulSoup
 
@@ -21,7 +22,6 @@ class StructuralAnalysisExtractor(BaseExtractor):
     ) -> Optional[str]:
         """Extract references to specific Regulations or Directives by number/id"""
         try:
-            from urllib.parse import unquote
 
             # Get text content from the soup
             text = soup.get_text()
@@ -168,180 +168,17 @@ class StructuralAnalysisExtractor(BaseExtractor):
         """
         try:
             # Find the Follow-up section
-            followup_section = None
-            section_marker = None
-
-            # Try h2 first (primary pattern)
-            for h2 in soup.find_all("h2"):
-                if "Follow-up" in h2.get_text():
-                    followup_section = h2
-                    section_marker = "h2"
-                    break
-
-            # If not found, try h4 (secondary pattern)
-            if not followup_section:
-                for h4 in soup.find_all("h4"):
-                    if "Follow-up" in h4.get_text():
-                        followup_section = h4
-                        section_marker = "h4"
-                        break
-
+            followup_section = self._find_followup_section(soup)
             if not followup_section:
                 return None
 
-            # Date patterns to extract dates from text (ordered by specificity)
-            date_patterns = [
-                # DD Month YYYY (e.g., "28 October 2015", "01 February 2018")
-                (
-                    r"\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b",
-                    "dmy",
-                ),
-                # Month YYYY (e.g., "February 2018", "October 2015")
-                (
-                    r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b",
-                    "my",
-                ),
-                # YYYY only (e.g., "2021", "2023")
-                (r"\b(20\d{2})\b", "y"),
-            ]
+            section_marker = followup_section["marker"]
+            section_element = followup_section["element"]
 
-            month_map = {
-                "January": 1,
-                "February": 2,
-                "March": 3,
-                "April": 4,
-                "May": 5,
-                "June": 6,
-                "July": 7,
-                "August": 8,
-                "September": 9,
-                "October": 10,
-                "November": 11,
-                "December": 12,
-            }
-
-            def extract_dates_from_text(text: str) -> List[str]:
-                """
-                Extract and normalize dates from text to ISO format.
-                Only keeps the most specific date at each text position.
-                """
-                found_dates = []
-                used_positions: set = set()
-
-                # Process patterns in order of specificity
-                for pattern, date_type in date_patterns:
-                    matches = list(re.finditer(pattern, text, re.IGNORECASE))
-
-                    for match in matches:
-                        # Check if this position overlaps with already used position
-                        match_range = range(match.start(), match.end())
-                        if any(pos in used_positions for pos in match_range):
-                            continue
-
-                        try:
-                            if date_type == "dmy":
-                                day = int(match.group(1))
-                                month_name = match.group(2)
-                                year = int(match.group(3))
-                                month = month_map.get(month_name.capitalize(), 1)
-                                iso_date = f"{year:04d}-{month:02d}-{day:02d}"
-                                found_dates.append(iso_date)
-                                # Mark this position as used
-                                for pos in match_range:
-                                    used_positions.add(pos)
-
-                            elif date_type == "my":
-                                month_name = match.group(1)
-                                year = int(match.group(2))
-                                month = month_map.get(month_name.capitalize(), 1)
-                                iso_date = f"{year:04d}-{month:02d}-01"
-                                found_dates.append(iso_date)
-                                # Mark this position as used
-                                for pos in match_range:
-                                    used_positions.add(pos)
-
-                            elif date_type == "y":
-                                year = int(match.group(1))
-                                iso_date = f"{year:04d}-01-01"
-                                found_dates.append(iso_date)
-                                # Mark this position as used
-                                for pos in match_range:
-                                    used_positions.add(pos)
-                        except (ValueError, AttributeError):
-                            continue
-
-                # Remove duplicates while preserving order
-                return list(dict.fromkeys(found_dates))
-
-            # Collect content after Follow-up section
-            follow_up_actions = []
-            current_element = followup_section.find_next_sibling()
-
-            while current_element:
-                # Stop at next major heading
-                if current_element.name == "h2":
-                    break
-                if section_marker == "h4" and current_element.name == "h4":
-                    break
-
-                # Process paragraphs and divs
-                if current_element.name in ["p", "div"]:
-                    # Get text content
-                    action_text = current_element.get_text(separator=" ", strip=True)
-
-                    # Clean up whitespace
-                    action_text = re.sub(r"\s+", " ", action_text)
-
-                    # Skip very short content
-                    if len(action_text) < 30:
-                        current_element = current_element.find_next_sibling()
-                        continue
-
-                    # Skip generic intro paragraphs or subsection headers
-                    skip_patterns = [
-                        "provides regularly updated information",
-                        "provides information on the follow-up",
-                        "this section provides",
-                    ]
-
-                    should_skip = False
-                    for pattern in skip_patterns:
-                        if pattern in action_text.lower():
-                            should_skip = True
-                            break
-
-                    # Also skip if it's just a subsection header (ends with colon and is short)
-                    if action_text.endswith(":") and len(action_text) < 100:
-                        should_skip = True
-
-                    if not should_skip:
-                        # Extract dates from the text
-                        dates = extract_dates_from_text(action_text)
-
-                        # Add to results
-                        follow_up_actions.append(
-                            {"dates": dates, "action": action_text}
-                        )
-
-                # Process unordered/ordered lists - extract individual list items
-                elif current_element.name in ["ul", "ol"]:
-                    for li in current_element.find_all("li", recursive=False):
-                        action_text = li.get_text(separator=" ", strip=True)
-                        action_text = re.sub(r"\s+", " ", action_text)
-
-                        # Skip very short items
-                        if len(action_text) < 30:
-                            continue
-
-                        # Extract dates from the text
-                        dates = extract_dates_from_text(action_text)
-
-                        # Add to results
-                        follow_up_actions.append(
-                            {"dates": dates, "action": action_text}
-                        )
-
-                current_element = current_element.find_next_sibling()
+            # Collect and process follow-up actions
+            follow_up_actions = self._extract_followup_actions(
+                section_element, section_marker
+            )
 
             if not follow_up_actions:
                 return None
@@ -352,6 +189,279 @@ class StructuralAnalysisExtractor(BaseExtractor):
             raise ValueError(
                 f"Error calculating follow-up duration for {self.registration_number}: {str(e)}"
             ) from e
+
+    def _find_followup_section(self, soup: BeautifulSoup) -> Optional[Dict[str, str]]:
+        """
+        Find the Follow-up section in the HTML.
+
+        Args:
+            soup: BeautifulSoup object of the HTML document
+
+        Returns:
+            Dictionary with 'element' and 'marker' keys, or None if not found
+        """
+        # Try h2 first (primary pattern)
+        for h2 in soup.find_all("h2"):
+            if "Follow-up" in h2.get_text():
+                return {"element": h2, "marker": "h2"}
+
+        # If not found, try h4 (secondary pattern)
+        for h4 in soup.find_all("h4"):
+            if "Follow-up" in h4.get_text():
+                return {"element": h4, "marker": "h4"}
+
+        return None
+
+    def _extract_followup_actions(
+        self, section_element, section_marker: str
+    ) -> List[Dict[str, Union[List[str], str]]]:
+        """
+        Extract follow-up actions from the Follow-up section.
+
+        Args:
+            section_element: BeautifulSoup element of the Follow-up header
+            section_marker: Type of header ('h2' or 'h4')
+
+        Returns:
+            List of dictionaries with 'dates' and 'action' keys
+        """
+        follow_up_actions = []
+        current_element = section_element.find_next_sibling()
+
+        while current_element:
+            # Stop at next major heading
+            if self._should_stop_extraction(current_element, section_marker):
+                break
+
+            # Process paragraphs and divs
+            if current_element.name in ["p", "div"]:
+                action = self._process_text_element(current_element)
+                if action:
+                    follow_up_actions.append(action)
+
+            # Process unordered/ordered lists - extract individual list items
+            elif current_element.name in ["ul", "ol"]:
+                actions = self._process_list_element(current_element)
+                follow_up_actions.extend(actions)
+
+            current_element = current_element.find_next_sibling()
+
+        return follow_up_actions
+
+    def _should_stop_extraction(self, element, section_marker: str) -> bool:
+        """
+        Check if we should stop extracting follow-up actions.
+
+        Args:
+            element: Current BeautifulSoup element
+            section_marker: Type of Follow-up header ('h2' or 'h4')
+
+        Returns:
+            True if extraction should stop, False otherwise
+        """
+        if element.name == "h2":
+            return True
+        if section_marker == "h4" and element.name == "h4":
+            return True
+        return False
+
+    def _process_text_element(
+        self, element
+    ) -> Optional[Dict[str, Union[List[str], str]]]:
+        """
+        Process a paragraph or div element.
+
+        Args:
+            element: BeautifulSoup element
+
+        Returns:
+            Dictionary with 'dates' and 'action' keys, or None if should be skipped
+        """
+        action_text = element.get_text(separator=" ", strip=True)
+        action_text = re.sub(r"\s+", " ", action_text)
+
+        # Skip very short content
+        if len(action_text) < 30:
+            return None
+
+        # Skip generic intro paragraphs or subsection headers
+        if self._should_skip_text(action_text):
+            return None
+
+        # Extract dates from the text
+        dates = self._extract_dates_from_text(action_text)
+
+        return {"dates": dates, "action": action_text}
+
+    def _process_list_element(
+        self, list_element
+    ) -> List[Dict[str, Union[List[str], str]]]:
+        """
+        Process a list element (ul or ol) and extract individual list items.
+
+        Args:
+            list_element: BeautifulSoup list element
+
+        Returns:
+            List of dictionaries with 'dates' and 'action' keys
+        """
+        actions = []
+
+        for li in list_element.find_all("li", recursive=False):
+            action_text = li.get_text(separator=" ", strip=True)
+            action_text = re.sub(r"\s+", " ", action_text)
+
+            # Skip very short items
+            if len(action_text) < 30:
+                continue
+
+            # Extract dates from the text
+            dates = self._extract_dates_from_text(action_text)
+
+            actions.append({"dates": dates, "action": action_text})
+
+        return actions
+
+    def _should_skip_text(self, text: str) -> bool:
+        """
+        Determine if text should be skipped (generic intro or subsection header).
+
+        Args:
+            text: Text content to check
+
+        Returns:
+            True if text should be skipped, False otherwise
+        """
+        skip_patterns = [
+            "provides regularly updated information",
+            "provides information on the follow-up",
+            "this section provides",
+        ]
+
+        text_lower = text.lower()
+        for pattern in skip_patterns:
+            if pattern in text_lower:
+                return True
+
+        # Also skip if it's just a subsection header (ends with colon and is short)
+        if text.endswith(":") and len(text) < 100:
+            return True
+
+        return False
+
+    def _extract_dates_from_text(self, text: str) -> List[str]:
+        """
+        Extract and normalize dates from text to ISO 8601 format.
+
+        Only keeps the most specific date at each text position to avoid duplicates
+        (e.g., if "01 February 2018" is found, "February 2018" won't be extracted).
+
+        Supported formats:
+        - DD Month YYYY (e.g., "28 October 2015") → YYYY-MM-DD
+        - Month YYYY (e.g., "February 2018") → YYYY-MM-01
+        - YYYY (e.g., "2021") → YYYY-01-01
+
+        Args:
+            text: Text content to extract dates from
+
+        Returns:
+            List of ISO 8601 formatted date strings
+        """
+        from datetime import datetime
+        import calendar
+
+        # Date patterns ordered by specificity (most specific first)
+        date_patterns = [
+            # DD Month YYYY (e.g., "28 October 2015", "01 February 2018")
+            (
+                r"\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b",
+                "dmy",
+            ),
+            # Month YYYY (e.g., "February 2018", "October 2015")
+            (
+                r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b",
+                "my",
+            ),
+            # YYYY only (e.g., "2021", "2023")
+            (r"\b(20\d{2})\b", "y"),
+        ]
+
+        found_dates = []
+        used_positions: set = set()
+
+        # Process patterns in order of specificity
+        for pattern, date_type in date_patterns:
+            matches = list(re.finditer(pattern, text, re.IGNORECASE))
+
+            for match in matches:
+                # Check if this position overlaps with already used position
+                match_range = range(match.start(), match.end())
+                if any(pos in used_positions for pos in match_range):
+                    continue
+
+                try:
+                    iso_date = self._parse_date_match(match, date_type)
+                    if iso_date:
+                        found_dates.append(iso_date)
+                        # Mark this position as used
+                        for pos in match_range:
+                            used_positions.add(pos)
+                except (ValueError, AttributeError):
+                    continue
+
+        # Remove duplicates while preserving order
+        return list(dict.fromkeys(found_dates))
+
+    def _parse_date_match(self, match: re.Match, date_type: str) -> Optional[str]:
+        """
+        Parse a regex match into an ISO 8601 date string.
+
+        Args:
+            match: Regex match object
+            date_type: Type of date format ('dmy', 'my', or 'y')
+
+        Returns:
+            ISO 8601 formatted date string (YYYY-MM-DD), or None if parsing fails
+        """
+        from datetime import datetime
+        import calendar
+
+        try:
+            if date_type == "dmy":
+                # DD Month YYYY format
+                day = int(match.group(1))
+                month_name = match.group(2).capitalize()
+                year = int(match.group(3))
+
+                # Convert month name to number using datetime
+                month = datetime.strptime(month_name, "%B").month
+
+                # Validate day is within valid range for the month
+                max_day = calendar.monthrange(year, month)[1]
+                if day > max_day:
+                    return None
+
+                return f"{year:04d}-{month:02d}-{day:02d}"
+
+            elif date_type == "my":
+                # Month YYYY format
+                month_name = match.group(1).capitalize()
+                year = int(match.group(2))
+
+                # Convert month name to number using datetime
+                month = datetime.strptime(month_name, "%B").month
+
+                return f"{year:04d}-{month:02d}-01"
+
+            elif date_type == "y":
+                # YYYY format
+                year = int(match.group(1))
+                return f"{year:04d}-01-01"
+
+        except (ValueError, AttributeError):
+            return None
+
+        return None
 
 
 class LegislationNameExtractor:
