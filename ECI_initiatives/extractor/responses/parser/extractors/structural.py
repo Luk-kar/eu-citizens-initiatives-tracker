@@ -4,6 +4,8 @@ EU legislation references, petition platforms used, and
 calculating follow-up durations.
 """
 
+import calendar
+from datetime import datetime
 import re
 import json
 from typing import Optional, Dict, List, Union
@@ -308,17 +310,18 @@ class StructuralAnalysisExtractor(BaseExtractor):
         actions = []
 
         for li in list_element.find_all("li", recursive=False):
+
             action_text = li.get_text(separator=" ", strip=True)
-            action_text = re.sub(r"\s+", " ", action_text)
+            action_text_normalized_spaces = re.sub(r"\s+", " ", action_text)
 
             # Skip very short items
-            if len(action_text) < 30:
+            if len(action_text_normalized_spaces) < 30:
                 continue
 
             # Extract dates from the text
-            dates = self._extract_dates_from_text(action_text)
+            dates = self._extract_dates_from_text(action_text_normalized_spaces)
 
-            actions.append({"dates": dates, "action": action_text})
+            actions.append({"dates": dates, "action": action_text_normalized_spaces})
 
         return actions
 
@@ -339,7 +342,9 @@ class StructuralAnalysisExtractor(BaseExtractor):
         ]
 
         text_lower = text.lower()
+
         for pattern in skip_patterns:
+
             if pattern in text_lower:
                 return True
 
@@ -367,21 +372,18 @@ class StructuralAnalysisExtractor(BaseExtractor):
         Returns:
             List of ISO 8601 formatted date strings
         """
-        from datetime import datetime
-        import calendar
+
+        # Generate month names pattern from calendar module
+        month_names_pattern = "|".join(
+            calendar.month_name[1:]
+        )  # Excludes empty string at index 0
 
         # Date patterns ordered by specificity (most specific first)
         date_patterns = [
             # DD Month YYYY (e.g., "28 October 2015", "01 February 2018")
-            (
-                r"\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b",
-                "dmy",
-            ),
+            (rf"\b(\d{{1,2}})\s+({month_names_pattern})\s+(\d{{4}})\b", "dmy"),
             # Month YYYY (e.g., "February 2018", "October 2015")
-            (
-                r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b",
-                "my",
-            ),
+            (rf"\b({month_names_pattern})\s+(\d{{4}})\b", "my"),
             # YYYY only (e.g., "2021", "2023")
             (r"\b(20\d{2})\b", "y"),
         ]
@@ -423,8 +425,6 @@ class StructuralAnalysisExtractor(BaseExtractor):
         Returns:
             ISO 8601 formatted date string (YYYY-MM-DD), or None if parsing fails
         """
-        from datetime import datetime
-        import calendar
 
         try:
             if date_type == "dmy":
