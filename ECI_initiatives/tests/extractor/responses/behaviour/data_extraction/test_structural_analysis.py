@@ -722,7 +722,7 @@ class TestStructuralAnalysis:
         with pytest.raises(ValueError, match="Follow-up section not found"):
             self.parser.structural_analysis.calculate_follow_up_duration_months(soup15)
 
-        # TEST 16: NEW - Deadline expressions "end of YYYY"
+        # TEST 16: Deadline expressions "end of YYYY"
         html16 = """
         <h2>Follow-up</h2>
         <p>The Commission will publish its report by the end of 2024.</p>
@@ -736,7 +736,7 @@ class TestStructuralAnalysis:
         assert "2024-12-31" in res16[0]["dates"]  # end of year = Dec 31
         assert "report" in res16[0]["action"]
 
-        # TEST 17: NEW - Deadline expression "end YYYY" (without "of")
+        # TEST 17: Deadline expression "end YYYY" (without "of")
         html17 = """
         <h2>Follow-up</h2>
         <p>Member States must comply by end 2025.</p>
@@ -750,7 +750,7 @@ class TestStructuralAnalysis:
         assert "2025-12-31" in res17[0]["dates"]
         assert "comply" in res17[0]["action"]
 
-        # TEST 18: NEW - Month names convert to last day of month
+        # TEST 18: Month names convert to last day of month
         html18 = """
         <h2>Follow-up</h2>
         <p>The deadline for submissions is May 2018.</p>
