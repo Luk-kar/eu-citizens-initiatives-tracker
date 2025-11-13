@@ -8,7 +8,7 @@ import calendar
 from datetime import datetime
 import re
 import json
-from typing import Optional, Dict, List, Union
+from typing import Any, Optional, Dict, List, Union
 from urllib.parse import unquote
 
 from bs4 import BeautifulSoup
@@ -173,18 +173,17 @@ class StructuralAnalysisExtractor(BaseExtractor):
             # Find the Follow-up section
             followup_section = self._find_followup_section(soup)
             if not followup_section:
-                return None
-
-            section_marker = followup_section["marker"]
-            section_element = followup_section["element"]
+                raise ValueError(
+                    f"Follow-up section not found for initiative {self.registration_number}"
+                )
 
             # Collect and process follow-up actions
-            follow_up_actions = self._extract_followup_actions(
-                section_element, section_marker
-            )
+            follow_up_actions = self._extract_followup_actions(followup_section)
 
             if not follow_up_actions:
-                return None
+                raise ValueError(
+                    f"No valid follow-up actions found for initiative {self.registration_number}"
+                )
 
             return json.dumps(follow_up_actions, ensure_ascii=False)
 
@@ -217,38 +216,40 @@ class StructuralAnalysisExtractor(BaseExtractor):
         return None
 
     def _extract_followup_actions(
-        self, section_element, section_marker: str
+        self, followup_section: Dict[str, Any]
     ) -> List[Dict[str, Union[List[str], str]]]:
         """
         Extract follow-up actions from the Follow-up section.
 
         Args:
-            section_element: BeautifulSoup element of the Follow-up header
-            section_marker: Type of header ('h2' or 'h4')
+            followup_section: Dictionary with 'element' and 'marker' keys
+                            - element: BeautifulSoup element of the Follow-up header
+                            - marker: Type of header ('h2' or 'h4')
 
         Returns:
             List of dictionaries with 'dates' and 'action' keys
         """
 
+        # Unpack the dictionary
+        section_element = followup_section["element"]
+        section_marker = followup_section["marker"]
+
         follow_up_actions = []
         current_element = section_element.find_next_sibling()
 
         while current_element:
-
             # Stop at next major heading
             if self._should_stop_extraction(current_element, section_marker):
                 break
 
             # Process paragraphs and divs
             if current_element.name in ["p", "div"]:
-
                 action = self._process_text_element(current_element)
                 if action:
                     follow_up_actions.append(action)
 
             # Process unordered/ordered lists - extract individual list items
             elif current_element.name in ["ul", "ol"]:
-
                 actions = self._process_list_element(current_element)
                 follow_up_actions.extend(actions)
 
@@ -358,8 +359,8 @@ class StructuralAnalysisExtractor(BaseExtractor):
             if pattern in text_lower:
                 return True
 
-        # Also skip if it's just a subsection header (ends with colon and is short)
-        if text.endswith(":") and len(text) < 100:
+        # Also skip if it's just a subsection header (ends with colon)
+        if text.endswith(":"):
             return True
 
         return False
