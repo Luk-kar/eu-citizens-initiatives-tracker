@@ -234,18 +234,21 @@ class StructuralAnalysisExtractor(BaseExtractor):
         current_element = section_element.find_next_sibling()
 
         while current_element:
+
             # Stop at next major heading
             if self._should_stop_extraction(current_element, section_marker):
                 break
 
             # Process paragraphs and divs
             if current_element.name in ["p", "div"]:
+
                 action = self._process_text_element(current_element)
                 if action:
                     follow_up_actions.append(action)
 
             # Process unordered/ordered lists - extract individual list items
             elif current_element.name in ["ul", "ol"]:
+
                 actions = self._process_list_element(current_element)
                 follow_up_actions.extend(actions)
 
@@ -285,20 +288,20 @@ class StructuralAnalysisExtractor(BaseExtractor):
         """
 
         action_text = element.get_text(separator=" ", strip=True)
-        action_text = re.sub(r"\s+", " ", action_text)
+        action_text_normalized = re.sub(r"\s+", " ", action_text)
 
         # Skip very short content
-        if len(action_text) < 30:
+        if len(action_text_normalized) < 30:
             return None
 
         # Skip generic intro paragraphs or subsection headers
-        if self._should_skip_text(action_text):
+        if self._should_skip_text(action_text_normalized):
             return None
 
         # Extract dates from the text
-        dates = self._extract_dates_from_text(action_text)
+        dates = self._extract_dates_from_text(action_text_normalized)
 
-        return {"dates": dates, "action": action_text}
+        return {"dates": dates, "action": action_text_normalized}
 
     def _process_list_element(
         self, list_element
@@ -403,18 +406,23 @@ class StructuralAnalysisExtractor(BaseExtractor):
             matches = list(re.finditer(pattern, text, re.IGNORECASE))
 
             for match in matches:
+
                 # Check if this position overlaps with already used position
                 match_range = range(match.start(), match.end())
+
                 if any(pos in used_positions for pos in match_range):
                     continue
 
                 try:
                     iso_date = self._parse_date_match(match, date_type)
+
                     if iso_date:
                         found_dates.append(iso_date)
+
                         # Mark this position as used
                         for pos in match_range:
                             used_positions.add(pos)
+
                 except (ValueError, AttributeError):
                     continue
 
@@ -435,6 +443,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
         try:
             if date_type == "dmy":
+
                 # DD Month YYYY format
                 day = int(match.group(1))
                 month_name = match.group(2).capitalize()
