@@ -456,7 +456,7 @@ class TestStructuralAnalysis:
 
         assert result14 is None, "Generic legislation terms should be filtered out"
 
-    def test_follow_up_duration_calculation(self):
+    def test_followup_actions_with_dates(self):
         """
         Test calculation of follow-up duration and timeline extraction.
 
@@ -482,7 +482,7 @@ class TestStructuralAnalysis:
         to discuss the Commission's reply to the initiative.</p>
         """
         soup1 = BeautifulSoup(html1, "html.parser")
-        result1 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result1 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup1
         )
         res1 = json.loads(result1)
@@ -500,7 +500,7 @@ class TestStructuralAnalysis:
         </ul>
         """
         soup2 = BeautifulSoup(html2, "html.parser")
-        result2 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result2 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup2
         )
         res2 = json.loads(result2)
@@ -521,7 +521,7 @@ class TestStructuralAnalysis:
         <p>The Commission is working towards better enforcement of the existing rules.</p>
         """
         soup3 = BeautifulSoup(html3, "html.parser")
-        result3 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result3 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup3
         )
         res3 = json.loads(result3)
@@ -536,7 +536,7 @@ class TestStructuralAnalysis:
         12 January 2023 to transpose it. The new rules apply from 26 June 2023.</p>
         """
         soup4 = BeautifulSoup(html4, "html.parser")
-        result4 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result4 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup4
         )
         res4 = json.loads(result4)
@@ -553,7 +553,7 @@ class TestStructuralAnalysis:
         <p>A proposal for a Regulation was adopted on 11 April 2018.</p>
         """
         soup5 = BeautifulSoup(html5, "html.parser")
-        result5 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result5 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup5
         )
         res5 = json.loads(result5)
@@ -571,7 +571,7 @@ class TestStructuralAnalysis:
         </ul>
         """
         soup6 = BeautifulSoup(html6, "html.parser")
-        result6 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result6 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup6
         )
         res6 = json.loads(result6)
@@ -590,7 +590,7 @@ class TestStructuralAnalysis:
         </ul>
         """
         soup7 = BeautifulSoup(html7, "html.parser")
-        result7 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result7 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup7
         )
         res7 = json.loads(result7)
@@ -611,7 +611,7 @@ class TestStructuralAnalysis:
         <p>The proposal was adopted on 01 February 2018.</p>
         """
         soup8 = BeautifulSoup(html8, "html.parser")
-        result8 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result8 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup8
         )
         res8 = json.loads(result8)
@@ -626,7 +626,7 @@ class TestStructuralAnalysis:
         """
         soup9 = BeautifulSoup(html9, "html.parser")
         with pytest.raises(ValueError, match="Follow-up section not found"):
-            self.parser.structural_analysis.calculate_follow_up_duration_months(soup9)
+            self.parser.structural_analysis.extract_followup_actions_with_dates(soup9)
 
         # TEST 10: Follow-up section with no valid content raises ValueError
         html10 = """
@@ -636,7 +636,7 @@ class TestStructuralAnalysis:
         """
         soup10 = BeautifulSoup(html10, "html.parser")
         with pytest.raises(ValueError, match="No valid follow-up actions found"):
-            self.parser.structural_analysis.calculate_follow_up_duration_months(soup10)
+            self.parser.structural_analysis.extract_followup_actions_with_dates(soup10)
 
         # TEST 11: Follow-up section stops at next h2
         html11 = """
@@ -646,7 +646,7 @@ class TestStructuralAnalysis:
         <p>This should not be included in follow-up actions.</p>
         """
         soup11 = BeautifulSoup(html11, "html.parser")
-        result11 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result11 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup11
         )
         res11 = json.loads(result11)
@@ -660,7 +660,7 @@ class TestStructuralAnalysis:
         <p>The Commission organised a conference in Brussels on 6-7 December 2016.</p>
         """
         soup12 = BeautifulSoup(html12, "html.parser")
-        result12 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result12 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup12
         )
         res12 = json.loads(result12)
@@ -675,7 +675,7 @@ class TestStructuralAnalysis:
         <p>This is a longer paragraph that meets the minimum length requirement of 30 characters.</p>
         """
         soup13 = BeautifulSoup(html13, "html.parser")
-        result13 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result13 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup13
         )
         res13 = json.loads(result13)
@@ -700,7 +700,7 @@ class TestStructuralAnalysis:
         </ul>
         """
         soup14 = BeautifulSoup(html14, "html.parser")
-        result14 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result14 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup14
         )
         res14 = json.loads(result14)
@@ -720,7 +720,7 @@ class TestStructuralAnalysis:
         # TEST 15: Empty soup raises ValueError
         soup15 = BeautifulSoup("", "html.parser")
         with pytest.raises(ValueError, match="Follow-up section not found"):
-            self.parser.structural_analysis.calculate_follow_up_duration_months(soup15)
+            self.parser.structural_analysis.extract_followup_actions_with_dates(soup15)
 
         # TEST 16: Deadline expressions "end of YYYY"
         html16 = """
@@ -728,7 +728,7 @@ class TestStructuralAnalysis:
         <p>The Commission will publish its report by the end of 2024.</p>
         """
         soup16 = BeautifulSoup(html16, "html.parser")
-        result16 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result16 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup16
         )
         res16 = json.loads(result16)
@@ -742,7 +742,7 @@ class TestStructuralAnalysis:
         <p>Member States must comply by end 2025.</p>
         """
         soup17 = BeautifulSoup(html17, "html.parser")
-        result17 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result17 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup17
         )
         res17 = json.loads(result17)
@@ -756,7 +756,7 @@ class TestStructuralAnalysis:
         <p>The deadline for submissions is May 2018.</p>
         """
         soup18 = BeautifulSoup(html18, "html.parser")
-        result18 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result18 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup18
         )
         res18 = json.loads(result18)
@@ -770,7 +770,7 @@ class TestStructuralAnalysis:
         <p>The consultation started on 28 February 2018 and closed by end of February 2018.</p>
         """
         soup19 = BeautifulSoup(html19, "html.parser")
-        result19 = self.parser.structural_analysis.calculate_follow_up_duration_months(
+        result19 = self.parser.structural_analysis.extract_followup_actions_with_dates(
             soup19
         )
         res19 = json.loads(result19)

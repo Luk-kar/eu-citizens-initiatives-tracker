@@ -66,8 +66,9 @@ class TestECIResponseDataModel:
             most_future_date=None,
             commission_factsheet_url="https://example.com/factsheet.pdf",
             followup_dedicated_website=None,
-            referenced_legislation_id=None,
-            follow_up_duration_months=None,
+            referenced_legislation_by_id=None,
+            referenced_legislation_by_name=None,
+            followup_actions_with_dates=None,
             created_timestamp="2024-10-14T10:00:00",
             last_updated="2024-10-14T10:00:00",
         )
@@ -150,8 +151,9 @@ class TestOptionalFieldHandling:
             most_future_date=None,
             commission_factsheet_url="",
             followup_dedicated_website=None,
-            referenced_legislation_id=None,
-            follow_up_duration_months=None,
+            referenced_legislation_by_id=None,
+            referenced_legislation_by_name=None,
+            followup_actions_with_dates=None,
             created_timestamp="2024-10-14T10:00:00",
             last_updated="2024-10-14T10:00:00",
         )
@@ -242,7 +244,7 @@ class TestDataIntegrity:
     """Tests for data integrity across processing."""
 
     def test_follow_up_duration_calculation_accuracy(self):
-        """Test that follow_up_duration_months is calculated correctly."""
+        """Test that followup_actions_with_dates is calculated correctly."""
         pass
 
     def test_boolean_fields_are_boolean_type(self):
@@ -282,8 +284,9 @@ class TestDataIntegrity:
             most_future_date=None,
             commission_factsheet_url="",
             followup_dedicated_website="https://some-follow-up.eu",
-            referenced_legislation_id=None,
-            follow_up_duration_months=None,
+            referenced_legislation_by_id=None,
+            referenced_legislation_by_name=None,
+            followup_actions_with_dates=None,
             created_timestamp="2024-10-14T10:00:00",
             last_updated="2024-10-14T10:00:00",
         )

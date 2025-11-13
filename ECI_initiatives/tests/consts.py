@@ -200,7 +200,7 @@ REQUIRED_RESPONSES_CSV_COLUMNS = [
     "followup_dedicated_website",
     "referenced_legislation_by_id",
     "referenced_legislation_by_name",
-    "follow_up_duration_months",
+    "followup_actions_with_dates",
     "created_timestamp",
     "last_updated",
 ]
