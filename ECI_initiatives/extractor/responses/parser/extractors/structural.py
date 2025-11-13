@@ -46,7 +46,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
             information_refs = []
             oj_pattern = r"uri=uriserv:OJ\.(L|C)_\.(\d{4})\.(\d{1,3})\.\d{2}\.\d{4}"
             all_oj_links = soup.find_all(
-                "a", href=re.compile(r"uriserv:OJ", re.IGNORECASE)
+                "a", href=re.compile(r"uriserv", re.IGNORECASE)
             )
             for link in all_oj_links:
                 href = link.get("href", "")
