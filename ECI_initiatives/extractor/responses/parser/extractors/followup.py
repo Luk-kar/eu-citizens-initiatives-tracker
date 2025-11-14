@@ -84,7 +84,9 @@ class FollowUpActivityExtractor(BaseExtractor):
             Returns None if no Follow-up section is found
         """
         # Primary pattern: <h2 id="Follow-up">
-        followup_section = soup.find("h2", id="Follow-up")
+        followup_section = soup.find(
+            "h2", id=["Follow-up", "Updates-on-the-Commissions-proposals"]
+        )
         if followup_section:
             return (followup_section, "h2")
 

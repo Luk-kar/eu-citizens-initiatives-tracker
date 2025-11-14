@@ -206,7 +206,13 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
         # Try h2 first (primary pattern)
         for h2 in soup.find_all("h2"):
-            if "Follow-up" in h2.get_text():
+
+            text = h2.get_text()
+
+            if any(
+                keyword in text
+                for keyword in ["Follow-up", "Updates on the Commission's proposals"]
+            ):
                 return {"element": h2, "marker": "h2"}
 
         # If not found, try h4 (secondary pattern)
