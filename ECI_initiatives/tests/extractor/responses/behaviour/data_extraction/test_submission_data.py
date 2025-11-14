@@ -1341,7 +1341,7 @@ class TestProceduralTimelineExtraction:
         html_9 = """
         <html>
             <h2 id="Submission-and-examination">Submission and examination</h2>
-            <p>
+            <p id="2012/000003">
                 The Commission adopted a Communication on 19 March 2014 about
                 <a href="https://citizens-initiative.europa.eu/initiatives/details/2012/000003_en">Right2Water</a>.
             </p>
@@ -1355,3 +1355,81 @@ class TestProceduralTimelineExtraction:
             )
         )
         assert result_9 is None
+
+        # Test case 10: Communication and Annex links (Strategy 2)
+        html_10 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p id="2020/000001">
+                The Commission adopted a Communication on 15 May 2023.
+            </p>
+            <p>
+                <a href="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN">Communication</a>
+                <a href="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN:ANNEX">Annex</a>
+            </p>
+        </html>
+        """
+        soup_10 = BeautifulSoup(html_10, "html.parser")
+        parser_10 = ECIResponseHTMLParser(soup_10)
+        result_10 = (
+            parser_10.commission_response.extract_official_communication_document_urls(
+                soup_10
+            )
+        )
+        expected_10 = json.dumps(
+            {
+                "Communication": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN",
+                "Annex": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN:ANNEX",
+            }
+        )
+        assert result_10 == expected_10
+
+        # Test case 11: Follow-up section (Strategy 3)
+        html_11 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>
+                Communication adopted on 25 October 2024.
+                See <a href="https://ec.europa.eu/commission/presscorner/detail/en/ip_24_5432">press release</a>.
+            </p>
+        </html>
+        """
+        soup_11 = BeautifulSoup(html_11, "html.parser")
+        parser_11 = ECIResponseHTMLParser(soup_11)
+        result_11 = (
+            parser_11.commission_response.extract_official_communication_document_urls(
+                soup_11
+            )
+        )
+        expected_11 = json.dumps(
+            {
+                "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_24_5432"
+            }
+        )
+        assert result_11 == expected_11
+
+        # Test case 12: Duplicate URLs (should keep only first occurrence)
+        html_12 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p id="2021/000001">
+                The Commission adopted a Communication on 20 June 2024.
+                See <a href="https://ec.europa.eu/commission/presscorner/detail/en/ip_24_1234">press release</a> and
+                <a href="https://ec.europa.eu/commission/presscorner/detail/en/ip_24_1234">press info</a>.
+            </p>
+        </html>
+        """
+        soup_12 = BeautifulSoup(html_12, "html.parser")
+        parser_12 = ECIResponseHTMLParser(soup_12)
+        result_12 = (
+            parser_12.commission_response.extract_official_communication_document_urls(
+                soup_12
+            )
+        )
+        expected_12 = json.dumps(
+            {
+                "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_24_1234"
+            }
+        )
+        assert result_12 == expected_12
