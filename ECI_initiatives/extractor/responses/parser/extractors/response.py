@@ -45,7 +45,8 @@ class CommissionResponseExtractor(BaseExtractor):
             if not commission_paragraph:
                 return None
 
-            date_pattern = adoption_phrase + r"\s+(\d{1,2})\s+(\w+)\s+(\d{4})"
+            DD_MONTHNAME_YYYY_PATTERN = r"\s+(\d{1,2})\s+(\w+)\s+(\d{4})"
+            date_pattern = adoption_phrase + DD_MONTHNAME_YYYY_PATTERN
             match = re.search(date_pattern, commission_paragraph, re.IGNORECASE)
 
             if match:
@@ -59,7 +60,8 @@ class CommissionResponseExtractor(BaseExtractor):
 
                 return f"{day}-{month_str}-{year}"
 
-            date_pattern_slash = adoption_phrase + r"\s+(\d{1,2})/(\d{1,2})/(\d{4})"
+            DD_MM_YYYY_SLASH_PATTERN = r"\s+(\d{1,2})/(\d{1,2})/(\d{4})"
+            date_pattern_slash = adoption_phrase + DD_MM_YYYY_SLASH_PATTERN
             match = re.search(date_pattern_slash, commission_paragraph, re.IGNORECASE)
 
             return format_date_from_match(match)
