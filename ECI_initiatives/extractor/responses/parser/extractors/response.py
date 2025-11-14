@@ -209,15 +209,23 @@ class CommissionResponseExtractor(BaseExtractor):
             followup_header = None
 
             while current:
+
                 # Stop if we hit Follow-up or another major section
                 if current.name == "h2":
+
                     h2_id = current.get("id", "")
                     h2_text = current.get_text(strip=True)
                     if "Follow-up" in h2_text or h2_id == "Follow-up":
                         followup_header = current
                         break
+
                     # Also stop at other major sections
                     if h2_id and h2_id != "Answer-of-the-European-Commission":
+                        break
+
+                if current.name == "h4":
+                    h4_text = current.get_text(strip=True)
+                    if "Follow-up" in h4_text:
                         break
 
                 # Skip factsheet file download components (ecl-file divs)
