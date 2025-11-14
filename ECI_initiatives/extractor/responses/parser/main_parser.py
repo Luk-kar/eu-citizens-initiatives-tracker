@@ -106,8 +106,12 @@ class ECIResponseHTMLParser:
                     soup
                 )
             )
-            latest_date = self.followup_activity.extract_latest_date(soup)
-            most_future_date = self.followup_activity.extract_most_future_date(soup)
+            followup_latest_date = self.followup_activity.extract_followup_latest_date(
+                soup
+            )
+            followup_most_future_date = (
+                self.followup_activity.extract_followup_most_future_date(soup)
+            )
 
             # Create and return ECI Response object using extractors
             response = ECICommissionResponseRecord(
@@ -191,8 +195,8 @@ class ECIResponseHTMLParser:
                 court_cases_referenced=self.followup_activity.extract_court_cases_referenced(
                     soup
                 ),
-                latest_date=latest_date,
-                most_future_date=most_future_date,
+                followup_latest_date=followup_latest_date,
+                followup_most_future_date=followup_most_future_date,
                 followup_dedicated_website=self.multimedia_docs.extract_followup_dedicated_website(
                     soup
                 ),

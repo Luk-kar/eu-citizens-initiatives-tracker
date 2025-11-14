@@ -591,7 +591,7 @@ class FollowUpActivityExtractor(BaseExtractor):
 
         return datetime.now().date()
 
-    def extract_latest_date(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_followup_latest_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract most recent date from follow-up section that is not later than today.
 
         Finds the most recent date in the Follow-up section that does not exceed
@@ -649,7 +649,7 @@ class FollowUpActivityExtractor(BaseExtractor):
                 f"Error extracting latest update date for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_most_future_date(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_followup_most_future_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract most recent date from follow-up section.
 
 
