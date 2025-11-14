@@ -1125,6 +1125,30 @@ class TestProceduralTimelineExtraction:
         )
         assert result_6 is None
 
+        # Test case 7: Alternative pattern - "Communication adopted on" (without "Commission")
+        html_7 = """
+        <html>
+            <h2 id="Submission-and-examination">Submission and examination</h2>
+            <p>
+                <a href="https://citizens-initiative.europa.eu/initiatives/details/2012/000005_en">One of us</a>
+                was submitted to the Commission on 28/02/2014 having gathered 1,721,626 statements of support.
+            </p>
+            <h2 id="Follow-up">Follow-up</h2>
+            <p>
+                In the Communication adopted on 28/05/2014, the Commission explains that it has decided not to submit a legislative proposal.
+                See <a href="https://example.com">press release</a>.
+            </p>
+        </html>
+        """
+        soup_7 = BeautifulSoup(html_7, "html.parser")
+        parser_7 = ECIResponseHTMLParser(soup_7)
+        result_7 = (
+            parser_7.commission_response.extract_official_communication_adoption_date(
+                soup_7
+            )
+        )
+        assert result_7 == "28-05-2014"
+
     def test_official_communication_document_urls(self):
         """Test extraction of Commission Communication PDF URL."""
 

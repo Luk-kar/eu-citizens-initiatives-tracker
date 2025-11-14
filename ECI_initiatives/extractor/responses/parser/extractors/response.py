@@ -31,22 +31,28 @@ class CommissionResponseExtractor(BaseExtractor):
 
             paragraphs = submission_section.find_next_siblings("p")
 
-            adoption_phrase = "Commission adopted a Communication on"
+            # Flexible pattern to match both variations:
+            # - "Commission adopted a Communication on"
+            # - "Communication adopted on"
+            adoption_pattern = (
+                r"(?:Commission adopted a Communication on|Communication adopted on)"
+            )
 
             commission_paragraph = None
             for p in paragraphs:
                 text = p.get_text(separator=" ", strip=True)
                 text = re.sub(r"\s+", " ", text)
 
-                if adoption_phrase in text:
+                if re.search(adoption_pattern, text, re.IGNORECASE):
                     commission_paragraph = text
                     break
 
             if not commission_paragraph:
                 return None
 
+            # Pattern 1: Day Month Year (e.g., "28 May 2014")
             DD_MONTHNAME_YYYY_PATTERN = r"\s+(\d{1,2})\s+(\w+)\s+(\d{4})"
-            date_pattern = adoption_phrase + DD_MONTHNAME_YYYY_PATTERN
+            date_pattern = adoption_pattern + DD_MONTHNAME_YYYY_PATTERN
             match = re.search(date_pattern, commission_paragraph, re.IGNORECASE)
 
             if match:
@@ -60,8 +66,9 @@ class CommissionResponseExtractor(BaseExtractor):
 
                 return f"{day}-{month_str}-{year}"
 
+            # Pattern 2: DD/MM/YYYY (e.g., "28/05/2014")
             DD_MM_YYYY_SLASH_PATTERN = r"\s+(\d{1,2})/(\d{1,2})/(\d{4})"
-            date_pattern_slash = adoption_phrase + DD_MM_YYYY_SLASH_PATTERN
+            date_pattern_slash = adoption_pattern + DD_MM_YYYY_SLASH_PATTERN
             match = re.search(date_pattern_slash, commission_paragraph, re.IGNORECASE)
 
             return format_date_from_match(match)
