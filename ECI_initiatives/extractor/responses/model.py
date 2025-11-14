@@ -68,7 +68,7 @@ class ECICommissionResponseRecord:
     # Structural Analysis Flags
     referenced_legislation_by_id: Optional[str]
     referenced_legislation_by_name: Optional[str]
-    followup_actions_with_dates: Optional[int]
+    followup_events_with_dates: Optional[int]
 
     def to_dict(self) -> dict:
         """

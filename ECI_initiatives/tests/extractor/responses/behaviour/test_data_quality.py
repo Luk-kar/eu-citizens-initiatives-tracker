@@ -68,7 +68,7 @@ class TestECIResponseDataModel:
             followup_dedicated_website=None,
             referenced_legislation_by_id=None,
             referenced_legislation_by_name=None,
-            followup_actions_with_dates=None,
+            followup_events_with_dates=None,
         )
 
         result = response.to_dict()
@@ -147,7 +147,7 @@ class TestOptionalFieldHandling:
             followup_dedicated_website=None,
             referenced_legislation_by_id=None,
             referenced_legislation_by_name=None,
-            followup_actions_with_dates=None,
+            followup_events_with_dates=None,
         )
 
         # Should not raise any errors
@@ -236,7 +236,7 @@ class TestDataIntegrity:
     """Tests for data integrity across processing."""
 
     def test_follow_up_duration_calculation_accuracy(self):
-        """Test that followup_actions_with_dates is calculated correctly."""
+        """Test that followup_events_with_dates is calculated correctly."""
         pass
 
     def test_boolean_fields_are_boolean_type(self):
@@ -278,7 +278,7 @@ class TestDataIntegrity:
             followup_dedicated_website="https://some-follow-up.eu",
             referenced_legislation_by_id=None,
             referenced_legislation_by_name=None,
-            followup_actions_with_dates=None,
+            followup_events_with_dates=None,
         )
 
         assert isinstance(response.has_followup_section, bool)

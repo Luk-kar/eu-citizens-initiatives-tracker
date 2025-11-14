@@ -143,7 +143,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
         name_extractor = LegislationNameExtractor()
         return name_extractor.extract_referenced_legislation_by_name(soup)
 
-    def extract_followup_actions_with_dates(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_followup_events_with_dates(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract follow-up actions with associated dates in structured JSON format.
 

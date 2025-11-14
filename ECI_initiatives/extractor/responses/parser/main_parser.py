@@ -207,7 +207,7 @@ class ECIResponseHTMLParser:
                 referenced_legislation_by_name=self.structural_analysis.extract_referenced_legislation_by_name(
                     soup
                 ),
-                followup_actions_with_dates=self.structural_analysis.extract_followup_actions_with_dates(
+                followup_events_with_dates=self.structural_analysis.extract_followup_events_with_dates(
                     soup
                 ),
             )
