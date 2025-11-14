@@ -83,9 +83,10 @@ class CommissionResponseExtractor(BaseExtractor):
         self, soup: BeautifulSoup
     ) -> Optional[str]:
         """Extract link to full PDF of Commission Communication as JSON"""
-        try:
-            submission_section = find_submission_section(soup, self.registration_number)
 
+        try:
+            # Strategy 1: Search in paragraphs after submission section
+            submission_section = find_submission_section(soup, self.registration_number)
             paragraphs = submission_section.find_next_siblings("p")
 
             commission_paragraph_element = None
@@ -101,10 +102,41 @@ class CommissionResponseExtractor(BaseExtractor):
                     commission_paragraph_element = p
                     break
 
-            if not commission_paragraph_element:
-                return None
+            links = []
+            if commission_paragraph_element:
+                links = commission_paragraph_element.find_all("a")
 
-            links = commission_paragraph_element.find_all("a")
+            # Strategy 2: If no links found, search in "Answer of the European Commission" section
+            if not links:
+                answer_section = soup.find("h2", id="Answer-of-the-European-Commission")
+                if answer_section:
+                    # Look for <ul> with official documents
+                    ul_element = answer_section.find_next("ul")
+                    if ul_element:
+                        links = ul_element.find_all("a")
+
+            # Strategy 3: If still no links, search in "Follow-up" section
+            if not links:
+                followup_section = soup.find("h2", id="Follow-up")
+
+                if followup_section:
+
+                    # Find paragraph with "Communication adopted on" text
+                    followup_paragraphs = followup_section.find_next_siblings("p")
+                    for p in followup_paragraphs:
+                        text = p.get_text(separator=" ", strip=True)
+                        text = re.sub(r"\s+", " ", text)
+
+                        if re.search(
+                            r"Communication\s+adopted\s+on",
+                            text,
+                            re.IGNORECASE,
+                        ):
+                            links = p.find_all("a")
+                            break
+
+            if not links:
+                return None
 
             links_dict = build_links_dict(links)
 
