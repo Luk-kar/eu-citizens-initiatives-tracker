@@ -43,4 +43,5 @@ class ECIInitiativeDetailsRecord:
 
     final_outcome: Optional[str]
     languages_available: Optional[str]
+    created_timestamp: str
     last_updated: str

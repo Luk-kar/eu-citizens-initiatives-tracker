@@ -201,5 +201,4 @@ REQUIRED_RESPONSES_CSV_COLUMNS = [
     "referenced_legislation_by_id",
     "referenced_legislation_by_name",
     "followup_actions_with_dates",
-    "last_updated",
 ]

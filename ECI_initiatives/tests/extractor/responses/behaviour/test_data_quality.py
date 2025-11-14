@@ -69,7 +69,6 @@ class TestECIResponseDataModel:
             referenced_legislation_by_id=None,
             referenced_legislation_by_name=None,
             followup_actions_with_dates=None,
-            last_updated="2024-10-14T10:00:00",
         )
 
         result = response.to_dict()
@@ -149,7 +148,6 @@ class TestOptionalFieldHandling:
             referenced_legislation_by_id=None,
             referenced_legislation_by_name=None,
             followup_actions_with_dates=None,
-            last_updated="2024-10-14T10:00:00",
         )
 
         # Should not raise any errors
@@ -281,7 +279,6 @@ class TestDataIntegrity:
             referenced_legislation_by_id=None,
             referenced_legislation_by_name=None,
             followup_actions_with_dates=None,
-            last_updated="2024-10-14T10:00:00",
         )
 
         assert isinstance(response.has_followup_section, bool)

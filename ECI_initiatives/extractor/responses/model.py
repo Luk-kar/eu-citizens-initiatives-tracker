@@ -70,9 +70,6 @@ class ECICommissionResponseRecord:
     referenced_legislation_by_name: Optional[str]
     followup_actions_with_dates: Optional[int]
 
-    # Metadata
-    last_updated: str
-
     def to_dict(self) -> dict:
         """
         Convert ECI Response object to dictionary
