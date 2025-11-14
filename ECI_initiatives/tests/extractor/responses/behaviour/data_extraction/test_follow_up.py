@@ -1130,7 +1130,7 @@ class TestFollowUpActivities:
             # Pass invalid input (not BeautifulSoup object)
             self.parser.followup_activity.extract_court_cases_referenced(None)
 
-    def test_latest_date_extraction(self):
+    def test_latest_date(self):
         """Test extraction of most recent date from follow-up section.
 
         Tests multiple date formats and ensures the latest date is returned
@@ -1344,6 +1344,21 @@ class TestFollowUpActivities:
             result = self.parser.followup_activity.extract_latest_date(soup)
             # Today's date should be included (<=)
             assert result == "2025-11-06", f"Expected '2025-11-06', got '{result}'"
+
+            # Test case 15: Alternative H2 ID - "Updates-on-the-Commissions-proposals"
+            html_alt_h2_id = """
+            <html>
+                <body>
+                    <h2 id="Updates-on-the-Commissions-proposals">Updates on the Commission's proposals</h2>
+                    <p>The Commission published a report on 15 January 2020.</p>
+                    <p>A workshop was held on 27 March 2021.</p>
+                    <p>The roadmap was updated in February 2024.</p>
+                </body>
+            </html>
+            """
+            soup = BeautifulSoup(html_alt_h2_id, "html.parser")
+            result = self.parser.followup_activity.extract_latest_date(soup)
+            assert result == "2024-02-29", f"Expected '2024-02-29', got '{result}'"
 
     def test_most_future_date(self):
         """Test extraction of most future (latest) date from follow-up section.
@@ -1573,3 +1588,31 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_most_future_date(soup)
         # Should still return the latest past date
         assert result == "2022-12-31", f"Expected '2022-12-31', got '{result}'"
+
+        # Test case 16: Alternative H2 ID - "Updates-on-the-Commissions-proposals"
+        html_alt_h2_id = """
+        <html>
+            <body>
+                <h2 id="Updates-on-the-Commissions-proposals">Updates on the Commission's proposals</h2>
+                <p>The Commission published a report on 15 January 2020.</p>
+                <p>A workshop was held on 27 March 2021.</p>
+                <p>Final review scheduled for 2027.</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_alt_h2_id, "html.parser")
+        result = self.parser.followup_activity.extract_most_future_date(soup)
+        assert result == "2027-12-31", f"Expected '2027-12-31', got '{result}'"
+
+        # Test case 17: Alternative H2 ID with single date
+        html_alt_h2_single = """
+        <html>
+            <body>
+                <h2 id="Updates-on-the-Commissions-proposals">Updates on the Commission's proposals</h2>
+                <p>Report published on 10 June 2022.</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_alt_h2_single, "html.parser")
+        result = self.parser.followup_activity.extract_most_future_date(soup)
+        assert result == "2022-06-10", f"Expected '2022-06-10', got '{result}'"
