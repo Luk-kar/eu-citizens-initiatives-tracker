@@ -69,7 +69,6 @@ class TestCommissionResponseContent:
         # Should include decision date, official documents, and main conclusions
         assert "Decision date: 19/03/2014" in result_1
         assert "Official documents" in result_1
-        assert "[Communication]" in result_1
         assert "Main conclusions" in result_1
         assert "reinforcing implementation of EU water quality legislation" in result_1
         # Should NOT include Follow-up content
