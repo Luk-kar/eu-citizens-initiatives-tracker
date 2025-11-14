@@ -569,7 +569,7 @@ class TestProceduralTimelineExtraction:
                 <h2 id="Submission-and-examination">Submission and examination</h2>
                 <p>A public hearing took place at the European Parliament on 24 January 2023.</p>
                 """,
-                "24-01-2023",
+                "2023-01-24",
                 "standard_full_month",
                 False,
             ),
@@ -579,7 +579,7 @@ class TestProceduralTimelineExtraction:
                 <h2 id="Submission-and-examination">Submission and examination</h2>
                 <p>A public hearing took place at the European Parliament on 17/02/2014.</p>
                 """,
-                "17-02-2014",
+                "2014-02-17",
                 "slash_date_format",
                 False,
             ),
@@ -589,7 +589,7 @@ class TestProceduralTimelineExtraction:
                 <h2 id="Submission-and-examination">Submission and examination</h2>
                 <p>The presentation of this initiative in a public hearing at the European Parliament took place on 25 June 2025.</p>
                 """,
-                "25-06-2025",
+                "2025-06-25",
                 "new_presentation_format",
                 False,
             ),
@@ -599,7 +599,7 @@ class TestProceduralTimelineExtraction:
                 <h2 id="Submission-and-examination">Submission and examination</h2>
                 <p>A public hearing took place at the European Parliament on 5 April 2023.</p>
                 """,
-                "05-04-2023",
+                "2023-04-05",
                 "single_digit_day",
                 False,
             ),
@@ -609,7 +609,7 @@ class TestProceduralTimelineExtraction:
                 <h2 id="Submission-and-examination">Submission and examination</h2>
                 <p>A public hearing took place at the European Parliament on 10 OCTOBER 2023.</p>
                 """,
-                "10-10-2023",
+                "2023-10-10",
                 "uppercase_month",
                 False,
             ),
@@ -619,7 +619,7 @@ class TestProceduralTimelineExtraction:
                 <h2 id="Submission-and-examination">Submission and examination</h2>
                 <p>A public hearing took place at the European Parliament on 15 February 2020.</p>
                 """,
-                "15-02-2020",
+                "2020-02-15",
                 "mixed_case_month",
                 False,
             ),
@@ -629,7 +629,7 @@ class TestProceduralTimelineExtraction:
                 <h2 id="Submission-and-examination">Submission and examination</h2>
                 <p>The presentation of this initiative in a public hearing at the European Parliament took place on 11/05/2015.</p>
                 """,
-                "11-05-2015",
+                "2015-05-11",
                 "new_format_slash",
                 False,
             ),
@@ -640,7 +640,7 @@ class TestProceduralTimelineExtraction:
                 <p>The initiative was submitted on 10 January 2020.</p>
                 <p>A public hearing took place at the European Parliament on 15 October 2020.</p>
                 """,
-                "15-10-2020",
+                "2020-10-15",
                 "multiple_paragraphs",
                 False,
             ),
@@ -809,7 +809,7 @@ class TestProceduralTimelineExtraction:
         soup_1 = BeautifulSoup(html_1, "html.parser")
         parser_1 = ECIResponseHTMLParser(soup_1)
         result_1 = parser_1.parliament_activity.extract_plenary_debate_date(soup_1)
-        assert result_1 == "10-06-2021"
+        assert result_1 == "2021-06-10"
 
         # Test case 2: Alternative format "A debate on this initiative was held"
         html_2 = """
@@ -824,7 +824,7 @@ class TestProceduralTimelineExtraction:
         soup_2 = BeautifulSoup(html_2, "html.parser")
         parser_2 = ECIResponseHTMLParser(soup_2)
         result_2 = parser_2.parliament_activity.extract_plenary_debate_date(soup_2)
-        assert result_2 == "10-07-2025"
+        assert result_2 == "2025-07-10"
 
         # Test case 3: With various month names
         html_3 = """
@@ -839,7 +839,7 @@ class TestProceduralTimelineExtraction:
         soup_3 = BeautifulSoup(html_3, "html.parser")
         parser_3 = ECIResponseHTMLParser(soup_3)
         result_3 = parser_3.parliament_activity.extract_plenary_debate_date(soup_3)
-        assert result_3 == "16-03-2023"
+        assert result_3 == "2023-03-16"
 
         # Test case 4: Single digit day
         html_4 = """
@@ -853,7 +853,7 @@ class TestProceduralTimelineExtraction:
         soup_4 = BeautifulSoup(html_4, "html.parser")
         parser_4 = ECIResponseHTMLParser(soup_4)
         result_4 = parser_4.parliament_activity.extract_plenary_debate_date(soup_4)
-        assert result_4 == "05-04-2023"
+        assert result_4 == "2023-04-05"
 
         # Test case 5: No plenary debate date (older initiatives from 2017 and earlier)
         html_5 = """
@@ -882,7 +882,7 @@ class TestProceduralTimelineExtraction:
         soup_6 = BeautifulSoup(html_6, "html.parser")
         parser_6 = ECIResponseHTMLParser(soup_6)
         result_6 = parser_6.parliament_activity.extract_plenary_debate_date(soup_6)
-        assert result_6 == "14-12-2020"
+        assert result_6 == "2020-12-14"
 
     def test_plenary_debate_video_urls(self):
         """Test extraction of plenary debate recording URLs."""
@@ -1030,7 +1030,7 @@ class TestProceduralTimelineExtraction:
                 soup_1
             )
         )
-        assert result_1 == "19-03-2014"
+        assert result_1 == "2014-03-19"
 
         # Test case 2: Slash format
         html_2 = """
@@ -1048,7 +1048,7 @@ class TestProceduralTimelineExtraction:
                 soup_2
             )
         )
-        assert result_2 == "12-12-2017"
+        assert result_2 == "2017-12-12"
 
         # Test case 3: Different month name
         html_3 = """
@@ -1067,7 +1067,7 @@ class TestProceduralTimelineExtraction:
                 soup_3
             )
         )
-        assert result_3 == "30-06-2021"
+        assert result_3 == "2021-06-30"
 
         # Test case 4: Single digit day
         html_4 = """
@@ -1085,7 +1085,7 @@ class TestProceduralTimelineExtraction:
                 soup_4
             )
         )
-        assert result_4 == "05-04-2023"
+        assert result_4 == "2023-04-05"
 
         # Test case 5: Recent format with "its response"
         html_5 = """
@@ -1104,7 +1104,7 @@ class TestProceduralTimelineExtraction:
                 soup_5
             )
         )
-        assert result_5 == "03-09-2025"
+        assert result_5 == "2025-09-03"
 
         # Test case 6: No Commission communication (some older initiatives)
         html_6 = """
@@ -1147,7 +1147,7 @@ class TestProceduralTimelineExtraction:
                 soup_7
             )
         )
-        assert result_7 == "28-05-2014"
+        assert result_7 == "2014-05-28"
 
     def test_official_communication_document_urls(self):
         """Test extraction of Commission Communication PDF URL."""

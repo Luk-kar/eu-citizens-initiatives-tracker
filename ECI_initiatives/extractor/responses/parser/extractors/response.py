@@ -64,7 +64,7 @@ class CommissionResponseExtractor(BaseExtractor):
                 if month_str is None:
                     raise ValueError(f"Invalid month name: {month_name}")
 
-                return f"{day}-{month_str}-{year}"
+                return f"{year}-{month_str}-{day}"
 
             # Pattern 2: DD/MM/YYYY (e.g., "28/05/2014")
             DD_MM_YYYY_SLASH_PATTERN = r"\s+(\d{1,2})/(\d{1,2})/(\d{4})"
