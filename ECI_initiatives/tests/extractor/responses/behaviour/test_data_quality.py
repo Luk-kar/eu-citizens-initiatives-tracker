@@ -69,7 +69,6 @@ class TestECIResponseDataModel:
             referenced_legislation_by_id=None,
             referenced_legislation_by_name=None,
             followup_actions_with_dates=None,
-            created_timestamp="2024-10-14T10:00:00",
             last_updated="2024-10-14T10:00:00",
         )
 
@@ -104,10 +103,6 @@ class TestRequiredFieldValidation:
 
     def test_initiative_title_never_none(self):
         """Test that initiative_title is never None in CSV."""
-        pass
-
-    def test_timestamps_never_none(self):
-        """Test that created_timestamp and last_updated are never None."""
         pass
 
 
@@ -154,7 +149,6 @@ class TestOptionalFieldHandling:
             referenced_legislation_by_id=None,
             referenced_legislation_by_name=None,
             followup_actions_with_dates=None,
-            created_timestamp="2024-10-14T10:00:00",
             last_updated="2024-10-14T10:00:00",
         )
 
@@ -287,7 +281,6 @@ class TestDataIntegrity:
             referenced_legislation_by_id=None,
             referenced_legislation_by_name=None,
             followup_actions_with_dates=None,
-            created_timestamp="2024-10-14T10:00:00",
             last_updated="2024-10-14T10:00:00",
         )
 

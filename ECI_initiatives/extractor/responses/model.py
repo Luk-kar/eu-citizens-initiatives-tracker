@@ -71,7 +71,6 @@ class ECICommissionResponseRecord:
     followup_actions_with_dates: Optional[int]
 
     # Metadata
-    created_timestamp: str
     last_updated: str
 
     def to_dict(self) -> dict:

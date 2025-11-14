@@ -100,8 +100,6 @@ class ECIResponseHTMLParser:
 
             soup = BeautifulSoup(html_content, "html.parser")
 
-            current_timestamp = datetime.now().isoformat()
-
             # Extract commission communication date for follow-up calculation
             official_communication_adoption_date = (
                 self.commission_response.extract_official_communication_adoption_date(
@@ -212,9 +210,6 @@ class ECIResponseHTMLParser:
                 followup_actions_with_dates=self.structural_analysis.extract_followup_actions_with_dates(
                     soup
                 ),
-                # Metadata
-                created_timestamp=current_timestamp,
-                last_updated=current_timestamp,
             )
 
             self.logger.info(
