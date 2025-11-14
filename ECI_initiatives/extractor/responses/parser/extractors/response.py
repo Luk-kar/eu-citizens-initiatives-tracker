@@ -25,26 +25,27 @@ class CommissionResponseExtractor(BaseExtractor):
         self, soup: BeautifulSoup
     ) -> Optional[str]:
         """Extract date Commission adopted official Communication"""
+
         try:
             submission_section = find_submission_section(soup, self.registration_number)
 
             paragraphs = submission_section.find_next_siblings("p")
+
+            adoption_phrase = "Commission adopted a Communication on"
 
             commission_paragraph = None
             for p in paragraphs:
                 text = p.get_text(separator=" ", strip=True)
                 text = re.sub(r"\s+", " ", text)
 
-                if "Commission adopted a Communication on" in text:
+                if adoption_phrase in text:
                     commission_paragraph = text
                     break
 
             if not commission_paragraph:
                 return None
 
-            date_pattern = (
-                r"Commission adopted a Communication on\s+(\d{1,2})\s+(\w+)\s+(\d{4})"
-            )
+            date_pattern = adoption_phrase + r"\s+(\d{1,2})\s+(\w+)\s+(\d{4})"
             match = re.search(date_pattern, commission_paragraph, re.IGNORECASE)
 
             if match:
@@ -58,9 +59,7 @@ class CommissionResponseExtractor(BaseExtractor):
 
                 return f"{day}-{month_str}-{year}"
 
-            date_pattern_slash = (
-                r"Commission adopted a Communication on\s+(\d{1,2})/(\d{1,2})/(\d{4})"
-            )
+            date_pattern_slash = adoption_phrase + r"\s+(\d{1,2})/(\d{1,2})/(\d{4})"
             match = re.search(date_pattern_slash, commission_paragraph, re.IGNORECASE)
 
             return format_date_from_match(match)
