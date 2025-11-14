@@ -85,11 +85,12 @@ class CommissionResponseExtractor(BaseExtractor):
         """Extract link to full PDF of Commission Communication as JSON"""
 
         try:
+            all_links = []
+
             # Strategy 1: Search in paragraphs after submission section
             submission_section = find_submission_section(soup, self.registration_number)
             paragraphs = submission_section.find_next_siblings("p")
 
-            commission_paragraph_element = None
             for p in paragraphs:
                 text = p.get_text(separator=" ", strip=True)
                 text = re.sub(r"\s+", " ", text)
@@ -99,46 +100,42 @@ class CommissionResponseExtractor(BaseExtractor):
                     text,
                     re.IGNORECASE,
                 ):
-                    commission_paragraph_element = p
+                    all_links.extend(p.find_all("a"))
                     break
 
-            links = []
-            if commission_paragraph_element:
-                links = commission_paragraph_element.find_all("a")
+            # Strategy 2: Search in "Answer of the European Commission" section
 
-            # Strategy 2: If no links found, search in "Answer of the European Commission" section
-            if not links:
-                answer_section = soup.find("h2", id="Answer-of-the-European-Commission")
-                if answer_section:
-                    # Look for <ul> with official documents
-                    ul_element = answer_section.find_next("ul")
-                    if ul_element:
-                        links = ul_element.find_all("a")
+            # Filter links to only include Communication and Annex documents
+            for link in soup.find_all("a"):
 
-            # Strategy 3: If still no links, search in "Follow-up" section
-            if not links:
-                followup_section = soup.find("h2", id="Follow-up")
+                link_text = link.get_text(strip=True)
+                # Match Communication, Annex, Annexes, etc.
+                if re.search(
+                    r"^(Communication|Annex|Annexes)$", link_text, re.IGNORECASE
+                ):
+                    all_links.append(link)
 
-                if followup_section:
+            # Strategy 3: Search in "Follow-up" section
+            followup_section = soup.find("h2", id="Follow-up")
+            if followup_section:
+                # Find paragraph with "Communication adopted on" text
+                followup_paragraphs = followup_section.find_next_siblings("p")
+                for p in followup_paragraphs:
+                    text = p.get_text(separator=" ", strip=True)
+                    text = re.sub(r"\s+", " ", text)
 
-                    # Find paragraph with "Communication adopted on" text
-                    followup_paragraphs = followup_section.find_next_siblings("p")
-                    for p in followup_paragraphs:
-                        text = p.get_text(separator=" ", strip=True)
-                        text = re.sub(r"\s+", " ", text)
+                    if re.search(
+                        r"Communication\s+adopted\s+on",
+                        text,
+                        re.IGNORECASE,
+                    ):
+                        all_links.extend(p.find_all("a"))
+                        break
 
-                        if re.search(
-                            r"Communication\s+adopted\s+on",
-                            text,
-                            re.IGNORECASE,
-                        ):
-                            links = p.find_all("a")
-                            break
-
-            if not links:
+            if not all_links:
                 return None
 
-            links_dict = build_links_dict(links)
+            links_dict = build_links_dict(all_links)
 
             if not links_dict:
                 return None
