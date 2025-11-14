@@ -145,8 +145,16 @@ class CommissionResponseExtractor(BaseExtractor):
                 r"https?://citizens-initiative\.europa\.eu/initiatives/details/\d{4}/\d{6}[_]?[a-z]{2}/?$",
             ]
 
+            # Remove duplicates by URL and apply exclusion patterns
+            seen_urls = set()
             filtered_links_dict = {}
+
             for text, url in links_dict.items():
+                # Skip if URL already seen
+                if url in seen_urls:
+                    continue
+
+                # Check exclusion patterns
                 should_exclude = False
                 for pattern in exclude_patterns:
                     if re.match(pattern, url):
@@ -155,6 +163,7 @@ class CommissionResponseExtractor(BaseExtractor):
 
                 if not should_exclude:
                     filtered_links_dict[text] = url
+                    seen_urls.add(url)
 
             if not filtered_links_dict:
                 return None
