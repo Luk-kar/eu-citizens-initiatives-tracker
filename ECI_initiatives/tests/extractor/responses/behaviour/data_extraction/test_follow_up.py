@@ -806,6 +806,103 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_has_workshop(soup)
         assert result is True, "Should detect workshop in h4 Follow-up pattern"
 
+        # Test 10: Scientific conference detected (scientific/academic engagement)
+        html_scientific_conference = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>A scientific conference engaging the scientific community and relevant 
+                stakeholders was organized in December 2023 to discuss alternatives.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_scientific_conference, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert (
+            result is True
+        ), "Should detect 'scientific conference' as workshop activity"
+
+        # Test 11: Series of workshops detected (series/multiple events)
+        html_series_workshops = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>Information on related workshops and conferences, organised since 2023. 
+                A series of workshops has been planned to engage stakeholders.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_series_workshops, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert (
+            result is True
+        ), "Should detect 'series of workshops' as sustained engagement"
+
+        # Test 12: Roundtable detected (other formal engagement formats)
+        html_roundtable = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The Commission organized a roundtable with industry representatives 
+                and civil society organizations to discuss implementation.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_roundtable, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is True, "Should detect 'roundtable' as formal engagement format"
+
+        # Test 13: Symposium detected (other formal engagement formats)
+        html_symposium = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>An international symposium on animal welfare brought together experts 
+                from academia and industry in June 2024.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_symposium, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is True, "Should detect 'symposium' as formal engagement format"
+
+        # Test 14: Organized conference detected (organized/planned events)
+        html_organized_conference = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The Commission organised conferences in collaboration with Member States 
+                to discuss best practices for implementation.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_organized_conference, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert result is True, "Should detect 'organised conference' (UK spelling)"
+
+        # Test 15: Standard ECI meeting NOT detected (negative test - important!)
+        html_standard_meeting = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The organisers met with European Commission Vice-President 
+                Věra Jourová and Commissioner Stella Kyriakides on 30 October 2020.</p>
+                <p>A public hearing took place at the European Parliament.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_standard_meeting, "html.parser")
+        result = self.parser.followup_activity.extract_has_workshop(soup)
+        assert (
+            result is False
+        ), "Should NOT detect standard 'met with' or 'public hearing' as workshop"
+
     def test_partnership_programs_extraction(self):
         """Test detection of partnership programs in follow-up section."""
 

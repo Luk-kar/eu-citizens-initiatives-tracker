@@ -433,13 +433,33 @@ class FollowUpActivityExtractor(BaseExtractor):
 
             # Check for workshop-related keywords
             workshop_keywords = [
+                # Workshops
                 "workshop",
                 "workshops",
+                # Conferences
                 "conference",
                 "conferences",
+                # Scientific/academic engagement events
+                "scientific conference",
+                "scientific debate",
+                # Stakeholder engagement events
                 "stakeholder meeting",
                 "stakeholder meetings",
-                "dedicated workshop",
+                "stakeholder conference",
+                "stakeholder debate",
+                # Organized/planned events (suggests intentional activity)
+                "organised workshop",
+                "organized workshop",
+                "organised conference",
+                "organized conference",
+                # Series/multiple events
+                "series of workshops",
+                "series of conferences",
+                # Other formal engagement formats
+                "roundtable",
+                "symposium",
+                "seminar",
+                "seminars",
             ]
 
             for keyword in workshop_keywords:
