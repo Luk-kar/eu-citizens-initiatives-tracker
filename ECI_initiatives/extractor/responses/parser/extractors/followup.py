@@ -282,8 +282,20 @@ class FollowUpActivityExtractor(BaseExtractor):
         """
         Check if initiative has partnership programs mentioned in follow-up.
 
-        Looks for keywords like "partnerships", "partnership programs", "public-public partnerships",
-        etc. in the Follow-up section.
+        Looks for keywords indicating FORMAL PARTNERSHIP PROGRAMS - sustained,
+        institutional collaboration structures, not generic diplomatic cooperation
+        or pre-existing policy mechanisms.
+
+        Partnership programs are formal, often named collaborations such as:
+        - Public-public partnerships between specific entities
+        - European Partnership programs (e.g., EPAA)
+        - Support programs for partnership creation
+        - Diplomatic cooperation ("international partners")
+        - Pre-existing policy structures ("partnership plans")
+
+        Excludes:
+        - Job titles containing "cooperation"
+        - Generic collaboration mentions
 
         Args:
             soup: BeautifulSoup parsed HTML document
@@ -319,12 +331,30 @@ class FollowUpActivityExtractor(BaseExtractor):
                 followup_text = followup_text.find_next_sibling()
 
             # Check for partnership-related keywords
+            # Focus on FORMAL partnership programs, not generic cooperation
             partnership_keywords = [
-                "partnership",
-                "partnerships",
-                "public-public partnership",
-                "water operators",
-                "partner",
+                # Explicit program terminology - high specificity
+                "partnership program",  # Explicit program structure
+                "partnership plans",  # Planned
+                "partnership programmes",  # UK spelling
+                # Specific partnership types - formal structures
+                "public-public partnership",  # Used in Water Rights initiative
+                "public-public partnerships",  # Plural form
+                # Named partnerships - formal institutional collaborations
+                "european partnership for",  # E.g., "European Partnership for Alternative Approaches"
+                # Formal relationship indicators - between specific entities
+                "partnership between",  # E.g., "partnership between Commission and industry"
+                "partnerships between",  # E.g., "partnerships between water operators"
+                # Commission support for partnership creation
+                "support to partnerships",  # Active partnership program support
+                # Other formal program structures
+                "cooperation programme",  # Formal cooperation programs
+                "collaboration programme",  # Formal collaboration programs
+                "joint programme",  # Joint program initiatives
+                # Additional formal partnership indicators
+                "formal partnership",  # Explicitly formal
+                "established partnership",  # Institutional partnership
+                "international partners",  # International
             ]
 
             for keyword in partnership_keywords:
