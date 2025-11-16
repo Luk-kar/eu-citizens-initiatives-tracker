@@ -280,81 +280,92 @@ class FollowUpActivityExtractor(BaseExtractor):
 
     def extract_has_partnership_programs(self, soup: BeautifulSoup) -> Optional[bool]:
         """
-        Check if initiative has partnership programs mentioned in follow-up.
+        Check if initiative has partnership programs mentioned in follow-up or response sections.
 
-        Looks for keywords indicating FORMAL PARTNERSHIP PROGRAMS - sustained,
-        institutional collaboration structures, not generic diplomatic cooperation
-        or pre-existing policy mechanisms.
-
-        Partnership programs are formal, often named collaborations such as:
-        - Public-public partnerships between specific entities
-        - European Partnership programs (e.g., EPAA)
-        - Support programs for partnership creation
-        - Diplomatic cooperation ("international partners")
-        - Pre-existing policy structures ("partnership plans")
-
-        Excludes:
-        - Job titles containing "cooperation"
-        - Generic collaboration mentions
+        Searches in multiple relevant sections:
+        - "Follow-up" (primary section for follow-up information)
+        - "Answer of the European Commission" (alternative section name)
+        - "Commission Response" (alternative section name)
+        - "European Commission's response" (alternative section name)
 
         Args:
             soup: BeautifulSoup parsed HTML document
 
         Returns:
             True if partnership programs are mentioned, False otherwise, None on error
-
-        Raises:
-            ValueError: If critical error occurs during detection
         """
         try:
-            # Use shared lookup method to find Follow-up section
-            result = self._find_followup_section(soup)
+            # Define section names to search (in priority order)
+            section_names = [
+                "Follow-up",
+                "Answer of the European Commission",
+                "Commission Response",
+                "Commission's response",
+                "European Commission's response",
+            ]
 
-            if not result:
+            # Try to find any of the relevant sections
+            followup_section = None
+            section_marker = None
+
+            for section_name in section_names:
+
+                # Try h2 first - use get_text() because headers may contain nested tags
+                for h2 in soup.find_all("h2"):
+
+                    if section_name in h2.get_text(strip=True):
+                        followup_section = h2
+                        section_marker = "h2"
+                        break
+
+                if followup_section:
+                    break
+
+                # Try h4 if h2 not found
+                for h4 in soup.find_all("h4"):
+
+                    if section_name in h4.get_text(strip=True):
+                        followup_section = h4
+                        section_marker = "h4"
+                        break
+
+                if followup_section:
+                    break
+
+            # If no section found, return False
+            if not followup_section:
                 return False
 
-            followup_section, section_marker = result
-
-            # Extract all text from Follow-up section
+            # Extract all text from the found section
             followup_text = followup_section.find_next_sibling()
             full_text = ""
 
             while followup_text and followup_text.name != "h2":
                 if section_marker == "h4" and followup_text.name == "h4":
                     break
-
                 if followup_text.name:
                     full_text += followup_text.get_text(
                         separator=" ", strip=True
                     ).lower()
-
                 followup_text = followup_text.find_next_sibling()
 
             # Check for partnership-related keywords
-            # Focus on FORMAL partnership programs, not generic cooperation
             partnership_keywords = [
-                # Explicit program terminology - high specificity
-                "partnership program",  # Explicit program structure
-                "partnership plans",  # Planned
-                "partnership programmes",  # UK spelling
-                # Specific partnership types - formal structures
-                "public-public partnership",  # Used in Water Rights initiative
-                "public-public partnerships",  # Plural form
-                # Named partnerships - formal institutional collaborations
-                "european partnership for",  # E.g., "European Partnership for Alternative Approaches"
-                # Formal relationship indicators - between specific entities
-                "partnership between",  # E.g., "partnership between Commission and industry"
-                "partnerships between",  # E.g., "partnerships between water operators"
-                # Commission support for partnership creation
-                "support to partnerships",  # Active partnership program support
-                # Other formal program structures
-                "cooperation programme",  # Formal cooperation programs
-                "collaboration programme",  # Formal collaboration programs
-                "joint programme",  # Joint program initiatives
-                # Additional formal partnership indicators
-                "formal partnership",  # Explicitly formal
-                "established partnership",  # Institutional partnership
-                "international partners",  # International
+                "partnership program",
+                "partnership plans",
+                "partnership programmes",
+                "public-public partnership",
+                "public-public partnerships",
+                "european partnership for",
+                "partnership between",
+                "partnerships between",
+                "support to partnerships",
+                "cooperation programme",
+                "collaboration programme",
+                "joint programme",
+                "formal partnership",
+                "established partnership",
+                "international partners",
             ]
 
             for keyword in partnership_keywords:
