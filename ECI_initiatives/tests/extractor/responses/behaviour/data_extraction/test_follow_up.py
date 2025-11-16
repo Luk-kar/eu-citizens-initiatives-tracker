@@ -904,9 +904,9 @@ class TestFollowUpActivities:
         ), "Should NOT detect standard 'met with' or 'public hearing' as workshop"
 
     def test_partnership_programs_extraction(self):
-        """Test detection of partnership programs in follow-up section."""
+        """Test detection of partnership programs in follow-up or response sections."""
 
-        # Test 1: Partnership detected with keyword "partnership"
+        # Test 1: Partnership detected with keyword "partnerships between"
         html_with_partnership = """
         <html>
             <body>
@@ -918,21 +918,21 @@ class TestFollowUpActivities:
         """
         soup = BeautifulSoup(html_with_partnership, "html.parser")
         result = self.parser.followup_activity.extract_has_partnership_programs(soup)
-        assert result is True, "Should detect 'partnership' keyword"
+        assert result is True, "Should detect 'partnerships between' keyword"
 
-        # Test 2: Multiple partnerships detected
-        html_with_partnerships = """
+        # Test 2: Partnership program detected
+        html_with_partnership_program = """
         <html>
             <body>
                 <h2 id="Follow-up">Follow-up</h2>
-                <p>Multiple partnerships and collaborative agreements were established.</p>
+                <p>A new partnership program was established to support collaboration.</p>
                 <h2 id="More-information">More information</h2>
             </body>
         </html>
         """
-        soup = BeautifulSoup(html_with_partnerships, "html.parser")
+        soup = BeautifulSoup(html_with_partnership_program, "html.parser")
         result = self.parser.followup_activity.extract_has_partnership_programs(soup)
-        assert result is True, "Should detect plural 'partnerships'"
+        assert result is True, "Should detect 'partnership program' keyword"
 
         # Test 3: Public-public partnership detected
         html_with_ppp = """
@@ -946,37 +946,51 @@ class TestFollowUpActivities:
         """
         soup = BeautifulSoup(html_with_ppp, "html.parser")
         result = self.parser.followup_activity.extract_has_partnership_programs(soup)
-        assert result is True, "Should detect 'public-public partnership'"
+        assert result is True, "Should detect 'public-public partnerships'"
 
-        # Test 4: Water operators partnership detected
-        html_with_water_operators = """
+        # Test 4: Partnership plans detected
+        html_with_partnership_plans = """
         <html>
             <body>
                 <h2 id="Follow-up">Follow-up</h2>
-                <p>Partnerships between water operators were fostered through capacity building.</p>
+                <p>Regional partnership plans were developed for implementation.</p>
                 <h2 id="More-information">More information</h2>
             </body>
         </html>
         """
-        soup = BeautifulSoup(html_with_water_operators, "html.parser")
+        soup = BeautifulSoup(html_with_partnership_plans, "html.parser")
         result = self.parser.followup_activity.extract_has_partnership_programs(soup)
-        assert result is True, "Should detect 'water operators' keyword"
+        assert result is True, "Should detect 'partnership plans'"
 
-        # Test 5: Generic "partner" keyword detected
-        html_with_partner = """
+        # Test 5: Cooperation programme detected
+        html_with_cooperation_programme = """
         <html>
             <body>
                 <h2 id="Follow-up">Follow-up</h2>
-                <p>The Commission partnered with international organizations.</p>
+                <p>A new cooperation programme was launched in 2024.</p>
                 <h2 id="More-information">More information</h2>
             </body>
         </html>
         """
-        soup = BeautifulSoup(html_with_partner, "html.parser")
+        soup = BeautifulSoup(html_with_cooperation_programme, "html.parser")
         result = self.parser.followup_activity.extract_has_partnership_programs(soup)
-        assert result is True, "Should detect 'partner' keyword"
+        assert result is True, "Should detect 'cooperation programme'"
 
-        # Test 6: No partnership programs mentioned
+        # Test 6: International partners detected
+        html_with_international_partners = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The Commission engaged with international partners on this initiative.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_with_international_partners, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is True, "Should detect 'international partners'"
+
+        # Test 7: No partnership programs mentioned
         html_no_partnership = """
         <html>
             <body>
@@ -991,12 +1005,12 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_has_partnership_programs(soup)
         assert result is False, "Should return False when no partnership mentioned"
 
-        # Test 7: Case-insensitive detection
+        # Test 8: Case-insensitive detection
         html_partnership_uppercase = """
         <html>
             <body>
                 <h2 id="Follow-up">Follow-up</h2>
-                <p>PARTNERSHIPS with international actors were established in 2023.</p>
+                <p>PARTNERSHIP PLANS with international actors were established in 2023.</p>
                 <h2 id="More-information">More information</h2>
             </body>
         </html>
@@ -1005,20 +1019,52 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_has_partnership_programs(soup)
         assert result is True, "Should detect partnership case-insensitively"
 
-        # Test 8: No Follow-up section
-        html_no_followup = """
+        # Test 9: Alternative section name - "Answer of the European Commission"
+        html_answer_section = """
         <html>
             <body>
-                <h2 id="Answer-of-the-European-Commission">Answer</h2>
-                <p>Partnerships are mentioned in the answer section.</p>
+                <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+                <p>The Commission has proposed mechanisms to ensure compliance with partnership plans.</p>
+                <h2 id="More-information">More information</h2>
             </body>
         </html>
         """
-        soup = BeautifulSoup(html_no_followup, "html.parser")
+        soup = BeautifulSoup(html_answer_section, "html.parser")
         result = self.parser.followup_activity.extract_has_partnership_programs(soup)
-        assert result is False, "Should return False when no Follow-up section"
+        assert (
+            result is True
+        ), "Should detect partnership in 'Answer of the European Commission' section"
 
-        # Test 9: h4 Follow-up with partnership
+        # Test 10: Alternative section name with nested <strong> tag
+        html_answer_with_strong = """
+        <html>
+            <body>
+                <h2 id="Answer-of-the-European-Commission">
+                    <strong>Answer of the European Commission</strong>
+                </h2>
+                <p>Regional partnership plans will be implemented across Member States.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_answer_with_strong, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is True, "Should detect partnership in section with nested tags"
+
+        # Test 11: No relevant section present
+        html_no_relevant_section = """
+        <html>
+            <body>
+                <h2 id="Submission">Submission</h2>
+                <p>Partnerships are mentioned but not in a relevant section.</p>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_no_relevant_section, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is False, "Should return False when no relevant section exists"
+
+        # Test 12: h4 Follow-up with partnership
         html_h4_partnership = """
         <html>
             <body>
@@ -1035,7 +1081,7 @@ class TestFollowUpActivities:
         result = self.parser.followup_activity.extract_has_partnership_programs(soup)
         assert result is True, "Should detect partnership in h4 Follow-up pattern"
 
-        # Test 10: Partnership mentioned but in subsection list
+        # Test 13: Partnership mentioned in subsection list
         html_partnership_in_list = """
         <html>
             <body>
@@ -1054,6 +1100,52 @@ class TestFollowUpActivities:
         assert (
             result is True
         ), "Should detect partnership even when mentioned in subsection lists"
+
+        # Test 14: European Partnership program detected
+        html_european_partnership = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The European Partnership for Alternative Approaches was established.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_european_partnership, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert result is True, "Should detect 'european partnership for' pattern"
+
+        # Test 15: Generic "partner" should NOT trigger (too broad)
+        html_generic_partner = """
+        <html>
+            <body>
+                <h2 id="Follow-up">Follow-up</h2>
+                <p>The Commission is a key partner in policy development.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_generic_partner, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert (
+            result is False
+        ), "Should NOT detect generic 'partner' without program context"
+
+        # Test 16: Commission's response section variant
+        html_commission_response = """
+        <html>
+            <body>
+                <h2 id="Commission-Response">Commission's response</h2>
+                <p>Formal partnerships will be established with stakeholders.</p>
+                <h2 id="More-information">More information</h2>
+            </body>
+        </html>
+        """
+        soup = BeautifulSoup(html_commission_response, "html.parser")
+        result = self.parser.followup_activity.extract_has_partnership_programs(soup)
+        assert (
+            result is True
+        ), "Should detect partnership in 'Commission's response' section"
 
     def test_court_cases_referenced(self):
         """Test extraction of Court of Justice case numbers."""
