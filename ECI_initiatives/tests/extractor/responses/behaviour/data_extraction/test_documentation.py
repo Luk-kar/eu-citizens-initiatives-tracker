@@ -343,8 +343,32 @@ class TestMultimediaDocumentation:
         assert "14158-Better-protecting-sharks" in result_2
         assert "have-your-say" in result_2
 
-        # Test case 3: No dedicated website link present (returns None)
+        # Test case 3: "dedicated web" variant (shortened form)
         html_3 = """
+        <html>
+            <body>
+                <p>Check the 
+                    <a href="https://food.ec.europa.eu/animals/animal-welfare/eci/eci-end-cage-age_en">
+                        dedicated web
+                    </a>
+                    for updates.
+                </p>
+            </body>
+        </html>
+        """
+
+        soup_3 = BeautifulSoup(html_3, "html.parser")
+        parser_3 = ECIResponseHTMLParser(soup_3)
+        parser_3.registration_number = "2018/000004"
+
+        result_3 = parser_3.multimedia_docs.extract_followup_dedicated_website(soup_3)
+
+        assert result_3 is not None
+        assert "eci-end-cage-age" in result_3
+        assert "animal-welfare" in result_3
+
+        # Test case 4: No dedicated website link present (returns None)
+        html_4 = """
         <html>
             <body>
                 <p>The Commission has published its response.</p>
@@ -355,16 +379,16 @@ class TestMultimediaDocumentation:
         </html>
         """
 
-        soup_3 = BeautifulSoup(html_3, "html.parser")
-        parser_3 = ECIResponseHTMLParser(soup_3)
-        parser_3.registration_number = "2021/000008"
+        soup_4 = BeautifulSoup(html_4, "html.parser")
+        parser_4 = ECIResponseHTMLParser(soup_4)
+        parser_4.registration_number = "2021/000008"
 
-        result_3 = parser_3.multimedia_docs.extract_followup_dedicated_website(soup_3)
+        result_4 = parser_4.multimedia_docs.extract_followup_dedicated_website(soup_4)
 
-        assert result_3 is None
+        assert result_4 is None
 
-        # Test case 4: Dedicated website link exists but href is empty (error)
-        html_4 = """
+        # Test case 5: Dedicated website link exists but href is empty (error)
+        html_5 = """
         <html>
             <body>
                 <p>Visit the 
@@ -375,18 +399,18 @@ class TestMultimediaDocumentation:
         </html>
         """
 
-        soup_4 = BeautifulSoup(html_4, "html.parser")
-        parser_4 = ECIResponseHTMLParser(soup_4)
-        parser_4.registration_number = "2020/000012"
+        soup_5 = BeautifulSoup(html_5, "html.parser")
+        parser_5 = ECIResponseHTMLParser(soup_5)
+        parser_5.registration_number = "2020/000012"
 
         with pytest.raises(
             ValueError,
             match="Dedicated website link found but href is empty for 2020/000012",
         ):
-            parser_4.multimedia_docs.extract_followup_dedicated_website(soup_4)
+            parser_5.multimedia_docs.extract_followup_dedicated_website(soup_5)
 
-        # Test case 5: Multiple links, only one is dedicated website
-        html_5 = """
+        # Test case 6: Multiple links, only one is dedicated website
+        html_6 = """
         <html>
             <body>
                 <p>
@@ -407,24 +431,24 @@ class TestMultimediaDocumentation:
         </html>
         """
 
-        soup_5 = BeautifulSoup(html_5, "html.parser")
-        parser_5 = ECIResponseHTMLParser(soup_5)
-        parser_5.registration_number = "2022/000009"
+        soup_6 = BeautifulSoup(html_6, "html.parser")
+        parser_6 = ECIResponseHTMLParser(soup_6)
+        parser_6.registration_number = "2022/000009"
 
-        result_5 = parser_5.multimedia_docs.extract_followup_dedicated_website(soup_5)
+        result_6 = parser_6.multimedia_docs.extract_followup_dedicated_website(soup_6)
 
-        assert result_5 is not None
+        assert result_6 is not None
         assert (
             "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-fur-free-europe_en"
-            == result_5
+            == result_6
         )
         # Should return dedicated website, not other links
-        assert "presscorner" not in result_5
-        assert "transparency" not in result_5
-        assert "contact" not in result_5
+        assert "presscorner" not in result_6
+        assert "transparency" not in result_6
+        assert "contact" not in result_6
 
-        # Test case 6: Case-insensitive detection
-        html_6 = """
+        # Test case 7: Case-insensitive detection - uppercase
+        html_7 = """
         <html>
             <body>
                 <p>Please check the 
@@ -436,17 +460,17 @@ class TestMultimediaDocumentation:
         </html>
         """
 
-        soup_6 = BeautifulSoup(html_6, "html.parser")
-        parser_6 = ECIResponseHTMLParser(soup_6)
-        parser_6.registration_number = "2019/000015"
+        soup_7 = BeautifulSoup(html_7, "html.parser")
+        parser_7 = ECIResponseHTMLParser(soup_7)
+        parser_7.registration_number = "2019/000015"
 
-        result_6 = parser_6.multimedia_docs.extract_followup_dedicated_website(soup_6)
+        result_7 = parser_7.multimedia_docs.extract_followup_dedicated_website(soup_7)
 
-        assert result_6 is not None
-        assert "https://citizens-initiative.europa.eu/eci-campaign" == result_6
+        assert result_7 is not None
+        assert "https://citizens-initiative.europa.eu/eci-campaign" == result_7
 
-        # Test case 7: Mixed case "Dedicated Page"
-        html_7 = """
+        # Test case 8: Mixed case "Dedicated Page"
+        html_8 = """
         <html>
             <body>
                 <p>Further information on the 
@@ -458,17 +482,39 @@ class TestMultimediaDocumentation:
         </html>
         """
 
-        soup_7 = BeautifulSoup(html_7, "html.parser")
-        parser_7 = ECIResponseHTMLParser(soup_7)
-        parser_7.registration_number = "2018/000003"
+        soup_8 = BeautifulSoup(html_8, "html.parser")
+        parser_8 = ECIResponseHTMLParser(soup_8)
+        parser_8.registration_number = "2018/000003"
 
-        result_7 = parser_7.multimedia_docs.extract_followup_dedicated_website(soup_7)
+        result_8 = parser_8.multimedia_docs.extract_followup_dedicated_website(soup_8)
 
-        assert result_7 is not None
-        assert "https://ec.europa.eu/environment/chemicals/eci-response" == result_7
+        assert result_8 is not None
+        assert "https://ec.europa.eu/environment/chemicals/eci-response" == result_8
 
-        # Test case 8: Empty page (no links at all)
-        html_8 = """
+        # Test case 9: Mixed case "Dedicated Web"
+        html_9 = """
+        <html>
+            <body>
+                <p>Visit our 
+                    <a href="https://environment.ec.europa.eu/topics/nature">
+                        Dedicated Web
+                    </a>
+                </p>
+            </body>
+        </html>
+        """
+
+        soup_9 = BeautifulSoup(html_9, "html.parser")
+        parser_9 = ECIResponseHTMLParser(soup_9)
+        parser_9.registration_number = "2019/000016"
+
+        result_9 = parser_9.multimedia_docs.extract_followup_dedicated_website(soup_9)
+
+        assert result_9 is not None
+        assert "https://environment.ec.europa.eu/topics/nature" == result_9
+
+        # Test case 10: Empty page (no links at all)
+        html_10 = """
         <html>
             <body>
                 <h2>Commission Response</h2>
@@ -477,16 +523,18 @@ class TestMultimediaDocumentation:
         </html>
         """
 
-        soup_8 = BeautifulSoup(html_8, "html.parser")
-        parser_8 = ECIResponseHTMLParser(soup_8)
-        parser_8.registration_number = "2017/000011"
+        soup_10 = BeautifulSoup(html_10, "html.parser")
+        parser_10 = ECIResponseHTMLParser(soup_10)
+        parser_10.registration_number = "2017/000011"
 
-        result_8 = parser_8.multimedia_docs.extract_followup_dedicated_website(soup_8)
+        result_10 = parser_10.multimedia_docs.extract_followup_dedicated_website(
+            soup_10
+        )
 
-        assert result_8 is None
+        assert result_10 is None
 
-        # Test case 9: Partial text match (should not match)
-        html_9 = """
+        # Test case 11: Partial text match (should not match - "dedicated" alone)
+        html_11 = """
         <html>
             <body>
                 <a href="https://ec.europa.eu/some-page">website information</a>
@@ -495,16 +543,18 @@ class TestMultimediaDocumentation:
         </html>
         """
 
-        soup_9 = BeautifulSoup(html_9, "html.parser")
-        parser_9 = ECIResponseHTMLParser(soup_9)
-        parser_9.registration_number = "2016/000007"
+        soup_11 = BeautifulSoup(html_11, "html.parser")
+        parser_11 = ECIResponseHTMLParser(soup_11)
+        parser_11.registration_number = "2016/000007"
 
-        result_9 = parser_9.multimedia_docs.extract_followup_dedicated_website(soup_9)
+        result_11 = parser_11.multimedia_docs.extract_followup_dedicated_website(
+            soup_11
+        )
 
-        assert result_9 is None
+        assert result_11 is None
 
-        # Test case 10: Returns first match when multiple dedicated website links exist
-        html_10 = """
+        # Test case 12: Returns first match when multiple dedicated website links exist
+        html_12 = """
         <html>
             <body>
                 <p>First link: 
@@ -517,15 +567,88 @@ class TestMultimediaDocumentation:
         </html>
         """
 
-        soup_10 = BeautifulSoup(html_10, "html.parser")
-        parser_10 = ECIResponseHTMLParser(soup_10)
-        parser_10.registration_number = "2024/000001"
+        soup_12 = BeautifulSoup(html_12, "html.parser")
+        parser_12 = ECIResponseHTMLParser(soup_12)
+        parser_12.registration_number = "2024/000001"
 
-        result_10 = parser_10.multimedia_docs.extract_followup_dedicated_website(
-            soup_10
+        result_12 = parser_12.multimedia_docs.extract_followup_dedicated_website(
+            soup_12
         )
 
-        assert result_10 is not None
-        assert "first-dedicated-site" in result_10
+        assert result_12 is not None
+        assert "first-dedicated-site" in result_12
         # Should return first match, not second
-        assert "second-dedicated-site" not in result_10
+        assert "second-dedicated-site" not in result_12
+
+        # Test case 13: Link with extra whitespace in text
+        html_13 = """
+        <html>
+            <body>
+                <p>
+                    <a href="https://ec.europa.eu/whitespace-test">
+                        dedicated   website
+                    </a>
+                </p>
+            </body>
+        </html>
+        """
+
+        soup_13 = BeautifulSoup(html_13, "html.parser")
+        parser_13 = ECIResponseHTMLParser(soup_13)
+        parser_13.registration_number = "2023/000010"
+
+        result_13 = parser_13.multimedia_docs.extract_followup_dedicated_website(
+            soup_13
+        )
+
+        assert result_13 is not None
+        assert "https://ec.europa.eu/whitespace-test" == result_13
+
+        # Test case 14: Link text with line breaks
+        html_14 = """
+        <html>
+            <body>
+                <p>
+                    <a href="https://ec.europa.eu/linebreak-test">
+                        dedicated
+                        page
+                    </a>
+                </p>
+            </body>
+        </html>
+        """
+
+        soup_14 = BeautifulSoup(html_14, "html.parser")
+        parser_14 = ECIResponseHTMLParser(soup_14)
+        parser_14.registration_number = "2023/000011"
+
+        result_14 = parser_14.multimedia_docs.extract_followup_dedicated_website(
+            soup_14
+        )
+
+        assert result_14 is not None
+        assert "https://ec.europa.eu/linebreak-test" == result_14
+
+        # Test case 15: Nested elements in link text
+        html_15 = """
+        <html>
+            <body>
+                <p>
+                    <a href="https://ec.europa.eu/nested-test">
+                        <strong>dedicated</strong> <em>web</em>
+                    </a>
+                </p>
+            </body>
+        </html>
+        """
+
+        soup_15 = BeautifulSoup(html_15, "html.parser")
+        parser_15 = ECIResponseHTMLParser(soup_15)
+        parser_15.registration_number = "2023/000012"
+
+        result_15 = parser_15.multimedia_docs.extract_followup_dedicated_website(
+            soup_15
+        )
+
+        assert result_15 is not None
+        assert "https://ec.europa.eu/nested-test" == result_15

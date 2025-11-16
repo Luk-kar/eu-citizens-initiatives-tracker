@@ -3,6 +3,7 @@ Extracts multimedia resources and documentation links including
 Commission factsheets and campaign website information.
 """
 
+import re
 from typing import Optional
 
 from bs4 import BeautifulSoup
@@ -83,16 +84,19 @@ class MultimediaDocumentationExtractor(BaseExtractor):
         Raises:
             ValueError: If dedicated website element exists but href is missing or invalid
         """
+        DEDICATED_WEBSITE_PATTERN = re.compile(
+            r"dedicated\s+(website|page|web)", re.IGNORECASE
+        )
 
         try:
             # Find all anchor tags
             links = soup.find_all("a", href=True)
 
-            # Look for links with text containing "dedicated website" or "dedicated page"
+            # Look for links with text matching the dedicated website pattern
             for link in links:
-                link_text = link.get_text(strip=True).lower()
+                link_text = link.get_text(strip=True)
 
-                if "dedicated website" in link_text or "dedicated page" in link_text:
+                if DEDICATED_WEBSITE_PATTERN.search(link_text):
                     href = link.get("href", "").strip()
 
                     if not href:
