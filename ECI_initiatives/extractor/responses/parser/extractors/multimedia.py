@@ -94,7 +94,7 @@ class MultimediaDocumentationExtractor(BaseExtractor):
 
             # Look for links with text matching the dedicated website pattern
             for link in links:
-                link_text = link.get_text(strip=True)
+                link_text = link.get_text(separator=" ", strip=True)
 
                 if DEDICATED_WEBSITE_PATTERN.search(link_text):
                     href = link.get("href", "").strip()
