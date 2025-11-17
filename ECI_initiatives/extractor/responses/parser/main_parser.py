@@ -186,6 +186,9 @@ class ECIResponseHTMLParser:
                 has_followup_section=self.followup_activity.extract_has_followup_section(
                     soup
                 ),
+                followup_events_with_dates=self.followup_activity.extract_followup_events_with_dates(
+                    soup
+                ),
                 has_roadmap=self.followup_activity.extract_has_roadmap(soup),
                 has_workshop=self.followup_activity.extract_has_workshop(soup),
                 has_partnership_programs=self.followup_activity.extract_has_partnership_programs(
@@ -208,9 +211,6 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 referenced_legislation_by_name=self.structural_analysis.extract_referenced_legislation_by_name(
-                    soup
-                ),
-                followup_events_with_dates=self.structural_analysis.extract_followup_events_with_dates(
                     soup
                 ),
             )
