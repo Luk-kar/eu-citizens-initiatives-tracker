@@ -20,7 +20,7 @@ from .extractors.response import CommissionResponseExtractor
 from .extractors.outcome import LegislativeOutcomeExtractor
 from .extractors.followup import FollowUpActivityExtractor
 from .extractors.multimedia import MultimediaDocumentationExtractor
-from .extractors.structural import LegislativeReferences
+from .extractors.legislative_references import LegislativeReferences
 
 
 class ECIResponseHTMLParser:
