@@ -291,16 +291,16 @@ class TestMultimediaDocumentation:
         assert result_8 is None
 
     def test_followup_dedicated_website_detection(self):
-        """Test detection of dedicated campaign website."""
+        """Test detection of dedicated ECI campaign website by URL pattern."""
 
-        # Test case 1: Standard "dedicated website" link
+        # Test case 1: Valid ECI dedicated website URL
         html_1 = """
         <html>
             <body>
                 <p>For more information, please visit the 
                     <a class="Hyperlink SCXW169299639 BCX8" 
-                    href="https://single-market-economy.ec.europa.eu/sectors/chemicals/reach/roadmap-towards-phasing-out-animal-testing_en">
-                        dedicated website
+                    href="https://food.ec.europa.eu/animals/animal-welfare/eci/eci-end-cage-age_en">
+                        campaign website
                     </a>
                 </p>
             </body>
@@ -309,23 +309,23 @@ class TestMultimediaDocumentation:
 
         soup_1 = BeautifulSoup(html_1, "html.parser")
         parser_1 = ECIResponseHTMLParser(soup_1)
-        parser_1.registration_number = "2022/000002"
+        parser_1.registration_number = "2018/000004"
 
         result_1 = parser_1.multimedia_docs.extract_followup_dedicated_website(soup_1)
 
         assert result_1 is not None
         assert (
             result_1
-            == "https://single-market-economy.ec.europa.eu/sectors/chemicals/reach/roadmap-towards-phasing-out-animal-testing_en"
+            == "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-end-cage-age_en"
         )
-        assert "single-market-economy.ec.europa.eu" in result_1
+        assert "eci-end-cage-age" in result_1
 
-        # Test case 2: "dedicated page" link variant
+        # Test case 2: Another valid ECI URL pattern
         html_2 = """
         <html>
             <body>
                 <p>More details are available on the 
-                    <a href="https://ec.europa.eu/info/law/better-regulation/have-your-say/initiatives/14158-Better-protecting-sharks-through-sustainable-fishing-and-trade/public-consultation_en">
+                    <a href="https://ec.europa.eu/info/law/better-regulation/eci/eci-water_en">
                         dedicated page.
                     </a>
                 </p>
@@ -335,21 +335,21 @@ class TestMultimediaDocumentation:
 
         soup_2 = BeautifulSoup(html_2, "html.parser")
         parser_2 = ECIResponseHTMLParser(soup_2)
-        parser_2.registration_number = "2023/000005"
+        parser_2.registration_number = "2012/000003"
 
         result_2 = parser_2.multimedia_docs.extract_followup_dedicated_website(soup_2)
 
         assert result_2 is not None
-        assert "14158-Better-protecting-sharks" in result_2
-        assert "have-your-say" in result_2
+        assert "eci-water" in result_2
+        assert "eci/eci-" in result_2
 
-        # Test case 3: "dedicated web" variant (shortened form)
+        # Test case 3: Valid URL with different subdomain
         html_3 = """
         <html>
             <body>
                 <p>Check the 
-                    <a href="https://food.ec.europa.eu/animals/animal-welfare/eci/eci-end-cage-age_en">
-                        dedicated web
+                    <a href="https://single-market-economy.ec.europa.eu/sectors/chemicals/eci/eci-stop-vivisection_en">
+                        initiative page
                     </a>
                     for updates.
                 </p>
@@ -359,15 +359,15 @@ class TestMultimediaDocumentation:
 
         soup_3 = BeautifulSoup(html_3, "html.parser")
         parser_3 = ECIResponseHTMLParser(soup_3)
-        parser_3.registration_number = "2018/000004"
+        parser_3.registration_number = "2015/000007"
 
         result_3 = parser_3.multimedia_docs.extract_followup_dedicated_website(soup_3)
 
         assert result_3 is not None
-        assert "eci-end-cage-age" in result_3
-        assert "animal-welfare" in result_3
+        assert "eci-stop-vivisection" in result_3
+        assert "single-market-economy" in result_3
 
-        # Test case 4: No dedicated website link present (returns None)
+        # Test case 4: No matching URL pattern (returns None)
         html_4 = """
         <html>
             <body>
@@ -387,12 +387,12 @@ class TestMultimediaDocumentation:
 
         assert result_4 is None
 
-        # Test case 5: Dedicated website link exists but href is empty (error)
+        # Test case 5: Wrong language code (_de instead of _en)
         html_5 = """
         <html>
             <body>
                 <p>Visit the 
-                    <a href="" class="Hyperlink">dedicated website</a>
+                    <a href="https://ec.europa.eu/info/eci/eci-water_de">German version</a>
                     for details.
                 </p>
             </body>
@@ -403,13 +403,12 @@ class TestMultimediaDocumentation:
         parser_5 = ECIResponseHTMLParser(soup_5)
         parser_5.registration_number = "2020/000012"
 
-        with pytest.raises(
-            ValueError,
-            match="Dedicated website link found but href is empty for 2020/000012",
-        ):
-            parser_5.multimedia_docs.extract_followup_dedicated_website(soup_5)
+        result_5 = parser_5.multimedia_docs.extract_followup_dedicated_website(soup_5)
 
-        # Test case 6: Multiple links, only one is dedicated website
+        # Should return None because it's _de, not _en
+        assert result_5 is None
+
+        # Test case 6: Multiple links, only one matches pattern
         html_6 = """
         <html>
             <body>
@@ -421,7 +420,7 @@ class TestMultimediaDocumentation:
                 </p>
                 <p>For more information, see the 
                     <a href="https://food.ec.europa.eu/animals/animal-welfare/eci/eci-fur-free-europe_en">
-                        dedicated website
+                        campaign website
                     </a>
                 </p>
                 <p>
@@ -442,18 +441,18 @@ class TestMultimediaDocumentation:
             "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-fur-free-europe_en"
             == result_6
         )
-        # Should return dedicated website, not other links
+        # Should return ECI link, not other links
         assert "presscorner" not in result_6
         assert "transparency" not in result_6
         assert "contact" not in result_6
 
-        # Test case 7: Case-insensitive detection - uppercase
+        # Test case 7: URL without "eci-" prefix (should not match)
         html_7 = """
         <html>
             <body>
                 <p>Please check the 
-                    <a href="https://citizens-initiative.europa.eu/eci-campaign">
-                        DEDICATED WEBSITE
+                    <a href="https://citizens-initiative.europa.eu/campaign_en">
+                        campaign website
                     </a>
                 </p>
             </body>
@@ -466,16 +465,15 @@ class TestMultimediaDocumentation:
 
         result_7 = parser_7.multimedia_docs.extract_followup_dedicated_website(soup_7)
 
-        assert result_7 is not None
-        assert "https://citizens-initiative.europa.eu/eci-campaign" == result_7
+        assert result_7 is None  # No "eci-" prefix
 
-        # Test case 8: Mixed case "Dedicated Page"
+        # Test case 8: URL with extra path after _en (should not match)
         html_8 = """
         <html>
             <body>
                 <p>Further information on the 
-                    <a href="https://ec.europa.eu/environment/chemicals/eci-response">
-                        Dedicated Page
+                    <a href="https://ec.europa.eu/environment/eci/eci-chemicals_en/details">
+                        details page
                     </a>
                 </p>
             </body>
@@ -488,16 +486,15 @@ class TestMultimediaDocumentation:
 
         result_8 = parser_8.multimedia_docs.extract_followup_dedicated_website(soup_8)
 
-        assert result_8 is not None
-        assert "https://ec.europa.eu/environment/chemicals/eci-response" == result_8
+        assert result_8 is None  # URL doesn't end with _en
 
-        # Test case 9: Mixed case "Dedicated Web"
+        # Test case 9: Valid URL with hyphens in identifier
         html_9 = """
         <html>
             <body>
                 <p>Visit our 
-                    <a href="https://environment.ec.europa.eu/topics/nature">
-                        Dedicated Web
+                    <a href="https://environment.ec.europa.eu/topics/nature-and-biodiversity/eci/eci-save-bees-and-farmers_en">
+                        initiative page
                     </a>
                 </p>
             </body>
@@ -511,7 +508,7 @@ class TestMultimediaDocumentation:
         result_9 = parser_9.multimedia_docs.extract_followup_dedicated_website(soup_9)
 
         assert result_9 is not None
-        assert "https://environment.ec.europa.eu/topics/nature" == result_9
+        assert "eci-save-bees-and-farmers" in result_9
 
         # Test case 10: Empty page (no links at all)
         html_10 = """
@@ -533,12 +530,12 @@ class TestMultimediaDocumentation:
 
         assert result_10 is None
 
-        # Test case 11: Partial text match (should not match - "dedicated" alone)
+        # Test case 11: Non-matching URL patterns
         html_11 = """
         <html>
             <body>
-                <a href="https://ec.europa.eu/some-page">website information</a>
-                <a href="https://ec.europa.eu/another-page">dedicated section</a>
+                <a href="https://ec.europa.eu/some-page_en">website information</a>
+                <a href="https://ec.europa.eu/another-page/eci-section">dedicated section</a>
             </body>
         </html>
         """
@@ -553,15 +550,15 @@ class TestMultimediaDocumentation:
 
         assert result_11 is None
 
-        # Test case 12: Returns first match when multiple dedicated website links exist
+        # Test case 12: Returns first match when multiple matching URLs exist
         html_12 = """
         <html>
             <body>
                 <p>First link: 
-                    <a href="https://ec.europa.eu/first-dedicated-site">dedicated website</a>
+                    <a href="https://ec.europa.eu/first/eci/eci-first-initiative_en">first ECI</a>
                 </p>
                 <p>Second link: 
-                    <a href="https://ec.europa.eu/second-dedicated-site">dedicated page</a>
+                    <a href="https://ec.europa.eu/second/eci/eci-second-initiative_en">second ECI</a>
                 </p>
             </body>
         </html>
@@ -576,18 +573,17 @@ class TestMultimediaDocumentation:
         )
 
         assert result_12 is not None
-        assert "first-dedicated-site" in result_12
+        assert "eci-first-initiative" in result_12
         # Should return first match, not second
-        assert "second-dedicated-site" not in result_12
+        assert "eci-second-initiative" not in result_12
 
-        # Test case 13: Link with extra whitespace in text
+        # Test case 13: Empty href attribute (should be skipped)
         html_13 = """
         <html>
             <body>
                 <p>
-                    <a href="https://ec.europa.eu/whitespace-test">
-                        dedicated   website
-                    </a>
+                    <a href="">empty link</a>
+                    <a href="https://ec.europa.eu/valid/eci/eci-valid-initiative_en">valid link</a>
                 </p>
             </body>
         </html>
@@ -602,16 +598,15 @@ class TestMultimediaDocumentation:
         )
 
         assert result_13 is not None
-        assert "https://ec.europa.eu/whitespace-test" == result_13
+        assert "eci-valid-initiative" in result_13
 
-        # Test case 14: Link text with line breaks
+        # Test case 14: Case insensitive pattern matching (URL with uppercase)
         html_14 = """
         <html>
             <body>
                 <p>
-                    <a href="https://ec.europa.eu/linebreak-test">
-                        dedicated
-                        page
+                    <a href="https://ec.europa.eu/INFO/ECI/eci-test_EN">
+                        uppercase URL
                     </a>
                 </p>
             </body>
@@ -627,15 +622,15 @@ class TestMultimediaDocumentation:
         )
 
         assert result_14 is not None
-        assert "https://ec.europa.eu/linebreak-test" == result_14
+        assert "eci-test" in result_14.lower()
 
-        # Test case 15: Nested elements in link text
+        # Test case 15: HTTP instead of HTTPS (should not match)
         html_15 = """
         <html>
             <body>
                 <p>
-                    <a href="https://ec.europa.eu/nested-test">
-                        <strong>dedicated</strong> <em>web</em>
+                    <a href="http://ec.europa.eu/test/eci/eci-http-test_en">
+                        HTTP link
                     </a>
                 </p>
             </body>
@@ -650,5 +645,4 @@ class TestMultimediaDocumentation:
             soup_15
         )
 
-        assert result_15 is not None
-        assert "https://ec.europa.eu/nested-test" == result_15
+        assert result_15 is None  # Pattern requires https://
