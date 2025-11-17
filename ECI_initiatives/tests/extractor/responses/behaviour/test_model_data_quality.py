@@ -20,6 +20,8 @@ from ECI_initiatives.extractor.responses.processor import ECIResponseDataProcess
 TEST_DATA_DIR = (
     Path(__file__).parent.parent.parent.parent / "data" / "example_htmls" / "responses"
 )
+# Once when the test starts
+TODAY = date.today()
 
 # Validate test data directory exists
 if not TEST_DATA_DIR.exists():
@@ -635,7 +637,7 @@ class TestDateFieldsConsistency:
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify historical dates are not set in the future"""
-        today = date.today()
+        today = TODAY
 
         # Fields that should not be in the future (exclude future deadlines)
         historical_fields = [
