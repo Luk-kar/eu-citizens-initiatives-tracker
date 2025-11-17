@@ -25,7 +25,7 @@ from ECI_initiatives.extractor.responses.responses_logger import (
 )
 
 
-class TestStructuralAnalysis:
+class TestLegislativeReferences:
     """Tests for structural analysis fields."""
 
     @classmethod
