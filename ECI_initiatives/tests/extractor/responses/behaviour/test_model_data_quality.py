@@ -7,8 +7,10 @@ import pytest
 import shutil
 import csv
 from pathlib import Path
+import re
 from typing import List
 from unittest import mock
+from urllib.parse import urlparse
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 from ECI_initiatives.extractor.responses.processor import ECIResponseDataProcessor
@@ -248,37 +250,200 @@ class TestURLFieldsIntegrity:
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify all response_url fields contain valid HTTPS URLs"""
-        pass
+        for record in complete_dataset:
+            assert (
+                record.response_url is not None
+            ), f"response_url is None for {record.registration_number}"
+
+            assert record.response_url.startswith("https://"), (
+                f"response_url must use HTTPS for {record.registration_number}: "
+                f"{record.response_url}"
+            )
+
+            # Validate URL structure
+            parsed = urlparse(record.response_url)
+            assert (
+                parsed.scheme == "https"
+            ), f"Invalid HTTPS scheme for {record.registration_number}"
+            assert (
+                parsed.netloc
+            ), f"Missing domain in response_url for {record.registration_number}"
 
     def test_initiative_urls_are_valid_https(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify all initiative_url fields contain valid HTTPS URLs"""
-        pass
+        for record in complete_dataset:
+            assert (
+                record.initiative_url is not None
+            ), f"initiative_url is None for {record.registration_number}"
+
+            assert record.initiative_url.startswith("https://"), (
+                f"initiative_url must use HTTPS for {record.registration_number}: "
+                f"{record.initiative_url}"
+            )
+
+            # Validate URL structure
+            parsed = urlparse(record.initiative_url)
+            assert (
+                parsed.scheme == "https"
+            ), f"Invalid HTTPS scheme for {record.registration_number}"
+            assert (
+                parsed.netloc
+            ), f"Missing domain in initiative_url for {record.registration_number}"
 
     def test_submission_news_urls_are_valid_when_present(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify submission_news_url fields contain valid URLs when not None"""
-        pass
+        for record in complete_dataset:
+            if record.submission_news_url is not None:
+                # Check for valid URL scheme
+                assert record.submission_news_url.startswith(("https://", "http://")), (
+                    f"Invalid URL scheme in submission_news_url for "
+                    f"{record.registration_number}: {record.submission_news_url}"
+                )
+
+                # Validate URL structure
+                parsed = urlparse(record.submission_news_url)
+                assert parsed.scheme in [
+                    "https",
+                    "http",
+                ], f"Invalid URL scheme for {record.registration_number}"
+                assert parsed.netloc, (
+                    f"Missing domain in submission_news_url for "
+                    f"{record.registration_number}"
+                )
 
     def test_commission_factsheet_urls_are_valid_when_present(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify commission_factsheet_url fields contain valid URLs when not None"""
-        pass
+        for record in complete_dataset:
+            if record.commission_factsheet_url is not None:
+                # Check for valid URL scheme
+                assert record.commission_factsheet_url.startswith(
+                    ("https://", "http://")
+                ), (
+                    f"Invalid URL scheme in commission_factsheet_url for "
+                    f"{record.registration_number}: {record.commission_factsheet_url}"
+                )
+
+                # Validate URL structure
+                parsed = urlparse(record.commission_factsheet_url)
+                assert parsed.scheme in [
+                    "https",
+                    "http",
+                ], f"Invalid URL scheme for {record.registration_number}"
+                assert parsed.netloc, (
+                    f"Missing domain in commission_factsheet_url for "
+                    f"{record.registration_number}"
+                )
 
     def test_followup_dedicated_website_urls_are_valid_when_present(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify followup_dedicated_website fields contain valid URLs when not None"""
-        pass
+        for record in complete_dataset:
+            if record.followup_dedicated_website is not None:
+                # Check for valid URL scheme
+                assert record.followup_dedicated_website.startswith(
+                    ("https://", "http://")
+                ), (
+                    f"Invalid URL scheme in followup_dedicated_website for "
+                    f"{record.registration_number}: {record.followup_dedicated_website}"
+                )
+
+                # Validate URL structure
+                parsed = urlparse(record.followup_dedicated_website)
+                assert parsed.scheme in [
+                    "https",
+                    "http",
+                ], f"Invalid URL scheme for {record.registration_number}"
+                assert parsed.netloc, (
+                    f"Missing domain in followup_dedicated_website for "
+                    f"{record.registration_number}"
+                )
 
     def test_urls_point_to_correct_domains(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify URLs point to expected EU domain patterns"""
-        pass
+        # Expected domain patterns for different URL fields
+        expected_domains = {
+            "response_url": [
+                r"^citizens-initiative\.europa\.eu$",
+            ],
+            "initiative_url": [
+                r"^citizens-initiative\.europa\.eu$",
+            ],
+            "submission_news_url": [
+                r"^ec\.europa\.eu$",
+                r"^europa\.eu$",
+                r"^europarl\.europa\.eu$",
+            ],
+            "commission_factsheet_url": [
+                r"^citizens-initiative\.europa\.eu$",
+            ],
+            "followup_dedicated_website": [
+                r".*\.europa\.eu$",
+                r".*\.ec\.europa\.eu$",
+            ],
+        }
+
+        for record in complete_dataset:
+            # Test response_url domain
+            parsed = urlparse(record.response_url)
+            assert any(
+                re.match(pattern, parsed.netloc)
+                for pattern in expected_domains["response_url"]
+            ), (
+                f"Unexpected domain in response_url for {record.registration_number}: "
+                f"{parsed.netloc}"
+            )
+
+            # Test initiative_url domain
+            parsed = urlparse(record.initiative_url)
+            assert any(
+                re.match(pattern, parsed.netloc)
+                for pattern in expected_domains["initiative_url"]
+            ), (
+                f"Unexpected domain in initiative_url for {record.registration_number}: "
+                f"{parsed.netloc}"
+            )
+
+            # Test submission_news_url domain (if present)
+            if record.submission_news_url is not None:
+                parsed = urlparse(record.submission_news_url)
+                assert any(
+                    re.match(pattern, parsed.netloc)
+                    for pattern in expected_domains["submission_news_url"]
+                ), (
+                    f"Unexpected domain in submission_news_url for "
+                    f"{record.registration_number}: {parsed.netloc}"
+                )
+
+            # Test commission_factsheet_url domain (if present)
+            if record.commission_factsheet_url is not None:
+                parsed = urlparse(record.commission_factsheet_url)
+                assert any(
+                    re.match(pattern, parsed.netloc)
+                    for pattern in expected_domains["commission_factsheet_url"]
+                ), (
+                    f"Unexpected domain in commission_factsheet_url for "
+                    f"{record.registration_number}: {parsed.netloc}"
+                )
+
+            # Test followup_dedicated_website domain (if present)
+            if record.followup_dedicated_website is not None:
+                parsed = urlparse(record.followup_dedicated_website)
+                assert any(
+                    re.match(pattern, parsed.netloc)
+                    for pattern in expected_domains["followup_dedicated_website"]
+                ), (
+                    f"Unexpected domain in followup_dedicated_website for "
+                    f"{record.registration_number}: {parsed.netloc}"
+                )
 
 
 class TestDateFieldsConsistency:
