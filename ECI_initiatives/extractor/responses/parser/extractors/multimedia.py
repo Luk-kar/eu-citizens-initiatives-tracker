@@ -78,42 +78,39 @@ class MultimediaDocumentationExtractor(BaseExtractor):
     def extract_followup_dedicated_website(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract the URL of the dedicated website for follow-up response
 
+        Searches for links with href matching pattern: ends with /eci-..._en
+        Example: https://example.com/eci-something_en
+
         Returns:
             Optional[str]: URL to the dedicated website, or None if no such link exists
 
         Raises:
-            ValueError: If dedicated website element exists but href is missing or invalid
+            ValueError: If critical error occurs during extraction
         """
-        DEDICATED_WEBSITE_PATTERN = re.compile(
-            r"dedicated\s+(website|page|web)", re.IGNORECASE
+        # Pattern to match URLs ending with /eci-..._en
+        # Matches: /eci-{anything}_en at the end of URL
+        DEDICATED_WEBSITE_URL_PATTERN = re.compile(
+            r"^https://.*eci\/eci-[^/]+_en$", re.IGNORECASE
         )
 
         try:
-            # Find all anchor tags
+            # Find all anchor tags with href attributes
             links = soup.find_all("a", href=True)
 
-            # Look for links with text matching the dedicated website pattern
+            # Look for links with href matching the dedicated website URL pattern
             for link in links:
-                link_text = link.get_text(separator=" ", strip=True)
+                href = link.get("href", "").strip()
 
-                if DEDICATED_WEBSITE_PATTERN.search(link_text):
-                    href = link.get("href", "").strip()
+                if not href:
+                    continue
 
-                    if not href:
-                        raise ValueError(
-                            f"Dedicated website link found but href is empty "
-                            f"for {self.registration_number}"
-                        )
-
+                if DEDICATED_WEBSITE_URL_PATTERN.search(href):
                     # Return the first matching link URL
                     return href
 
             # No dedicated website link found - this is OK, return None
             return None
 
-        except ValueError:
-            # Re-raise ValueError as-is
-            raise
         except Exception as e:
             raise ValueError(
                 f"Error extracting dedicated website URL for {self.registration_number}: {str(e)}"
