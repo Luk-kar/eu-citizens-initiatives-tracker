@@ -20,7 +20,7 @@ from .extractors.response import CommissionResponseExtractor
 from .extractors.outcome import LegislativeOutcomeExtractor
 from .extractors.followup import FollowUpActivityExtractor
 from .extractors.multimedia import MultimediaDocumentationExtractor
-from .extractors.structural import StructuralAnalysisExtractor
+from .extractors.structural import LegislativeReferences
 
 
 class ECIResponseHTMLParser:
@@ -44,7 +44,7 @@ class ECIResponseHTMLParser:
         )
         self.followup_activity = FollowUpActivityExtractor(logger)
         self.multimedia_docs = MultimediaDocumentationExtractor(logger)
-        self.structural_analysis = StructuralAnalysisExtractor(logger)
+        self.structural_analysis = LegislativeReferences(logger)
 
     @property
     def registration_number(self):
@@ -203,7 +203,7 @@ class ECIResponseHTMLParser:
                 commission_factsheet_url=self.multimedia_docs.extract_commission_factsheet_url(
                     soup
                 ),
-                # Structural Analysis Flags
+                # Legislation References
                 referenced_legislation_by_id=self.structural_analysis.extract_referenced_legislation_by_id(
                     soup
                 ),

@@ -17,7 +17,7 @@ from ..base.base_extractor import BaseExtractor
 from ..base.date_parser import convert_deadline_to_date
 
 
-class StructuralAnalysisExtractor(BaseExtractor):
+class LegislativeReferences(BaseExtractor):
     """Extracts structural analysis data"""
 
     def extract_referenced_legislation_by_id(

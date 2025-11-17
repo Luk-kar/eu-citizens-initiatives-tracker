@@ -8,7 +8,7 @@ It verifies the correct identification and extraction of:
 - Referenced EU legislation by formal identifiers (CELEX, Official Journal).
 - Referenced EU legislation by their common names (e.g., "Water Framework Directive").
 - Referenced articles of legislation.
-- Calculation of follow-up duration (placeholder).
+- follow-up with dates
 """
 
 # Standard library
