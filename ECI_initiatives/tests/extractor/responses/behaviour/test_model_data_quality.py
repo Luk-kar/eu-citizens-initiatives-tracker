@@ -4,8 +4,166 @@ Column-level validation tests for ECICommissionResponseRecord fields
 """
 
 import pytest
+import shutil
+import csv
+from pathlib import Path
 from typing import List
+from unittest import mock
+
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+
+# Test data paths
+TEST_DATA_DIR = (
+    Path(__file__).parent.parent.parent / "data" / "example_htmls" / "responses"
+)
+
+
+@pytest.fixture(scope="session")
+def processed_test_data(tmp_path_factory):
+    """
+    Run ECIResponseDataProcessor on test HTML files and return path to output CSV.
+    This fixture runs once per test session.
+    """
+    # Create temporary directory structure that processor expects
+    temp_root = tmp_path_factory.mktemp("eci_data")
+    session_dir = temp_root / "2024-01-01_12-00-00"
+    responses_dir = session_dir / "responses"
+    responses_dir.mkdir(parents=True)
+
+    # Copy all HTML files from test data directory, preserving year subdirs or flattening
+    for html_file in TEST_DATA_DIR.rglob("*.html"):
+        shutil.copy2(html_file, responses_dir / html_file.name)
+
+    # Create minimal responses_list.csv metadata
+    _create_metadata_csv(responses_dir)
+
+    # Run processor
+    processor = ECIResponseDataProcessor(data_root=str(temp_root))
+
+    with mock.patch.object(
+        processor, "find_latest_scrape_session", return_value=session_dir
+    ):
+        processor.run()
+
+    # Find generated CSV
+    output_csv = list(session_dir.glob("eci_responses_*.csv"))[0]
+
+    return output_csv
+
+
+def _create_metadata_csv(responses_dir: Path):
+    """Generate responses_list.csv from HTML filenames"""
+    import re
+
+    metadata_file = responses_dir / "responses_list.csv"
+    html_files = list(responses_dir.glob("*.html"))
+
+    with open(metadata_file, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["registration_number", "title", "url"])
+        writer.writeheader()
+
+        for html_file in html_files:
+            match = re.match(r"(\d{4})_(\d{6}).*\.html", html_file.name)
+            if match:
+                year, number = match.groups()
+                reg_num = f"{year}/{number}"
+                writer.writerow(
+                    {
+                        "registration_number": reg_num,
+                        "title": f"ECI {reg_num}",
+                        "url": f"https://example.com/{reg_num}",
+                    }
+                )
+
+
+@pytest.fixture(scope="session")
+def complete_dataset(processed_test_data) -> List[ECICommissionResponseRecord]:
+    """Load complete dataset from processed test HTML files"""
+    records = []
+
+    with open(processed_test_data, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            # Convert CSV row to ECICommissionResponseRecord
+            record = ECICommissionResponseRecord(
+                registration_number=row.get("registration_number", ""),
+                title=row.get("title", ""),
+                commission_response_date=row.get("commission_response_date", ""),
+                commission_response_summary=row.get("commission_response_summary", ""),
+                follow_up_url=row.get("follow_up_url") or None,
+                follow_up_text=row.get("follow_up_text") or None,
+                legislative_outcomes=row.get("legislative_outcomes") or None,
+                # Add any other fields from your model
+            )
+            records.append(record)
+
+    return records
+
+
+@pytest.fixture
+def records_with_followup(complete_dataset) -> List[ECICommissionResponseRecord]:
+    """Filter records that have follow-up sections"""
+    return [
+        record
+        for record in complete_dataset
+        if (
+            record.follow_up_url or record.follow_up_text or record.legislative_outcomes
+        )
+    ]
+
+
+@pytest.fixture
+def records_with_laws(complete_dataset) -> List[ECICommissionResponseRecord]:
+    """Filter records that resulted in laws"""
+    return [
+        record
+        for record in complete_dataset
+        if record.legislative_outcomes and record.legislative_outcomes.strip()
+    ]
+
+
+@pytest.fixture
+def records_rejected(complete_dataset) -> List[ECICommissionResponseRecord]:
+    """Filter records that were rejected (from rejection test category)"""
+    rejection_reg_nums = {"2012/000005", "2017/000004", "2019/000007"}
+    return [
+        record
+        for record in complete_dataset
+        if record.registration_number in rejection_reg_nums
+    ]
+
+
+# Additional category-based fixtures matching your test data structure
+
+
+@pytest.fixture
+def partial_success_records(complete_dataset) -> List[ECICommissionResponseRecord]:
+    """Records from partial_success category"""
+    partial_nums = {
+        "2012/000007",
+        "2017/000002",
+        "2019/000016",
+        "2020/000001",
+        "2021/000006",
+        "2022/000002",
+    }
+    return [r for r in complete_dataset if r.registration_number in partial_nums]
+
+
+@pytest.fixture
+def strong_legislative_success_records(
+    complete_dataset,
+) -> List[ECICommissionResponseRecord]:
+    """Records from strong_legislative_success category"""
+    return [r for r in complete_dataset if r.registration_number == "2012/000003"]
+
+
+@pytest.fixture
+def strong_commitment_delayed_records(
+    complete_dataset,
+) -> List[ECICommissionResponseRecord]:
+    """Records from strong_commitment_delayed category"""
+    return [r for r in complete_dataset if r.registration_number == "2018/000004"]
 
 
 class TestURLFieldsIntegrity:
@@ -425,34 +583,3 @@ class TestBooleanFieldsConsistency:
     ):
         """Verify mutually exclusive flags (e.g., promised_new_law vs rejected_initiative)"""
         pass
-
-
-# Fixtures
-@pytest.fixture
-def sample_records() -> List[ECICommissionResponseRecord]:
-    """Load sample records from CSV file for testing"""
-    pass
-
-
-@pytest.fixture
-def complete_dataset() -> List[ECICommissionResponseRecord]:
-    """Load complete dataset for comprehensive validation"""
-    pass
-
-
-@pytest.fixture
-def records_with_followup() -> List[ECICommissionResponseRecord]:
-    """Filter records that have follow-up sections"""
-    pass
-
-
-@pytest.fixture
-def records_with_laws() -> List[ECICommissionResponseRecord]:
-    """Filter records that resulted in laws"""
-    pass
-
-
-@pytest.fixture
-def records_rejected() -> List[ECICommissionResponseRecord]:
-    """Filter records that were rejected"""
-    pass
