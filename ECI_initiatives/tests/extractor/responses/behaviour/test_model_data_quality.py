@@ -251,40 +251,13 @@ class TestURLFieldsIntegrity:
         url: str,
         field_name: str,
         registration_number: str,
-        require_https: bool = False,
     ) -> ParseResult:
-        """
-        Validate URL structure and scheme.
-
-        Args:
-            url: The URL string to validate
-            field_name: Name of the field being validated (for error messages)
-            registration_number: Initiative registration number (for error messages)
-            require_https: If True, only HTTPS is allowed; if False, HTTP or HTTPS
-
-        Returns:
-            ParseResult: Parsed URL components
-
-        Raises:
-            AssertionError: If URL validation fails
-        """
-        # Check URL scheme
-        if require_https:
-            assert url.startswith(
-                "https://"
-            ), f"{field_name} must use HTTPS for {registration_number}: {url}"
-        else:
-            assert url.startswith(
-                ("https://", "http://")
-            ), f"Invalid URL scheme in {field_name} for {registration_number}: {url}"
-
-        # Parse and validate URL structure
+        """Validate URL structure - HTTPS only."""
         parsed = urlparse(url)
 
-        expected_schemes = ["https"] if require_https else ["https", "http"]
-        assert parsed.scheme in expected_schemes, (
-            f"Invalid URL scheme in {field_name} for {registration_number}: "
-            f"{parsed.scheme}"
+        assert parsed.scheme in ["https", "http"], (
+            f"{field_name} must use HTTPS or HTTP for {registration_number}: "
+            f"got '{parsed.scheme}'"
         )
 
         assert (
@@ -332,7 +305,6 @@ class TestURLFieldsIntegrity:
                 url=record.response_url,
                 field_name="response_url",
                 registration_number=record.registration_number,
-                require_https=True,
             )
 
     def test_initiative_urls_are_valid_https(
@@ -348,7 +320,6 @@ class TestURLFieldsIntegrity:
                 url=record.initiative_url,
                 field_name="initiative_url",
                 registration_number=record.registration_number,
-                require_https=True,
             )
 
     def test_submission_news_urls_are_valid_when_present(
@@ -361,7 +332,6 @@ class TestURLFieldsIntegrity:
                     url=record.submission_news_url,
                     field_name="submission_news_url",
                     registration_number=record.registration_number,
-                    require_https=False,
                 )
 
     def test_commission_factsheet_urls_are_valid_when_present(
@@ -374,7 +344,6 @@ class TestURLFieldsIntegrity:
                     url=record.commission_factsheet_url,
                     field_name="commission_factsheet_url",
                     registration_number=record.registration_number,
-                    require_https=False,
                 )
 
     def test_followup_dedicated_website_urls_are_valid_when_present(
@@ -387,7 +356,6 @@ class TestURLFieldsIntegrity:
                     url=record.followup_dedicated_website,
                     field_name="followup_dedicated_website",
                     registration_number=record.registration_number,
-                    require_https=False,
                 )
 
     def test_urls_point_to_correct_domains(
