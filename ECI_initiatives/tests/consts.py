@@ -189,7 +189,6 @@ REQUIRED_RESPONSES_CSV_COLUMNS = [
     "laws_actions",
     "policies_actions",
     "has_followup_section",
-    "followup_events",
     "has_roadmap",
     "has_workshop",
     "has_partnership_programs",

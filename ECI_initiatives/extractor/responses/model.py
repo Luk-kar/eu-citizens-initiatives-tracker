@@ -28,11 +28,11 @@ class ECICommissionResponseRecord:
     commission_meeting_date: Optional[str]
     commission_officials_met: Optional[str]
     parliament_hearing_date: Optional[str]
-    parliament_hearing_video_urls: Optional[str]
+    parliament_hearing_video_urls: Optional[str]  # JSON dict
     plenary_debate_date: Optional[str]
-    plenary_debate_video_urls: Optional[str]
+    plenary_debate_video_urls: Optional[str]  # JSON dict
     official_communication_adoption_date: Optional[str]
-    official_communication_document_urls: Optional[str]
+    official_communication_document_urls: Optional[str]  # JSON dict
 
     # Commission Response Content
     commission_answer_text: Optional[str]
@@ -43,7 +43,7 @@ class ECICommissionResponseRecord:
 
     # SECTION 2: Commission's Initial Response (What they promised)
     commission_promised_new_law: Optional[bool]
-    commission_deadlines: Optional[bool]
+    commission_deadlines: Optional[str]  # JSON dict
     commission_rejected_initiative: Optional[bool]
     commission_rejection_reason: Optional[str]
 
@@ -53,22 +53,21 @@ class ECICommissionResponseRecord:
 
     # Follow-up Activities Section
     has_followup_section: Optional[bool]
-    followup_events: Optional[str]
     has_roadmap: Optional[bool]
     has_workshop: Optional[bool]
-    has_partnership_programs: Optional[str]
-    court_cases_referenced: Optional[str]
+    has_partnership_programs: bool
+    court_cases_referenced: Optional[str]  # JSON dict
     followup_latest_date: Optional[str]
     followup_most_future_date: Optional[str]
 
     # Multimedia and Documentation Links
-    commission_factsheet_url: str
+    commission_factsheet_url: Optional[str]
     followup_dedicated_website: Optional[str]
 
     # Structural Analysis Flags
-    referenced_legislation_by_id: Optional[str]
-    referenced_legislation_by_name: Optional[str]
-    followup_events_with_dates: Optional[int]
+    referenced_legislation_by_id: Optional[str]  # JSON dict
+    referenced_legislation_by_name: Optional[str]  # JSON dict
+    followup_events_with_dates: Optional[str]  # JSON list
 
     def to_dict(self) -> dict:
         """
