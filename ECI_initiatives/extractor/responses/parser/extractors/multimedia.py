@@ -81,6 +81,9 @@ class MultimediaDocumentationExtractor(BaseExtractor):
         Searches for anchor tags with href attributes matching the pattern:
         https://.../eci/eci-{identifier}_en
 
+        Note: Other referenced sites have too unpredictable a structure to enable
+        reliable and maintainable extraction.
+
         This pattern identifies official EU Citizens' Initiative dedicated websites
         that provide detailed follow-up information about the initiative.
 
