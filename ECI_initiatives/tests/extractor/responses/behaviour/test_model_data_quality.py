@@ -14,6 +14,9 @@ import re
 from typing import Any, List, Optional, Set
 from unittest import mock
 from urllib.parse import urlparse, ParseResult
+import html
+
+from bs4 import BeautifulSoup
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 from ECI_initiatives.extractor.responses.processor import ECIResponseDataProcessor
@@ -1172,12 +1175,6 @@ class TestTextFieldsCompleteness:
     # Minimum substantial text length (characters)
     MIN_SUBSTANTIAL_LENGTH = 50
 
-    # HTML tag pattern
-    HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
-
-    # HTML entity patterns
-    HTML_ENTITY_PATTERN = re.compile(r"&[a-zA-Z]+;|&#\d+;")
-
     # Excessive whitespace patterns
     EXCESSIVE_WHITESPACE = re.compile(r"\s{3,}")  # 3+ consecutive spaces
     EXCESSIVE_NEWLINES = re.compile(r"\n{3,}")  # 3+ consecutive newlines
@@ -1216,17 +1213,31 @@ class TestTextFieldsCompleteness:
         """
         Check if text contains HTML tags like <p>, <div>, etc.
 
+        Uses BeautifulSoup to reliably detect HTML tags.
+
         Args:
             text: Text to check
 
         Returns:
             True if HTML tags found
         """
-        return bool(self.HTML_TAG_PATTERN.search(text))
+        if not text:
+            return False
+
+        # Parse with BeautifulSoup
+        soup = BeautifulSoup(text, "html.parser")
+
+        # If BeautifulSoup finds any tags, HTML is present
+        # Note: soup.find_all() returns all tags in the document
+        tags = soup.find_all()
+
+        return len(tags) > 0
 
     def _contains_html_entities(self, text: str) -> bool:
         """
         Check if text contains unescaped HTML entities like &nbsp; &#160;
+
+        Uses html.unescape() to detect if text changes when HTML entities are decoded.
 
         Args:
             text: Text to check
@@ -1234,7 +1245,38 @@ class TestTextFieldsCompleteness:
         Returns:
             True if HTML entities found
         """
-        return bool(self.HTML_ENTITY_PATTERN.search(text))
+        if not text:
+            return False
+
+        # If unescaping changes the text, entities were present
+        unescaped = html.unescape(text)
+        return text != unescaped
+
+    def _get_html_entity_examples(self, text: str, max_examples: int = 5) -> List[str]:
+        """
+        Extract examples of HTML entities found in text.
+        Uses standard library html.entities for comprehensive coverage.
+        """
+
+        found = []
+
+        # Check named entities (e.g., &nbsp; &amp; &lt; &gt; &quot;)
+        # These are HTML entities with names like &entityname;
+        for name in html.entities.name2codepoint.keys():
+
+            entity = f"&{name};"
+            if entity in text and len(found) < max_examples:
+                found.append(entity)
+
+        # Check numeric decimal entities (e.g., &#160; &#38; &#60;)
+        # These use decimal Unicode codepoints: &#number;
+        numeric = re.findall(r"&#\d+;", text)
+
+        for entity in set(numeric):
+            if len(found) < max_examples:
+                found.append(entity)
+
+        return found
 
     def _has_excessive_whitespace(self, text: str) -> bool:
         """
@@ -1256,7 +1298,6 @@ class TestTextFieldsCompleteness:
     ):
         """Verify initiative_title is never empty or whitespace-only"""
         for record in complete_dataset:
-
             assert (
                 record.initiative_title is not None
             ), f"initiative_title is None for {record.registration_number}"
@@ -1278,7 +1319,6 @@ class TestTextFieldsCompleteness:
     ):
         """Verify submission_text contains substantial content"""
         for record in complete_dataset:
-
             assert (
                 record.submission_text is not None
             ), f"submission_text is None for {record.registration_number}"
@@ -1295,9 +1335,7 @@ class TestTextFieldsCompleteness:
     ):
         """Verify commission_answer_text contains substantial content when not None"""
         for record in complete_dataset:
-
             if record.commission_answer_text is not None:
-
                 assert self._has_substantial_content(record.commission_answer_text), (
                     f"commission_answer_text present but lacks substantial content for "
                     f"{record.registration_number}. "
@@ -1310,44 +1348,49 @@ class TestTextFieldsCompleteness:
     ):
         """Verify text fields are cleaned of HTML tags and entities"""
         for record in complete_dataset:
-
             # Check initiative_title
             if record.initiative_title:
-
                 assert not self._contains_html_tags(record.initiative_title), (
                     f"initiative_title contains HTML tags for {record.registration_number}: "
                     f"{record.initiative_title[:200]}..."
                 )
 
-                # HTML entities are more acceptable in titles, but warn about common ones
+                # Check for HTML entities
                 if self._contains_html_entities(record.initiative_title):
-
-                    # Only common entities like &nbsp; &#160; are problematic
-                    common_entities = ["&nbsp;", "&#160;", "&amp;", "&#38;"]
-                    found_entities = [
-                        e for e in common_entities if e in record.initiative_title
-                    ]
-                    if found_entities:
+                    examples = self._get_html_entity_examples(record.initiative_title)
+                    if examples:
                         pytest.fail(
-                            f"initiative_title contains HTML entities {found_entities} "
-                            f"for {record.registration_number}"
+                            f"initiative_title contains HTML entities for "
+                            f"{record.registration_number}:\n"
+                            f"  Found: {', '.join(examples)}\n"
+                            f"  Title: {record.initiative_title[:200]}..."
                         )
 
             # Check submission_text
             if record.submission_text:
-
                 assert not self._contains_html_tags(record.submission_text), (
-                    f"submission_text contains HTML tags for {record.registration_number}: "
-                    f"{record.submission_text[:200]}..."
+                    f"submission_text contains HTML tags for {record.registration_number}. "
+                    f"Preview: {record.submission_text[:200]}..."
                 )
+
+                # HTML entities in body text are less critical but should be noted
+                if self._contains_html_entities(record.submission_text):
+                    examples = self._get_html_entity_examples(record.submission_text)
+                    if examples:
+                        # Only fail on common problematic entities
+                        problematic = ["&nbsp;", "&#160;"]
+                        if any(entity.split()[0] in problematic for entity in examples):
+                            pytest.fail(
+                                f"submission_text contains problematic HTML entities for "
+                                f"{record.registration_number}: {', '.join(examples)}"
+                            )
 
             # Check commission_answer_text
             if record.commission_answer_text:
-
                 assert not self._contains_html_tags(record.commission_answer_text), (
                     f"commission_answer_text contains HTML tags for "
-                    f"{record.registration_number}: "
-                    f"{record.commission_answer_text[:200]}..."
+                    f"{record.registration_number}. "
+                    f"Preview: {record.commission_answer_text[:200]}..."
                 )
 
     def test_text_fields_have_proper_whitespace_normalization(
@@ -1355,7 +1398,6 @@ class TestTextFieldsCompleteness:
     ):
         """Verify text fields don't have excessive whitespace or malformed spacing"""
         for record in complete_dataset:
-
             # Check initiative_title
             if record.initiative_title:
                 assert not self._has_excessive_whitespace(record.initiative_title), (
