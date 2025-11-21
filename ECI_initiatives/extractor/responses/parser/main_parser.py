@@ -146,8 +146,8 @@ class ECIResponseHTMLParser:
                 plenary_debate_date=self.parliament_activity.extract_plenary_debate_date(
                     soup
                 ),
-                plenary_debate_video_urls=self.parliament_activity.extract_plenary_debate_video_urls(
-                    soup
+                plenary_debate_video_urls=json.dumps(
+                    self.parliament_activity.extract_plenary_debate_video_urls(soup)
                 ),
                 official_communication_adoption_date=official_communication_adoption_date,
                 official_communication_document_urls=self.commission_response.extract_official_communication_document_urls(

@@ -875,7 +875,13 @@ class TestJSONFieldsValidity:
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify plenary_debate_video_urls contains valid JSON when not None"""
-        pass
+        for record in complete_dataset:
+            if record.plenary_debate_video_urls is not None:
+                self._validate_json_parseable(
+                    json_string=record.plenary_debate_video_urls,
+                    field_name="plenary_debate_video_urls",
+                    registration_number=record.registration_number,
+                )
 
     def test_official_communication_document_urls_are_valid_json(
         self, complete_dataset: List[ECICommissionResponseRecord]

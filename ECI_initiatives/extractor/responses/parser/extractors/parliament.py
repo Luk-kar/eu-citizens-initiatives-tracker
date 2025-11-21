@@ -247,7 +247,7 @@ class ParliamentActivityExtractor(BaseExtractor):
             if not links_dict:
                 return None
 
-            return json.dumps(links_dict)
+            return links_dict
 
         except Exception as e:
             raise ValueError(

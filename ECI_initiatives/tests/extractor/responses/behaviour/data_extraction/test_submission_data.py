@@ -902,9 +902,10 @@ class TestProceduralTimelineExtraction:
         result_1 = parser_1.parliament_activity.extract_plenary_debate_video_urls(
             soup_1
         )
-        expected_1 = json.dumps(
-            {"recording": "https://multimedia.europarl.europa.eu/en/video/example"}
-        )
+        expected_1 = {
+            "recording": "https://multimedia.europarl.europa.eu/en/video/example"
+        }
+
         assert result_1 == expected_1
 
         # Test case 2: Multiple links (resolution and press release)
@@ -924,12 +925,11 @@ class TestProceduralTimelineExtraction:
         result_2 = parser_2.parliament_activity.extract_plenary_debate_video_urls(
             soup_2
         )
-        expected_2 = json.dumps(
-            {
-                "resolution": "https://www.europarl.europa.eu/doceo/document/TA-9-2021-0295_EN.html",
-                "press release": "https://www.europarl.europa.eu/news/en/press-room/20210604IPR05532/meps-endorse-eu-citizens-call-for-gradual-end-to-caged-farming",
-            }
-        )
+        expected_2 = {
+            "resolution": "https://www.europarl.europa.eu/doceo/document/TA-9-2021-0295_EN.html",
+            "press release": "https://www.europarl.europa.eu/news/en/press-room/20210604IPR05532/meps-endorse-eu-citizens-call-for-gradual-end-to-caged-farming",
+        }
+
         assert result_2 == expected_2
 
         # Test case 3: Alternative format with video recording link
@@ -947,11 +947,10 @@ class TestProceduralTimelineExtraction:
         result_3 = parser_3.parliament_activity.extract_plenary_debate_video_urls(
             soup_3
         )
-        expected_3 = json.dumps(
-            {
-                "video recording": "https://www.europarl.europa.eu/plenary/en/vod.html?mode=chapter"
-            }
-        )
+        expected_3 = {
+            "video recording": "https://www.europarl.europa.eu/plenary/en/vod.html?mode=chapter"
+        }
+
         assert result_3 == expected_3
 
         # Test case 4: Multiple links with "part 1 and part 2"
@@ -970,12 +969,11 @@ class TestProceduralTimelineExtraction:
         result_4 = parser_4.parliament_activity.extract_plenary_debate_video_urls(
             soup_4
         )
-        expected_4 = json.dumps(
-            {
-                "part 1": "https://example.com/part1",
-                "part 2": "https://example.com/part2",
-            }
-        )
+        expected_4 = {
+            "part 1": "https://example.com/part1",
+            "part 2": "https://example.com/part2",
+        }
+
         assert result_4 == expected_4
 
         # Test case 5: No links in debate paragraph
