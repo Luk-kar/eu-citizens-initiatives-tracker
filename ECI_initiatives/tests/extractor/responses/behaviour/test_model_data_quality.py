@@ -1465,6 +1465,7 @@ class TestOutcomeStatusConsistency:
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify final_outcome_status uses predefined status categories"""
+
         invalid_statuses = set()
 
         for record in complete_dataset:
@@ -1493,9 +1494,11 @@ class TestOutcomeStatusConsistency:
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify records with 'Law Active' status have law_implementation_date"""
+
         missing_dates = []
 
         for record in complete_dataset:
+
             # Use the human-readable status from ECIImplementationStatus.APPLICABLE
             if (
                 record.final_outcome_status
@@ -1589,10 +1592,14 @@ class TestOutcomeStatusConsistency:
             ECIImplementationStatus.PROPOSAL_PENDING_ADOPTION.human_readable_explanation,  # Proposals Under Review
         }
 
-        # Define rejection statuses using ECIImplementationStatus
+        # Define rejection statuses - outcomes where Commission declined the initiative
+        # These represent different ways the Commission can say "no" to citizen requests:
         rejection_statuses = {
+            # Plain rejection - no action taken
             ECIImplementationStatus.REJECTED.human_readable_explanation,
+            # Rejected - existing EU law already addresses the issue
             ECIImplementationStatus.REJECTED_ALREADY_COVERED.human_readable_explanation,
+            # Rejected - but Commission proposed alternative policy actions instead
             ECIImplementationStatus.REJECTED_WITH_ACTIONS.human_readable_explanation,
         }
 
@@ -1605,21 +1612,35 @@ class TestOutcomeStatusConsistency:
         }
 
         for record in complete_dataset:
+
             # Normalize boolean flag
             promised_law = self._normalize_boolean(record.commission_promised_new_law)
 
             # Skip if promise status is unknown
             if promised_law is None:
-                continue
+                # commission_promised_new_law must be a boolean (True/False), not None
+                # This field is mandatory for data quality validation
+                pytest.fail(
+                    f"commission_promised_new_law is None for {record.registration_number} "
+                    f"(Initiative: {record.initiative_title[:80]}...)\n"
+                    f"This field must be a boolean value (True or False) to validate promise-outcome alignment.\n"
+                    f"Possible causes:\n"
+                    f"  - Field was not extracted during scraping\n"
+                    f"  - CSV contains empty/null value\n"
+                    f"  - Data type conversion issue (string 'null' instead of proper None)\n"
+                    f"Expected: True (Commission promised new law) or False (no new law promised)"
+                )
 
             # If Commission promised a new law
             if promised_law is True:
+
                 # Outcome should reflect law-related status (not rejection)
                 if (
                     record.final_outcome_status not in law_related_statuses
                     and record.final_outcome_status is not None
                     and record.final_outcome_status not in rejection_statuses
                 ):
+
                     # Allow non-legislative actions as they may still fulfill promises
                     if (
                         record.final_outcome_status
