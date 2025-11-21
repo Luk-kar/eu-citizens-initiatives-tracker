@@ -4,6 +4,7 @@ Column-level validation tests for ECICommissionResponseRecord fields
 """
 
 import json
+from datetime import datetime
 import pytest
 import shutil
 from collections import Counter
@@ -1855,8 +1856,10 @@ class TestCommissionResponseFieldsCoherence:
         missing_officials = []
 
         for record in complete_dataset:
+
             # If meeting date exists, officials should be listed
             if record.commission_meeting_date is not None:
+
                 if self._is_empty_or_none(record.commission_officials_met):
                     missing_officials.append(
                         (
@@ -1890,8 +1893,10 @@ class TestCommissionResponseFieldsCoherence:
         missing_urls = []
 
         for record in complete_dataset:
+
             # If communication was adopted, document URLs should exist
             if record.official_communication_adoption_date is not None:
+
                 if self._is_empty_or_none(record.official_communication_document_urls):
                     missing_urls.append(
                         (
@@ -1921,9 +1926,6 @@ class TestCommissionResponseFieldsCoherence:
         parliament_hearing_date), there should be video recording URLs.
         Parliament hearings are public events that are typically recorded
         and made available online for transparency.
-
-        Note: Some older hearings (pre-2015) may not have video recordings,
-        so this test may need adjustment based on data availability patterns.
         """
         missing_videos = []
 
@@ -1939,32 +1941,15 @@ class TestCommissionResponseFieldsCoherence:
                         )
                     )
 
-        # Only fail if there are missing videos
-        # (You may want to add a date threshold here for older initiatives)
-        if missing_videos:
-            # Check if these are old hearings where videos might not be available
-            from datetime import datetime
-
-            old_hearings = []
-            recent_hearings = []
-
-            for reg_num, hearing_date, title in missing_videos:
-                hearing_year = int(hearing_date[:4]) if hearing_date else 9999
-                if hearing_year < 2015:  # Videos may not exist before 2015
-                    old_hearings.append((reg_num, hearing_date, title))
-                else:
-                    recent_hearings.append((reg_num, hearing_date, title))
-
-            # Only fail for recent hearings without videos
-            assert not recent_hearings, (
-                f"Found {len(recent_hearings)} recent hearings (2015+) without video URLs:\n"
-                + "\n".join(
-                    f"  - {reg_num} (hearing: {date}): {title[:60]}..."
-                    for reg_num, date, title in recent_hearings
-                )
-                + f"\n\nNote: {len(old_hearings)} older hearings also lack videos "
-                f"(pre-2015, may not have been recorded)."
+        assert not missing_videos, (
+            f"Found {len(missing_videos)} records with parliament_hearing_date "
+            f"but missing parliament_hearing_video_urls:\n"
+            + "\n".join(
+                f"  - {reg_num} (hearing: {date}): {title[:60]}..."
+                for reg_num, date, title in missing_videos
             )
+            + "\n\nParliament hearings should have accessible video URLs for transparency."
+        )
 
     def test_plenary_videos_exist_when_debate_date_exists(
         self, complete_dataset: List[ECICommissionResponseRecord]
