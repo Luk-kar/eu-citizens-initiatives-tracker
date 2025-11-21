@@ -199,8 +199,8 @@ class ECIResponseHTMLParser:
                 has_partnership_programs=self.followup_activity.extract_has_partnership_programs(
                     soup
                 ),
-                court_cases_referenced=self.followup_activity.extract_court_cases_referenced(
-                    soup
+                court_cases_referenced=json.dumps(
+                    self.followup_activity.extract_court_cases_referenced(soup)
                 ),
                 followup_latest_date=followup_latest_date,
                 followup_most_future_date=followup_most_future_date,
