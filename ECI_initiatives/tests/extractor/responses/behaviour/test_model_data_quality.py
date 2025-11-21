@@ -1450,29 +1450,241 @@ class TestTextFieldsCompleteness:
 class TestOutcomeStatusConsistency:
     """Test data quality of outcome-related fields"""
 
+    # Known valid outcome statuses (expand based on your actual data)
+    VALID_OUTCOME_STATUSES = {
+        "Law Active",
+        "Law Proposed",
+        "Policy Implementation",
+        "Under Review",
+        "Rejected",
+        "No Action",
+        "Pending",
+        None,  # Some initiatives may not have reached conclusion
+    }
+
+    def test_final_outcome_status_has_valid_values(
+        self, complete_dataset: List[ECICommissionResponseRecord]
+    ):
+        """Verify final_outcome_status uses predefined status categories"""
+        invalid_statuses = set()
+
+        for record in complete_dataset:
+            if (
+                record.final_outcome_status is not None
+                and record.final_outcome_status not in self.VALID_OUTCOME_STATUSES
+            ):
+                invalid_statuses.add(
+                    (record.registration_number, record.final_outcome_status)
+                )
+
+        assert not invalid_statuses, (
+            f"Found records with invalid final_outcome_status:\n"
+            + "\n".join(
+                f"  - {reg_num}: '{status}'"
+                for reg_num, status in sorted(invalid_statuses)
+            )
+            + f"\n\nValid statuses: {sorted([s for s in self.VALID_OUTCOME_STATUSES if s])}"
+        )
+
     def test_law_active_status_has_implementation_date(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify records with 'Law Active' status have law_implementation_date"""
-        pass
+        missing_dates = []
+
+        for record in complete_dataset:
+            # If status indicates law is active, implementation date must exist
+            if record.final_outcome_status == "Law Active":
+                if record.law_implementation_date is None:
+                    missing_dates.append(
+                        (record.registration_number, record.initiative_title)
+                    )
+
+        assert not missing_dates, (
+            f"Found {len(missing_dates)} records with 'Law Active' status "
+            f"but missing law_implementation_date:\n"
+            + "\n".join(
+                f"  - {reg_num}: {title[:80]}..." for reg_num, title in missing_dates
+            )
+        )
 
     def test_rejected_status_has_rejection_reason(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify rejected initiatives have commission_rejection_reason"""
-        pass
+        missing_reasons = []
+
+        for record in complete_dataset:
+            # If initiative was rejected, reason should be provided
+            if (
+                record.final_outcome_status == "Rejected"
+                or record.commission_rejected_initiative is True
+            ):
+                if not record.commission_rejection_reason:
+                    missing_reasons.append(
+                        (record.registration_number, record.initiative_title)
+                    )
+
+        assert not missing_reasons, (
+            f"Found {len(missing_reasons)} rejected initiatives "
+            f"without commission_rejection_reason:\n"
+            + "\n".join(
+                f"  - {reg_num}: {title[:80]}..." for reg_num, title in missing_reasons
+            )
+        )
 
     def test_promised_law_aligns_with_outcome(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify commission_promised_new_law aligns with final_outcome_status"""
-        pass
+        misalignments = []
+
+        for record in complete_dataset:
+            # Skip if promise status is unknown
+            if record.commission_promised_new_law is None:
+                continue
+
+            # If Commission promised a new law
+            if record.commission_promised_new_law is True:
+                # Outcome should reflect law-related status (not rejection)
+                law_related_statuses = {
+                    "Law Active",
+                    "Law Proposed",
+                    "Policy Implementation",
+                }
+
+                if (
+                    record.final_outcome_status not in law_related_statuses
+                    and record.final_outcome_status is not None
+                ):
+                    misalignments.append(
+                        (
+                            record.registration_number,
+                            "Promised law",
+                            record.final_outcome_status or "No outcome",
+                        )
+                    )
+
+            # If Commission rejected or didn't promise law
+            elif record.commission_promised_new_law is False:
+                # Check if somehow a law was still implemented (unusual but possible)
+                if record.final_outcome_status == "Law Active":
+                    misalignments.append(
+                        (
+                            record.registration_number,
+                            "No law promised",
+                            "Law Active",
+                        )
+                    )
+
+        assert not misalignments, (
+            f"Found {len(misalignments)} records where commission_promised_new_law "
+            f"doesn't align with final_outcome_status:\n"
+            + "\n".join(
+                f"  - {reg_num}: {promise} but outcome is '{outcome}'"
+                for reg_num, promise, outcome in misalignments
+            )
+        )
 
     def test_rejected_initiatives_have_rejection_flag_set(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify commission_rejected_initiative=True when rejection reason exists"""
-        pass
+        inconsistent_rejections = []
+
+        for record in complete_dataset:
+            has_reason = bool(record.commission_rejection_reason)
+
+            # Convert flag to boolean (handles "True" string, True bool, 1, etc.)
+            flag_is_true = (
+                record.commission_rejected_initiative is True
+                or record.commission_rejected_initiative == True
+                or record.commission_rejected_initiative == "True"
+                or record.commission_rejected_initiative == 1
+            )
+
+            # If rejection reason exists but flag is not set
+            if has_reason and not flag_is_true:
+                inconsistent_rejections.append(
+                    (
+                        record.registration_number,
+                        f"flag={record.commission_rejected_initiative!r}",
+                        f"but has reason: {record.commission_rejection_reason[:80]}...",
+                    )
+                )
+
+            # If flag is set but no reason provided
+            if flag_is_true and not has_reason:
+                inconsistent_rejections.append(
+                    (
+                        record.registration_number,
+                        f"flag={record.commission_rejected_initiative!r}",
+                        "but has no rejection reason",
+                    )
+                )
+
+        assert not inconsistent_rejections, (
+            f"Found {len(inconsistent_rejections)} records with inconsistent "
+            f"rejection flag and reason:\n"
+            + "\n".join(
+                f"  - {reg_num}: {flag_info}, {reason_info}"
+                for reg_num, flag_info, reason_info in inconsistent_rejections
+            )
+        )
+
+        assert not inconsistent_rejections, (
+            f"Found {len(inconsistent_rejections)} records with inconsistent "
+            f"rejection flag and reason:\n"
+            + "\n".join(
+                f"  - {reg_num}: flag={flag}, reason='{reason}'"
+                for reg_num, flag, reason in inconsistent_rejections
+            )
+        )
+
+    def test_outcome_status_consistency_with_actions(
+        self, complete_dataset: List[ECICommissionResponseRecord]
+    ):
+        """
+        Verify that final_outcome_status is consistent with presence of
+        laws_actions and policies_actions.
+        """
+        inconsistencies = []
+
+        for record in complete_dataset:
+            # If status is "Law Active", should have laws_actions
+            if record.final_outcome_status == "Law Active":
+                if not record.laws_actions or record.laws_actions == "null":
+                    inconsistencies.append(
+                        (
+                            record.registration_number,
+                            "Law Active but no laws_actions",
+                        )
+                    )
+
+            # If status is "Policy Implementation", should have policies_actions
+            if record.final_outcome_status == "Policy Implementation":
+                if not record.policies_actions or record.policies_actions == "null":
+                    inconsistencies.append(
+                        (
+                            record.registration_number,
+                            "Policy Implementation but no policies_actions",
+                        )
+                    )
+
+            # If status is "Rejected", shouldn't have active laws
+            if record.final_outcome_status == "Rejected":
+                if record.law_implementation_date is not None:
+                    inconsistencies.append(
+                        (
+                            record.registration_number,
+                            "Rejected but has law_implementation_date",
+                        )
+                    )
+
+        assert not inconsistencies, (
+            f"Found {len(inconsistencies)} records with outcome status inconsistencies:\n"
+            + "\n".join(f"  - {reg_num}: {issue}" for reg_num, issue in inconsistencies)
+        )
 
 
 class TestCommissionResponseFieldsCoherence:
