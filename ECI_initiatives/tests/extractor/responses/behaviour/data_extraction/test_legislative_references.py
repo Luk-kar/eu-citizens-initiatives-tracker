@@ -246,7 +246,6 @@ class TestLegislativeReferences:
         result15 = self.parser.structural_analysis.extract_referenced_legislation_by_id(
             soup15
         )
-
         assert "Regulation" in result15
         assert result15["Regulation"] == ["1234/2020"]
 
@@ -276,9 +275,9 @@ class TestLegislativeReferences:
                 soup1
             )
         )
+
         assert result1 is not None
-        res1 = json.loads(result1)
-        assert res1["directives"] == ["Water Framework Directive"]
+        assert result1["directives"] == ["Water Framework Directive"]
 
         # 2. Basic extraction - Regulation and Charter
         html2 = "<div>This complies with the General Data Protection Regulation and the Charter of Fundamental Rights.</div>"
@@ -288,12 +287,12 @@ class TestLegislativeReferences:
                 soup2
             )
         )
+
         assert result2 is not None
-        res2 = json.loads(result2)
-        assert "regulations" in res2 and res2["regulations"] == [
+        assert "regulations" in result2 and result2["regulations"] == [
             "General Data Protection Regulation"
         ]
-        assert "charters" in res2 and res2["charters"] == [
+        assert "charters" in result2 and result2["charters"] == [
             "Charter of Fundamental Rights"
         ]
 
@@ -308,9 +307,12 @@ class TestLegislativeReferences:
                 soup3
             )
         )
-        res3 = json.loads(result3)
-        assert sorted(res3["directives"]) == ["Birds Directive", "Habitats Directive"]
-        assert res3["regulations"] == ["Orchids Regulation"]
+
+        assert sorted(result3["directives"]) == [
+            "Birds Directive",
+            "Habitats Directive",
+        ]
+        assert result3["regulations"] == ["Orchids Regulation"]
 
         # 4. Treaties - TFEU and named
         html4 = (
@@ -323,14 +325,14 @@ class TestLegislativeReferences:
                 soup4
             )
         )
-        res4 = json.loads(result4)
-        assert sorted(res4["treaties"]) == [
+        assert sorted(result4["treaties"]) == [
             "Lisbon Treaty",
             "TEU",
             "TFEU",
             "Treaty on the Functioning of the European Union",
         ]
-        assert res4["charters"] == ["Charter of Fundamental Rights"]
+
+        assert result4["charters"] == ["Charter of Fundamental Rights"]
 
         # 5. Remove empty/standalone/generic - only real Directive kept
         html5 = "<div>Proposal for a Directive, the Directive, and the Animal Welfare Directive.</div>"
@@ -340,8 +342,8 @@ class TestLegislativeReferences:
                 soup5
             )
         )
-        res5 = json.loads(result5)
-        assert res5["directives"] == ["Animal Welfare Directive"]
+
+        assert result5["directives"] == ["Animal Welfare Directive"]
 
         # 6. Leading articles removed
         html6 = "<div>The Water Framework Directive, a Floods Directive and an Allergy Regulation.</div>"
@@ -351,12 +353,12 @@ class TestLegislativeReferences:
                 soup6
             )
         )
-        res6 = json.loads(result6)
-        assert sorted(res6["directives"]) == [
+
+        assert sorted(result6["directives"]) == [
             "Floods Directive",
             "Water Framework Directive",
         ]
-        assert res6["regulations"] == ["Allergy Regulation"]
+        assert result6["regulations"] == ["Allergy Regulation"]
 
         # 7. Deduplication and non-inclusion of generic
         html7 = "<div>General Food Law Regulation and General Food Law Regulation and Proposal for Regulation</div>"
@@ -366,8 +368,8 @@ class TestLegislativeReferences:
                 soup7
             )
         )
-        res7 = json.loads(result7)
-        assert res7["regulations"] == ["General Food Law Regulation"]
+
+        assert result7["regulations"] == ["General Food Law Regulation"]
 
         # 8. Compound with newlines and conjunctions
         html8 = (
@@ -379,8 +381,8 @@ class TestLegislativeReferences:
                 soup8
             )
         )
-        res8 = json.loads(result8)
-        assert sorted(res8["directives"]) == [
+
+        assert sorted(result8["directives"]) == [
             "Birds Directive",
             "Floods Directive",
             "Water Framework Directive",
@@ -394,8 +396,11 @@ class TestLegislativeReferences:
                 soup9
             )
         )
-        res9 = json.loads(result9)
-        assert sorted(res9["charters"]) == ["European Social Charter", "Youth Charter"]
+
+        assert sorted(result9["charters"]) == [
+            "European Social Charter",
+            "Youth Charter",
+        ]
 
         # 10. No match returns None
         html10 = "<div>This sentence contains no legislation references at all.</div>"
@@ -405,7 +410,7 @@ class TestLegislativeReferences:
                 soup10
             )
         )
-        assert result10 is None
+        assert not result10  # Checks if falsy (None, {}, [], "", 0, False)
 
         # 11. Empty soup returns None
         soup11 = BeautifulSoup("", "html.parser")
@@ -414,7 +419,7 @@ class TestLegislativeReferences:
                 soup11
             )
         )
-        assert result11 is None
+        assert not result11
 
         # 12. Tags inside strong are unwrapped and counted
         html12 = "<div><strong>Biodiversity Regulation</strong> is critical. The Water Framework Directive applies.</div>"
@@ -424,9 +429,9 @@ class TestLegislativeReferences:
                 soup12
             )
         )
-        res12 = json.loads(result12)
-        assert res12["regulations"] == ["Biodiversity Regulation"]
-        assert res12["directives"] == ["Water Framework Directive"]
+
+        assert result12["regulations"] == ["Biodiversity Regulation"]
+        assert result12["directives"] == ["Water Framework Directive"]
 
         # 13. Charter and Treaty in same sentence
         html13 = (
@@ -438,9 +443,9 @@ class TestLegislativeReferences:
                 soup13
             )
         )
-        res13 = json.loads(result13)
-        assert res13["charters"] == ["Charter of Fundamental Rights"]
-        assert res13["treaties"] == ["Maastricht Treaty"]
+
+        assert result13["charters"] == ["Charter of Fundamental Rights"]
+        assert result13["treaties"] == ["Maastricht Treaty"]
 
         # 14. Case-insensitivity, weird spacing/hyphens
         html14 = "<div>The habitat   Directive and the general-data-protection Regulation apply.</div>"
@@ -451,4 +456,4 @@ class TestLegislativeReferences:
             )
         )
 
-        assert result14 is None, "Generic legislation terms should be filtered out"
+        assert not result14, "Generic legislation terms should be filtered out"

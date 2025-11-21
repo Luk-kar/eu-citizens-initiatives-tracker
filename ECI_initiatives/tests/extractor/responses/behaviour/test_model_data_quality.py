@@ -985,7 +985,13 @@ class TestJSONFieldsValidity:
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify referenced_legislation_by_name contains valid JSON when not None"""
-        pass
+        for record in complete_dataset:
+            if record.referenced_legislation_by_name is not None:
+                self._validate_json_parseable(
+                    json_string=record.referenced_legislation_by_name,
+                    field_name="referenced_legislation_by_name",
+                    registration_number=record.registration_number,
+                )
 
     def test_followup_events_with_dates_are_valid_json(
         self, complete_dataset: List[ECICommissionResponseRecord]

@@ -126,18 +126,18 @@ class LegislativeReferences(BaseExtractor):
 
     def extract_referenced_legislation_by_name(
         self, soup: BeautifulSoup
-    ) -> Optional[str]:
+    ) -> Optional[dict]:
         """
         Extract references to specific Regulations or Directives by name.
 
-        Returns JSON string with keys: treaty, charter, directives, regulations
+        Returns dict with keys: treaty, charter, directives, regulations
         Each key contains a list of unique legislation references found.
 
         Args:
             soup: BeautifulSoup object of the HTML document
 
         Returns:
-            JSON string with extracted legislation, or None if no legislation found
+            dict with extracted legislation, or None if no legislation found
         """
 
         name_extractor = LegislationNameExtractor()
@@ -805,35 +805,20 @@ class LegislationNameExtractor:
         result = {key: value for key, value in result.items() if value}
         return result
 
-    def _serialize_result(self, result: Dict[str, List[str]]) -> Optional[str]:
-        """
-        Serialize the processed result to JSON, or return None if empty.
-
-        Args:
-            result: Processed result dictionary
-
-        Returns:
-            JSON string representation or None if no results
-        """
-        if not result:
-            return None
-
-        return json.dumps(result, indent=2, ensure_ascii=False)
-
     def extract_referenced_legislation_by_name(
         self, soup: BeautifulSoup
-    ) -> Optional[str]:
+    ) -> Optional[dict]:
         """
         Extract references to specific Regulations or Directives by name.
 
-        Returns JSON string with keys: treaty, charter, directives, regulations
+        Returns dict with keys: treaty, charter, directives, regulations
         Each key contains a list of unique legislation references found.
 
         Args:
             soup: BeautifulSoup object of the HTML document
 
         Returns:
-            JSON string with extracted legislation, or None if no legislation found
+            dict with extracted legislation, or None if no legislation found
         """
         soup = self._preprocess_html(soup)
 
@@ -864,4 +849,4 @@ class LegislationNameExtractor:
         for category, items in result.items():
             result[category] = self._deduplicate_items(category, items)
 
-        return self._serialize_result(result)
+        return result
