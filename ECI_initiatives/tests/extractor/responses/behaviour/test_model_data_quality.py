@@ -1551,8 +1551,34 @@ class TestOutcomeStatusConsistency:
     def test_promised_law_aligns_with_outcome(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
-        """Verify commission_promised_new_law aligns with final_outcome_status"""
+        """
+        Verify that the Commission's promise regarding new legislation aligns with
+        the actual outcome status of the initiative.
 
+        This test ensures logical consistency between what the Commission explicitly
+        stated about creating new legislation (commission_promised_new_law field) and
+        the final outcome that materialized (final_outcome_status field).
+
+        The test validates two key alignment scenarios:
+
+        1. If the Commission promised to create NEW legislation for an initiative,
+        the outcome should reflect a law-related status (e.g., Law Promised,
+        Law Active, Proposals Under Review). It would be inconsistent for the
+        Commission to promise legislation but then have a non-legislative outcome.
+
+        2. If the Commission did NOT promise new legislation, the outcome can still
+        be "Law Active" or "Law Approved" because the initiative's goals may
+        already be covered by existing or pending EU legislation. This is a valid
+        Commission response where no new law is needed because adequate laws
+        already exist. However, it would be contradictory if the Commission said
+        "no new law needed" but then the outcome shows "Law Promised" (indicating
+        a new commitment was made).
+
+        This validation catches data quality issues where:
+        - Scraped data is inconsistent between different sections of the response
+        - The promise flag was incorrectly extracted
+        - The outcome status was misclassified
+        """
         misalignments = []
 
         # Define law-related statuses using ECIImplementationStatus
@@ -1568,6 +1594,14 @@ class TestOutcomeStatusConsistency:
             ECIImplementationStatus.REJECTED.human_readable_explanation,
             ECIImplementationStatus.REJECTED_ALREADY_COVERED.human_readable_explanation,
             ECIImplementationStatus.REJECTED_WITH_ACTIONS.human_readable_explanation,
+        }
+
+        # Statuses that indicate the initiative's goals are met by existing/pending legislation
+        # (Commission doesn't need to promise NEW law, but laws exist that address the issue)
+        already_covered_statuses = {
+            ECIImplementationStatus.APPLICABLE.human_readable_explanation,  # Law Active (existing law)
+            ECIImplementationStatus.ADOPTED.human_readable_explanation,  # Law Approved (pending law)
+            ECIImplementationStatus.REJECTED_ALREADY_COVERED.human_readable_explanation,  # Explicitly already covered
         }
 
         for record in complete_dataset:
@@ -1599,18 +1633,26 @@ class TestOutcomeStatusConsistency:
                             )
                         )
 
-            # If Commission explicitly rejected or didn't promise law
+            # If Commission explicitly rejected or didn't promise NEW law
             elif promised_law is False:
-                # Check if somehow a law was still implemented (unusual but possible)
+                # It's VALID for Commission to say "no new law needed" when:
+                # 1. Issue already covered by existing law (Law Active)
+                # 2. Issue already covered by pending law (Law Approved)
+                # 3. Explicitly marked as "Rejected - Already Covered"
+                #
+                # Only flag as misalignment if Commission promised NO law,
+                # but then a law was specifically PROMISED or COMMITTED for this initiative
                 if (
                     record.final_outcome_status
-                    == ECIImplementationStatus.APPLICABLE.human_readable_explanation
+                    == ECIImplementationStatus.COMMITTED.human_readable_explanation
                 ):
+                    # This is contradictory: Commission said "no new law"
+                    # but status shows "Law Promised" (new commitment made)
                     misalignments.append(
                         (
                             record.registration_number,
-                            "No law promised",
-                            ECIImplementationStatus.APPLICABLE.human_readable_explanation,
+                            "No law promised (commission_promised_new_law=False)",
+                            f"but outcome is '{ECIImplementationStatus.COMMITTED.human_readable_explanation}'",
                         )
                     )
 
@@ -1618,7 +1660,7 @@ class TestOutcomeStatusConsistency:
             f"Found {len(misalignments)} records where commission_promised_new_law "
             f"doesn't align with final_outcome_status:\n"
             + "\n".join(
-                f"  - {reg_num}: {promise} but outcome is '{outcome}'"
+                f"  - {reg_num}: {promise} {outcome}"
                 for reg_num, promise, outcome in misalignments
             )
         )
