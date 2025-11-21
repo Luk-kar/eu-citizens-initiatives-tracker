@@ -3466,11 +3466,9 @@ class TestDataCompletenessMetrics:
     # Procedural milestone fields that should be highly complete
     # (Most initiatives should have these as part of standard ECI process)
     PROCEDURAL_FIELDS = {
-        # "commission_submission_date": 1.0,  # 100% - mandatory
         "commission_meeting_date": 0.8,  # 80% - most initiatives have meetings
         "parliament_hearing_date": 0.8,  # 80% - most have hearings
         "plenary_debate_date": 0.7,  # 70% - many have plenary debates
-        # "official_communication_adoption_date": 1.0,  # 100% - mandatory
     }
 
     def _is_empty_or_none(self, value: Any) -> bool:
@@ -3511,8 +3509,11 @@ class TestDataCompletenessMetrics:
             return 0.0
 
         non_empty_count = 0
+
         for record in dataset:
+
             value = getattr(record, field_name, None)
+
             if not self._is_empty_or_none(value):
                 non_empty_count += 1
 
@@ -3582,6 +3583,7 @@ class TestDataCompletenessMetrics:
         unexpectedly_complete_fields = {}
 
         for field_name in self.OPTIONAL_FIELDS:
+
             completeness = self._calculate_completeness_rate(
                 complete_dataset, field_name
             )
@@ -3671,14 +3673,13 @@ class TestDataCompletenessMetrics:
         actual_completeness = {}
 
         for field_name, expected_rate in self.PROCEDURAL_FIELDS.items():
+
             actual_rate = self._calculate_completeness_rate(
                 complete_dataset, field_name
             )
             actual_completeness[field_name] = actual_rate
 
-            # Allow 10% tolerance below expected rate
-            tolerance = 0.10
-            if actual_rate < (expected_rate - tolerance):
+            if actual_rate < expected_rate:
                 missing_count = int(
                     (expected_rate - actual_rate) * len(complete_dataset)
                 )
