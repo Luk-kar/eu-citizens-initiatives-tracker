@@ -1017,7 +1017,57 @@ class TestJSONFieldsValidity:
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify JSON fields contain dictionaries/lists with expected keys/structure"""
-        pass
+        for record in complete_dataset:
+            # Test laws_actions structure (list of dict with specific keys)
+            if record.laws_actions is not None:
+                parsed = record.laws_actions
+                for i, action in enumerate(parsed):
+                    assert isinstance(
+                        action, dict
+                    ), f"laws_actions[{i}] must be dict for {record.registration_number}"
+                    # Expected keys in each action
+                    expected_keys = {"type", "description"}
+                    missing_keys = expected_keys - set(action.keys())
+                    assert not missing_keys, (
+                        f"laws_actions[{i}] missing keys {missing_keys} "
+                        f"for {record.registration_number}"
+                    )
+
+            # Test policies_actions structure (list of dict with specific keys)
+            if record.policies_actions is not None:
+                parsed = record.policies_actions
+                for i, action in enumerate(parsed):
+                    assert isinstance(
+                        action, dict
+                    ), f"policies_actions[{i}] must be dict for {record.registration_number}"
+                    # Expected keys
+                    expected_keys = {"type", "description"}
+                    missing_keys = expected_keys - set(action.keys())
+                    assert not missing_keys, (
+                        f"policies_actions[{i}] missing keys {missing_keys} "
+                        f"for {record.registration_number}"
+                    )
+
+            # Test followup_events_with_dates structure (list of dict with dates and action)
+            if record.followup_events_with_dates is not None:
+                parsed = record.followup_events_with_dates
+                for i, event in enumerate(parsed):
+                    assert isinstance(event, dict), (
+                        f"followup_events_with_dates[{i}] must be dict "
+                        f"for {record.registration_number}"
+                    )
+                    # Expected keys
+                    expected_keys = {"dates", "action"}
+                    missing_keys = expected_keys - set(event.keys())
+                    assert not missing_keys, (
+                        f"followup_events_with_dates[{i}] missing keys {missing_keys} "
+                        f"for {record.registration_number}"
+                    )
+                    # Validate 'dates' is a list
+                    assert isinstance(event["dates"], list), (
+                        f"followup_events_with_dates[{i}]['dates'] must be list "
+                        f"for {record.registration_number}"
+                    )
 
 
 class TestTextFieldsCompleteness:
