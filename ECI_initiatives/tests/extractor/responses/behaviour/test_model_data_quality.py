@@ -1150,38 +1150,259 @@ class TestJSONFieldsValidity:
             )
 
 
+"""
+Test suite for validating data quality in extracted response data.
+Text field completeness tests for ECICommissionResponseRecord
+"""
+
+# Standard library
+import re
+from typing import List
+
+# Third party
+import pytest
+
+# Local
+from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+
+
 class TestTextFieldsCompleteness:
     """Test data quality of text content fields"""
+
+    # Minimum substantial text length (characters)
+    MIN_SUBSTANTIAL_LENGTH = 50
+
+    # HTML tag pattern
+    HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
+
+    # HTML entity patterns
+    HTML_ENTITY_PATTERN = re.compile(r"&[a-zA-Z]+;|&#\d+;")
+
+    # Excessive whitespace patterns
+    EXCESSIVE_WHITESPACE = re.compile(r"\s{3,}")  # 3+ consecutive spaces
+    EXCESSIVE_NEWLINES = re.compile(r"\n{3,}")  # 3+ consecutive newlines
+
+    def _is_empty_or_whitespace(self, text: str) -> bool:
+        """
+        Check if text is empty or contains only whitespace.
+
+        Args:
+            text: Text to check
+
+        Returns:
+            True if empty or whitespace-only
+        """
+        return not text or not text.strip()
+
+    def _has_substantial_content(self, text: str, min_length: int = None) -> bool:
+        """
+        Check if text contains substantial content (not just whitespace).
+
+        Args:
+            text: Text to check
+            min_length: Minimum length for substantial content (default: MIN_SUBSTANTIAL_LENGTH)
+
+        Returns:
+            True if text has substantial content
+        """
+        if not text:
+            return False
+
+        min_len = min_length if min_length is not None else self.MIN_SUBSTANTIAL_LENGTH
+        cleaned = text.strip()
+        return len(cleaned) >= min_len
+
+    def _contains_html_tags(self, text: str) -> bool:
+        """
+        Check if text contains HTML tags like <p>, <div>, etc.
+
+        Args:
+            text: Text to check
+
+        Returns:
+            True if HTML tags found
+        """
+        return bool(self.HTML_TAG_PATTERN.search(text))
+
+    def _contains_html_entities(self, text: str) -> bool:
+        """
+        Check if text contains unescaped HTML entities like &nbsp; &#160;
+
+        Args:
+            text: Text to check
+
+        Returns:
+            True if HTML entities found
+        """
+        return bool(self.HTML_ENTITY_PATTERN.search(text))
+
+    def _has_excessive_whitespace(self, text: str) -> bool:
+        """
+        Check if text has excessive consecutive whitespace or newlines.
+
+        Args:
+            text: Text to check
+
+        Returns:
+            True if excessive whitespace found
+        """
+        return bool(
+            self.EXCESSIVE_WHITESPACE.search(text)
+            or self.EXCESSIVE_NEWLINES.search(text)
+        )
 
     def test_initiative_titles_are_not_empty(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify initiative_title is never empty or whitespace-only"""
-        pass
+        for record in complete_dataset:
+
+            assert (
+                record.initiative_title is not None
+            ), f"initiative_title is None for {record.registration_number}"
+
+            assert not self._is_empty_or_whitespace(record.initiative_title), (
+                f"initiative_title is empty or whitespace-only for "
+                f"{record.registration_number}"
+            )
+
+            # Title should be reasonably short (not truncated text)
+            title_length = len(record.initiative_title)
+            assert title_length < 500, (
+                f"initiative_title suspiciously long ({title_length} chars) for "
+                f"{record.registration_number}: {record.initiative_title[:100]}..."
+            )
 
     def test_submission_text_is_not_empty(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify submission_text contains substantial content"""
-        pass
+        for record in complete_dataset:
+
+            assert (
+                record.submission_text is not None
+            ), f"submission_text is None for {record.registration_number}"
+
+            assert self._has_substantial_content(record.submission_text), (
+                f"submission_text lacks substantial content for "
+                f"{record.registration_number}. "
+                f"Length: {len(record.submission_text.strip())} chars "
+                f"(minimum: {self.MIN_SUBSTANTIAL_LENGTH})"
+            )
 
     def test_commission_answer_text_is_not_empty_when_present(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify commission_answer_text contains substantial content when not None"""
-        pass
+        for record in complete_dataset:
+
+            if record.commission_answer_text is not None:
+
+                assert self._has_substantial_content(record.commission_answer_text), (
+                    f"commission_answer_text present but lacks substantial content for "
+                    f"{record.registration_number}. "
+                    f"Length: {len(record.commission_answer_text.strip())} chars "
+                    f"(minimum: {self.MIN_SUBSTANTIAL_LENGTH})"
+                )
 
     def test_text_fields_do_not_contain_html_artifacts(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify text fields are cleaned of HTML tags and entities"""
-        pass
+        for record in complete_dataset:
+
+            # Check initiative_title
+            if record.initiative_title:
+
+                assert not self._contains_html_tags(record.initiative_title), (
+                    f"initiative_title contains HTML tags for {record.registration_number}: "
+                    f"{record.initiative_title[:200]}..."
+                )
+
+                # HTML entities are more acceptable in titles, but warn about common ones
+                if self._contains_html_entities(record.initiative_title):
+
+                    # Only common entities like &nbsp; &#160; are problematic
+                    common_entities = ["&nbsp;", "&#160;", "&amp;", "&#38;"]
+                    found_entities = [
+                        e for e in common_entities if e in record.initiative_title
+                    ]
+                    if found_entities:
+                        pytest.fail(
+                            f"initiative_title contains HTML entities {found_entities} "
+                            f"for {record.registration_number}"
+                        )
+
+            # Check submission_text
+            if record.submission_text:
+
+                assert not self._contains_html_tags(record.submission_text), (
+                    f"submission_text contains HTML tags for {record.registration_number}: "
+                    f"{record.submission_text[:200]}..."
+                )
+
+            # Check commission_answer_text
+            if record.commission_answer_text:
+
+                assert not self._contains_html_tags(record.commission_answer_text), (
+                    f"commission_answer_text contains HTML tags for "
+                    f"{record.registration_number}: "
+                    f"{record.commission_answer_text[:200]}..."
+                )
 
     def test_text_fields_have_proper_whitespace_normalization(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify text fields don't have excessive whitespace or malformed spacing"""
-        pass
+        for record in complete_dataset:
+
+            # Check initiative_title
+            if record.initiative_title:
+                assert not self._has_excessive_whitespace(record.initiative_title), (
+                    f"initiative_title has excessive whitespace for "
+                    f"{record.registration_number}: "
+                    f"{repr(record.initiative_title[:200])}"
+                )
+
+                # Title should not start/end with whitespace
+                assert record.initiative_title == record.initiative_title.strip(), (
+                    f"initiative_title has leading/trailing whitespace for "
+                    f"{record.registration_number}: "
+                    f"{repr(record.initiative_title)}"
+                )
+
+            # Check submission_text
+            if record.submission_text:
+                assert not self._has_excessive_whitespace(record.submission_text), (
+                    f"submission_text has excessive whitespace for "
+                    f"{record.registration_number}: "
+                    f"{repr(record.submission_text[:200])}"
+                )
+
+                # Should not start/end with whitespace
+                assert record.submission_text == record.submission_text.strip(), (
+                    f"submission_text has leading/trailing whitespace for "
+                    f"{record.registration_number}"
+                )
+
+            # Check commission_answer_text
+            if record.commission_answer_text:
+                assert not self._has_excessive_whitespace(
+                    record.commission_answer_text
+                ), (
+                    f"commission_answer_text has excessive whitespace for "
+                    f"{record.registration_number}: "
+                    f"{repr(record.commission_answer_text[:200])}"
+                )
+
+                # Should not start/end with whitespace
+                assert (
+                    record.commission_answer_text
+                    == record.commission_answer_text.strip()
+                ), (
+                    f"commission_answer_text has leading/trailing whitespace for "
+                    f"{record.registration_number}"
+                )
 
 
 class TestOutcomeStatusConsistency:
