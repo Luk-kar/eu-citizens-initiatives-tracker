@@ -3302,11 +3302,16 @@ class TestCrossFieldDataIntegrity:
         reasonable_future = datetime.now() + timedelta(days=365 * 10)
 
         for record in complete_dataset:
+
             # Check laws_actions dates
             laws = self._parse_json_safely(record.laws_actions)
+
             if laws and isinstance(laws, list):
+
                 for i, action in enumerate(laws):
+
                     if isinstance(action, dict):
+
                         # Check various date fields
                         date_fields = [
                             "date",
@@ -3316,11 +3321,15 @@ class TestCrossFieldDataIntegrity:
                         ]
 
                         for field_name in date_fields:
+
                             if field_name in action and action[field_name]:
+
                                 try:
                                     action_date = datetime.strptime(
                                         action[field_name], "%Y-%m-%d"
                                     )
+
+                                    # The legal action CAN BE COVERED BEFORE SUBMISSION!
 
                                     # Check if date is before ECI started
                                     if action_date < eci_start_date:
@@ -3349,8 +3358,11 @@ class TestCrossFieldDataIntegrity:
 
             # Check policies_actions dates
             policies = self._parse_json_safely(record.policies_actions)
+
             if policies and isinstance(policies, list):
+
                 for i, action in enumerate(policies):
+
                     if isinstance(action, dict):
                         date_fields = [
                             "date",
@@ -3366,7 +3378,7 @@ class TestCrossFieldDataIntegrity:
                                         action[field_name], "%Y-%m-%d"
                                     )
 
-                                    # The legal action CAN BE COVERED BEFORE SUBMISSION!
+                                    # The policies action CAN BE COVERED BEFORE SUBMISSION!
 
                                     # Check if date is before ECI started
                                     if action_date < eci_start_date:
