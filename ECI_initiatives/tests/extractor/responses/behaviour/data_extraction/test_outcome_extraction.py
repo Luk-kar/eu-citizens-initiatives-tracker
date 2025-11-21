@@ -1645,35 +1645,30 @@ class TestCommissionResponseContent:
         result = extractor.extract_legislative_action(soup)
 
         assert result is not None
-        result_list = json.loads(result)
-        assert len(result_list) == 4
+        assert len(result) == 4
 
         # Check amendment
-        amendment = next((a for a in result_list if a["type"] == "Amendment"), None)
+        amendment = next((a for a in result if a["type"] == "Amendment"), None)
         assert amendment is not None
         assert amendment["status"] == "in_force"
         assert amendment["date"] == "2015-10-28"
 
         # Check directive revision
-        directive = next(
-            (a for a in result_list if "Directive Revision" in a["type"]), None
-        )
+        directive = next((a for a in result if "Directive Revision" in a["type"]), None)
         assert directive is not None
         assert directive["status"] == "in_force"
         assert directive["date"] == "2021-01-12"
 
         # Check water reuse regulation
         water_reuse = next(
-            (a for a in result_list if "reuse" in a["description"].lower()), None
+            (a for a in result if "reuse" in a["description"].lower()), None
         )
         assert water_reuse is not None
         assert water_reuse["status"] == "in_force"
         assert water_reuse["date"] == "2023-06-26"
 
         # Check standards adoption
-        standards = next(
-            (a for a in result_list if a["type"] == "Standards Adoption"), None
-        )
+        standards = next((a for a in result if a["type"] == "Standards Adoption"), None)
         assert standards is not None
         assert standards["status"] == "planned"
         assert standards["date"] == "2026-12-31"
@@ -1695,11 +1690,10 @@ class TestCommissionResponseContent:
         result = extractor.extract_legislative_action(soup)
 
         assert result is not None
-        result_list = json.loads(result)
-        assert len(result_list) == 1
-        assert result_list[0]["type"] == "Tariff Codes Creation"
-        assert result_list[0]["status"] == "planned"
-        assert "tariff codes" in result_list[0]["description"].lower()
+        assert len(result) == 1
+        assert result[0]["type"] == "Tariff Codes Creation"
+        assert result[0]["status"] == "planned"
+        assert "tariff codes" in result[0]["description"].lower()
 
         # Test 3: Proposal and adoption cycle (2017/000002)
         html_transparency_reg = """
@@ -1719,16 +1713,15 @@ class TestCommissionResponseContent:
         result = extractor.extract_legislative_action(soup)
 
         assert result is not None
-        result_list = json.loads(result)
-        assert len(result_list) >= 2
+        assert len(result) >= 2
 
         # Check proposal
-        proposal = next((a for a in result_list if a["status"] == "proposed"), None)
+        proposal = next((a for a in result if a["status"] == "proposed"), None)
         assert proposal is not None
         assert proposal["date"] == "2018-04-11"
 
         # Check in force
-        in_force = next((a for a in result_list if a["status"] == "in_force"), None)
+        in_force = next((a for a in result if a["status"] == "in_force"), None)
         assert in_force is not None
 
         # Test 4: Withdrawn proposal (2019/000016)
@@ -1749,16 +1742,15 @@ class TestCommissionResponseContent:
         result = extractor.extract_legislative_action(soup)
 
         assert result is not None
-        result_list = json.loads(result)
 
         # Check withdrawn proposal
-        withdrawn = next((a for a in result_list if a["status"] == "withdrawn"), None)
+        withdrawn = next((a for a in result if a["status"] == "withdrawn"), None)
         assert withdrawn is not None
         assert withdrawn["date"] == "2024-03-27"
 
         # Check adopted nature restoration
         nature_law = next(
-            (a for a in result_list if "nature" in a["description"].lower()), None
+            (a for a in result if "nature" in a["description"].lower()), None
         )
         assert nature_law is not None
         assert nature_law["status"] == "in_force"
@@ -1839,10 +1831,9 @@ class TestCommissionResponseContent:
         result = extractor.extract_legislative_action(soup)
 
         assert result is not None
-        result_list = json.loads(result)
-        assert len(result_list) == 1
-        assert result_list[0]["type"] == "Regulation Proposal"
-        assert result_list[0]["date"] == "2023-06-15"
+        assert len(result) == 1
+        assert result[0]["type"] == "Regulation Proposal"
+        assert result[0]["date"] == "2023-06-15"
 
         # Test 10: No duplicate actions
         html_duplicates = """
@@ -1856,9 +1847,8 @@ class TestCommissionResponseContent:
         result = extractor.extract_legislative_action(soup)
 
         assert result is not None
-        result_list = json.loads(result)
         # Should only have one action, not two duplicates
-        assert len(result_list) == 1
+        assert len(result) == 1
 
         # Test 11: Updates section takes priority
         html_updates_priority = """
@@ -1874,9 +1864,8 @@ class TestCommissionResponseContent:
         result = extractor.extract_legislative_action(soup)
 
         assert result is not None
-        result_list = json.loads(result)
         # Should extract from all sections
-        assert len(result_list) >= 1
+        assert len(result) >= 1
 
         # Test 12: Date extraction from various formats
         # TODO: <li>Directive adopted in May 2024.</li>
@@ -1897,11 +1886,10 @@ class TestCommissionResponseContent:
         result = extractor.extract_legislative_action(soup)
 
         assert result is not None
-        result_list = json.loads(result)
-        assert len(result_list) >= 2
+        assert len(result) >= 2
 
         # Check various date formats were extracted
-        dates = [a.get("date") for a in result_list if "date" in a]
+        dates = [a.get("date") for a in result if "date" in a]
         assert any("2023-01-12" in str(d) for d in dates)
         assert any("2024" in str(d) for d in dates)
 

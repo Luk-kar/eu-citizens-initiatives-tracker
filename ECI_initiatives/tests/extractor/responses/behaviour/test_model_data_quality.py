@@ -852,12 +852,15 @@ class TestJSONFieldsValidity:
         Raises:
             AssertionError: If type doesn't match
         """
-        assert isinstance(parsed_json, expected_type), (
-            f"Invalid JSON type in {field_name} for {registration_number}:\n"
-            f"  Expected: {expected_type.__name__}\n"
-            f"  Got: {type(parsed_json).__name__}\n"
-            f"  Value: {str(parsed_json)[:200]}..."
-        )
+
+        # Skip type validation if no deadlines found (JSON "null" → Python None)
+        if parsed_json is not None:
+            assert isinstance(parsed_json, expected_type), (
+                f"Invalid JSON type in {field_name} for {registration_number}:\n"
+                f"  Expected: {expected_type.__name__}\n"
+                f"  Got: {type(parsed_json).__name__}\n"
+                f"  Value: {str(parsed_json)[:200]}..."
+            )
 
     def test_parliament_hearing_video_urls_are_valid_json(
         self, complete_dataset: List[ECICommissionResponseRecord]
@@ -907,21 +910,32 @@ class TestJSONFieldsValidity:
                     registration_number=record.registration_number,
                 )
 
-                # Skip type validation if no deadlines found (JSON "null" → Python None)
-                if parsed is not None:
-
-                    self._validate_json_type(
-                        parsed_json=parsed,
-                        expected_type=dict,
-                        field_name="commission_deadlines",
-                        registration_number=record.registration_number,
-                    )
+                self._validate_json_type(
+                    parsed_json=parsed,
+                    expected_type=dict,
+                    field_name="commission_deadlines",
+                    registration_number=record.registration_number,
+                )
 
     def test_laws_actions_are_valid_json_list(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify laws_actions contains valid JSON array when not None"""
-        pass
+        for record in complete_dataset:
+            if record.laws_actions is not None:
+                parsed = self._validate_json_parseable(
+                    json_string=record.laws_actions,
+                    field_name="laws_actions",
+                    registration_number=record.registration_number,
+                )
+
+                # Validate it's a list
+                self._validate_json_type(
+                    parsed_json=parsed,
+                    expected_type=list,
+                    field_name="laws_actions",
+                    registration_number=record.registration_number,
+                )
 
     def test_policies_actions_are_valid_json_list(
         self, complete_dataset: List[ECICommissionResponseRecord]

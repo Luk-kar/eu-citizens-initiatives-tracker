@@ -556,7 +556,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         return deadline.strip()
 
     # TODO: need a refactor
-    def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[dict]:
         """
         Extract LEGISLATIVE actions - proposals, adoptions, laws, regulations, directives.
         Excludes: rejection statements, enforcement activities, policy actions.
@@ -630,7 +630,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                     seen.add(key)
                     unique_actions.append(action)
 
-            return json.dumps(unique_actions, ensure_ascii=False, indent=2)
+            return unique_actions
 
         except Exception as e:
             raise ValueError(

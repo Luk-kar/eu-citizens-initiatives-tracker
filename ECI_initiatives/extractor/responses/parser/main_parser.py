@@ -181,7 +181,9 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 # Actions Taken (What actually happened)
-                laws_actions=self.legislative_outcome.extract_legislative_action(soup),
+                laws_actions=json.dumps(
+                    self.legislative_outcome.extract_legislative_action(soup)
+                ),
                 policies_actions=self.legislative_outcome.extract_non_legislative_action(
                     soup
                 ),
