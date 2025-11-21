@@ -1915,11 +1915,10 @@ class TestCommissionResponseContent:
         result1 = extractor1.extract_non_legislative_action(soup1)
 
         assert result1 is not None, "Should extract non-legislative actions"
-        result_list1 = json.loads(result1)
-        assert len(result_list1) >= 4, "Should extract multiple actions"
+        assert len(result1) >= 4, "Should extract multiple actions"
 
         # Check action types are present
-        types1 = [action["type"] for action in result_list1]
+        types1 = [action["type"] for action in result1]
         assert "Impact Assessment and Consultation" in types1
         assert "Scientific Activity" in types1
         assert "Monitoring and Enforcement" in types1
@@ -1927,7 +1926,7 @@ class TestCommissionResponseContent:
         assert "Funding Programme" in types1
 
         # Check dates are extracted
-        dated_actions1 = [a for a in result_list1 if "date" in a]
+        dated_actions1 = [a for a in result1 if "date" in a]
         assert len(dated_actions1) >= 2, "Should extract dates from actions"
 
         # Test case 2: Actions from Answer section only (no Follow-up)
@@ -1944,10 +1943,9 @@ class TestCommissionResponseContent:
         result2 = extractor2.extract_non_legislative_action(soup2)
 
         assert result2 is not None, "Should extract from Answer section"
-        result_list2 = json.loads(result2)
-        assert len(result_list2) >= 2
+        assert len(result2) >= 2
 
-        types2 = [action["type"] for action in result_list2]
+        types2 = [action["type"] for action in result2]
         assert "Monitoring and Enforcement" in types2
         assert "Data Collection and Transparency" in types2
 
@@ -1970,10 +1968,9 @@ class TestCommissionResponseContent:
         result3 = extractor3.extract_non_legislative_action(soup3)
 
         assert result3 is not None, "Should extract from list items"
-        result_list3 = json.loads(result3)
-        assert len(result_list3) >= 4, "Should extract multiple list items"
+        assert len(result3) >= 4, "Should extract multiple list items"
 
-        types3 = [action["type"] for action in result_list3]
+        types3 = [action["type"] for action in result3]
         assert "Policy Implementation" in types3
         assert "Impact Assessment and Consultation" in types3
         assert "Data Collection and Transparency" in types3
@@ -1993,9 +1990,8 @@ class TestCommissionResponseContent:
         result4 = extractor4.extract_non_legislative_action(soup4)
 
         assert result4 is not None
-        result_list4 = json.loads(result4)
 
-        types4 = [action["type"] for action in result_list4]
+        types4 = [action["type"] for action in result4]
         assert "Policy Roadmap and Strategy" in types4
 
         # Test case 5: International cooperation actions
@@ -2012,9 +2008,8 @@ class TestCommissionResponseContent:
         result5 = extractor5.extract_non_legislative_action(soup5)
 
         assert result5 is not None
-        result_list5 = json.loads(result5)
 
-        types5 = [action["type"] for action in result_list5]
+        types5 = [action["type"] for action in result5]
         assert "International Cooperation" in types5
 
         # Test case 6: No non-legislative actions (only legislative)
@@ -2048,8 +2043,7 @@ class TestCommissionResponseContent:
         result7 = extractor7.extract_non_legislative_action(soup7)
 
         assert result7 is not None
-        result_list7 = json.loads(result7)
-        assert len(result_list7) == 1, "Should remove duplicate actions"
+        assert len(result7) == 1, "Should remove duplicate actions"
 
         # Test case 8: No Answer or Follow-up section
         html8 = """
@@ -2077,13 +2071,12 @@ class TestCommissionResponseContent:
         result9 = extractor9.extract_non_legislative_action(soup9)
 
         assert result9 is not None
-        result_list9 = json.loads(result9)
 
-        types9 = [action["type"] for action in result_list9]
+        types9 = [action["type"] for action in result9]
         assert "Scientific Activity" in types9
 
         # Verify dates are in correct format
-        dated9 = [a for a in result_list9 if "date" in a]
+        dated9 = [a for a in result9 if "date" in a]
         assert len(dated9) >= 1
         assert any("2021" in a.get("date", "") for a in dated9)
         assert any("2025" in a.get("date", "") for a in dated9)
@@ -2103,10 +2096,9 @@ class TestCommissionResponseContent:
         result10 = extractor10.extract_non_legislative_action(soup10)
 
         assert result10 is not None
-        result_list10 = json.loads(result10)
 
         # Check various date formats are extracted
-        dates10 = [a.get("date") for a in result_list10 if "date" in a]
+        dates10 = [a.get("date") for a in result10 if "date" in a]
         assert len(dates10) == 3, "Should extract dates from different formats"
         assert any("2021" in str(d) for d in dates10)
         assert any("2024" in str(d) for d in dates10)
@@ -2140,10 +2132,9 @@ class TestCommissionResponseContent:
         result11 = extractor11.extract_non_legislative_action(soup11)
 
         assert result11 is not None, "Should extract actions"
-        result_list11 = json.loads(result11)
 
         # Check that section headers are NOT in the results
-        descriptions11 = [action["description"] for action in result_list11]
+        descriptions11 = [action["description"] for action in result11]
 
         # These should NOT be in results (they are section headers ending with ':')
         assert not any(
@@ -2178,12 +2169,12 @@ class TestCommissionResponseContent:
 
         # Verify we have exactly 4 actions (not 8 with headers included)
         assert (
-            len(result_list11) == 4
-        ), f"Should have 4 actions, not {len(result_list11)} - section headers should be filtered"
+            len(result11) == 4
+        ), f"Should have 4 actions, not {len(result11)} - section headers should be filtered"
 
         # Additional check: No description should end with ':' and
         # be < 100 chars (section header pattern)
-        for action in result_list11:
+        for action in result11:
             desc = action["description"]
             if desc.endswith(":"):
                 assert (

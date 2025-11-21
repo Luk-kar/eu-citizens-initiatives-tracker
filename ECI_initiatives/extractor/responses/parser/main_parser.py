@@ -184,8 +184,8 @@ class ECIResponseHTMLParser:
                 laws_actions=json.dumps(
                     self.legislative_outcome.extract_legislative_action(soup)
                 ),
-                policies_actions=self.legislative_outcome.extract_non_legislative_action(
-                    soup
+                policies_actions=json.dumps(
+                    self.legislative_outcome.extract_non_legislative_action(soup)
                 ),
                 # Follow-up Activities Section
                 has_followup_section=self.followup_activity.extract_has_followup_section(

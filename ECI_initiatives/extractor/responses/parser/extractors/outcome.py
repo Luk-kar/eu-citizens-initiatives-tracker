@@ -888,11 +888,11 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         else:
             return "Legislative Action"
 
-    def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[dict]:
         """
         Extract non-legislative actions as JSON array
         Each item contains: type, description, date
-        Returns JSON string or None
+        Returns dict or None
         """
         try:
 
@@ -937,7 +937,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                     seen.add(key)
                     unique_actions.append(action)
 
-            return json.dumps(unique_actions, ensure_ascii=False, indent=2)
+            return unique_actions
 
         except Exception as e:
             raise ValueError(
