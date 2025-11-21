@@ -3,6 +3,7 @@ ECI Response HTML Parser - Main Orchestrator
 Coordinates all extractor classes to parse response pages
 """
 
+import json
 from datetime import datetime
 import logging
 from pathlib import Path
@@ -139,8 +140,8 @@ class ECIResponseHTMLParser:
                 parliament_hearing_date=self.parliament_activity.extract_parliament_hearing_date(
                     soup
                 ),
-                parliament_hearing_video_urls=self.parliament_activity.extract_parliament_hearing_video_urls(
-                    soup
+                parliament_hearing_video_urls=json.dumps(
+                    self.parliament_activity.extract_parliament_hearing_video_urls(soup)
                 ),
                 plenary_debate_date=self.parliament_activity.extract_plenary_debate_date(
                     soup

@@ -3,6 +3,7 @@ Test suite for validating data quality in extracted response data.
 Column-level validation tests for ECICommissionResponseRecord fields
 """
 
+import json
 import pytest
 import shutil
 from collections import Counter
@@ -10,7 +11,7 @@ import csv
 from datetime import datetime, date
 from pathlib import Path
 import re
-from typing import List, Optional, Set
+from typing import Any, List, Optional, Set
 from unittest import mock
 from urllib.parse import urlparse, ParseResult
 
@@ -798,11 +799,77 @@ class TestRegistrationNumberFormat:
 class TestJSONFieldsValidity:
     """Test data quality of JSON-encoded fields"""
 
+    def _validate_json_parseable(
+        self,
+        json_string: Optional[str],
+        field_name: str,
+        registration_number: str,
+    ) -> Optional[Any]:
+        """
+        Validate that a string contains valid, parseable JSON.
+
+        Args:
+            json_string: The JSON string to validate (or None)
+            field_name: Name of the field being validated (for error messages)
+            registration_number: Initiative registration number (for error messages)
+
+        Returns:
+            Parsed JSON object (dict, list, etc.) or None if json_string is None
+
+        Raises:
+            AssertionError: If JSON is invalid or cannot be parsed
+        """
+        if json_string is None:
+            return None
+
+        try:
+            parsed = json.loads(json_string)
+            return parsed
+        except json.JSONDecodeError as e:
+            pytest.fail(
+                f"Invalid JSON in {field_name} for {registration_number}:\n"
+                f"  Error: {e}\n"
+                f"  Position: line {e.lineno}, column {e.colno}\n"
+                f"  JSON preview: {json_string[:200]}..."
+            )
+
+    def _validate_json_type(
+        self,
+        parsed_json: Any,
+        expected_type: type,
+        field_name: str,
+        registration_number: str,
+    ) -> None:
+        """
+        Validate that parsed JSON matches expected type.
+
+        Args:
+            parsed_json: The parsed JSON object
+            expected_type: Expected Python type (dict, list, etc.)
+            field_name: Name of the field being validated (for error messages)
+            registration_number: Initiative registration number (for error messages)
+
+        Raises:
+            AssertionError: If type doesn't match
+        """
+        assert isinstance(parsed_json, expected_type), (
+            f"Invalid JSON type in {field_name} for {registration_number}:\n"
+            f"  Expected: {expected_type.__name__}\n"
+            f"  Got: {type(parsed_json).__name__}\n"
+            f"  Value: {str(parsed_json)[:200]}..."
+        )
+
     def test_parliament_hearing_video_urls_are_valid_json(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify parliament_hearing_video_urls contains valid JSON when not None"""
-        pass
+        for record in complete_dataset:
+            if record.parliament_hearing_video_urls is not None:
+                self._validate_json_parseable(
+                    json_string=record.parliament_hearing_video_urls,
+                    field_name="parliament_hearing_video_urls",
+                    registration_number=record.registration_number,
+                )
 
     def test_plenary_debate_video_urls_are_valid_json(
         self, complete_dataset: List[ECICommissionResponseRecord]

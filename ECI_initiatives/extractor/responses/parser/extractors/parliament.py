@@ -110,6 +110,7 @@ class ParliamentActivityExtractor(BaseExtractor):
 
     def extract_parliament_hearing_video_urls(self, soup: BeautifulSoup) -> dict:
         """Extracts all relevant video recording URLs from the 'public hearing' paragraph"""
+
         try:
             submission_section = find_submission_section(soup, self.registration_number)
 
