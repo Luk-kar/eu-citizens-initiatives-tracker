@@ -618,7 +618,7 @@ class FollowUpActivityExtractor(BaseExtractor):
                 f"Error extracting latest update date for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_followup_events_with_dates(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_followup_events_with_dates(self, soup: BeautifulSoup) -> Optional[dict]:
         """
         Extract follow-up actions with associated dates in structured JSON format.
 
@@ -639,7 +639,7 @@ class FollowUpActivityExtractor(BaseExtractor):
             soup: BeautifulSoup object of the HTML document
 
         Returns:
-            JSON string with follow-up actions and dates, or None if no follow-up section exists
+            dict with follow-up actions and dates, or None if no follow-up section exists
             or no valid actions are found
 
         Raises:
@@ -660,7 +660,7 @@ class FollowUpActivityExtractor(BaseExtractor):
                     f"No valid follow-up actions found for initiative {self.registration_number}"
                 )
 
-            return json.dumps(follow_up_actions, ensure_ascii=False)
+            return follow_up_actions
 
         except Exception as e:
             raise ValueError(

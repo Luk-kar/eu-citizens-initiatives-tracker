@@ -1525,10 +1525,10 @@ class TestFollowUpActivities:
         result1 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup1
         )
-        res1 = json.loads(result1)
-        assert len(res1) == 1
-        assert res1[0]["dates"] == ["2024-02-09"]
-        assert "Commissioner Stella Kyriakides" in res1[0]["action"]
+
+        assert len(result1) == 1
+        assert result1[0]["dates"] == ["2024-02-09"]
+        assert "Commissioner Stella Kyriakides" in result1[0]["action"]
 
         # TEST 2: Multiple actions with different date formats
         html2 = """
@@ -1543,17 +1543,17 @@ class TestFollowUpActivities:
         result2 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup2
         )
-        res2 = json.loads(result2)
-        assert len(res2) == 3
+
+        assert len(result2) == 3
         # First action: full date
-        assert res2[0]["dates"] == ["2018-02-01"]
-        assert "proposal was adopted" in res2[0]["action"]
+        assert result2[0]["dates"] == ["2018-02-01"]
+        assert "proposal was adopted" in result2[0]["action"]
         # Second action: month-year (converted to last day of month)
-        assert res2[1]["dates"] == ["2020-02-29"]  # Leap year - last day
-        assert "entered into force" in res2[1]["action"]
+        assert result2[1]["dates"] == ["2020-02-29"]  # Leap year - last day
+        assert "entered into force" in result2[1]["action"]
         # Third action: year only
-        assert res2[2]["dates"] == ["2023-01-01"]
-        assert "transpose it" in res2[2]["action"]
+        assert result2[2]["dates"] == ["2023-01-01"]
+        assert "transpose it" in result2[2]["action"]
 
         # TEST 3: Action without dates
         html3 = """
@@ -1564,10 +1564,10 @@ class TestFollowUpActivities:
         result3 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup3
         )
-        res3 = json.loads(result3)
-        assert len(res3) == 1
-        assert res3[0]["dates"] == []
-        assert "better enforcement" in res3[0]["action"]
+
+        assert len(result3) == 1
+        assert result3[0]["dates"] == []
+        assert "better enforcement" in result3[0]["action"]
 
         # TEST 4: Multiple dates in single action
         html4 = """
@@ -1579,12 +1579,12 @@ class TestFollowUpActivities:
         result4 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup4
         )
-        res4 = json.loads(result4)
-        assert len(res4) == 1
-        assert len(res4[0]["dates"]) == 3
-        assert "2021-01-12" in res4[0]["dates"]
-        assert "2023-01-12" in res4[0]["dates"]
-        assert "2023-06-26" in res4[0]["dates"]
+
+        assert len(result4) == 1
+        assert len(result4[0]["dates"]) == 3
+        assert "2021-01-12" in result4[0]["dates"]
+        assert "2023-01-12" in result4[0]["dates"]
+        assert "2023-06-26" in result4[0]["dates"]
 
         # TEST 5: Generic intro text is filtered out
         html5 = """
@@ -1596,11 +1596,11 @@ class TestFollowUpActivities:
         result5 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup5
         )
-        res5 = json.loads(result5)
+
         # Generic intro should be filtered out
-        assert len(res5) == 1
-        assert "proposal for a Regulation" in res5[0]["action"]
-        assert res5[0]["dates"] == ["2018-04-11"]
+        assert len(result5) == 1
+        assert "proposal for a Regulation" in result5[0]["action"]
+        assert result5[0]["dates"] == ["2018-04-11"]
 
         # TEST 6: Subsection headers are filtered out
         html6 = """
@@ -1614,11 +1614,11 @@ class TestFollowUpActivities:
         result6 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup6
         )
-        res6 = json.loads(result6)
+
         # Should only have the list item, not the header
-        assert len(res6) == 1
-        assert "Communication on 03 June 2015" in res6[0]["action"]
-        assert res6[0]["dates"] == ["2015-06-03"]
+        assert len(result6) == 1
+        assert "Communication on 03 June 2015" in result6[0]["action"]
+        assert result6[0]["dates"] == ["2015-06-03"]
 
         # TEST 7: Mixed paragraphs and list items
         html7 = """
@@ -1633,17 +1633,17 @@ class TestFollowUpActivities:
         result7 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup7
         )
-        res7 = json.loads(result7)
-        assert len(res7) == 3
+
+        assert len(result7) == 3
         # First paragraph
-        assert "2023-01-01" in res7[0]["dates"]
-        assert "roadmap" in res7[0]["action"]
+        assert "2023-01-01" in result7[0]["dates"]
+        assert "roadmap" in result7[0]["action"]
         # First list item with "early 2026" deadline
-        assert "2026-03-31" in res7[1]["dates"]  # early = end of Q1
-        assert "Finalisation" in res7[1]["action"]
+        assert "2026-03-31" in result7[1]["dates"]  # early = end of Q1
+        assert "Finalisation" in result7[1]["action"]
         # Second list item
-        assert "2023-01-01" in res7[2]["dates"]
-        assert "workshops" in res7[2]["action"]
+        assert "2023-01-01" in result7[2]["dates"]
+        assert "workshops" in result7[2]["action"]
 
         # TEST 8: Date deduplication (avoid extracting Month YYYY when DD Month YYYY exists)
         html8 = """
@@ -1654,10 +1654,10 @@ class TestFollowUpActivities:
         result8 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup8
         )
-        res8 = json.loads(result8)
-        assert len(res8) == 1
+
+        assert len(result8) == 1
         # Should only extract full date, not also "February 2018"
-        assert res8[0]["dates"] == ["2018-02-01"]
+        assert result8[0]["dates"] == ["2018-02-01"]
 
         # TEST 9: No Follow-up section raises ValueError
         html9 = """
@@ -1691,10 +1691,10 @@ class TestFollowUpActivities:
         result11 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup11
         )
-        res11 = json.loads(result11)
-        assert len(res11) == 1
-        assert "2018-04-11" in res11[0]["dates"]
-        assert "More information" not in res11[0]["action"]
+
+        assert len(result11) == 1
+        assert "2018-04-11" in result11[0]["dates"]
+        assert "More information" not in result11[0]["action"]
 
         # TEST 12: Alternative h4 Follow-up section
         html12 = """
@@ -1705,10 +1705,10 @@ class TestFollowUpActivities:
         result12 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup12
         )
-        res12 = json.loads(result12)
-        assert len(res12) == 1
-        assert "2016-12-07" in res12[0]["dates"]  # Should extract the later date
-        assert "conference" in res12[0]["action"]
+
+        assert len(result12) == 1
+        assert "2016-12-07" in result12[0]["dates"]  # Should extract the later date
+        assert "conference" in result12[0]["action"]
 
         # TEST 13: Very short content is filtered out
         html13 = """
@@ -1720,10 +1720,10 @@ class TestFollowUpActivities:
         result13 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup13
         )
-        res13 = json.loads(result13)
+
         # Should only include the longer paragraph
-        assert len(res13) == 1
-        assert "longer paragraph" in res13[0]["action"]
+        assert len(result13) == 1
+        assert "longer paragraph" in result13[0]["action"]
 
         # TEST 14: Complex real-world example with nested lists
         html14 = """
@@ -1745,19 +1745,19 @@ class TestFollowUpActivities:
         result14 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup14
         )
-        res14 = json.loads(result14)
+
         # Should have 3 actions (2 from first ul, 1 from second ul)
-        assert len(res14) == 3
+        assert len(result14) == 3
         # First action
-        assert "2015-10-28" in res14[0]["dates"]
-        assert "Drinking Water Directive" in res14[0]["action"]
+        assert "2015-10-28" in result14[0]["dates"]
+        assert "Drinking Water Directive" in result14[0]["action"]
         # Second action
-        assert "2018-02-01" in res14[1]["dates"]
-        assert "2020-12-16" in res14[1]["dates"]
+        assert "2018-02-01" in result14[1]["dates"]
+        assert "2020-12-16" in result14[1]["dates"]
         # Third action
-        assert "2015-01-01" in res14[2]["dates"]
-        assert "2019-01-01" in res14[2]["dates"]
-        assert "2021-01-01" in res14[2]["dates"]
+        assert "2015-01-01" in result14[2]["dates"]
+        assert "2019-01-01" in result14[2]["dates"]
+        assert "2021-01-01" in result14[2]["dates"]
 
         # TEST 15: Empty soup raises ValueError
         soup15 = BeautifulSoup("", "html.parser")
@@ -1775,10 +1775,10 @@ class TestFollowUpActivities:
         result16 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup16
         )
-        res16 = json.loads(result16)
-        assert len(res16) == 1
-        assert "2024-12-31" in res16[0]["dates"]  # end of year = Dec 31
-        assert "report" in res16[0]["action"]
+
+        assert len(result16) == 1
+        assert "2024-12-31" in result16[0]["dates"]  # end of year = Dec 31
+        assert "report" in result16[0]["action"]
 
         # TEST 17: Deadline expression "end YYYY" (without "of")
         html17 = """
@@ -1789,10 +1789,10 @@ class TestFollowUpActivities:
         result17 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup17
         )
-        res17 = json.loads(result17)
-        assert len(res17) == 1
-        assert "2025-12-31" in res17[0]["dates"]
-        assert "comply" in res17[0]["action"]
+
+        assert len(result17) == 1
+        assert "2025-12-31" in result17[0]["dates"]
+        assert "comply" in result17[0]["action"]
 
         # TEST 18: Month names convert to last day of month
         html18 = """
@@ -1803,10 +1803,10 @@ class TestFollowUpActivities:
         result18 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup18
         )
-        res18 = json.loads(result18)
-        assert len(res18) == 1
-        assert "2018-05-31" in res18[0]["dates"]  # Last day of May
-        assert "submissions" in res18[0]["action"]
+
+        assert len(result18) == 1
+        assert "2018-05-31" in result18[0]["dates"]  # Last day of May
+        assert "submissions" in result18[0]["action"]
 
         # TEST 19: - Both explicit date and deadline expression with same month
         html19 = """
@@ -1817,10 +1817,10 @@ class TestFollowUpActivities:
         result19 = self.parser.followup_activity.extract_followup_events_with_dates(
             soup19
         )
-        res19 = json.loads(result19)
-        assert len(res19) == 1
+
+        assert len(result19) == 1
         # Should extract both dates: specific date and end of month
         assert (
-            "2018-02-29" not in res19[0]["dates"]
+            "2018-02-29" not in result19[0]["dates"]
         )  # 2018 is not a leap year, so Feb 28
-        assert "2018-02-28" in res19[0]["dates"]
+        assert "2018-02-28" in result19[0]["dates"]

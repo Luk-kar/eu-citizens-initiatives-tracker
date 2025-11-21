@@ -191,8 +191,8 @@ class ECIResponseHTMLParser:
                 has_followup_section=self.followup_activity.extract_has_followup_section(
                     soup
                 ),
-                followup_events_with_dates=self.followup_activity.extract_followup_events_with_dates(
-                    soup
+                followup_events_with_dates=json.dumps(
+                    self.followup_activity.extract_followup_events_with_dates(soup)
                 ),
                 has_roadmap=self.followup_activity.extract_has_roadmap(soup),
                 has_workshop=self.followup_activity.extract_has_workshop(soup),
