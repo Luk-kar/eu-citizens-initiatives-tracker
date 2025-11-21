@@ -1020,120 +1020,134 @@ class TestJSONFieldsValidity:
         for record in complete_dataset:
             # Test laws_actions structure (list of dict with specific keys)
             if record.laws_actions is not None:
-                # Parse JSON string to Python object
-                parsed = self._validate_json_parseable(
+                parsed = self._parse_and_validate_json_field(
                     json_string=record.laws_actions,
                     field_name="laws_actions",
+                    expected_type=list,
                     registration_number=record.registration_number,
                 )
 
-                # Skip if parsed to None (was JSON "null") or empty list
-                if parsed:  # Only validate if non-empty
-                    assert isinstance(parsed, list), (
-                        f"laws_actions must be list for {record.registration_number}, "
-                        f"got {type(parsed).__name__}"
+                if parsed:
+                    self._validate_list_items_have_keys(
+                        items=parsed,
+                        expected_keys={"type", "description"},
+                        field_name="laws_actions",
+                        registration_number=record.registration_number,
                     )
-
-                    for i, action in enumerate(parsed):
-                        assert isinstance(
-                            action, dict
-                        ), f"laws_actions[{i}] must be dict for {record.registration_number}"
-
-                        # Expected keys in each action
-                        expected_keys = {"type", "description"}
-                        missing_keys = expected_keys - set(action.keys())
-                        assert not missing_keys, (
-                            f"laws_actions[{i}] missing keys {missing_keys} "
-                            f"for {record.registration_number}"
-                        )
 
             # Test policies_actions structure (list of dict with specific keys)
             if record.policies_actions is not None:
-                # Parse JSON string to Python object
-                parsed = self._validate_json_parseable(
+                parsed = self._parse_and_validate_json_field(
                     json_string=record.policies_actions,
                     field_name="policies_actions",
+                    expected_type=list,
                     registration_number=record.registration_number,
                 )
 
-                # Skip if parsed to None or empty list
-                if parsed:  # Only validate if non-empty
-                    assert isinstance(parsed, list), (
-                        f"policies_actions must be list for {record.registration_number}, "
-                        f"got {type(parsed).__name__}"
+                if parsed:
+                    self._validate_list_items_have_keys(
+                        items=parsed,
+                        expected_keys={"type", "description"},
+                        field_name="policies_actions",
+                        registration_number=record.registration_number,
                     )
-
-                    for i, action in enumerate(parsed):
-                        assert isinstance(
-                            action, dict
-                        ), f"policies_actions[{i}] must be dict for {record.registration_number}"
-
-                        # Expected keys
-                        expected_keys = {"type", "description"}
-                        missing_keys = expected_keys - set(action.keys())
-                        assert not missing_keys, (
-                            f"policies_actions[{i}] missing keys {missing_keys} "
-                            f"for {record.registration_number}"
-                        )
 
             # Test followup_events_with_dates structure (list of dict with dates and action)
             if record.followup_events_with_dates is not None:
-                # Parse JSON string to Python object
-                parsed = self._validate_json_parseable(
+                parsed = self._parse_and_validate_json_field(
                     json_string=record.followup_events_with_dates,
                     field_name="followup_events_with_dates",
+                    expected_type=list,
                     registration_number=record.registration_number,
                 )
 
-                # Skip if parsed to None or empty list
-                if parsed:  # Only validate if non-empty
-                    assert isinstance(parsed, list), (
-                        f"followup_events_with_dates must be list for {record.registration_number}, "
-                        f"got {type(parsed).__name__}"
+                if parsed:
+                    self._validate_list_items_have_keys(
+                        items=parsed,
+                        expected_keys={"dates", "action"},
+                        field_name="followup_events_with_dates",
+                        registration_number=record.registration_number,
                     )
 
+                    # Additional validation: 'dates' must be a list
                     for i, event in enumerate(parsed):
-                        assert isinstance(event, dict), (
-                            f"followup_events_with_dates[{i}] must be dict "
-                            f"for {record.registration_number}"
-                        )
-
-                        # Expected keys
-                        expected_keys = {"dates", "action"}
-                        missing_keys = expected_keys - set(event.keys())
-                        assert not missing_keys, (
-                            f"followup_events_with_dates[{i}] missing keys {missing_keys} "
-                            f"for {record.registration_number}"
-                        )
-
-                        # Validate 'dates' is a list
                         assert isinstance(event["dates"], list), (
                             f"followup_events_with_dates[{i}]['dates'] must be list "
                             f"for {record.registration_number}"
                         )
 
-            # Test commission_deadlines structure (dict with date keys)
-            if record.commission_deadlines is not None:
-                # Parse JSON string to Python object
-                parsed = self._validate_json_parseable(
-                    json_string=record.commission_deadlines,
-                    field_name="commission_deadlines",
-                    registration_number=record.registration_number,
-                )
+    def _parse_and_validate_json_field(
+        self,
+        json_string: Optional[str],
+        field_name: str,
+        expected_type: type,
+        registration_number: str,
+    ) -> Optional[Any]:
+        """
+        Parse JSON string and validate it matches expected type.
 
-                # Skip if parsed to None or empty dict
-                if parsed:  # Only validate if non-empty
-                    assert isinstance(parsed, dict), (
-                        f"commission_deadlines must be dict for {record.registration_number}, "
-                        f"got {type(parsed).__name__}"
-                    )
+        Args:
+            json_string: JSON string to parse
+            field_name: Name of the field (for error messages)
+            expected_type: Expected Python type (list, dict, etc.)
+            registration_number: Initiative registration number
 
-                    # Values should be strings (descriptions of deadlines)
-                    for key, value in parsed.items():
-                        assert isinstance(value, str), (
-                            f"commission_deadlines['{key}'] must be string "
-                            f"for {record.registration_number}, got {type(value).__name__}"
-                        )
+        Returns:
+            Parsed JSON object or None if empty/null
+
+        Raises:
+            AssertionError: If parsed type doesn't match expected type
+        """
+        # Parse JSON string to Python object
+        parsed = self._validate_json_parseable(
+            json_string=json_string,
+            field_name=field_name,
+            registration_number=registration_number,
+        )
+
+        # Return None if empty (None, [], {})
+        if not parsed:
+            return None
+
+        # Validate type matches expectation
+        assert isinstance(parsed, expected_type), (
+            f"{field_name} must be {expected_type.__name__} for {registration_number}, "
+            f"got {type(parsed).__name__}"
+        )
+
+        return parsed
+
+    def _validate_list_items_have_keys(
+        self,
+        items: List[dict],
+        expected_keys: set,
+        field_name: str,
+        registration_number: str,
+    ) -> None:
+        """
+        Validate that all items in a list are dicts with expected keys.
+
+        Args:
+            items: List of items to validate
+            expected_keys: Set of required keys each item must have
+            field_name: Name of the field (for error messages)
+            registration_number: Initiative registration number
+
+        Raises:
+            AssertionError: If any item is not a dict or missing required keys
+        """
+        for i, item in enumerate(items):
+            # Validate each item is a dict
+            assert isinstance(
+                item, dict
+            ), f"{field_name}[{i}] must be dict for {registration_number}"
+
+            # Validate required keys are present
+            missing_keys = expected_keys - set(item.keys())
+            assert not missing_keys, (
+                f"{field_name}[{i}] missing keys {missing_keys} "
+                f"for {registration_number}"
+            )
 
 
 class TestTextFieldsCompleteness:
