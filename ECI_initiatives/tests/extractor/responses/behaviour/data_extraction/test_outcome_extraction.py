@@ -1405,11 +1405,10 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
-        assert "2018-05-31" in result_dict
+        assert "2018-05-31" in result
         assert (
             "committed to come forward with a legislative proposal by May 2018"
-            in result_dict["2018-05-31"]
+            in result["2018-05-31"]
         )
 
         # Test 2: Multiple deadlines in same initiative
@@ -1425,12 +1424,11 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
-        assert len(result_dict) == 2
-        assert "2023-12-31" in result_dict
-        assert "2024-12-31" in result_dict
-        assert "by the end of 2023" in result_dict["2023-12-31"]
-        assert "By end 2024, provide" in result_dict["2024-12-31"]
+        assert len(result) == 2
+        assert "2023-12-31" in result
+        assert "2024-12-31" in result
+        assert "by the end of 2023" in result["2023-12-31"]
+        assert "By end 2024, provide" in result["2024-12-31"]
 
         # Test 3: Deadline with "early [year]" format
         html_early_year = """
@@ -1444,9 +1442,8 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
-        assert "2026-03-31" in result_dict
-        assert "by March 2026" in result_dict["2026-03-31"]
+        assert "2026-03-31" in result
+        assert "by March 2026" in result["2026-03-31"]
 
         # Test 4: Report to be produced with standalone year
         html_report_year = """
@@ -1462,9 +1459,8 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
-        assert "2019-12-31" in result_dict
-        assert "to be produced in 2019" in result_dict["2019-12-31"]
+        assert "2019-12-31" in result
+        assert "to be produced in 2019" in result["2019-12-31"]
 
         # Test 5: Intention to table legislative proposal
         html_intention = """
@@ -1478,9 +1474,8 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
-        assert "2023-12-31" in result_dict
-        assert "intention to table a legislative proposal" in result_dict["2023-12-31"]
+        assert "2023-12-31" in result
+        assert "intention to table a legislative proposal" in result["2023-12-31"]
 
         # Test 6: No deadlines mentioned
         html_no_deadlines = """
@@ -1505,9 +1500,8 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
-        assert "2024-12-31" in result_dict
-        assert "launch an impact assessment" in result_dict["2024-12-31"]
+        assert "2024-12-31" in result
+        assert "launch an impact assessment" in result["2024-12-31"]
 
         # Test 8: EFSA scientific opinion deadline
         html_efsa = """
@@ -1520,9 +1514,8 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
-        assert "2025-12-31" in result_dict
-        assert "scientific opinion" in result_dict["2025-12-31"]
+        assert "2025-12-31" in result
+        assert "scientific opinion" in result["2025-12-31"]
 
         # Test 9: Roadmap deadline
         html_roadmap = """
@@ -1535,9 +1528,8 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
-        assert "2026-03-31" in result_dict
-        assert "roadmap is planned by early 2026" in result_dict["2026-03-31"]
+        assert "2026-03-31" in result
+        assert "roadmap is planned by early 2026" in result["2026-03-31"]
 
         # Test 10: Deadline-first format (By [date], [action])
         html_deadline_first = """
@@ -1550,9 +1542,8 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
-        assert "2024-12-31" in result_dict
-        assert "By end 2024, provide" in result_dict["2024-12-31"]
+        assert "2024-12-31" in result
+        assert "By end 2024, provide" in result["2024-12-31"]
 
         # Test 11: Multiple deadlines on same date (should concatenate)
         html_same_date = """
@@ -1565,11 +1556,10 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
-        assert "2023-12-31" in result_dict
+        assert "2023-12-31" in result
         # Should contain both commitments separated by semicolon
-        assert "impact assessment" in result_dict["2023-12-31"]
-        assert "report" in result_dict["2023-12-31"]
+        assert "impact assessment" in result["2023-12-31"]
+        assert "report" in result["2023-12-31"]
 
         # Test 12: Missing Answer section (should raise ValueError)
         html_no_answer = """
@@ -1595,10 +1585,9 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
         # Should only capture the May 2024 deadline, not December 2025
-        assert "2024-05-31" in result_dict
-        assert "2025-12-31" not in result_dict
+        assert "2024-05-31" in result
+        assert "2025-12-31" not in result
 
         # Test 14: Complex sentence with complete extraction
         html_complex = """
@@ -1616,12 +1605,11 @@ class TestCommissionResponseContent:
         result = extractor.extract_commissions_deadlines(soup)
 
         assert result is not None
-        result_dict = json.loads(result)
-        assert "2018-05-31" in result_dict
+        assert "2018-05-31" in result
         # Should extract complete sentence
-        assert "On the second aim" in result_dict["2018-05-31"]
-        assert "EFSA" in result_dict["2018-05-31"]
-        assert "for risk assessment." in result_dict["2018-05-31"]
+        assert "On the second aim" in result["2018-05-31"]
+        assert "EFSA" in result["2018-05-31"]
+        assert "for risk assessment." in result["2018-05-31"]
 
     def test_legislative_action(self):
         """Test extraction of legislative action JSON array."""

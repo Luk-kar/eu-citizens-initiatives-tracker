@@ -171,8 +171,8 @@ class ECIResponseHTMLParser:
                 commission_promised_new_law=self.legislative_outcome.extract_proposal_commitment_stated(
                     soup
                 ),
-                commission_deadlines=self.legislative_outcome.extract_commissions_deadlines(
-                    soup
+                commission_deadlines=json.dumps(
+                    self.legislative_outcome.extract_commissions_deadlines(soup)
                 ),
                 commission_rejected_initiative=self.legislative_outcome.extract_proposal_rejected(
                     soup

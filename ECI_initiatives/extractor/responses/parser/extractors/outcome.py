@@ -391,7 +391,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         values are phrases connected to those dates.
         Returns None if no deadlines are mentioned.
 
-        Format: JSON string like:
+        Format: dict like:
         {
             "2018-05-31": "committed to come forward with a legislative proposal",
             "2026-03-31": "will communicate on the most appropriate action",
@@ -399,7 +399,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         }
 
         Returns:
-            JSON string with date->phrase mapping or None if no deadlines found
+            dict with date->phrase mapping or None if no deadlines found
 
         Raises:
             ValueError: If Answer section not found
@@ -465,7 +465,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             if not deadlines_dict:
                 return None
 
-            return json.dumps(deadlines_dict, ensure_ascii=False, indent=2)
+            return deadlines_dict
 
         except Exception as e:
             raise ValueError(
