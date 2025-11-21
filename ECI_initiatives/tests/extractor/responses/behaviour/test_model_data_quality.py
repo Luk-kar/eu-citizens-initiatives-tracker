@@ -907,13 +907,15 @@ class TestJSONFieldsValidity:
                     registration_number=record.registration_number,
                 )
 
-                # Validate it's a dictionary
-                self._validate_json_type(
-                    parsed_json=parsed,
-                    expected_type=dict,
-                    field_name="commission_deadlines",
-                    registration_number=record.registration_number,
-                )
+                # Skip type validation if no deadlines found (JSON "null" → Python None)
+                if parsed is not None:
+
+                    self._validate_json_type(
+                        parsed_json=parsed,
+                        expected_type=dict,
+                        field_name="commission_deadlines",
+                        registration_number=record.registration_number,
+                    )
 
     def test_laws_actions_are_valid_json_list(
         self, complete_dataset: List[ECICommissionResponseRecord]

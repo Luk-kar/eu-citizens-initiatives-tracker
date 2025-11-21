@@ -384,7 +384,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 f"Error extracting applicable date for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_commissions_deadlines(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_commissions_deadlines(self, soup: BeautifulSoup) -> Optional[dict]:
         """
         Extract all Commission deadlines mentioned in the response as JSON.
         Returns a dictionary where keys are dates (YYYY-MM-DD) and
