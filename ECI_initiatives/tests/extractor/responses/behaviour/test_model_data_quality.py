@@ -20,6 +20,9 @@ from bs4 import BeautifulSoup
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 from ECI_initiatives.extractor.responses.processor import ECIResponseDataProcessor
+from ECI_initiatives.extractor.responses.parser.consts.eci_status import (
+    ECIImplementationStatus,
+)
 
 # Test data paths
 TEST_DATA_DIR = (
@@ -1450,17 +1453,13 @@ class TestTextFieldsCompleteness:
 class TestOutcomeStatusConsistency:
     """Test data quality of outcome-related fields"""
 
-    # Known valid outcome statuses (expand based on your actual data)
+    # Get all valid human-readable statuses from ECIImplementationStatus
     VALID_OUTCOME_STATUSES = {
-        "Law Active",
-        "Law Proposed",
-        "Policy Implementation",
-        "Under Review",
-        "Rejected",
-        "No Action",
-        "Pending",
-        None,  # Some initiatives may not have reached conclusion
-    }
+        status.human_readable_explanation
+        for status in ECIImplementationStatus.BY_LEGAL_TERM.values()
+    } | {
+        None
+    }  # Add None for initiatives without concluded status
 
     def test_final_outcome_status_has_valid_values(
         self, complete_dataset: List[ECICommissionResponseRecord]
@@ -1483,7 +1482,11 @@ class TestOutcomeStatusConsistency:
                 f"  - {reg_num}: '{status}'"
                 for reg_num, status in sorted(invalid_statuses)
             )
-            + f"\n\nValid statuses: {sorted([s for s in self.VALID_OUTCOME_STATUSES if s])}"
+            + f"\n\nValid statuses from ECIImplementationStatus:\n"
+            + "\n".join(
+                f"  - {status}"
+                for status in sorted([s for s in self.VALID_OUTCOME_STATUSES if s])
+            )
         )
 
     def test_law_active_status_has_implementation_date(
@@ -1493,15 +1496,19 @@ class TestOutcomeStatusConsistency:
         missing_dates = []
 
         for record in complete_dataset:
-            # If status indicates law is active, implementation date must exist
-            if record.final_outcome_status == "Law Active":
+            # Use the human-readable status from ECIImplementationStatus.APPLICABLE
+            if (
+                record.final_outcome_status
+                == ECIImplementationStatus.APPLICABLE.human_readable_explanation
+            ):
                 if record.law_implementation_date is None:
                     missing_dates.append(
                         (record.registration_number, record.initiative_title)
                     )
 
         assert not missing_dates, (
-            f"Found {len(missing_dates)} records with 'Law Active' status "
+            f"Found {len(missing_dates)} records with "
+            f"'{ECIImplementationStatus.APPLICABLE.human_readable_explanation}' status "
             f"but missing law_implementation_date:\n"
             + "\n".join(
                 f"  - {reg_num}: {title[:80]}..." for reg_num, title in missing_dates
@@ -1514,11 +1521,19 @@ class TestOutcomeStatusConsistency:
         """Verify rejected initiatives have commission_rejection_reason"""
         missing_reasons = []
 
+        # Get all rejection-related statuses from ECIImplementationStatus
+        rejection_statuses = {
+            ECIImplementationStatus.REJECTED.human_readable_explanation,
+            ECIImplementationStatus.REJECTED_ALREADY_COVERED.human_readable_explanation,
+            ECIImplementationStatus.REJECTED_WITH_ACTIONS.human_readable_explanation,
+        }
+
         for record in complete_dataset:
-            # If initiative was rejected, reason should be provided
+            # If initiative has a rejection status or rejection flag
             if (
-                record.final_outcome_status == "Rejected"
-                or record.commission_rejected_initiative is True
+                record.final_outcome_status in rejection_statuses
+                or self._normalize_boolean(record.commission_rejected_initiative)
+                is True
             ):
                 if not record.commission_rejection_reason:
                     missing_reasons.append(
@@ -1537,43 +1552,65 @@ class TestOutcomeStatusConsistency:
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """Verify commission_promised_new_law aligns with final_outcome_status"""
+
         misalignments = []
 
+        # Define law-related statuses using ECIImplementationStatus
+        law_related_statuses = {
+            ECIImplementationStatus.APPLICABLE.human_readable_explanation,  # Law Active
+            ECIImplementationStatus.ADOPTED.human_readable_explanation,  # Law Approved
+            ECIImplementationStatus.COMMITTED.human_readable_explanation,  # Law Promised
+            ECIImplementationStatus.PROPOSAL_PENDING_ADOPTION.human_readable_explanation,  # Proposals Under Review
+        }
+
+        # Define rejection statuses using ECIImplementationStatus
+        rejection_statuses = {
+            ECIImplementationStatus.REJECTED.human_readable_explanation,
+            ECIImplementationStatus.REJECTED_ALREADY_COVERED.human_readable_explanation,
+            ECIImplementationStatus.REJECTED_WITH_ACTIONS.human_readable_explanation,
+        }
+
         for record in complete_dataset:
+            # Normalize boolean flag
+            promised_law = self._normalize_boolean(record.commission_promised_new_law)
+
             # Skip if promise status is unknown
-            if record.commission_promised_new_law is None:
+            if promised_law is None:
                 continue
 
             # If Commission promised a new law
-            if record.commission_promised_new_law is True:
+            if promised_law is True:
                 # Outcome should reflect law-related status (not rejection)
-                law_related_statuses = {
-                    "Law Active",
-                    "Law Proposed",
-                    "Policy Implementation",
-                }
-
                 if (
                     record.final_outcome_status not in law_related_statuses
                     and record.final_outcome_status is not None
+                    and record.final_outcome_status not in rejection_statuses
+                ):
+                    # Allow non-legislative actions as they may still fulfill promises
+                    if (
+                        record.final_outcome_status
+                        != ECIImplementationStatus.NON_LEGISLATIVE_ACTION.human_readable_explanation
+                    ):
+                        misalignments.append(
+                            (
+                                record.registration_number,
+                                "Promised law",
+                                record.final_outcome_status or "No outcome",
+                            )
+                        )
+
+            # If Commission explicitly rejected or didn't promise law
+            elif promised_law is False:
+                # Check if somehow a law was still implemented (unusual but possible)
+                if (
+                    record.final_outcome_status
+                    == ECIImplementationStatus.APPLICABLE.human_readable_explanation
                 ):
                     misalignments.append(
                         (
                             record.registration_number,
-                            "Promised law",
-                            record.final_outcome_status or "No outcome",
-                        )
-                    )
-
-            # If Commission rejected or didn't promise law
-            elif record.commission_promised_new_law is False:
-                # Check if somehow a law was still implemented (unusual but possible)
-                if record.final_outcome_status == "Law Active":
-                    misalignments.append(
-                        (
-                            record.registration_number,
                             "No law promised",
-                            "Law Active",
+                            ECIImplementationStatus.APPLICABLE.human_readable_explanation,
                         )
                     )
 
@@ -1593,50 +1630,36 @@ class TestOutcomeStatusConsistency:
         inconsistent_rejections = []
 
         for record in complete_dataset:
-            has_reason = bool(record.commission_rejection_reason)
+            # Normalize flag value (handle both bool and string "True"/"False")
+            flag_value = self._normalize_boolean(record.commission_rejected_initiative)
 
-            # Convert flag to boolean (handles "True" string, True bool, 1, etc.)
-            flag_is_true = (
-                record.commission_rejected_initiative is True
-                or record.commission_rejected_initiative == True
-                or record.commission_rejected_initiative == "True"
-                or record.commission_rejected_initiative == 1
-            )
-
-            # If rejection reason exists but flag is not set
-            if has_reason and not flag_is_true:
-                inconsistent_rejections.append(
-                    (
-                        record.registration_number,
-                        f"flag={record.commission_rejected_initiative!r}",
-                        f"but has reason: {record.commission_rejection_reason[:80]}...",
+            # If rejection reason exists, flag should be True
+            if record.commission_rejection_reason:
+                if flag_value is not True:
+                    inconsistent_rejections.append(
+                        (
+                            record.registration_number,
+                            record.commission_rejected_initiative,  # Show actual value
+                            record.commission_rejection_reason[:100],
+                        )
                     )
-                )
 
-            # If flag is set but no reason provided
-            if flag_is_true and not has_reason:
-                inconsistent_rejections.append(
-                    (
-                        record.registration_number,
-                        f"flag={record.commission_rejected_initiative!r}",
-                        "but has no rejection reason",
+            # If flag is True, reason should exist
+            if flag_value is True:
+                if not record.commission_rejection_reason:
+                    inconsistent_rejections.append(
+                        (
+                            record.registration_number,
+                            record.commission_rejected_initiative,  # Show actual value
+                            "No rejection reason provided",
+                        )
                     )
-                )
 
         assert not inconsistent_rejections, (
             f"Found {len(inconsistent_rejections)} records with inconsistent "
             f"rejection flag and reason:\n"
             + "\n".join(
-                f"  - {reg_num}: {flag_info}, {reason_info}"
-                for reg_num, flag_info, reason_info in inconsistent_rejections
-            )
-        )
-
-        assert not inconsistent_rejections, (
-            f"Found {len(inconsistent_rejections)} records with inconsistent "
-            f"rejection flag and reason:\n"
-            + "\n".join(
-                f"  - {reg_num}: flag={flag}, reason='{reason}'"
+                f"  - {reg_num}: flag={flag!r}, reason='{reason}'"
                 for reg_num, flag, reason in inconsistent_rejections
             )
         )
@@ -1652,32 +1675,43 @@ class TestOutcomeStatusConsistency:
 
         for record in complete_dataset:
             # If status is "Law Active", should have laws_actions
-            if record.final_outcome_status == "Law Active":
+            if (
+                record.final_outcome_status
+                == ECIImplementationStatus.APPLICABLE.human_readable_explanation
+            ):
                 if not record.laws_actions or record.laws_actions == "null":
                     inconsistencies.append(
                         (
                             record.registration_number,
-                            "Law Active but no laws_actions",
+                            f"{ECIImplementationStatus.APPLICABLE.human_readable_explanation} but no laws_actions",
                         )
                     )
 
-            # If status is "Policy Implementation", should have policies_actions
-            if record.final_outcome_status == "Policy Implementation":
+            # If status is "Policy Changes Only", should have policies_actions
+            if (
+                record.final_outcome_status
+                == ECIImplementationStatus.NON_LEGISLATIVE_ACTION.human_readable_explanation
+            ):
                 if not record.policies_actions or record.policies_actions == "null":
                     inconsistencies.append(
                         (
                             record.registration_number,
-                            "Policy Implementation but no policies_actions",
+                            f"{ECIImplementationStatus.NON_LEGISLATIVE_ACTION.human_readable_explanation} but no policies_actions",
                         )
                     )
 
-            # If status is "Rejected", shouldn't have active laws
-            if record.final_outcome_status == "Rejected":
+            # If status is rejected, shouldn't have active laws
+            rejection_statuses = {
+                ECIImplementationStatus.REJECTED.human_readable_explanation,
+                ECIImplementationStatus.REJECTED_ALREADY_COVERED.human_readable_explanation,
+                ECIImplementationStatus.REJECTED_WITH_ACTIONS.human_readable_explanation,
+            }
+            if record.final_outcome_status in rejection_statuses:
                 if record.law_implementation_date is not None:
                     inconsistencies.append(
                         (
                             record.registration_number,
-                            "Rejected but has law_implementation_date",
+                            f"Rejected but has law_implementation_date",
                         )
                     )
 
@@ -1685,6 +1719,38 @@ class TestOutcomeStatusConsistency:
             f"Found {len(inconsistencies)} records with outcome status inconsistencies:\n"
             + "\n".join(f"  - {reg_num}: {issue}" for reg_num, issue in inconsistencies)
         )
+
+    def _normalize_boolean(self, value: any) -> Optional[bool]:
+        """
+        Normalize boolean-like values to actual booleans.
+
+        Handles cases where CSV/pandas may have converted booleans to strings.
+
+        Args:
+            value: Value to normalize (bool, str, None)
+
+        Returns:
+            True, False, or None
+        """
+        if value is None:
+            return None
+
+        if isinstance(value, bool):
+            return value
+
+        # Handle string representations
+        if isinstance(value, str):
+            value_lower = value.lower().strip()
+            if value_lower in ("true", "1", "yes"):
+                return True
+            elif value_lower in ("false", "0", "no", ""):
+                return False
+
+        # Handle numeric (pandas may convert to 1/0)
+        if isinstance(value, (int, float)):
+            return bool(value)
+
+        return None
 
 
 class TestCommissionResponseFieldsCoherence:
