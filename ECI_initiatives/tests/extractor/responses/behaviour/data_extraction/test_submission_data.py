@@ -1167,9 +1167,10 @@ class TestProceduralTimelineExtraction:
                 soup_1
             )
         )
-        expected_1 = json.dumps(
-            {"press release": "http://europa.eu/rapid/press-release_IP-14-277_en.htm"}
-        )
+        expected_1 = {
+            "press release": "http://europa.eu/rapid/press-release_IP-14-277_en.htm"
+        }
+
         assert result_1 == expected_1
 
         # Test case 2: Multiple links (press release and Q&A)
@@ -1190,12 +1191,11 @@ class TestProceduralTimelineExtraction:
                 soup_2
             )
         )
-        expected_2 = json.dumps(
-            {
-                "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_3297",
-                "Questions & Answers.": "https://ec.europa.eu/commission/presscorner/detail/en/qanda_21_3298",
-            }
-        )
+        expected_2 = {
+            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_3297",
+            "Questions & Answers.": "https://ec.europa.eu/commission/presscorner/detail/en/qanda_21_3298",
+        }
+
         assert result_2 == expected_2
 
         # Test case 3: Commission's news link
@@ -1215,11 +1215,10 @@ class TestProceduralTimelineExtraction:
                 soup_3
             )
         )
-        expected_3 = json.dumps(
-            {
-                "Commission's news": "https://ec.europa.eu/commission/presscorner/detail/en/mex_25_2018"
-            }
-        )
+        expected_3 = {
+            "Commission's news": "https://ec.europa.eu/commission/presscorner/detail/en/mex_25_2018"
+        }
+
         assert result_3 == expected_3
 
         # Test case 4: Filter out initiative name link (old URL format) - keep press release
@@ -1242,9 +1241,10 @@ class TestProceduralTimelineExtraction:
                 soup_4
             )
         )
-        expected_4 = json.dumps(
-            {"press release": "http://europa.eu/rapid/press-release_IP-17-5191_en.htm"}
-        )
+        expected_4 = {
+            "press release": "http://europa.eu/rapid/press-release_IP-17-5191_en.htm"
+        }
+
         assert result_4 == expected_4
 
         # Test case 5: Filter out initiative name link (new URL format) - keep press release
@@ -1266,11 +1266,10 @@ class TestProceduralTimelineExtraction:
                 soup_5
             )
         )
-        expected_5 = json.dumps(
-            {
-                "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_81"
-            }
-        )
+        expected_5 = {
+            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_81"
+        }
+
         assert result_5 == expected_5
 
         # Test case 6: Press release and questions and answers (lowercase)
@@ -1291,12 +1290,11 @@ class TestProceduralTimelineExtraction:
                 soup_6
             )
         )
-        expected_6 = json.dumps(
-            {
-                "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_23_6251",
-                "questions and answers": "https://ec.europa.eu/commission/presscorner/detail/en/QANDA_23_6254",
-            }
-        )
+        expected_6 = {
+            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_23_6251",
+            "questions and answers": "https://ec.europa.eu/commission/presscorner/detail/en/QANDA_23_6254",
+        }
+
         assert result_6 == expected_6
 
         # Test case 7: No links in commission paragraph
@@ -1374,12 +1372,11 @@ class TestProceduralTimelineExtraction:
                 soup_10
             )
         )
-        expected_10 = json.dumps(
-            {
-                "Communication": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN",
-                "Annex": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN:ANNEX",
-            }
-        )
+        expected_10 = {
+            "Communication": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN",
+            "Annex": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN:ANNEX",
+        }
+
         assert result_10 == expected_10
 
         # Test case 11: Follow-up section (Strategy 3)
@@ -1400,11 +1397,10 @@ class TestProceduralTimelineExtraction:
                 soup_11
             )
         )
-        expected_11 = json.dumps(
-            {
-                "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_24_5432"
-            }
-        )
+        expected_11 = {
+            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_24_5432"
+        }
+
         assert result_11 == expected_11
 
         # Test case 12: Duplicate URLs (should keep only first occurrence)
@@ -1425,9 +1421,8 @@ class TestProceduralTimelineExtraction:
                 soup_12
             )
         )
-        expected_12 = json.dumps(
-            {
-                "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_24_1234"
-            }
-        )
+        expected_12 = {
+            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_24_1234"
+        }
+
         assert result_12 == expected_12

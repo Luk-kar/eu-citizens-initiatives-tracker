@@ -150,8 +150,10 @@ class ECIResponseHTMLParser:
                     self.parliament_activity.extract_plenary_debate_video_urls(soup)
                 ),
                 official_communication_adoption_date=official_communication_adoption_date,
-                official_communication_document_urls=self.commission_response.extract_official_communication_document_urls(
-                    soup
+                official_communication_document_urls=json.dumps(
+                    self.commission_response.extract_official_communication_document_urls(
+                        soup
+                    )
                 ),
                 # Commission Response Content
                 commission_answer_text=self.commission_response.extract_commission_answer_text(

@@ -168,7 +168,7 @@ class CommissionResponseExtractor(BaseExtractor):
             if not filtered_links_dict:
                 return None
 
-            return json.dumps(filtered_links_dict)
+            return filtered_links_dict
 
         except Exception as e:
             raise ValueError(
