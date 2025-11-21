@@ -117,7 +117,7 @@ class LegislativeReferences(BaseExtractor):
             if not results:
                 return None
 
-            return json.dumps(results, ensure_ascii=False)
+            return results
 
         except Exception as e:
             raise ValueError(

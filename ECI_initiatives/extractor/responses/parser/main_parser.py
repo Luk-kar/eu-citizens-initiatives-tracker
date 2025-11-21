@@ -212,8 +212,8 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 # Legislation References
-                referenced_legislation_by_id=self.structural_analysis.extract_referenced_legislation_by_id(
-                    soup
+                referenced_legislation_by_id=json.dumps(
+                    self.structural_analysis.extract_referenced_legislation_by_id(soup)
                 ),
                 referenced_legislation_by_name=self.structural_analysis.extract_referenced_legislation_by_name(
                     soup
