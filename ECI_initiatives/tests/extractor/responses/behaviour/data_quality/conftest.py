@@ -37,27 +37,37 @@ TEST_DATA_DIR = (
     / "responses"
 )
 
-# Validate test data directory exists
-if not TEST_DATA_DIR.exists():
-    raise FileNotFoundError(
-        f"Test data directory not found: {TEST_DATA_DIR}\n"
-        f"Expected location relative to test file:\n"
-        f"  Test file: {Path(__file__)}\n"
-        f"  Looking for: tests/data/example_htmls/responses/\n"
-        f"Please ensure test HTML files are in the correct location."
-    )
 
-if not TEST_DATA_DIR.is_dir():
-    raise NotADirectoryError(f"Test data path is not a directory: {TEST_DATA_DIR}")
+def validate_test_data_directory_exists():
+    """Validate that TEST_DATA_DIR exists and is a valid directory."""
 
-# Check if any HTML files exist
-html_files = list(TEST_DATA_DIR.rglob("*.html"))
-if not html_files:
-    raise FileNotFoundError(
-        f"No HTML test files found in: {TEST_DATA_DIR}\n"
-        f"Expected files matching pattern: **/*.html\n"
-        f"Directory contents: {list(TEST_DATA_DIR.iterdir())}"
-    )
+    if not TEST_DATA_DIR.exists():
+        raise FileNotFoundError(
+            f"Test data directory not found: {TEST_DATA_DIR}\n"
+            f"Expected location relative to test file:\n"
+            f"  Test file: {Path(__file__)}\n"
+            f"  Looking for: tests/data/example_htmls/responses/\n"
+            f"Please ensure test HTML files are in the correct location."
+        )
+
+    if not TEST_DATA_DIR.is_dir():
+        raise NotADirectoryError(f"Test data path is not a directory: {TEST_DATA_DIR}")
+
+
+def check_if_any_HTML_files_exist():
+    """Verify that at least one HTML test file exists in TEST_DATA_DIR."""
+
+    html_files = list(TEST_DATA_DIR.rglob("*.html"))
+    if not html_files:
+        raise FileNotFoundError(
+            f"No HTML test files found in: {TEST_DATA_DIR}\n"
+            f"Expected files matching pattern: **/*.html\n"
+            f"Directory contents: {list(TEST_DATA_DIR.iterdir())}"
+        )
+
+
+validate_test_data_directory_exists()
+check_if_any_HTML_files_exist()
 
 
 @pytest.fixture(scope="session")
@@ -99,16 +109,15 @@ def processed_test_data(tmp_path_factory):
 
 def _create_metadata_csv(responses_dir: Path):
     """Generate responses_list.csv from HTML filenames"""
-    import re
 
     metadata_file = responses_dir / "responses_list.csv"
-    html_files = list(responses_dir.glob("*.html"))
+    html_files_tests = list(responses_dir.glob("*.html"))
 
     with open(metadata_file, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["registration_number", "title", "url"])
         writer.writeheader()
 
-        for html_file in html_files:
+        for html_file in html_files_tests:
             match = re.match(r"(\d{4})_(\d{6}).*\.html", html_file.name)
             if match:
                 year, number = match.groups()
