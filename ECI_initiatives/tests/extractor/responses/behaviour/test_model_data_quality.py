@@ -3723,14 +3723,366 @@ class TestDataCompletenessMetrics:
 class TestBooleanFieldsConsistency:
     """Test consistency of boolean flag fields"""
 
+    # Define all boolean fields in the data model
+    BOOLEAN_FIELDS = {
+        "commission_promised_new_law",
+        "commission_rejected_initiative",
+        "has_followup_section",
+        "has_roadmap",
+        "has_workshop",
+        "has_partnership_programs",
+    }
+
+    def _normalize_boolean(self, value: Any) -> Optional[bool]:
+        """
+        Normalize boolean-like values to actual booleans.
+
+        Handles CSV imports where booleans are stored as strings.
+
+        Args:
+            value: Value to normalize (bool, str, None)
+
+        Returns:
+            True, False, or None
+        """
+        if value is None:
+            return None
+
+        if isinstance(value, bool):
+            return value
+
+        # Handle string representations (from CSV)
+        if isinstance(value, str):
+            value_lower = value.lower().strip()
+            if value_lower in ("true", "1", "yes"):
+                return True
+            elif value_lower in ("false", "0", "no", ""):
+                return False
+
+        # Handle numeric (pandas may convert to 1/0)
+        if isinstance(value, (int, float)):
+            return bool(value)
+
+        return None
+
+    def _get_field_value_type(self, value: Any) -> str:
+        """
+        Get a descriptive type name for error reporting.
+
+        Args:
+            value: Value to describe
+
+        Returns:
+            Human-readable type description
+        """
+        if value is None:
+            return "None"
+        elif value is True:
+            return "True (bool)"
+        elif value is False:
+            return "False (bool)"
+        elif isinstance(value, str):
+            return f"'{value}' (string)"
+        elif isinstance(value, int):
+            return f"{value} (int)"
+        elif isinstance(value, float):
+            return f"{value} (float)"
+        else:
+            return f"{type(value).__name__}"
+
     def test_boolean_fields_are_true_or_false(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
-        """Verify boolean fields contain only True, False, or None values"""
-        pass
+        """
+        Verify boolean fields contain only True, False, or None values after normalization.
+
+        Boolean flags from CSV may be stored as strings ("True", "False") which is
+        acceptable as long as they can be normalized to proper Python booleans.
+        This test validates that all boolean field values are normalizable.
+        """
+        invalid_boolean_values = []
+
+        for record in complete_dataset:
+            for field_name in self.BOOLEAN_FIELDS:
+                raw_value = getattr(record, field_name, None)
+                normalized_value = self._normalize_boolean(raw_value)
+
+                # After normalization, value should be True, False, or None
+                # If normalization returns None but raw value wasn't None, it's invalid
+                if raw_value is not None and normalized_value is None:
+                    invalid_boolean_values.append(
+                        (
+                            record.registration_number,
+                            field_name,
+                            raw_value,
+                            self._get_field_value_type(raw_value),
+                        )
+                    )
+
+        assert not invalid_boolean_values, (
+            f"Found {len(invalid_boolean_values)} boolean fields with invalid/non-normalizable values:\n"
+            + "\n".join(
+                f"  - {reg_num}.{field}: {value_type}"
+                for reg_num, field, value, value_type in invalid_boolean_values
+            )
+            + "\n\nBoolean fields must be normalizable to True, False, or None."
+            + "\n\nAcceptable formats: True/False (bool), 'True'/'False' (string), '1'/'0', 'yes'/'no'"
+        )
 
     def test_mutually_exclusive_boolean_flags(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
-        """Verify mutually exclusive flags (e.g., promised_new_law vs rejected_initiative)"""
-        pass
+        """
+        Verify mutually exclusive flags don't contradict each other.
+
+        Certain boolean combinations are logically inconsistent:
+        - commission_promised_new_law=True AND commission_rejected_initiative=True
+          (Can't promise a law while rejecting the initiative)
+
+        These contradictions indicate data extraction errors or inconsistent
+        Commission responses that should be manually reviewed.
+        """
+        contradictions = []
+
+        for record in complete_dataset:
+            # Normalize boolean values (handle True, "True", etc.)
+            promised_law = self._normalize_boolean(record.commission_promised_new_law)
+            rejected = self._normalize_boolean(record.commission_rejected_initiative)
+
+            # Only check if both flags are explicitly set
+            if promised_law is True and rejected is True:
+                # This is contradictory: can't promise law and reject initiative
+                contradictions.append(
+                    (
+                        record.registration_number,
+                        "commission_promised_new_law=True AND commission_rejected_initiative=True",
+                        "Cannot promise new law while rejecting the initiative",
+                    )
+                )
+
+        assert not contradictions, (
+            f"Found {len(contradictions)} records with contradictory boolean flags:\n"
+            + "\n".join(
+                f"  - {reg_num}: {flags}\n" f"    Issue: {explanation}"
+                for reg_num, flags, explanation in contradictions
+            )
+            + "\n\nThese flag combinations are logically inconsistent and should be reviewed."
+        )
+
+    def test_rejection_flag_implies_rejection_reason(
+        self, complete_dataset: List[ECICommissionResponseRecord]
+    ):
+        """
+        Verify commission_rejected_initiative=True correlates with rejection_reason.
+
+        If commission_rejected_initiative is True, there should be a
+        commission_rejection_reason explaining why the initiative was rejected.
+        Missing rejection reasons indicate incomplete data extraction.
+        """
+        missing_reasons = []
+
+        for record in complete_dataset:
+            # Normalize boolean value
+            rejected = self._normalize_boolean(record.commission_rejected_initiative)
+
+            # If rejected flag is True, reason should exist
+            if rejected is True:
+                if not record.commission_rejection_reason or (
+                    isinstance(record.commission_rejection_reason, str)
+                    and not record.commission_rejection_reason.strip()
+                ):
+                    missing_reasons.append(
+                        (
+                            record.registration_number,
+                            record.initiative_title,
+                        )
+                    )
+
+        assert not missing_reasons, (
+            f"Found {len(missing_reasons)} records with commission_rejected_initiative=True "
+            f"but missing commission_rejection_reason:\n"
+            + "\n".join(
+                f"  - {reg_num}: {title[:60]}..." for reg_num, title in missing_reasons
+            )
+            + "\n\nRejected initiatives must have a rejection reason for transparency."
+        )
+
+    def test_promised_law_flag_distribution(
+        self, complete_dataset: List[ECICommissionResponseRecord]
+    ):
+        """
+        Verify commission_promised_new_law has reasonable value distribution.
+
+        This test checks that the promised_new_law flag isn't stuck on a single
+        value (all True, all False, or all None), which would suggest a
+        scraping bug. We expect a mix of True, False, and possibly some None.
+        """
+        value_counts = {
+            True: 0,
+            False: 0,
+            None: 0,
+        }
+
+        for record in complete_dataset:
+            # Normalize the value
+            normalized_value = self._normalize_boolean(
+                record.commission_promised_new_law
+            )
+            if normalized_value in value_counts:
+                value_counts[normalized_value] += 1
+
+        total = len(complete_dataset)
+
+        # Generate distribution report
+        print("\n" + "=" * 70)
+        print("COMMISSION_PROMISED_NEW_LAW DISTRIBUTION")
+        print("=" * 70)
+        print(f"\nTotal initiatives: {total}")
+        print(f"\nValue distribution:")
+        print(
+            f"  - True (promised new law):  {value_counts[True]:3d} ({value_counts[True]/total:.1%})"
+        )
+        print(
+            f"  - False (no new law):       {value_counts[False]:3d} ({value_counts[False]/total:.1%})"
+        )
+        print(
+            f"  - None (not determined):    {value_counts[None]:3d} ({value_counts[None]/total:.1%})"
+        )
+        print("=" * 70 + "\n")
+
+        # Fail if all values are the same (suggests scraper bug)
+        unique_values = sum(1 for count in value_counts.values() if count > 0)
+
+        assert unique_values >= 2, (
+            f"commission_promised_new_law has only {unique_values} unique value(s):\n"
+            f"  - True: {value_counts[True]}\n"
+            f"  - False: {value_counts[False]}\n"
+            f"  - None: {value_counts[None]}\n\n"
+            f"This suggests a scraping bug where the field isn't being properly extracted.\n"
+            f"Expected a mix of True, False, and possibly some None values."
+        )
+
+    def test_followup_section_flag_consistency(
+        self, complete_dataset: List[ECICommissionResponseRecord]
+    ):
+        """
+        Verify has_followup_section flag is consistent with presence of followup data.
+
+        If has_followup_section=True, at least one of these should exist:
+        - followup_events_with_dates
+        - followup_latest_date
+        - followup_most_future_date
+        - followup_dedicated_website
+
+        Conversely, if any followup data exists, flag should be True.
+        """
+        inconsistencies = []
+
+        for record in complete_dataset:
+            # Normalize the boolean flag
+            has_flag = self._normalize_boolean(record.has_followup_section)
+
+            # Check if any followup data exists
+            has_followup_data = (
+                (
+                    record.followup_events_with_dates
+                    and record.followup_events_with_dates
+                    not in ("", "null", "[]", "{}")
+                )
+                or record.followup_latest_date is not None
+                or record.followup_most_future_date is not None
+                or (
+                    record.followup_dedicated_website
+                    and record.followup_dedicated_website not in ("", "null")
+                )
+            )
+
+            # Flag=True but no data
+            if has_flag is True and not has_followup_data:
+                inconsistencies.append(
+                    (
+                        record.registration_number,
+                        "has_followup_section=True but no followup data found",
+                    )
+                )
+
+            # Data exists but flag is False or None
+            if has_followup_data and has_flag is not True:
+                inconsistencies.append(
+                    (
+                        record.registration_number,
+                        f"has_followup_section={has_flag} but followup data exists",
+                    )
+                )
+
+        assert not inconsistencies, (
+            f"Found {len(inconsistencies)} records with has_followup_section inconsistencies:\n"
+            + "\n".join(f"  - {reg_num}: {issue}" for reg_num, issue in inconsistencies)
+            + "\n\nThe has_followup_section flag should accurately reflect presence of followup data."
+        )
+
+    def test_boolean_flags_not_all_none(
+        self, complete_dataset: List[ECICommissionResponseRecord]
+    ):
+        """
+        Verify at least some boolean flags are set (not all None).
+
+        If all boolean flags for a record are None, it suggests the scraper
+        didn't extract boolean field data for that initiative. At least some
+        flags should be True or False.
+        """
+        records_with_all_none = []
+
+        for record in complete_dataset:
+            # Normalize all flag values
+            flag_values = [
+                self._normalize_boolean(getattr(record, field_name))
+                for field_name in self.BOOLEAN_FIELDS
+            ]
+
+            # Check if all flags are None
+            if all(value is None for value in flag_values):
+                records_with_all_none.append(
+                    (
+                        record.registration_number,
+                        record.initiative_title,
+                    )
+                )
+
+        assert not records_with_all_none, (
+            f"Found {len(records_with_all_none)} records where ALL boolean flags are None:\n"
+            + "\n".join(
+                f"  - {reg_num}: {title[:60]}..."
+                for reg_num, title in records_with_all_none
+            )
+            + "\n\nAt least some boolean flags should be True or False, not all None.\n"
+            + "This suggests the scraper isn't extracting boolean field data for these initiatives."
+        )
+
+    def test_rejected_records_have_rejection_flag(
+        self, records_rejected: List[ECICommissionResponseRecord]
+    ):
+        """
+        Verify records in the 'rejected' category have commission_rejected_initiative=True.
+
+        Uses the records_rejected fixture which identifies initiatives known to be rejected.
+        All of these should have the rejection flag set.
+        """
+        missing_flag = []
+
+        for record in records_rejected:
+            rejected = self._normalize_boolean(record.commission_rejected_initiative)
+
+            if rejected is not True:
+                missing_flag.append(
+                    (
+                        record.registration_number,
+                        f"Expected rejected=True, got {rejected}",
+                    )
+                )
+
+        assert not missing_flag, (
+            f"Found {len(missing_flag)} rejected records without rejection flag:\n"
+            + "\n".join(f"  - {reg_num}: {issue}" for reg_num, issue in missing_flag)
+            + "\n\nRecords in 'rejected' category must have commission_rejected_initiative=True."
+        )
