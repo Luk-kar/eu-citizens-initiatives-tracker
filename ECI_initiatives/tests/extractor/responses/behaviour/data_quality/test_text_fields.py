@@ -5,11 +5,12 @@ These tests validate text content completeness and quality in extracted
 European Citizens' Initiative response data.
 """
 
-from bs4 import BeautifulSoup
-from typing import List, Optional, Any, Set
 import html
-import pytest
 import re
+from typing import List
+
+from bs4 import BeautifulSoup
+import pytest
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 
@@ -107,7 +108,7 @@ class TestTextFieldsCompleteness:
 
         # Check named entities (e.g., &nbsp; &amp; &lt; &gt; &quot;)
         # These are HTML entities with names like &entityname;
-        for name in html.entities.name2codepoint.keys():
+        for name in html.entities.name2codepoint:
 
             entity = f"&{name};"
             if entity in text and len(found) < max_examples:
