@@ -5,8 +5,7 @@ These tests validate json field parsing and structure validation in extracted
 European Citizens' Initiative response data.
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Any, Set
+from typing import List, Optional, Any
 import json
 import pytest
 
@@ -42,6 +41,7 @@ class TestJSONFieldsValidity:
         try:
             parsed = json.loads(json_string)
             return parsed
+
         except json.JSONDecodeError as e:
             pytest.fail(
                 f"Invalid JSON in {field_name} for {registration_number}:\n"

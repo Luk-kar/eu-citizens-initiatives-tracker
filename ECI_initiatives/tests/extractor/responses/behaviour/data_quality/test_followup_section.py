@@ -5,9 +5,9 @@ These tests validate follow-up section data consistency in extracted
 European Citizens' Initiative response data.
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Any, Set
+from typing import List, Optional
 import json
+
 import pytest
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
