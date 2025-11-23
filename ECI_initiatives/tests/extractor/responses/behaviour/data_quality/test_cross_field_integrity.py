@@ -5,12 +5,16 @@ These tests validate cross-field data integrity checks in extracted
 European Citizens' Initiative response data.
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Any, Set
+# Standard library
 import json
-import pytest
+from datetime import datetime, timedelta
+from typing import Any, List, Optional
 from urllib.parse import unquote
 
+# Third-party
+import pytest
+
+# Local
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 
 
