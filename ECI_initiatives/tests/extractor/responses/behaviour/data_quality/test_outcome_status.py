@@ -5,8 +5,8 @@ These tests validate outcome status consistency and alignment in extracted
 European Citizens' Initiative response data.
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Any, Set
+from typing import List, Optional
+
 import pytest
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
@@ -43,12 +43,12 @@ class TestOutcomeStatusConsistency:
                 )
 
         assert not invalid_statuses, (
-            f"Found records with invalid final_outcome_status:\n"
+            "Found records with invalid final_outcome_status:\n"
             + "\n".join(
                 f"  - {reg_num}: '{status}'"
                 for reg_num, status in sorted(invalid_statuses)
             )
-            + f"\n\nValid statuses from ECIImplementationStatus:\n"
+            + "\n\nValid statuses from ECIImplementationStatus:\n"
             + "\n".join(
                 f"  - {status}"
                 for status in sorted([s for s in self.VALID_OUTCOME_STATUSES if s])
@@ -170,11 +170,11 @@ class TestOutcomeStatusConsistency:
 
         # Statuses that indicate the initiative's goals are met by existing/pending legislation
         # (Commission doesn't need to promise NEW law, but laws exist that address the issue)
-        already_covered_statuses = {
-            ECIImplementationStatus.APPLICABLE.human_readable_explanation,  # Law Active (existing law)
-            ECIImplementationStatus.ADOPTED.human_readable_explanation,  # Law Approved (pending law)
-            ECIImplementationStatus.REJECTED_ALREADY_COVERED.human_readable_explanation,  # Explicitly already covered
-        }
+        # already_covered_statuses = {
+        #     ECIImplementationStatus.APPLICABLE.human_readable_explanation,  # Law Active (existing law)
+        #     ECIImplementationStatus.ADOPTED.human_readable_explanation,  # Law Approved (pending law)
+        #     ECIImplementationStatus.REJECTED_ALREADY_COVERED.human_readable_explanation,  # Explicitly already covered
+        # }
 
         for record in complete_dataset:
 
@@ -339,7 +339,7 @@ class TestOutcomeStatusConsistency:
                     inconsistencies.append(
                         (
                             record.registration_number,
-                            f"Rejected but has law_implementation_date",
+                            "Rejected but has law_implementation_date",
                         )
                     )
 

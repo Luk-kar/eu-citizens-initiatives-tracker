@@ -6,10 +6,8 @@ European Citizens' Initiative response data.
 """
 
 from collections import Counter
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Any, Set
-import pytest
 import re
+from typing import List
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 
@@ -68,7 +66,7 @@ class TestRegistrationNumberFormat:
         counts = Counter(registration_numbers)
         duplicates = {reg_num: count for reg_num, count in counts.items() if count > 1}
 
-        assert not duplicates, f"Found duplicate registration numbers:\n" + "\n".join(
+        assert not duplicates, "Found duplicate registration numbers:\n" + "\n".join(
             f"  - {reg_num}: appears {count} times"
             for reg_num, count in duplicates.items()
         )
