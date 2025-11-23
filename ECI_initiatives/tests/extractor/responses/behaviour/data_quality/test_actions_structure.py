@@ -5,13 +5,14 @@ These tests validate actions data structure validation in extracted
 European Citizens' Initiative response data.
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Any, Set
-from urllib.parse import urlparse, ParseResult
+# Standard library
 import json
-import pytest
 import re
+from datetime import datetime
+from typing import List, Optional
+from urllib.parse import urlparse
 
+# Local
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 
 

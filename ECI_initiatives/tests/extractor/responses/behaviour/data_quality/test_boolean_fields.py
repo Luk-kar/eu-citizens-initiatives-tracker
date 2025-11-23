@@ -5,9 +5,7 @@ These tests validate boolean field validation and consistency in extracted
 European Citizens' Initiative response data.
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Any, Set
-import pytest
+from typing import List, Any
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 
@@ -127,7 +125,8 @@ class TestBooleanFieldsConsistency:
                     )
 
         assert not invalid_boolean_values, (
-            f"Found {len(invalid_boolean_values)} boolean fields with invalid/non-normalizable values:\n"
+            f"Found {len(invalid_boolean_values)} boolean fields with "
+            "invalid/non-normalizable values:\n"
             + "\n".join(
                 f"  - {reg_num}.{field}: {value_type}"
                 for reg_num, field, value, value_type in invalid_boolean_values
@@ -207,7 +206,7 @@ class TestBooleanFieldsConsistency:
         print("COMMISSION_PROMISED_NEW_LAW DISTRIBUTION")
         print("=" * 70)
         print(f"\nTotal initiatives: {total}")
-        print(f"\nValue distribution:")
+        print("\nValue distribution:")
         print(
             f"  - True (promised new law):  {value_counts[True]:3d} ({value_counts[True]/total:.1%})"
         )
@@ -276,7 +275,7 @@ class TestBooleanFieldsConsistency:
                 inconsistencies.append(
                     (
                         record.registration_number,
-                        f"has_followup_section=False but followup data exists",
+                        "has_followup_section=False but followup data exists",
                     )
                 )
 
