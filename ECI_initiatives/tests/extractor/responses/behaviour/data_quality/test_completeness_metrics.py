@@ -5,9 +5,7 @@ These tests validate data completeness and distribution metrics in extracted
 European Citizens' Initiative response data.
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Any, Set
-import pytest
+from typing import List, Any
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 
@@ -187,7 +185,7 @@ class TestDataCompletenessMetrics:
             field_completeness[field_name] = completeness
 
             # Flag fields with less than 10% completeness (possibly broken scraping)
-            if completeness < 0.10 and completeness > 0:
+            if 0 < completeness < 0.10:
                 too_sparse_fields[field_name] = completeness
 
             # Flag fields with 100% completeness (possibly should be mandatory)
@@ -213,35 +211,35 @@ class TestDataCompletenessMetrics:
         empty_fields = {k: v for k, v in field_completeness.items() if v == 0}
 
         if high_completeness:
-            print(f"\nHigh completeness (≥70%):")
+            print("\nHigh completeness (≥70%):")
             for field, rate in sorted(
                 high_completeness.items(), key=lambda x: x[1], reverse=True
             ):
                 print(f"  - {field}: {rate:.1%}")
 
         if medium_completeness:
-            print(f"\nMedium completeness (30-70%):")
+            print("\nMedium completeness (30-70%):")
             for field, rate in sorted(
                 medium_completeness.items(), key=lambda x: x[1], reverse=True
             ):
                 print(f"  - {field}: {rate:.1%}")
 
         if low_completeness:
-            print(f"\nLow completeness (10-30%):")
+            print("\nLow completeness (10-30%):")
             for field, rate in sorted(
                 low_completeness.items(), key=lambda x: x[1], reverse=True
             ):
                 print(f"  - {field}: {rate:.1%}")
 
         if very_low_completeness:
-            print(f"\n⚠ Very low completeness (<10%) - possible scraping issues:")
+            print("\n⚠ Very low completeness (<10%) - possible scraping issues:")
             for field, rate in sorted(
                 very_low_completeness.items(), key=lambda x: x[1], reverse=True
             ):
                 print(f"  - {field}: {rate:.1%}")
 
         if empty_fields:
-            print(f"\n❌ Empty fields (0%) - no data extracted:")
+            print("\n❌ Empty fields (0%) - no data extracted:")
             for field in sorted(empty_fields.keys()):
                 print(f"  - {field}")
 
@@ -292,7 +290,7 @@ class TestDataCompletenessMetrics:
         print("PROCEDURAL TIMELINE COMPLETENESS REPORT")
         print("=" * 70)
         print(f"\nTotal initiatives: {len(complete_dataset)}")
-        print(f"\nProcedural milestone completeness:")
+        print("\nProcedural milestone completeness:")
 
         for field_name, expected_rate in sorted(
             self.PROCEDURAL_FIELDS.items(), key=lambda x: x[1], reverse=True

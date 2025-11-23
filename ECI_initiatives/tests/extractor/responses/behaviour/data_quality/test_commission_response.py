@@ -5,9 +5,7 @@ These tests validate commission response field coherence in extracted
 European Citizens' Initiative response data.
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Any, Set
-import pytest
+from typing import List
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 
