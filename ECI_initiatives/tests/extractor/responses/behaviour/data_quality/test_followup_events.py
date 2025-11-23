@@ -5,11 +5,10 @@ These tests validate follow-up events structure validation in extracted
 European Citizens' Initiative response data.
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Any, Set
 import json
-import pytest
 import re
+from datetime import datetime
+from typing import Any, List, Optional
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 
