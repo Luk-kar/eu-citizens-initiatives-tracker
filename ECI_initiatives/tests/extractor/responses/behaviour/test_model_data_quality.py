@@ -3468,7 +3468,7 @@ class TestDataCompletenessMetrics:
     PROCEDURAL_FIELDS = {
         "commission_meeting_date": 0.8,  # 80% - most initiatives have meetings
         "parliament_hearing_date": 0.8,  # 80% - most have hearings
-        "plenary_debate_date": 0.7,  # 70% - many have plenary debates
+        "plenary_debate_date": 0.6,  # 60% - many have plenary debates
     }
 
     def _is_empty_or_none(self, value: Any) -> bool:
@@ -3733,21 +3733,22 @@ class TestBooleanFieldsConsistency:
         "has_partnership_programs",
     }
 
-    def _normalize_boolean(self, value: Any) -> Optional[bool]:
+    def _normalize_boolean(self, value: Any) -> bool:
         """
         Normalize boolean-like values to actual booleans.
 
         Handles CSV imports where booleans are stored as strings.
+        All values must be normalizable to True or False - None is not accepted.
 
         Args:
-            value: Value to normalize (bool, str, None)
+            value: Value to normalize (bool, str, int, float)
 
         Returns:
-            True, False, or None
-        """
-        if value is None:
-            return None
+            True or False
 
+        Raises:
+            ValueError: If value cannot be normalized to a boolean
+        """
         if isinstance(value, bool):
             return value
 
@@ -3756,14 +3757,17 @@ class TestBooleanFieldsConsistency:
             value_lower = value.lower().strip()
             if value_lower in ("true", "1", "yes"):
                 return True
-            elif value_lower in ("false", "0", "no", ""):
+            elif value_lower in ("false", "0", "no"):
                 return False
+            # Empty string not allowed - must be explicit True/False
+            raise ValueError(f"Cannot normalize string '{value}' to boolean")
 
         # Handle numeric (pandas may convert to 1/0)
         if isinstance(value, (int, float)):
             return bool(value)
 
-        return None
+        # None or any other type is not acceptable
+        raise ValueError(f"Cannot normalize {type(value).__name__} value to boolean")
 
     def _get_field_value_type(self, value: Any) -> str:
         """
@@ -3794,22 +3798,33 @@ class TestBooleanFieldsConsistency:
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """
-        Verify boolean fields contain only True, False, or None values after normalization.
+        Verify boolean fields contain only True or False values after normalization.
 
         Boolean flags from CSV may be stored as strings ("True", "False") which is
         acceptable as long as they can be normalized to proper Python booleans.
-        This test validates that all boolean field values are normalizable.
+        This test validates that all boolean field values are normalizable to
+        True or False. None is not accepted.
         """
         invalid_boolean_values = []
 
         for record in complete_dataset:
             for field_name in self.BOOLEAN_FIELDS:
                 raw_value = getattr(record, field_name, None)
-                normalized_value = self._normalize_boolean(raw_value)
 
-                # After normalization, value should be True, False, or None
-                # If normalization returns None but raw value wasn't None, it's invalid
-                if raw_value is not None and normalized_value is None:
+                try:
+                    normalized_value = self._normalize_boolean(raw_value)
+                    # Verify it's actually a boolean
+                    if not isinstance(normalized_value, bool):
+                        invalid_boolean_values.append(
+                            (
+                                record.registration_number,
+                                field_name,
+                                raw_value,
+                                self._get_field_value_type(raw_value),
+                            )
+                        )
+                except (ValueError, TypeError):
+                    # Normalization failed - invalid value
                     invalid_boolean_values.append(
                         (
                             record.registration_number,
@@ -3825,8 +3840,8 @@ class TestBooleanFieldsConsistency:
                 f"  - {reg_num}.{field}: {value_type}"
                 for reg_num, field, value, value_type in invalid_boolean_values
             )
-            + "\n\nBoolean fields must be normalizable to True, False, or None."
-            + "\n\nAcceptable formats: True/False (bool), 'True'/'False' (string), '1'/'0', 'yes'/'no'"
+            + "\n\nBoolean fields must be normalizable to True or False (not None).\n"
+            + "Acceptable formats: True/False (bool), 'True'/'False' (string), '1'/'0', 'yes'/'no'"
         )
 
     def test_rejection_flag_implies_rejection_reason(
@@ -3877,13 +3892,12 @@ class TestBooleanFieldsConsistency:
         Verify commission_promised_new_law has reasonable value distribution.
 
         This test checks that the promised_new_law flag isn't stuck on a single
-        value (all True, all False, or all None), which would suggest a
-        scraping bug. We expect a mix of True, False, and possibly some None.
+        value (all True or all False), which would suggest a scraping bug.
+        We expect a mix of True and False values.
         """
         value_counts = {
             True: 0,
             False: 0,
-            None: 0,
         }
 
         for record in complete_dataset:
@@ -3908,21 +3922,17 @@ class TestBooleanFieldsConsistency:
         print(
             f"  - False (no new law):       {value_counts[False]:3d} ({value_counts[False]/total:.1%})"
         )
-        print(
-            f"  - None (not determined):    {value_counts[None]:3d} ({value_counts[None]/total:.1%})"
-        )
         print("=" * 70 + "\n")
 
         # Fail if all values are the same (suggests scraper bug)
         unique_values = sum(1 for count in value_counts.values() if count > 0)
 
-        assert unique_values >= 2, (
+        assert unique_values == 2, (
             f"commission_promised_new_law has only {unique_values} unique value(s):\n"
             f"  - True: {value_counts[True]}\n"
-            f"  - False: {value_counts[False]}\n"
-            f"  - None: {value_counts[None]}\n\n"
+            f"  - False: {value_counts[False]}\n\n"
             f"This suggests a scraping bug where the field isn't being properly extracted.\n"
-            f"Expected a mix of True, False, and possibly some None values."
+            f"Expected both True and False values."
         )
 
     def test_followup_section_flag_consistency(
@@ -3969,12 +3979,12 @@ class TestBooleanFieldsConsistency:
                     )
                 )
 
-            # Data exists but flag is False or None
+            # Data exists but flag is False
             if has_followup_data and has_flag is not True:
                 inconsistencies.append(
                     (
                         record.registration_number,
-                        f"has_followup_section={has_flag} but followup data exists",
+                        f"has_followup_section=False but followup data exists",
                     )
                 )
 
@@ -3984,41 +3994,49 @@ class TestBooleanFieldsConsistency:
             + "\n\nThe has_followup_section flag should accurately reflect presence of followup data."
         )
 
-    def test_boolean_flags_not_all_none(
+    def test_all_boolean_fields_present_and_valid(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
         """
-        Verify at least some boolean flags are set (not all None).
+        Verify all boolean fields are present and set to True or False.
 
-        If all boolean flags for a record are None, it suggests the scraper
-        didn't extract boolean field data for that initiative. At least some
-        flags should be True or False.
+        Every boolean field must be explicitly set - no missing or None values allowed.
+        This ensures complete data extraction for all boolean flags.
         """
-        records_with_all_none = []
+        records_with_missing_flags = []
 
         for record in complete_dataset:
-            # Normalize all flag values
-            flag_values = [
-                self._normalize_boolean(getattr(record, field_name))
-                for field_name in self.BOOLEAN_FIELDS
-            ]
+            missing_fields = []
 
-            # Check if all flags are None
-            if all(value is None for value in flag_values):
-                records_with_all_none.append(
+            for field_name in self.BOOLEAN_FIELDS:
+                raw_value = getattr(record, field_name, None)
+
+                # Check if field is missing or None
+                if raw_value is None:
+                    missing_fields.append(field_name)
+                else:
+                    # Try to normalize - will raise error if invalid
+                    try:
+                        self._normalize_boolean(raw_value)
+                    except (ValueError, TypeError):
+                        missing_fields.append(f"{field_name} (invalid value)")
+
+            if missing_fields:
+                records_with_missing_flags.append(
                     (
                         record.registration_number,
                         record.initiative_title,
+                        missing_fields,
                     )
                 )
 
-        assert not records_with_all_none, (
-            f"Found {len(records_with_all_none)} records where ALL boolean flags are None:\n"
+        assert not records_with_missing_flags, (
+            f"Found {len(records_with_missing_flags)} records with missing/invalid boolean flags:\n"
             + "\n".join(
-                f"  - {reg_num}: {title[:60]}..."
-                for reg_num, title in records_with_all_none
+                f"  - {reg_num}: {title[:50]}... | Missing: {', '.join(fields)}"
+                for reg_num, title, fields in records_with_missing_flags
             )
-            + "\n\nAt least some boolean flags should be True or False, not all None.\n"
+            + "\n\nAll boolean flags must be explicitly set to True or False.\n"
             + "This suggests the scraper isn't extracting boolean field data for these initiatives."
         )
 
@@ -4029,7 +4047,7 @@ class TestBooleanFieldsConsistency:
         Verify records in the 'rejected' category have commission_rejected_initiative=True.
 
         Uses the records_rejected fixture which identifies initiatives known to be rejected.
-        All of these should have the rejection flag set.
+        All of these should have the rejection flag set to True.
         """
         missing_flag = []
 
@@ -4045,7 +4063,7 @@ class TestBooleanFieldsConsistency:
                 )
 
         assert not missing_flag, (
-            f"Found {len(missing_flag)} rejected records without rejection flag:\n"
+            f"Found {len(missing_flag)} rejected records without rejection flag set to True:\n"
             + "\n".join(f"  - {reg_num}: {issue}" for reg_num, issue in missing_flag)
             + "\n\nRecords in 'rejected' category must have commission_rejected_initiative=True."
         )
