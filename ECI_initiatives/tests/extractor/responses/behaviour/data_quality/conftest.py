@@ -2,30 +2,25 @@
 Shared fixtures for ECI model data quality tests.
 
 This module contains pytest fixtures that are shared across all data quality test files.
-"""
-
-"""
-Test suite for validating data quality in extracted response data.
-Column and row level validation tests for ECICommissionResponseRecord fields
+Column and row level validation tests for ECICommissionResponseRecord fields.
 """
 
 # Python
+import csv
+import html
 import json
-from datetime import datetime
-import pytest
+import re
 import shutil
 from collections import Counter
-import csv
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
-import re
 from typing import Any, List, Optional, Set
 from unittest import mock
-from urllib.parse import urlparse, ParseResult, unquote
-import html
+from urllib.parse import ParseResult, unquote, urlparse
 
 # Third-party
 from bs4 import BeautifulSoup
+import pytest
 
 # Eci app extractor
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
