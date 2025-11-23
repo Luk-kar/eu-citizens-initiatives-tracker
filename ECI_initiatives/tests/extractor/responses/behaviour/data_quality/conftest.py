@@ -7,27 +7,18 @@ Column and row level validation tests for ECICommissionResponseRecord fields.
 
 # Python
 import csv
-import html
-import json
 import re
 import shutil
-from collections import Counter
-from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, List, Optional, Set
+from typing import List
 from unittest import mock
-from urllib.parse import ParseResult, unquote, urlparse
 
 # Third-party
-from bs4 import BeautifulSoup
 import pytest
 
 # Eci app extractor
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 from ECI_initiatives.extractor.responses.processor import ECIResponseDataProcessor
-from ECI_initiatives.extractor.responses.parser.consts.eci_status import (
-    ECIImplementationStatus,
-)
 
 # Test data paths
 TEST_DATA_DIR = (
@@ -132,8 +123,16 @@ def _create_metadata_csv(responses_dir: Path):
 
 
 @pytest.fixture(scope="session")
-def complete_dataset(processed_test_data) -> List[ECICommissionResponseRecord]:
+def complete_dataset(
+    processed_test_data,  # pylint: disable=redefined-outer-name
+) -> List[ECICommissionResponseRecord]:
     """Load complete dataset from processed test HTML files"""
+
+    # Pytest fixture dependency injection: When a fixture requests another
+    # fixture as a parameter, the parameter name must match the fixture name.
+    # Pylint flags this as "redefined-outer-name", but it's the expected
+    # pytest pattern for composing fixtures through dependency injection.
+
     records = []
 
     with open(processed_test_data, "r", encoding="utf-8") as f:
@@ -198,7 +197,9 @@ def complete_dataset(processed_test_data) -> List[ECICommissionResponseRecord]:
 
 
 @pytest.fixture
-def records_with_followup(complete_dataset) -> List[ECICommissionResponseRecord]:
+def records_with_followup(
+    complete_dataset,  # pylint: disable=W0621
+) -> List[ECICommissionResponseRecord]:
     """Filter records that have follow-up sections"""
     return [
         record
@@ -213,7 +214,9 @@ def records_with_followup(complete_dataset) -> List[ECICommissionResponseRecord]
 
 
 @pytest.fixture
-def records_with_laws(complete_dataset) -> List[ECICommissionResponseRecord]:
+def records_with_laws(
+    complete_dataset,  # pylint: disable=W0621
+) -> List[ECICommissionResponseRecord]:
     """Filter records that resulted in laws"""
     return [
         record
@@ -223,7 +226,9 @@ def records_with_laws(complete_dataset) -> List[ECICommissionResponseRecord]:
 
 
 @pytest.fixture
-def records_rejected(complete_dataset) -> List[ECICommissionResponseRecord]:
+def records_rejected(
+    complete_dataset,  # pylint: disable=W0621
+) -> List[ECICommissionResponseRecord]:
     """Filter records that were rejected (from rejection test category)"""
     rejection_reg_nums = {"2012/000005", "2017/000004", "2019/000007"}
     return [
@@ -240,7 +245,9 @@ def records_rejected(complete_dataset) -> List[ECICommissionResponseRecord]:
 
 
 @pytest.fixture
-def partial_success_records(complete_dataset) -> List[ECICommissionResponseRecord]:
+def partial_success_records(
+    complete_dataset,  # pylint: disable=W0621
+) -> List[ECICommissionResponseRecord]:
     """Records from partial_success category"""
     partial_nums = {
         "2012/000007",
@@ -255,7 +262,7 @@ def partial_success_records(complete_dataset) -> List[ECICommissionResponseRecor
 
 @pytest.fixture
 def strong_legislative_success_records(
-    complete_dataset,
+    complete_dataset,  # pylint: disable=W0621
 ) -> List[ECICommissionResponseRecord]:
     """Records from strong_legislative_success category"""
     return [r for r in complete_dataset if r.registration_number == "2012/000003"]
@@ -263,7 +270,7 @@ def strong_legislative_success_records(
 
 @pytest.fixture
 def strong_commitment_delayed_records(
-    complete_dataset,
+    complete_dataset,  # pylint: disable=W0621
 ) -> List[ECICommissionResponseRecord]:
     """Records from strong_commitment_delayed category"""
     return [r for r in complete_dataset if r.registration_number == "2018/000004"]
