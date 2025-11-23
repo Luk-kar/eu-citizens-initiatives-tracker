@@ -3829,46 +3829,6 @@ class TestBooleanFieldsConsistency:
             + "\n\nAcceptable formats: True/False (bool), 'True'/'False' (string), '1'/'0', 'yes'/'no'"
         )
 
-    def test_mutually_exclusive_boolean_flags(
-        self, complete_dataset: List[ECICommissionResponseRecord]
-    ):
-        """
-        Verify mutually exclusive flags don't contradict each other.
-
-        Certain boolean combinations are logically inconsistent:
-        - commission_promised_new_law=True AND commission_rejected_initiative=True
-          (Can't promise a law while rejecting the initiative)
-
-        These contradictions indicate data extraction errors or inconsistent
-        Commission responses that should be manually reviewed.
-        """
-        contradictions = []
-
-        for record in complete_dataset:
-            # Normalize boolean values (handle True, "True", etc.)
-            promised_law = self._normalize_boolean(record.commission_promised_new_law)
-            rejected = self._normalize_boolean(record.commission_rejected_initiative)
-
-            # Only check if both flags are explicitly set
-            if promised_law is True and rejected is True:
-                # This is contradictory: can't promise law and reject initiative
-                contradictions.append(
-                    (
-                        record.registration_number,
-                        "commission_promised_new_law=True AND commission_rejected_initiative=True",
-                        "Cannot promise new law while rejecting the initiative",
-                    )
-                )
-
-        assert not contradictions, (
-            f"Found {len(contradictions)} records with contradictory boolean flags:\n"
-            + "\n".join(
-                f"  - {reg_num}: {flags}\n" f"    Issue: {explanation}"
-                for reg_num, flags, explanation in contradictions
-            )
-            + "\n\nThese flag combinations are logically inconsistent and should be reviewed."
-        )
-
     def test_rejection_flag_implies_rejection_reason(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):
@@ -3878,6 +3838,9 @@ class TestBooleanFieldsConsistency:
         If commission_rejected_initiative is True, there should be a
         commission_rejection_reason explaining why the initiative was rejected.
         Missing rejection reasons indicate incomplete data extraction.
+
+        Note: The Commission can reject an ECI while still promising new legislation
+        to address some of the underlying issues. These are not contradictory positions.
         """
         missing_reasons = []
 
