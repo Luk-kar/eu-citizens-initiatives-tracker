@@ -8,7 +8,7 @@ European Citizens' Initiative response data.
 from typing import List, Any
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
-from .validation_helpers import normalize_boolean
+from .validation_helpers import normalize_boolean, is_empty_value
 
 
 class TestBooleanFieldsConsistency:
@@ -247,17 +247,10 @@ class TestBooleanFieldsConsistency:
 
             # Check if any followup data exists
             has_followup_data = (
-                (
-                    record.followup_events_with_dates
-                    and record.followup_events_with_dates
-                    not in ("", "null", "[]", "{}")
-                )
-                or record.followup_latest_date is not None
-                or record.followup_most_future_date is not None
-                or (
-                    record.followup_dedicated_website
-                    and record.followup_dedicated_website not in ("", "null")
-                )
+                not is_empty_value(record.followup_events_with_dates)
+                or not is_empty_value(record.followup_latest_date)
+                or not is_empty_value(record.followup_most_future_date)
+                or not is_empty_value(record.followup_dedicated_website)
             )
 
             # Flag=True but no data

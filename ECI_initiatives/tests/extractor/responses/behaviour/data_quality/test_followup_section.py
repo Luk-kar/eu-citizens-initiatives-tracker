@@ -14,34 +14,12 @@ from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecor
 from .validation_helpers import (
     parse_json_safely,
     normalize_boolean,
+    is_empty_value,
 )
 
 
 class TestFollowupSectionConsistency:
     """Test consistency of follow-up section flags and data"""
-
-    def _is_empty_or_none(self, value: any) -> bool:
-        """
-        Check if a value is None or empty (for strings, lists, etc.).
-
-        Args:
-            value: Value to check
-
-        Returns:
-            True if value is None, empty string, empty list, "null", etc.
-        """
-        if value is None:
-            return True
-
-        # Handle string "null" from JSON serialization
-        if isinstance(value, str):
-            return value.strip() in ("", "null", "[]", "{}")
-
-        # Handle empty containers
-        if isinstance(value, (list, dict, set, tuple)):
-            return len(value) == 0
-
-        return False
 
     def _normalize_boolean(self, value: any) -> Optional[bool]:
         """
@@ -90,10 +68,10 @@ class TestFollowupSectionConsistency:
 
             # Check if any followup data exists
             has_followup_data = (
-                not self._is_empty_or_none(record.followup_events_with_dates)
+                not is_empty_value(record.followup_events_with_dates)
                 or record.followup_latest_date is not None
                 or record.followup_most_future_date is not None
-                or not self._is_empty_or_none(record.followup_dedicated_website)
+                or not is_empty_value(record.followup_dedicated_website)
             )
 
             # If flag says True, data should exist

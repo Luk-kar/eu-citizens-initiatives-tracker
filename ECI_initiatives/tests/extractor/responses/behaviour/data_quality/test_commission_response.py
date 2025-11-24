@@ -8,33 +8,13 @@ European Citizens' Initiative response data.
 from typing import List
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from .validation_helpers import (
+    is_empty_value,
+)
 
 
 class TestCommissionResponseFieldsCoherence:
     """Test coherence between Commission response fields"""
-
-    def _is_empty_or_none(self, value: any) -> bool:
-        """
-        Check if a value is None or empty (for strings, lists, etc.).
-
-        Args:
-            value: Value to check
-
-        Returns:
-            True if value is None, empty string, empty list, "null", etc.
-        """
-        if value is None:
-            return True
-
-        # Handle string "null" from JSON serialization
-        if isinstance(value, str):
-            return value.strip() in ("", "null", "[]", "{}")
-
-        # Handle empty containers
-        if isinstance(value, (list, dict, set, tuple)):
-            return len(value) == 0
-
-        return False
 
     def test_commission_officials_met_when_meeting_date_exists(
         self, complete_dataset: List[ECICommissionResponseRecord]
@@ -53,7 +33,7 @@ class TestCommissionResponseFieldsCoherence:
             # If meeting date exists, officials should be listed
             if record.commission_meeting_date is not None:
 
-                if self._is_empty_or_none(record.commission_officials_met):
+                if is_empty_value(record.commission_officials_met):
                     missing_officials.append(
                         (
                             record.registration_number,
@@ -90,7 +70,7 @@ class TestCommissionResponseFieldsCoherence:
             # If communication was adopted, document URLs should exist
             if record.official_communication_adoption_date is not None:
 
-                if self._is_empty_or_none(record.official_communication_document_urls):
+                if is_empty_value(record.official_communication_document_urls):
                     missing_urls.append(
                         (
                             record.registration_number,
@@ -125,7 +105,7 @@ class TestCommissionResponseFieldsCoherence:
         for record in complete_dataset:
             # If hearing occurred, video URLs should exist
             if record.parliament_hearing_date is not None:
-                if self._is_empty_or_none(record.parliament_hearing_video_urls):
+                if is_empty_value(record.parliament_hearing_video_urls):
                     missing_videos.append(
                         (
                             record.registration_number,
@@ -160,7 +140,7 @@ class TestCommissionResponseFieldsCoherence:
         for record in complete_dataset:
             # If plenary debate occurred, video URLs should exist
             if record.plenary_debate_date is not None:
-                if self._is_empty_or_none(record.plenary_debate_video_urls):
+                if is_empty_value(record.plenary_debate_video_urls):
                     missing_videos.append(
                         (
                             record.registration_number,

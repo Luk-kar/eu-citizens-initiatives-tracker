@@ -8,6 +8,9 @@ European Citizens' Initiative response data.
 from typing import List, Any
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from .validation_helpers import (
+    is_empty_value,
+)
 
 
 class TestDataCompletenessMetrics:
@@ -66,27 +69,6 @@ class TestDataCompletenessMetrics:
         "plenary_debate_date": 0.6,  # 60% - many have plenary debates
     }
 
-    def _is_empty_or_none(self, value: Any) -> bool:
-        """
-        Check if a value is None or empty.
-
-        Args:
-            value: Value to check
-
-        Returns:
-            True if value is None, empty string, "null", empty list/dict
-        """
-        if value is None:
-            return True
-
-        if isinstance(value, str):
-            return value.strip() in ("", "null", "[]", "{}")
-
-        if isinstance(value, (list, dict, set, tuple)):
-            return len(value) == 0
-
-        return False
-
     def _calculate_completeness_rate(
         self, dataset: List[ECICommissionResponseRecord], field_name: str
     ) -> float:
@@ -109,7 +91,7 @@ class TestDataCompletenessMetrics:
 
             value = getattr(record, field_name, None)
 
-            if not self._is_empty_or_none(value):
+            if not is_empty_value(value):
                 non_empty_count += 1
 
         return non_empty_count / len(dataset)
@@ -136,7 +118,7 @@ class TestDataCompletenessMetrics:
                 missing_records = []
                 for record in complete_dataset:
                     value = getattr(record, field_name, None)
-                    if self._is_empty_or_none(value):
+                    if is_empty_value(value):
                         missing_records.append(record.registration_number)
 
                 incomplete_fields[field_name] = {
