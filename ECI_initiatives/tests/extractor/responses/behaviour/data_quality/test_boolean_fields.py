@@ -34,26 +34,23 @@ class TestBooleanFieldsConsistency:
         Returns:
             Human-readable type description
         """
-        if value is None:
-            return "None"
 
-        elif value is True:
-            return "True (bool)"
+        # Define type checks and their formatters
+        type_checks = [
+            (value is None, lambda: "None"),
+            (value is True, lambda: "True (bool)"),
+            (value is False, lambda: "False (bool)"),
+            (isinstance(value, str), lambda: f"'{value}' (string)"),
+            (isinstance(value, int), lambda: f"{value} (int)"),
+            (isinstance(value, float), lambda: f"{value} (float)"),
+        ]
 
-        elif value is False:
-            return "False (bool)"
+        for condition, formatter in type_checks:
+            if condition:
+                return formatter()
 
-        elif isinstance(value, str):
-            return f"'{value}' (string)"
-
-        elif isinstance(value, int):
-            return f"{value} (int)"
-
-        elif isinstance(value, float):
-            return f"{value} (float)"
-
-        else:
-            return f"{type(value).__name__}"
+        # Default fallback
+        return f"{type(value).__name__}"
 
     def test_boolean_fields_are_true_or_false(
         self, complete_dataset: List[ECICommissionResponseRecord]

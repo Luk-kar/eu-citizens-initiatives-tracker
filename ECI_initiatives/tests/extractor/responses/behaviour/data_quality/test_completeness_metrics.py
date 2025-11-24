@@ -11,6 +11,7 @@ from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecor
 from .validation_helpers import (
     is_empty_value,
 )
+from .test_boolean_fields import TestBooleanFieldsConsistency
 
 
 class TestDataCompletenessMetrics:
@@ -27,13 +28,7 @@ class TestDataCompletenessMetrics:
         "official_communication_adoption_date",
         "commission_answer_text",
         "final_outcome_status",
-        "commission_promised_new_law",
-        "commission_rejected_initiative",
-        "has_followup_section",
-        "has_roadmap",
-        "has_workshop",
-        "has_partnership_programs",
-    }
+    } | TestBooleanFieldsConsistency.BOOLEAN_FIELDS
 
     # Define optional fields with expected distribution
     # These should have SOME data but not necessarily 100%
