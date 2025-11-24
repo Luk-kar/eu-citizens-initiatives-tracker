@@ -12,6 +12,7 @@ from datetime import datetime
 import json
 import re
 from typing import Any, Optional, List
+from urllib.parse import urlparse, ParseResult
 
 # ISO 8601 date format pattern (YYYY-MM-DD)
 ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -86,10 +87,22 @@ def is_empty_value(value: Any) -> bool:
     return False
 
 
-def validate_url_structure(url: str) -> bool:
-    """Validate that a URL has proper structure."""
-    # Your URL validation logic
-    pass
+def validate_url_structure(
+    url: str,
+    field_name: str,
+    registration_number: str,
+) -> ParseResult:
+    """Validate URL structure - HTTPS only."""
+    parsed = urlparse(url)
+
+    assert parsed.scheme in ["https", "http"], (
+        f"{field_name} must use HTTPS or HTTP for {registration_number}: "
+        f"got '{parsed.scheme}'"
+    )
+
+    assert parsed.netloc, f"Missing domain in {field_name} for {registration_number}"
+
+    return parsed
 
 
 def normalize_registration_number_for_url(reg_num: str) -> List[str]:

@@ -10,30 +10,13 @@ from typing import List
 from urllib.parse import urlparse, ParseResult
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from .validation_helpers import (
+    validate_url_structure,
+)
 
 
 class TestURLFieldsIntegrity:
     """Test data quality of URL-related fields"""
-
-    def _validate_url_structure(
-        self,
-        url: str,
-        field_name: str,
-        registration_number: str,
-    ) -> ParseResult:
-        """Validate URL structure - HTTPS only."""
-        parsed = urlparse(url)
-
-        assert parsed.scheme in ["https", "http"], (
-            f"{field_name} must use HTTPS or HTTP for {registration_number}: "
-            f"got '{parsed.scheme}'"
-        )
-
-        assert (
-            parsed.netloc
-        ), f"Missing domain in {field_name} for {registration_number}"
-
-        return parsed
 
     def _validate_domain_pattern(
         self,
@@ -70,7 +53,7 @@ class TestURLFieldsIntegrity:
                 record.response_url is not None
             ), f"response_url is None for {record.registration_number}"
 
-            self._validate_url_structure(
+            validate_url_structure(
                 url=record.response_url,
                 field_name="response_url",
                 registration_number=record.registration_number,
@@ -85,7 +68,7 @@ class TestURLFieldsIntegrity:
                 record.initiative_url is not None
             ), f"initiative_url is None for {record.registration_number}"
 
-            self._validate_url_structure(
+            validate_url_structure(
                 url=record.initiative_url,
                 field_name="initiative_url",
                 registration_number=record.registration_number,
@@ -97,7 +80,7 @@ class TestURLFieldsIntegrity:
         """Verify submission_news_url fields contain valid URLs when not None"""
         for record in complete_dataset:
             if record.submission_news_url is not None:
-                self._validate_url_structure(
+                validate_url_structure(
                     url=record.submission_news_url,
                     field_name="submission_news_url",
                     registration_number=record.registration_number,
@@ -109,7 +92,7 @@ class TestURLFieldsIntegrity:
         """Verify commission_factsheet_url fields contain valid URLs when not None"""
         for record in complete_dataset:
             if record.commission_factsheet_url is not None:
-                self._validate_url_structure(
+                validate_url_structure(
                     url=record.commission_factsheet_url,
                     field_name="commission_factsheet_url",
                     registration_number=record.registration_number,
@@ -121,7 +104,7 @@ class TestURLFieldsIntegrity:
         """Verify followup_dedicated_website fields contain valid URLs when not None"""
         for record in complete_dataset:
             if record.followup_dedicated_website is not None:
-                self._validate_url_structure(
+                validate_url_structure(
                     url=record.followup_dedicated_website,
                     field_name="followup_dedicated_website",
                     registration_number=record.registration_number,
