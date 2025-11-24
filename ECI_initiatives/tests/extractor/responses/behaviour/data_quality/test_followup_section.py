@@ -11,6 +11,9 @@ import json
 import pytest
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from .validation_helpers import (
+    parse_json_safely,
+)
 
 
 class TestFollowupSectionConsistency:
@@ -68,31 +71,6 @@ class TestFollowupSectionConsistency:
             return bool(value)
 
         return None
-
-    def _parse_json_safely(self, json_string: Optional[str]) -> Optional[any]:
-        """
-        Parse JSON string, returning None if invalid or empty.
-
-        Args:
-            json_string: JSON string to parse
-
-        Returns:
-            Parsed object or None
-        """
-        if self._is_empty_or_none(json_string):
-            return None
-
-        try:
-            parsed = json.loads(json_string)
-
-            # Return None if parsed to empty or null
-            if not parsed:
-                return None
-
-            return parsed
-
-        except (json.JSONDecodeError, TypeError):
-            return None
 
     def test_followup_section_implies_followup_data(
         self, complete_dataset: List[ECICommissionResponseRecord]
@@ -178,7 +156,7 @@ class TestFollowupSectionConsistency:
                 )
 
             # Parse policies_actions to check for roadmap content
-            policies = self._parse_json_safely(record.policies_actions)
+            policies = parse_json_safely(record.policies_actions)
             has_roadmap_content = False
 
             if policies and isinstance(policies, list):
@@ -269,7 +247,7 @@ class TestFollowupSectionConsistency:
                 )
 
             # Parse followup_events_with_dates to check for workshop content
-            events = self._parse_json_safely(record.followup_events_with_dates)
+            events = parse_json_safely(record.followup_events_with_dates)
             has_workshop_content = False
 
             if events and isinstance(events, list):
@@ -344,7 +322,7 @@ class TestFollowupSectionConsistency:
             has_partnership_content = False
 
             # Check followup events for partnership content
-            events = self._parse_json_safely(record.followup_events_with_dates)
+            events = parse_json_safely(record.followup_events_with_dates)
 
             if events and isinstance(events, list):
 
@@ -358,7 +336,7 @@ class TestFollowupSectionConsistency:
             # Also check policies for partnership content
             if not has_partnership_content:
 
-                policies = self._parse_json_safely(record.policies_actions)
+                policies = parse_json_safely(record.policies_actions)
 
                 if policies and isinstance(policies, list):
 

@@ -14,6 +14,9 @@ from urllib.parse import urlparse
 
 # Local
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from .validation_helpers import (
+    parse_json_safely,
+)
 
 
 class TestActionsDataStructure:
@@ -21,31 +24,6 @@ class TestActionsDataStructure:
 
     # ISO 8601 date format pattern (YYYY-MM-DD)
     ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-
-    def _parse_json_safely(self, json_string: Optional[str]) -> Optional[any]:
-        """
-        Parse JSON string, returning None if invalid or empty.
-
-        Args:
-            json_string: JSON string to parse
-
-        Returns:
-            Parsed object or None
-        """
-        if json_string is None:
-            return None
-
-        if isinstance(json_string, str):
-            if json_string.strip() in ("", "null", "[]", "{}"):
-                return None
-
-        try:
-            parsed = json.loads(json_string)
-            if not parsed:
-                return None
-            return parsed
-        except (json.JSONDecodeError, TypeError):
-            return None
 
     def _validate_date_format(self, date_string: str) -> bool:
         """
@@ -103,7 +81,7 @@ class TestActionsDataStructure:
         for record in complete_dataset:
 
             # Check laws_actions
-            laws = self._parse_json_safely(record.laws_actions)
+            laws = parse_json_safely(record.laws_actions)
 
             if laws and isinstance(laws, list):
                 for i, action in enumerate(laws):
@@ -129,7 +107,7 @@ class TestActionsDataStructure:
                                     )
 
             # Check policies_actions
-            policies = self._parse_json_safely(record.policies_actions)
+            policies = parse_json_safely(record.policies_actions)
 
             if policies and isinstance(policies, list):
                 for i, action in enumerate(policies):
@@ -178,7 +156,7 @@ class TestActionsDataStructure:
         for record in complete_dataset:
 
             # Check laws_actions
-            laws = self._parse_json_safely(record.laws_actions)
+            laws = parse_json_safely(record.laws_actions)
 
             if laws and isinstance(laws, list):
 
@@ -209,7 +187,7 @@ class TestActionsDataStructure:
                                     )
 
             # Check policies_actions
-            policies = self._parse_json_safely(record.policies_actions)
+            policies = parse_json_safely(record.policies_actions)
 
             if policies and isinstance(policies, list):
 

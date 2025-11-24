@@ -11,6 +11,9 @@ from datetime import datetime
 from typing import Any, List, Optional
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from .validation_helpers import (
+    parse_json_safely,
+)
 
 
 class TestFollowupEventsStructure:
@@ -18,31 +21,6 @@ class TestFollowupEventsStructure:
 
     # ISO 8601 date format pattern (YYYY-MM-DD)
     ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-
-    def _parse_json_safely(self, json_string: Optional[str]) -> Optional[Any]:
-        """
-        Parse JSON string, returning None if invalid or empty.
-
-        Args:
-            json_string: JSON string to parse
-
-        Returns:
-            Parsed object or None
-        """
-        if json_string is None:
-            return None
-
-        if isinstance(json_string, str):
-            if json_string.strip() in ("", "null", "[]", "{}"):
-                return None
-
-        try:
-            parsed = json.loads(json_string)
-            if not parsed:
-                return None
-            return parsed
-        except (json.JSONDecodeError, TypeError):
-            return None
 
     def _validate_date_format(self, date_string: str) -> bool:
         """
@@ -101,7 +79,7 @@ class TestFollowupEventsStructure:
                 continue
 
             # Parse JSON
-            events = self._parse_json_safely(record.followup_events_with_dates)
+            events = parse_json_safely(record.followup_events_with_dates)
 
             if events is None:
                 continue
@@ -210,7 +188,7 @@ class TestFollowupEventsStructure:
             if not record.followup_events_with_dates:
                 continue
 
-            events = self._parse_json_safely(record.followup_events_with_dates)
+            events = parse_json_safely(record.followup_events_with_dates)
 
             if not events or not isinstance(events, list):
                 continue

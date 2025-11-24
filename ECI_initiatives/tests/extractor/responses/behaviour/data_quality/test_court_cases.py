@@ -10,6 +10,9 @@ import re
 from typing import Any, List, Optional
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from .validation_helpers import (
+    parse_json_safely,
+)
 
 
 class TestCourtCasesStructure:
@@ -28,31 +31,6 @@ class TestCourtCasesStructure:
     # Court of Justice: C-123/21
     # Civil Service Tribunal: F-123/21
     CASE_NUMBER_PATTERN = re.compile(r"^[A-Z]-\d+/\d{2}$")
-
-    def _parse_json_safely(self, json_string: Optional[str]) -> Optional[Any]:
-        """
-        Parse JSON string, returning None if invalid or empty.
-
-        Args:
-            json_string: JSON string to parse
-
-        Returns:
-            Parsed object or None
-        """
-        if json_string is None:
-            return None
-
-        if isinstance(json_string, str):
-            if json_string.strip() in ("", "null", "[]", "{}"):
-                return None
-
-        try:
-            parsed = json.loads(json_string)
-            if not parsed:
-                return None
-            return parsed
-        except (json.JSONDecodeError, TypeError):
-            return None
 
     def test_court_cases_json_structure_is_consistent(
         self, complete_dataset: List[ECICommissionResponseRecord]
@@ -83,7 +61,7 @@ class TestCourtCasesStructure:
                 continue
 
             # Parse JSON
-            court_cases = self._parse_json_safely(record.court_cases_referenced)
+            court_cases = parse_json_safely(record.court_cases_referenced)
 
             if court_cases is None:
                 continue
@@ -190,7 +168,7 @@ class TestCourtCasesStructure:
             if not record.court_cases_referenced:
                 continue
 
-            court_cases = self._parse_json_safely(record.court_cases_referenced)
+            court_cases = parse_json_safely(record.court_cases_referenced)
 
             if not court_cases or not isinstance(court_cases, dict):
                 continue
@@ -245,7 +223,7 @@ class TestCourtCasesStructure:
             if not record.court_cases_referenced:
                 continue
 
-            court_cases = self._parse_json_safely(record.court_cases_referenced)
+            court_cases = parse_json_safely(record.court_cases_referenced)
             if not court_cases or not isinstance(court_cases, dict):
                 continue
 
