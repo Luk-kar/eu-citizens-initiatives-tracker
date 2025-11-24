@@ -13,6 +13,7 @@ from typing import Any, List, Optional
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 from .validation_helpers import (
     parse_json_safely,
+    validate_date_format,
 )
 
 
@@ -139,7 +140,7 @@ class TestFollowupEventsStructure:
 
                 # Validate each date in the list
                 for j, date_string in enumerate(dates_field):
-                    if not self._validate_date_format(date_string):
+                    if not validate_date_format(date_string):
                         invalid_dates.append(
                             (
                                 record.registration_number,

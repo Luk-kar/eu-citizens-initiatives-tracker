@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 from .validation_helpers import (
     parse_json_safely,
+    validate_date_format,
 )
 
 
@@ -97,7 +98,7 @@ class TestActionsDataStructure:
                         for field_name in date_fields:
                             if field_name in action and action[field_name]:
                                 date_value = action[field_name]
-                                if not self._validate_date_format(date_value):
+                                if not validate_date_format(date_value):
                                     invalid_dates.append(
                                         (
                                             record.registration_number,
@@ -123,7 +124,7 @@ class TestActionsDataStructure:
                         for field_name in date_fields:
                             if field_name in action and action[field_name]:
                                 date_value = action[field_name]
-                                if not self._validate_date_format(date_value):
+                                if not validate_date_format(date_value):
                                     invalid_dates.append(
                                         (
                                             record.registration_number,
