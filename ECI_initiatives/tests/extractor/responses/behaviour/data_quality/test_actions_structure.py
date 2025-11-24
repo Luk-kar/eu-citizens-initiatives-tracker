@@ -17,14 +17,12 @@ from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecor
 from .validation_helpers import (
     parse_json_safely,
     validate_date_format,
+    ISO_DATE_PATTERN,
 )
 
 
 class TestActionsDataStructure:
     """Test structure and quality of laws_actions and policies_actions"""
-
-    # ISO 8601 date format pattern (YYYY-MM-DD)
-    ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
     def _validate_date_format(self, date_string: str) -> bool:
         """
@@ -36,7 +34,7 @@ class TestActionsDataStructure:
         Returns:
             True if valid ISO date format
         """
-        if not self.ISO_DATE_PATTERN.match(date_string):
+        if not ISO_DATE_PATTERN.match(date_string):
             return False
 
         # Also validate it's a real date (not 2024-13-45)

@@ -15,13 +15,13 @@ from .validation_helpers import (
     parse_json_safely,
     validate_date_format,
 )
+from .validation_helpers import (
+    ISO_DATE_PATTERN,
+)
 
 
 class TestFollowupEventsStructure:
     """Test structure of followup_events_with_dates field"""
-
-    # ISO 8601 date format pattern (YYYY-MM-DD)
-    ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
     def _validate_date_format(self, date_string: str) -> bool:
         """
@@ -36,7 +36,7 @@ class TestFollowupEventsStructure:
         if not isinstance(date_string, str):
             return False
 
-        if not self.ISO_DATE_PATTERN.match(date_string):
+        if not ISO_DATE_PATTERN.match(date_string):
             return False
 
         # Also validate it's a real date (not 2024-13-45)

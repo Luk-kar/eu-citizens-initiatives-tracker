@@ -13,6 +13,7 @@ import json
 from typing import Any, Optional, List
 from datetime import datetime
 
+# ISO 8601 date format pattern (YYYY-MM-DD)
 ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 

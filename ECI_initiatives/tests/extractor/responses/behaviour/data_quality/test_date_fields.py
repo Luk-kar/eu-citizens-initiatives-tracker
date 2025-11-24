@@ -5,11 +5,17 @@ These tests validate date format and chronological order validation in extracted
 European Citizens' Initiative response data.
 """
 
-from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 from datetime import datetime, date, timedelta
 from typing import List, Optional, Any, Set
-import pytest
 import re
+
+import pytest
+
+from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+
+from .validation_helpers import (
+    ISO_DATE_PATTERN,
+)
 
 # Once when the test starts
 TODAY = date.today()
@@ -17,9 +23,6 @@ TODAY = date.today()
 
 class TestDateFieldsConsistency:
     """Test data quality and consistency of date-related fields"""
-
-    # ISO 8601 date format pattern (YYYY-MM-DD)
-    ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
     def _parse_date(
         self, date_string: Optional[str], field_name: str, registration_number: str
@@ -41,7 +44,7 @@ class TestDateFieldsConsistency:
         if date_string is None:
             return None
 
-        assert self.ISO_DATE_PATTERN.match(date_string), (
+        assert ISO_DATE_PATTERN.match(date_string), (
             f"Invalid date format in {field_name} for {registration_number}: "
             f"expected YYYY-MM-DD, got '{date_string}'"
         )
