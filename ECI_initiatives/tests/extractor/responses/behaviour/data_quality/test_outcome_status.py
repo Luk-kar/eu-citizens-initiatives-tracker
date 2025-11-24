@@ -5,7 +5,7 @@ These tests validate outcome status consistency and alignment in extracted
 European Citizens' Initiative response data.
 """
 
-from typing import List, Optional
+from typing import List
 
 import pytest
 

@@ -6,10 +6,8 @@ European Citizens' Initiative response data.
 """
 
 # Standard library
-import json
-import re
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 from urllib.parse import urlparse
 
 # Local

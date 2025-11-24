@@ -5,8 +5,8 @@ These tests validate date format and chronological order validation in extracted
 European Citizens' Initiative response data.
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Optional, Any, Set
+from datetime import datetime, date
+from typing import List, Optional
 import re
 
 import pytest

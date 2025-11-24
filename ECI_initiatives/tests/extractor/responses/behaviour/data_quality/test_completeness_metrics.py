@@ -5,7 +5,7 @@ These tests validate data completeness and distribution metrics in extracted
 European Citizens' Initiative response data.
 """
 
-from typing import List, Any
+from typing import List
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 from .validation_helpers import (

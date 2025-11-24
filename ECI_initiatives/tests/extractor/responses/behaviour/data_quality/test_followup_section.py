@@ -5,8 +5,7 @@ These tests validate follow-up section data consistency in extracted
 European Citizens' Initiative response data.
 """
 
-from typing import List, Optional
-import json
+from typing import List
 
 import pytest
 

@@ -11,7 +11,7 @@ and URL structure validation.
 from datetime import datetime
 import json
 import re
-from typing import Any, Optional, List
+from typing import Any, Optional
 from urllib.parse import urlparse, ParseResult
 
 # ISO 8601 date format pattern (YYYY-MM-DD)
