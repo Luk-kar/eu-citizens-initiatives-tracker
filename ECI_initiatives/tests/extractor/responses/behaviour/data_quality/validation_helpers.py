@@ -8,10 +8,10 @@ and URL structure validation.
 """
 
 # Standard libs
-import re
-import json
-from typing import Any, Optional, List
 from datetime import datetime
+import json
+import re
+from typing import Any, Optional, List
 
 # ISO 8601 date format pattern (YYYY-MM-DD)
 ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -19,6 +19,7 @@ ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 def parse_json_safely(json_string: Optional[str]) -> Optional[Any]:
     """Parse JSON string, returning None if invalid or empty."""
+
     if json_string is None:
         return None
 
@@ -37,6 +38,7 @@ def parse_json_safely(json_string: Optional[str]) -> Optional[Any]:
 
 def validate_date_format(date_string: str) -> bool:
     """Validate that a date string follows ISO 8601 format (YYYY-MM-DD)."""
+
     if not ISO_DATE_PATTERN.match(date_string):
         return False
 
@@ -49,6 +51,7 @@ def validate_date_format(date_string: str) -> bool:
 
 def normalize_boolean(value: Any) -> Optional[bool]:
     """Normalize boolean-like values to actual booleans."""
+
     if value is None:
         return None
 
@@ -70,6 +73,7 @@ def normalize_boolean(value: Any) -> Optional[bool]:
 
 def is_empty_value(value: Any) -> bool:
     """Check if a value is considered empty."""
+
     if value is None:
         return True
 
