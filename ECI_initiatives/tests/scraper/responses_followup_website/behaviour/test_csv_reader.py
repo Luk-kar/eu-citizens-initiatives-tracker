@@ -39,27 +39,27 @@ class TestCSVReader:
 
         data = [
             {
-                "registration_number": "2019/000007",
-                "title": "Minority SafePack",
-                "followup_dedicated_website": "https://minority-safepack.eu/",
+                "registration_number": "2019/009001",
+                "title": "Some Non-Existing ECI",
+                "followup_dedicated_website": "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-some-non-existing-eci_en",
                 "other_field": "some_value",
             },
             {
                 "registration_number": "2020/000001",
                 "title": "Save Bees and Farmers",
-                "followup_dedicated_website": "https://www.savebeesandfarmers.eu/eng",
+                "followup_dedicated_website": "",  # Empty - should be skipped
                 "other_field": "some_value",
             },
             {
                 "registration_number": "2021/000006",
                 "title": "End the Cage Age",
-                "followup_dedicated_website": "",  # Empty - should be skipped
+                "followup_dedicated_website": "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-end-cage-age_en",
                 "other_field": "some_value",
             },
             {
                 "registration_number": "2022/000002",
-                "title": "Tax the Rich",
-                "followup_dedicated_website": "https://tax-the-rich.eu/en/",
+                "title": "Fur Free Europe",
+                "followup_dedicated_website": "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-fur-free-europe_en",
                 "other_field": "some_value",
             },
         ]
@@ -90,9 +90,18 @@ class TestCSVReader:
 
         # Verify specific URLs were extracted
         urls = [item["url"] for item in followup_urls]
-        assert "https://minority-safepack.eu/" in urls
-        assert "https://www.savebeesandfarmers.eu/eng" in urls
-        assert "https://tax-the-rich.eu/en/" in urls
+        assert (
+            "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-some-non-existing-eci_en"
+            in urls
+        )
+        assert (
+            "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-end-cage-age_en"
+            in urls
+        )
+        assert (
+            "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-fur-free-europe_en"
+            in urls
+        )
 
     def test_registration_numbers_converted_to_underscore_format(
         self, sample_responses_csv
@@ -117,8 +126,8 @@ class TestCSVReader:
 
         # Verify specific conversions
         reg_numbers = [item["registration_number"] for item in followup_urls]
-        assert "2019_000007" in reg_numbers
-        assert "2020_000001" in reg_numbers
+        assert "2019_009001" in reg_numbers
+        assert "2021_000006" in reg_numbers
         assert "2022_000002" in reg_numbers
 
     def test_year_extracted_from_registration_number(self, sample_responses_csv):
@@ -149,9 +158,9 @@ class TestCSVReader:
         # Act
         followup_urls = extract_followup_website_urls(str(sample_responses_csv))
 
-        # Assert - "End the Cage Age" (2021/000006) should be excluded
+        # Assert - "Save Bees and Farmers" (2020/000001) should be excluded
         reg_numbers = [item["registration_number"] for item in followup_urls]
-        assert "2021_000006" not in reg_numbers, "Empty followup URL should be skipped"
+        assert "2020/000001" not in reg_numbers, "Empty followup URL should be skipped"
 
         # Verify we got 3 URLs instead of 4
         assert len(followup_urls) == 3
