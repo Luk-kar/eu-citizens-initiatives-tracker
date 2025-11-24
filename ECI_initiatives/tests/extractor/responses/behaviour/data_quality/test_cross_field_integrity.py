@@ -16,27 +16,13 @@ import pytest
 
 # Local
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from .validation_helpers import (
+    parse_json_safely,
+)
 
 
 class TestCrossFieldDataIntegrity:
     """Test cross-field relationships and data integrity"""
-
-    def _parse_json_safely(self, json_string: Optional[str]) -> Optional[Any]:
-        """Parse JSON string, returning None if invalid or empty."""
-        if json_string is None:
-            return None
-
-        if isinstance(json_string, str):
-            if json_string.strip() in ("", "null", "[]", "{}"):
-                return None
-
-        try:
-            parsed = json.loads(json_string)
-            if not parsed:
-                return None
-            return parsed
-        except (json.JSONDecodeError, TypeError):
-            return None
 
     def _normalize_registration_number_for_url(self, reg_num: str) -> List[str]:
         """
@@ -192,7 +178,7 @@ class TestCrossFieldDataIntegrity:
         for record in complete_dataset:
 
             # Check laws_actions dates
-            laws = self._parse_json_safely(record.laws_actions)
+            laws = parse_json_safely(record.laws_actions)
 
             if laws and isinstance(laws, list):
 
@@ -245,7 +231,7 @@ class TestCrossFieldDataIntegrity:
                                     pass  # Invalid date format caught by other tests
 
             # Check policies_actions dates
-            policies = self._parse_json_safely(record.policies_actions)
+            policies = parse_json_safely(record.policies_actions)
 
             if policies and isinstance(policies, list):
 
