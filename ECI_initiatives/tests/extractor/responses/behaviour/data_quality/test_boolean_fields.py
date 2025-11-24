@@ -8,6 +8,7 @@ European Citizens' Initiative response data.
 from typing import List, Any
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from .validation_helpers import normalize_boolean
 
 
 class TestBooleanFieldsConsistency:
@@ -102,7 +103,7 @@ class TestBooleanFieldsConsistency:
                 raw_value = getattr(record, field_name, None)
 
                 try:
-                    normalized_value = self._normalize_boolean(raw_value)
+                    normalized_value = normalize_boolean(raw_value)
                     # Verify it's actually a boolean
                     if not isinstance(normalized_value, bool):
                         invalid_boolean_values.append(
@@ -152,7 +153,7 @@ class TestBooleanFieldsConsistency:
 
         for record in complete_dataset:
             # Normalize boolean value
-            rejected = self._normalize_boolean(record.commission_rejected_initiative)
+            rejected = normalize_boolean(record.commission_rejected_initiative)
 
             # If rejected flag is True, reason should exist
             if rejected is True:
@@ -193,9 +194,7 @@ class TestBooleanFieldsConsistency:
 
         for record in complete_dataset:
             # Normalize the value
-            normalized_value = self._normalize_boolean(
-                record.commission_promised_new_law
-            )
+            normalized_value = normalize_boolean(record.commission_promised_new_law)
             if normalized_value in value_counts:
                 value_counts[normalized_value] += 1
 
@@ -244,7 +243,7 @@ class TestBooleanFieldsConsistency:
 
         for record in complete_dataset:
             # Normalize the boolean flag
-            has_flag = self._normalize_boolean(record.has_followup_section)
+            has_flag = normalize_boolean(record.has_followup_section)
 
             # Check if any followup data exists
             has_followup_data = (
@@ -308,7 +307,7 @@ class TestBooleanFieldsConsistency:
                 else:
                     # Try to normalize - will raise error if invalid
                     try:
-                        self._normalize_boolean(raw_value)
+                        normalize_boolean(raw_value)
                     except (ValueError, TypeError):
                         missing_fields.append(f"{field_name} (invalid value)")
 
@@ -343,7 +342,7 @@ class TestBooleanFieldsConsistency:
         missing_flag = []
 
         for record in records_rejected:
-            rejected = self._normalize_boolean(record.commission_rejected_initiative)
+            rejected = normalize_boolean(record.commission_rejected_initiative)
 
             if rejected is not True:
                 missing_flag.append(

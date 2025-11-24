@@ -13,6 +13,9 @@ from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecor
 from ECI_initiatives.extractor.responses.parser.consts.eci_status import (
     ECIImplementationStatus,
 )
+from .validation_helpers import (
+    normalize_boolean,
+)
 
 
 class TestOutcomeStatusConsistency:
@@ -100,8 +103,7 @@ class TestOutcomeStatusConsistency:
             # If initiative has a rejection status or rejection flag
             if (
                 record.final_outcome_status in rejection_statuses
-                or self._normalize_boolean(record.commission_rejected_initiative)
-                is True
+                or normalize_boolean(record.commission_rejected_initiative) is True
             ):
                 if not record.commission_rejection_reason:
                     missing_reasons.append(
@@ -179,7 +181,7 @@ class TestOutcomeStatusConsistency:
         for record in complete_dataset:
 
             # Normalize boolean flag
-            promised_law = self._normalize_boolean(record.commission_promised_new_law)
+            promised_law = normalize_boolean(record.commission_promised_new_law)
 
             # Skip if promise status is unknown
             if promised_law is None:
@@ -259,7 +261,7 @@ class TestOutcomeStatusConsistency:
 
         for record in complete_dataset:
             # Normalize flag value (handle both bool and string "True"/"False")
-            flag_value = self._normalize_boolean(record.commission_rejected_initiative)
+            flag_value = normalize_boolean(record.commission_rejected_initiative)
 
             # If rejection reason exists, flag should be True
             if record.commission_rejection_reason:

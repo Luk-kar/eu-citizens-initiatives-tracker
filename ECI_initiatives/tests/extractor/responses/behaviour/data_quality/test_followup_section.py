@@ -13,6 +13,7 @@ import pytest
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
 from .validation_helpers import (
     parse_json_safely,
+    normalize_boolean,
 )
 
 
@@ -85,7 +86,7 @@ class TestFollowupSectionConsistency:
         inconsistencies = []
 
         for record in complete_dataset:
-            flag_value = self._normalize_boolean(record.has_followup_section)
+            flag_value = normalize_boolean(record.has_followup_section)
 
             # Check if any followup data exists
             has_followup_data = (
@@ -143,7 +144,7 @@ class TestFollowupSectionConsistency:
         ]
 
         for record in complete_dataset:
-            flag_value = self._normalize_boolean(record.has_roadmap)
+            flag_value = normalize_boolean(record.has_roadmap)
 
             # Flag must be explicitly set (True or False), not None
             if flag_value is None:
@@ -234,7 +235,7 @@ class TestFollowupSectionConsistency:
         ]
 
         for record in complete_dataset:
-            flag_value = self._normalize_boolean(record.has_workshop)
+            flag_value = normalize_boolean(record.has_workshop)
 
             # Flag must be explicitly set (True or False), not None
             if flag_value is None:
@@ -307,7 +308,7 @@ class TestFollowupSectionConsistency:
         ]
 
         for record in complete_dataset:
-            flag_value = self._normalize_boolean(record.has_partnership_programs)
+            flag_value = normalize_boolean(record.has_partnership_programs)
 
             # Flag must be explicitly set (True or False), not None
             if flag_value is None:
@@ -381,7 +382,7 @@ class TestFollowupSectionConsistency:
         missing_dates = []
 
         for record in complete_dataset:
-            flag_value = self._normalize_boolean(record.has_followup_section)
+            flag_value = normalize_boolean(record.has_followup_section)
 
             # Flag must be explicitly set (True or False), not None
             if flag_value is None:
