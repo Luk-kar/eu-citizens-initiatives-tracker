@@ -21,36 +21,6 @@ from .validation_helpers import (
 class TestFollowupSectionConsistency:
     """Test consistency of follow-up section flags and data"""
 
-    def _normalize_boolean(self, value: any) -> Optional[bool]:
-        """
-        Normalize boolean-like values to actual booleans.
-
-        Args:
-            value: Value to normalize (bool, str, None)
-
-        Returns:
-            True, False, or None
-        """
-        if value is None:
-            return None
-
-        if isinstance(value, bool):
-            return value
-
-        # Handle string representations
-        if isinstance(value, str):
-            value_lower = value.lower().strip()
-            if value_lower in ("true", "1", "yes"):
-                return True
-            elif value_lower in ("false", "0", "no", ""):
-                return False
-
-        # Handle numeric (pandas may convert to 1/0)
-        if isinstance(value, (int, float)):
-            return bool(value)
-
-        return None
-
     def test_followup_section_implies_followup_data(
         self, complete_dataset: List[ECICommissionResponseRecord]
     ):

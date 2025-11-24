@@ -24,42 +24,6 @@ class TestBooleanFieldsConsistency:
         "has_partnership_programs",
     }
 
-    def _normalize_boolean(self, value: Any) -> bool:
-        """
-        Normalize boolean-like values to actual booleans.
-
-        Handles CSV imports where booleans are stored as strings.
-        All values must be normalizable to True or False - None is not accepted.
-
-        Args:
-            value: Value to normalize (bool, str, int, float)
-
-        Returns:
-            True or False
-
-        Raises:
-            ValueError: If value cannot be normalized to a boolean
-        """
-        if isinstance(value, bool):
-            return value
-
-        # Handle string representations (from CSV)
-        if isinstance(value, str):
-            value_lower = value.lower().strip()
-            if value_lower in ("true", "1", "yes"):
-                return True
-            elif value_lower in ("false", "0", "no"):
-                return False
-            # Empty string not allowed - must be explicit True/False
-            raise ValueError(f"Cannot normalize string '{value}' to boolean")
-
-        # Handle numeric (pandas may convert to 1/0)
-        if isinstance(value, (int, float)):
-            return bool(value)
-
-        # None or any other type is not acceptable
-        raise ValueError(f"Cannot normalize {type(value).__name__} value to boolean")
-
     def _get_field_value_type(self, value: Any) -> str:
         """
         Get a descriptive type name for error reporting.
