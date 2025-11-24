@@ -5,7 +5,6 @@ These tests validate follow-up events structure validation in extracted
 European Citizens' Initiative response data.
 """
 
-from datetime import datetime
 from typing import List
 
 from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
@@ -13,36 +12,10 @@ from .validation_helpers import (
     parse_json_safely,
     validate_date_format,
 )
-from .validation_helpers import (
-    ISO_DATE_PATTERN,
-)
 
 
 class TestFollowupEventsStructure:
     """Test structure of followup_events_with_dates field"""
-
-    def _validate_date_format(self, date_string: str) -> bool:
-        """
-        Validate that a date string follows ISO 8601 format (YYYY-MM-DD).
-
-        Args:
-            date_string: Date string to validate
-
-        Returns:
-            True if valid ISO date format
-        """
-        if not isinstance(date_string, str):
-            return False
-
-        if not ISO_DATE_PATTERN.match(date_string):
-            return False
-
-        # Also validate it's a real date (not 2024-13-45)
-        try:
-            datetime.strptime(date_string, "%Y-%m-%d")
-            return True
-        except ValueError:
-            return False
 
     def test_followup_event_dates_are_valid_iso_format(
         self, complete_dataset: List[ECICommissionResponseRecord]

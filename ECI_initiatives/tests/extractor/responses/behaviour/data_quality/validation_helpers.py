@@ -40,6 +40,9 @@ def parse_json_safely(json_string: Optional[str]) -> Optional[Any]:
 def validate_date_format(date_string: str) -> bool:
     """Validate that a date string follows ISO 8601 format (YYYY-MM-DD)."""
 
+    if not isinstance(date_string, str):
+        return False
+
     if not ISO_DATE_PATTERN.match(date_string):
         return False
 

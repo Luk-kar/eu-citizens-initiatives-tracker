@@ -36,16 +36,22 @@ class TestBooleanFieldsConsistency:
         """
         if value is None:
             return "None"
+
         elif value is True:
             return "True (bool)"
+
         elif value is False:
             return "False (bool)"
+
         elif isinstance(value, str):
             return f"'{value}' (string)"
+
         elif isinstance(value, int):
             return f"{value} (int)"
+
         elif isinstance(value, float):
             return f"{value} (float)"
+
         else:
             return f"{type(value).__name__}"
 

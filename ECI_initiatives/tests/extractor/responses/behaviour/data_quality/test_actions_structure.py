@@ -6,8 +6,7 @@ European Citizens' Initiative response data.
 """
 
 # Standard library
-from datetime import datetime
-from typing import List
+from typing import Any, Callable, List, Tuple, Optional
 from urllib.parse import urlparse
 
 # Local
@@ -15,32 +14,11 @@ from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecor
 from .validation_helpers import (
     parse_json_safely,
     validate_date_format,
-    ISO_DATE_PATTERN,
 )
 
 
 class TestActionsDataStructure:
     """Test structure and quality of laws_actions and policies_actions"""
-
-    def _validate_date_format(self, date_string: str) -> bool:
-        """
-        Validate that a date string follows ISO 8601 format (YYYY-MM-DD).
-
-        Args:
-            date_string: Date string to validate
-
-        Returns:
-            True if valid ISO date format
-        """
-        if not ISO_DATE_PATTERN.match(date_string):
-            return False
-
-        # Also validate it's a real date (not 2024-13-45)
-        try:
-            datetime.strptime(date_string, "%Y-%m-%d")
-            return True
-        except ValueError:
-            return False
 
     def _is_valid_url(self, url: str) -> bool:
         """
@@ -79,55 +57,37 @@ class TestActionsDataStructure:
 
             # Check laws_actions
             laws = parse_json_safely(record.laws_actions)
-
-            if laws and isinstance(laws, list):
-                for i, action in enumerate(laws):
-                    if isinstance(action, dict):
-                        # Check common date fields in law actions
-                        date_fields = [
-                            "date",
-                            "implementation_date",
-                            "adoption_date",
-                            "entry_into_force",
-                        ]
-
-                        for field_name in date_fields:
-                            if field_name in action and action[field_name]:
-                                date_value = action[field_name]
-                                if not validate_date_format(date_value):
-                                    invalid_dates.append(
-                                        (
-                                            record.registration_number,
-                                            f"laws_actions[{i}].{field_name}",
-                                            date_value,
-                                        )
-                                    )
+            invalid_dates.extend(
+                validate_action_fields_in_list(
+                    laws,
+                    record.registration_number,
+                    field_names=[
+                        "date",
+                        "implementation_date",
+                        "adoption_date",
+                        "entry_into_force",
+                    ],
+                    source_name="laws_actions",
+                    validator_func=validate_date_format,
+                )
+            )
 
             # Check policies_actions
             policies = parse_json_safely(record.policies_actions)
-
-            if policies and isinstance(policies, list):
-                for i, action in enumerate(policies):
-                    if isinstance(action, dict):
-                        # Check common date fields in policy actions
-                        date_fields = [
-                            "date",
-                            "implementation_date",
-                            "adoption_date",
-                            "deadline",
-                        ]
-
-                        for field_name in date_fields:
-                            if field_name in action and action[field_name]:
-                                date_value = action[field_name]
-                                if not validate_date_format(date_value):
-                                    invalid_dates.append(
-                                        (
-                                            record.registration_number,
-                                            f"policies_actions[{i}].{field_name}",
-                                            date_value,
-                                        )
-                                    )
+            invalid_dates.extend(
+                validate_action_fields_in_list(
+                    policies,
+                    record.registration_number,
+                    field_names=[
+                        "date",
+                        "implementation_date",
+                        "adoption_date",
+                        "deadline",
+                    ],
+                    source_name="policies_actions",
+                    validator_func=validate_date_format,
+                )
+            )
 
         assert not invalid_dates, (
             f"Found {len(invalid_dates)} action date fields with invalid ISO format:\n"
@@ -150,69 +110,37 @@ class TestActionsDataStructure:
         """
         invalid_urls = []
 
+        # Value transformer to truncate long URLs for error reporting
+        def truncate_url(url):
+            return url[:100] if isinstance(url, str) else str(url)
+
         for record in complete_dataset:
 
             # Check laws_actions
             laws = parse_json_safely(record.laws_actions)
-
-            if laws and isinstance(laws, list):
-
-                for i, action in enumerate(laws):
-                    if isinstance(action, dict):
-
-                        # Check common URL fields in law actions
-                        url_fields = ["document_url", "url", "link", "legislation_url"]
-
-                        for field_name in url_fields:
-
-                            if field_name in action and action[field_name]:
-
-                                url_value = action[field_name]
-
-                                if not self._is_valid_url(url_value):
-
-                                    invalid_urls.append(
-                                        (
-                                            record.registration_number,
-                                            f"laws_actions[{i}].{field_name}",
-                                            (
-                                                url_value[:100]
-                                                if isinstance(url_value, str)
-                                                else str(url_value)
-                                            ),
-                                        )
-                                    )
+            invalid_urls.extend(
+                validate_action_fields_in_list(
+                    laws,
+                    record.registration_number,
+                    field_names=["document_url", "url", "link", "legislation_url"],
+                    source_name="laws_actions",
+                    validator_func=self._is_valid_url,
+                    value_transformer=truncate_url,
+                )
+            )
 
             # Check policies_actions
             policies = parse_json_safely(record.policies_actions)
-
-            if policies and isinstance(policies, list):
-
-                for i, action in enumerate(policies):
-
-                    if isinstance(action, dict):
-
-                        # Check common URL fields in policy actions
-                        url_fields = ["document_url", "url", "link", "policy_url"]
-
-                        for field_name in url_fields:
-
-                            if field_name in action and action[field_name]:
-
-                                url_value = action[field_name]
-
-                                if not self._is_valid_url(url_value):
-                                    invalid_urls.append(
-                                        (
-                                            record.registration_number,
-                                            f"policies_actions[{i}].{field_name}",
-                                            (
-                                                url_value[:100]
-                                                if isinstance(url_value, str)
-                                                else str(url_value)
-                                            ),
-                                        )
-                                    )
+            invalid_urls.extend(
+                validate_action_fields_in_list(
+                    policies,
+                    record.registration_number,
+                    field_names=["document_url", "url", "link", "policy_url"],
+                    source_name="policies_actions",
+                    validator_func=self._is_valid_url,
+                    value_transformer=truncate_url,
+                )
+            )
 
         assert not invalid_urls, (
             f"Found {len(invalid_urls)} action URL fields with invalid format:\n"
@@ -222,3 +150,73 @@ class TestActionsDataStructure:
             )
             + "\n\nAll URLs must have proper structure (http/https scheme and valid domain)."
         )
+
+
+def validate_action_fields_in_list(
+    actions_list: Optional[List[dict]],
+    registration_number: str,
+    field_names: List[str],
+    source_name: str,
+    validator_func: Callable[[Any], bool],
+    value_transformer: Optional[Callable[[Any], Any]] = None,
+) -> List[Tuple[str, str, Any]]:
+    """
+    Validate specified fields within a list of action dictionaries.
+
+    This helper iterates through action objects, checks specified fields,
+    and collects validation errors for any invalid values.
+
+    Args:
+        actions_list: List of action dictionaries (already parsed from JSON)
+        registration_number: Initiative registration number for error reporting
+        field_names: List of field names to validate within each action dict
+        source_name: Name of source field for error messages (e.g., 'laws_actions')
+        validator_func: Function that takes a field value and returns True if valid
+        value_transformer: Optional function to transform value for error reporting
+                          (e.g., truncate long URLs)
+
+    Returns:
+        List of error tuples: (registration_number, field_path, field_value)
+
+    Example:
+        ```
+        laws = parse_json_safely(record.laws_actions)
+        errors = validate_action_fields_in_list(
+            laws,
+            record.registration_number,
+            ['date', 'adoption_date'],
+            'laws_actions',
+            validate_date_format
+        )
+        ```
+    """
+    errors = []
+
+    if not actions_list or not isinstance(actions_list, list):
+        return errors
+
+    for i, action in enumerate(actions_list):
+        if not isinstance(action, dict):
+            continue
+
+        for field_name in field_names:
+            if field_name in action and action[field_name]:
+                field_value = action[field_name]
+
+                if not validator_func(field_value):
+                    # Transform value for error reporting if transformer provided
+                    error_value = (
+                        value_transformer(field_value)
+                        if value_transformer
+                        else field_value
+                    )
+
+                    errors.append(
+                        (
+                            registration_number,
+                            f"{source_name}[{i}].{field_name}",
+                            error_value,
+                        )
+                    )
+
+    return errors

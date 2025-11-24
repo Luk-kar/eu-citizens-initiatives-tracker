@@ -7,7 +7,6 @@ European Citizens' Initiative response data.
 
 from datetime import datetime, date
 from typing import List, Optional
-import re
 
 import pytest
 
