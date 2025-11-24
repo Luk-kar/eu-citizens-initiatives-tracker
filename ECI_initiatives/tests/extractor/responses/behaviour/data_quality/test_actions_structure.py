@@ -44,7 +44,7 @@ class TestActionsDataStructure:
         except ValueError:
             return False
 
-    def _validate_url_structure(self, url: str) -> bool:
+    def _is_valid_url(self, url: str) -> bool:
         """
         Validate that a URL has proper structure.
 
@@ -171,7 +171,7 @@ class TestActionsDataStructure:
 
                                 url_value = action[field_name]
 
-                                if not self._validate_url_structure(url_value):
+                                if not self._is_valid_url(url_value):
 
                                     invalid_urls.append(
                                         (
@@ -203,7 +203,7 @@ class TestActionsDataStructure:
 
                                 url_value = action[field_name]
 
-                                if not self._validate_url_structure(url_value):
+                                if not self._is_valid_url(url_value):
                                     invalid_urls.append(
                                         (
                                             record.registration_number,
