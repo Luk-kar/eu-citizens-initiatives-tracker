@@ -63,6 +63,7 @@ LOG_MESSAGES = {
     "urls_extracted": "Extracted {count} followup website URLs",
     "no_urls_found": "No followup website URLs found",
     # Download
+    "download_start": "Downloading {reg_number} from {url}",
     "download_success": "Successfully downloaded {filename}",
     "download_failed": "Failed to download {url}",
     "rate_limit_retry": "Received rate limiting. Retrying ({retry}/{max_retries}) in {wait_time:.1f} seconds...",

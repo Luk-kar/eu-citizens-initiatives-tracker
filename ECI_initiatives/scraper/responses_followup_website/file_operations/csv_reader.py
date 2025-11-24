@@ -87,5 +87,4 @@ def extract_followup_website_urls(csv_path: str) -> List[Dict[str, str]]:
                 }
             )
 
-    logger.info(f"Extracted {len(followup_urls)} followup website URLs")
     return followup_urls

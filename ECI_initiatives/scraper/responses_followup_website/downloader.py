@@ -104,6 +104,10 @@ class FollowupWebsiteDownloader:
         Returns:
             True if successful, False otherwise
         """
+        self.logger.info(
+            LOG_MESSAGES["download_start"].format(reg_number=reg_number, url=url)
+        )
+
         actual_url = url
 
         for attempt in range(max_retries):
