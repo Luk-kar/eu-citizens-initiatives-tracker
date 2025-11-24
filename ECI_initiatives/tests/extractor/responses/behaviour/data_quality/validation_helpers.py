@@ -103,9 +103,3 @@ def validate_url_structure(
     assert parsed.netloc, f"Missing domain in {field_name} for {registration_number}"
 
     return parsed
-
-
-def normalize_registration_number_for_url(reg_num: str) -> List[str]:
-    """Generate possible URL representations of a registration number."""
-    # Your URL normalization logic
-    pass
