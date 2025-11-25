@@ -17,6 +17,11 @@ from ECI_initiatives.scraper.responses_followup_website.downloader import (
     FollowupWebsiteDownloader,
 )
 
+# pylint: disable=protected-access
+# Rationale: Unit tests require access to protected members (_initialize_driver,
+# _close_driver, _check_rate_limiting) to properly set up test conditions,
+# verify internal state, and test error handling behavior in isolation.
+
 
 class TestRetryMechanism:
     """Test retry logic for failed downloads."""

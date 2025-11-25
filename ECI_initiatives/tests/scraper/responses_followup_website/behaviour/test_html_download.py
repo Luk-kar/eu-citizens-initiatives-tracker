@@ -5,11 +5,6 @@ Tests HTML page download, content validation, error page detection,
 and proper UTF-8 encoding for multilingual content.
 """
 
-# Standard library
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-
 # Third party
 import pytest
 
@@ -18,6 +13,12 @@ from ECI_initiatives.scraper.responses_followup_website.file_operations.page imp
     PageFileManager,
 )
 from ECI_initiatives.scraper.responses_followup_website.consts import MIN_HTML_LENGTH
+
+# pylint: disable=protected-access
+# Rationale: Unit tests directly access protected member _validate_html to test
+# HTML validation logic with various edge cases and malformed content scenarios.
+# Testing validation behavior in isolation ensures proper error detection without
+# requiring full end-to-end download workflows for each validation rule.
 
 
 class TestHTMLDownload:

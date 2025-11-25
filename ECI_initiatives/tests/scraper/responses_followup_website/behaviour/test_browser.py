@@ -6,16 +6,20 @@ options application, and proper cleanup after scraping sessions.
 """
 
 # Standard library
-from unittest.mock import Mock, patch, MagicMock
-
-# Third party
-import pytest
+from unittest.mock import patch, MagicMock
 
 # Local imports
 from ECI_initiatives.scraper.responses_followup_website.browser import (
     initialize_browser,
 )
 from ECI_initiatives.scraper.responses_followup_website.consts import CHROME_OPTIONS
+
+# pylint: disable=unused-variable
+# Rationale: Mock objects (mock_chrome) are created as byproducts of patch context
+# managers but are not directly referenced in test logic. The patches themselves are
+# required to replace browser initialization behavior, while the returned mock objects
+# remain unused. This is an acceptable pattern when testing side effects of patches
+# rather than mock interactions.
 
 
 class TestBrowserInitialization:

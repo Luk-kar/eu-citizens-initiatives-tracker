@@ -7,8 +7,6 @@ including URL validation, registration number parsing, and year extraction.
 
 # Standard library
 import csv
-import tempfile
-from pathlib import Path
 
 # Third party
 import pytest
