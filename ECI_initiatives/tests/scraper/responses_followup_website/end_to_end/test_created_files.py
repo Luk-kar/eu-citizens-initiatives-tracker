@@ -25,6 +25,7 @@ from pathlib import Path
 from unittest.mock import patch
 import random
 import tempfile
+import re
 
 # Third party
 import pytest
@@ -340,9 +341,12 @@ class TestFollowupWebsiteCreatedFiles:
         """
         Verify followup URL was extracted from CSV with correct structure.
         """
+
         # Verify followup URL data has required fields
         required_fields = ["url", "year", "registration_number"]
+
         for field in required_fields:
+
             assert (
                 field in self.followup_url_data
             ), f"Followup URL data missing required field: {field}"
@@ -358,6 +362,7 @@ class TestFollowupWebsiteCreatedFiles:
 
         # Verify registration number format (YYYY_NNNNNN)
         reg_number = self.followup_url_data["registration_number"]
+
         assert (
             "_" in reg_number
         ), f"Registration number should contain underscore: {reg_number}"
@@ -374,8 +379,11 @@ class TestFollowupWebsiteCreatedFiles:
         html_files_found = []
 
         for year_dir in self.followup_website_dir.iterdir():
+
             if year_dir.is_dir() and year_dir.name.isdigit():
+
                 for file in year_dir.iterdir():
+
                     if file.suffix == ".html":
                         html_files_found.append(file)
 
@@ -387,8 +395,6 @@ class TestFollowupWebsiteCreatedFiles:
         html_file = html_files_found[0]
 
         # Check file naming pattern (YYYY_NNNNNN_en.html)
-        import re
-
         assert re.match(
             FOLLOWUP_WEBSITE_FILENAME_PATTERN, html_file.name
         ), f"Invalid filename pattern: {html_file.name}"
@@ -479,10 +485,3 @@ class TestFollowupWebsiteCreatedFiles:
         assert (
             self.followup_website_dir.parent == self.test_timestamp_dir
         ), "Followup website directory should be in temporary directory"
-
-
-# Inject fixture into setup_class using pytest hook
-@pytest.fixture(scope="class")
-def inject_data_dir(request, data_dir):
-    """Inject data_dir fixture into TestFollowupWebsiteCreatedFiles class."""
-    request.cls.setup_class()
