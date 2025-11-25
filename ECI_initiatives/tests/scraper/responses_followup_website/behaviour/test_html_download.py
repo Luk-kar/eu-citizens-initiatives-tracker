@@ -26,11 +26,13 @@ class TestHTMLDownload:
     @pytest.fixture
     def temp_followup_dir(self, tmp_path):
         """Create temporary followup websites directory."""
+
         return tmp_path / "followup_websites"
 
     @pytest.fixture
     def valid_followup_html(self):
         """Valid followup website HTML content."""
+
         return (
             """
         <!DOCTYPE html>
@@ -50,6 +52,7 @@ class TestHTMLDownload:
     @pytest.fixture
     def rate_limit_html(self):
         """HTML content indicating rate limiting."""
+
         return """
         <!DOCTYPE html>
         <html>
@@ -63,6 +66,7 @@ class TestHTMLDownload:
     @pytest.fixture
     def server_error_html(self):
         """HTML content with server error."""
+
         return """
         <!DOCTYPE html>
         <html>
@@ -80,6 +84,7 @@ class TestHTMLDownload:
         When downloading followup website pages, verify that each
         successfully downloaded HTML file contains valid content.
         """
+
         # Arrange
         file_ops = PageFileManager(str(temp_followup_dir))
         file_ops.setup_directories()
@@ -109,6 +114,7 @@ class TestHTMLDownload:
         When HTML content is too short (below minimum threshold), verify that
         the file is not saved and an exception is raised.
         """
+
         # Arrange
         short_html = "<html><body>Short</body></html>"
         file_ops = PageFileManager(str(temp_followup_dir))
@@ -129,6 +135,7 @@ class TestHTMLDownload:
         When a rate limiting error page is detected, verify that
         an exception is raised and the file is not saved.
         """
+
         # Arrange
         file_ops = PageFileManager(str(temp_followup_dir))
         file_ops.setup_directories()
@@ -148,6 +155,7 @@ class TestHTMLDownload:
         When a server error page is detected, verify that
         an exception is raised and the file is not saved.
         """
+
         # Arrange
         file_ops = PageFileManager(str(temp_followup_dir))
         file_ops.setup_directories()
@@ -169,6 +177,7 @@ class TestHTMLDownload:
         When saving HTML files, verify that the content is prettified
         (well-formatted) for readability.
         """
+
         # Arrange
         ugly_html = "<html><head><title>Test</title></head><body><div><p>Content</p></div></body></html>"
         file_ops = PageFileManager(str(temp_followup_dir))
@@ -192,6 +201,7 @@ class TestHTMLDownload:
         When saving HTML files, verify that UTF-8 encoding is used to preserve
         special characters in multilingual content.
         """
+
         # Arrange
         multilingual_html = """
         <!DOCTYPE html>
@@ -226,6 +236,7 @@ class TestHTMLDownload:
         """
         Verify HTML validation checks content length against minimum threshold.
         """
+
         # Arrange
         file_ops = PageFileManager(str(temp_followup_dir))
 
