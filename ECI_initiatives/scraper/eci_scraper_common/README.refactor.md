@@ -23,7 +23,7 @@ The following logic patterns are duplicated across all three scraper programs:
 9.  **URL & Metadata Handling** - Registration number normalization, year extraction
 10. **Path Management** - Script directory detection, timestamp-based structure
 
-### Code parts that will NOT be covered as shared library by design
+### Code parts that will NOT be covered as a shared library by design
   
 **Rather DO NOT** extract to common logic:
 - **HTML/DOM selectors** - CSS selectors, XPath expressions (website-specific)
