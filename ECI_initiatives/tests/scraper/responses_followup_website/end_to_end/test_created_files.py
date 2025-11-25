@@ -24,6 +24,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 import random
+import tempfile
 
 # Third party
 import pytest
@@ -152,16 +153,9 @@ class TestFollowupWebsiteCreatedFiles:
         Limits downloads to 1 page to avoid server overload.
         """
 
-        # Get data_dir from pytest request context
-        request = (
-            pytest._current_request if hasattr(pytest, "_current_request") else None
-        )
-        if request:
-            real_data_dir = request.getfixturevalue("data_dir")
-        else:
-            # Fallback: calculate manually
-            script_dir = Path(__file__).parent.parent.parent.parent.parent.absolute()
-            real_data_dir = script_dir / "data"
+        # Get data dir
+        script_dir = Path(__file__).parent.parent.parent.parent.parent.absolute()
+        real_data_dir = script_dir / "data"
 
         cls.data_dir = real_data_dir
 
@@ -170,8 +164,6 @@ class TestFollowupWebsiteCreatedFiles:
         cls.source_timestamp_dir = latest_timestamp_dir
 
         # Create temporary directory for test output
-        import tempfile
-
         cls.temp_dir = Path(tempfile.mkdtemp(prefix="eci_followup_website_test_"))
 
         # Copy the timestamp directory structure to temp location
@@ -245,18 +237,19 @@ class TestFollowupWebsiteCreatedFiles:
                 "download_single_followup_website",
                 mock_download_limited,
             ):
+
                 # Download the single followup website page
                 downloader = FollowupWebsiteDownloader(str(cls.followup_website_dir))
+
                 try:
                     downloader.download_all_followup_websites([cls.followup_url_data])
+
                 except Exception as e:
                     # If scraping fails completely, store the error
                     cls.scraping_error = str(e)
+
                 else:
                     cls.scraping_error = None
-
-        # Store paths for tests
-        cls.logs_dir = cls.test_timestamp_dir / LOG_DIR_NAME
 
     @classmethod
     def _extract_one_followup_url(cls):
