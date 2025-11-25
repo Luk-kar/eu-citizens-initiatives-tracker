@@ -288,6 +288,7 @@ class TestFollowupWebsiteCreatedFiles:
 
         Remove temporary directory created for testing.
         """
+
         print(f"\n\nTest completed. Files were created in temporary directory:")
         print(f"{cls.followup_website_dir}")
 
@@ -298,10 +299,13 @@ class TestFollowupWebsiteCreatedFiles:
 
     def test_debug_fixture(self):
         """Debug test to verify setup output."""
+
         print(f"\nDebug - setup completed successfully")
+
         print(f"Source timestamp directory: {self.source_timestamp_dir}")
         print(f"Test timestamp directory: {self.test_timestamp_dir}")
         print(f"Followup website directory: {self.followup_website_dir}")
+
         print(f"Download count: {self.download_count}")
         print(f"Followup URL data: {self.followup_url_data}")
 
@@ -313,6 +317,7 @@ class TestFollowupWebsiteCreatedFiles:
         Verify followup website directory and year-based
         subdirectories are created.
         """
+
         # Check followup website directory exists
         assert (
             self.followup_website_dir.exists()
