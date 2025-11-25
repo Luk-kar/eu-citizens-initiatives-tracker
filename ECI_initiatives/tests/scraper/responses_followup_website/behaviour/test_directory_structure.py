@@ -16,6 +16,13 @@ import pytest
 from ECI_initiatives.scraper.responses_followup_website.file_operations.page import (
     PageFileManager,
 )
+from ECI_initiatives.scraper.responses_followup_website.__main__ import (
+    _find_latest_timestamp_directory,
+    scrape_followup_websites,
+)
+from ECI_initiatives.scraper.responses_followup_website.errors import (
+    MissingDataDirectoryError,
+)
 
 
 class TestDirectoryStructure:
@@ -24,11 +31,13 @@ class TestDirectoryStructure:
     @pytest.fixture
     def temp_base_dir(self, tmp_path):
         """Create temporary base directory for testing."""
+
         return tmp_path / "followup_websites"
 
     @pytest.fixture
     def sample_html_content(self):
         """Provide sample HTML content for testing."""
+
         return (
             "<html><body><h1>Followup Website Content</h1>"
             + "x" * 1000
@@ -42,6 +51,7 @@ class TestDirectoryStructure:
         When the scraper runs successfully, verify that followup website HTML
         files are saved in the correct year-based subdirectory structure.
         """
+
         # Arrange
         file_ops = PageFileManager(str(temp_base_dir))
         file_ops.setup_directories()
@@ -79,10 +89,6 @@ class TestDirectoryStructure:
         When running the scraper, verify that files are created
         in the most recent timestamp directory from the data folder.
         """
-        # Arrange
-        from ECI_initiatives.scraper.responses_followup_website.__main__ import (
-            _find_latest_timestamp_directory,
-        )
 
         data_dir = tmp_path / "data"
         data_dir.mkdir(parents=True)
@@ -114,6 +120,7 @@ class TestDirectoryStructure:
         """
         Verify that the followup_websites directory is created if it doesn't exist.
         """
+
         # Arrange
         assert not temp_base_dir.exists()
         file_ops = PageFileManager(str(temp_base_dir))
@@ -130,13 +137,8 @@ class TestDirectoryStructure:
         When the data directory doesn't exist, verify that the scraper raises
         an appropriate error.
         """
+
         # Arrange
-        from ECI_initiatives.scraper.responses_followup_website.__main__ import (
-            scrape_followup_websites,
-        )
-        from ECI_initiatives.scraper.responses_followup_website.errors import (
-            MissingDataDirectoryError,
-        )
 
         # Patch SCRIPT_DIR to point to temp directory with no data
         with patch(
