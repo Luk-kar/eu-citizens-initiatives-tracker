@@ -4,7 +4,7 @@ scraper correctly downloads and saves followup website pages.
 
 This test:
 - Uses a real CSV file with response data
-- Extracts a followup website URL from the CSV
+- Extracts a followup website URL from the CSV (random choice from existing)
 - Downloads the actual page from the web
 - Validates file creation, structure, and content
 
@@ -23,6 +23,7 @@ import shutil
 import os
 from pathlib import Path
 from unittest.mock import patch
+import random
 
 # Third party
 import pytest
@@ -259,40 +260,33 @@ class TestFollowupWebsiteCreatedFiles:
 
     @classmethod
     def _extract_one_followup_url(cls):
-        """
-        Extract the first followup website URL from the test CSV file.
+        """Extract a random followup website URL from the test CSV file."""
 
-        Returns:
-            Dictionary with 'url', 'registration_number', 'year'
-        """
         with open(cls.test_csv, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
+            rows = list(reader)
 
-            for row in reader:
-                followup_url = row.get("followup_dedicated_website", "").strip()
-                registration_number = row.get("registration_number", "").strip()
+        # Filter rows with valid URLs
+        valid_rows = [
+            row for row in rows if row.get("followup_dedicated_website", "").strip()
+        ]
 
-                # Skip if no followup website URL
-                if not followup_url or followup_url == "":
-                    continue
+        if not valid_rows:
+            return None
 
-                # Extract year from registration number (format: YYYY/NNNNNN)
-                year = (
-                    registration_number.split("/")[0]
-                    if "/" in registration_number
-                    else ""
-                )
+        # Pick random row
+        row = random.choice(valid_rows)
 
-                # Format registration number for filename (YYYY_NNNNNN)
-                reg_number_for_filename = registration_number.replace("/", "_")
+        followup_url = row.get("followup_dedicated_website", "").strip()
+        registration_number = row.get("registration_number", "").strip()
+        year = registration_number.split("/")[0] if "/" in registration_number else ""
+        reg_number_for_filename = registration_number.replace("/", "_")
 
-                return {
-                    "url": followup_url,
-                    "registration_number": reg_number_for_filename,
-                    "year": year,
-                }
-
-        return None
+        return {
+            "url": followup_url,
+            "registration_number": reg_number_for_filename,
+            "year": year,
+        }
 
     @classmethod
     def teardown_class(cls):
