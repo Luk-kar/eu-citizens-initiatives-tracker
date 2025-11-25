@@ -20,7 +20,6 @@ Expected execution time: 15-30 seconds (downloads 1 real page)
 # Standard library
 import csv
 import shutil
-import os
 from pathlib import Path
 from unittest.mock import patch
 import random
@@ -28,17 +27,12 @@ import tempfile
 import re
 
 # Third party
-import pytest
 from bs4 import BeautifulSoup
 
 # Local imports
 from ECI_initiatives.scraper.responses_followup_website import __main__ as followup_main
 from ECI_initiatives.scraper.responses_followup_website.downloader import (
     FollowupWebsiteDownloader,
-)
-from ECI_initiatives.tests.consts import (
-    DATA_DIR_NAME,
-    LOG_DIR_NAME,
 )
 
 # Constants for followup website tests
@@ -51,7 +45,10 @@ tests_dir = Path(__file__).parent.parent.parent.parent.absolute()
 source_csv = tests_dir / "data" / "example_htmls" / "responses" / TEST_CSV_FILENAME
 
 
-def validate_test_csv_file(source_csv: Path, tests_dir: Path) -> None:
+def validate_test_csv_file(
+    source_csv: Path,  # pylint: disable=redefined-outer-name
+    tests_dir: Path,  # pylint: disable=redefined-outer-name
+) -> None:
     """
     Validate test CSV file existence, format, structure, and content.
 
@@ -133,7 +130,7 @@ def validate_test_csv_file(source_csv: Path, tests_dir: Path) -> None:
             f"Failed to parse CSV file: {e}\n"
             f"File may be corrupted or not a valid CSV\n"
             f"File: {source_csv}"
-        )
+        ) from e
 
 
 validate_test_csv_file(source_csv, tests_dir)
@@ -161,7 +158,9 @@ class TestFollowupWebsiteCreatedFiles:
         cls.data_dir = real_data_dir
 
         # Find the most recent timestamp directory
-        latest_timestamp_dir = Path(followup_main._find_latest_timestamp_directory())
+        latest_timestamp_dir = Path(
+            followup_main._find_latest_timestamp_directory()  # pylint: disable=protected-access
+        )
         cls.source_timestamp_dir = latest_timestamp_dir
 
         # Create temporary directory for test output
@@ -245,7 +244,7 @@ class TestFollowupWebsiteCreatedFiles:
                 try:
                     downloader.download_all_followup_websites([cls.followup_url_data])
 
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     # If scraping fails completely, store the error
                     cls.scraping_error = str(e)
 
@@ -290,7 +289,7 @@ class TestFollowupWebsiteCreatedFiles:
         Remove temporary directory created for testing.
         """
 
-        print(f"\n\nTest completed. Files were created in temporary directory:")
+        print("\n\nTest completed. Files were created in temporary directory:")
         print(f"{cls.followup_website_dir}")
 
         # Clean up temporary directory
@@ -301,7 +300,7 @@ class TestFollowupWebsiteCreatedFiles:
     def test_debug_fixture(self):
         """Debug test to verify setup output."""
 
-        print(f"\nDebug - setup completed successfully")
+        print("\nDebug - setup completed successfully")
 
         print(f"Source timestamp directory: {self.source_timestamp_dir}")
         print(f"Test timestamp directory: {self.test_timestamp_dir}")
