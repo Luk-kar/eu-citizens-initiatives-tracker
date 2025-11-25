@@ -147,7 +147,7 @@ class TestFollowupWebsiteCreatedFiles:
         """
         Setup class-level resources that runs once before all tests.
 
-        Uses a real CSV file to extract one followup website URL
+        Uses a real CSV file to extract one random followup website URL
         and downloads the actual page to validate end-to-end functionality.
         Limits downloads to 1 page to avoid server overload.
         """
