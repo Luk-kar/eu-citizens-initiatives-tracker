@@ -4,7 +4,7 @@ A refactoring plan to extract common scraping logic from three independent progr
 Advantages of doing so, from the most important to the least:
 -  simplifying creating new scrapers
 -  simplifying testing
--  simplifying maintenance
+-  simplifying maintenance of the scrapers
   
 ## Current State
 
