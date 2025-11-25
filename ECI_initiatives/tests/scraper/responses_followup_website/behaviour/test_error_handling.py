@@ -27,6 +27,7 @@ class TestRetryMechanism:
 
         Sequence: Rate limit error -> Success
         """
+
         # Arrange
         with tempfile.TemporaryDirectory() as tmpdir:
 
@@ -74,19 +75,36 @@ class TestRetryMechanism:
 
     def _create_mock_driver_with_response_sequence(self, response_sequence):
         """Helper: Create a mock WebDriver that returns responses in sequence."""
+
         page_source_call_count = 0
 
         def get_page_source():
+            """
+            Return HTML response that changes based on call count.
+
+            Simulates a web server that initially rate-limits requests (first 2 calls)
+            and then returns valid content (subsequent calls). This mimics real-world
+            behavior where retrying after rate limiting eventually succeeds.
+
+            Returns:
+                str: Rate limit HTML for calls 0-1, valid HTML for calls 2+.
+            """
+
+            # Calculate response index: use 0 for first two calls (rate limit),
+            # then 1 for remaining calls (valid content), capped at max index
             nonlocal page_source_call_count
+
             response_index = min(
                 len(response_sequence) - 1, page_source_call_count // 2
             )
+
             page_source_call_count += 1
             return response_sequence[response_index]
 
         mock_driver = MagicMock()
         mock_driver.get = Mock()
         mock_driver.current_url = "https://test.com"
+
         type(mock_driver).page_source = property(lambda self: get_page_source())
 
         return mock_driver
@@ -95,8 +113,10 @@ class TestRetryMechanism:
         """
         When a download fails multiple times, verify proper failure tracking.
         """
+
         # Arrange
         with tempfile.TemporaryDirectory() as tmpdir:
+
             with patch(
                 "ECI_initiatives.scraper.responses_followup_website.downloader.initialize_browser"
             ) as mock_init_browser, patch(
@@ -130,6 +150,7 @@ class TestRetryMechanism:
         """
         Verify that _check_rate_limiting raises exception when rate limit indicators are found.
         """
+
         # Arrange
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch(
@@ -153,6 +174,7 @@ class TestRetryMechanism:
         """
         Verify that browser resources are properly cleaned up even if errors occurred.
         """
+
         # Arrange
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch(
