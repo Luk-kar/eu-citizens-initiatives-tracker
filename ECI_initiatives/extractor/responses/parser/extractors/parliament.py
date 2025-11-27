@@ -93,13 +93,13 @@ class ParliamentActivityExtractor(BaseExtractor):
                 month = month_map.get(month_name.lower())
                 if not month:
                     raise ValueError(f"Invalid month name: {month_name}")
-                date_str = f"{day.zfill(2)}-{month}-{year}"
+                date_str = f"{year}-{month}-{day.zfill(2)}"
             elif pattern == patterns[1]:
                 day, month, year = date_match.groups()
-                date_str = f"{day.zfill(2)}-{month.zfill(2)}-{year}"
+                date_str = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
             else:
                 year, month, day = date_match.groups()
-                date_str = f"{day.zfill(2)}-{month.zfill(2)}-{year}"
+                date_str = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
 
             return date_str
 
@@ -110,6 +110,7 @@ class ParliamentActivityExtractor(BaseExtractor):
 
     def extract_parliament_hearing_video_urls(self, soup: BeautifulSoup) -> dict:
         """Extracts all relevant video recording URLs from the 'public hearing' paragraph"""
+
         try:
             submission_section = find_submission_section(soup, self.registration_number)
 
@@ -199,7 +200,7 @@ class ParliamentActivityExtractor(BaseExtractor):
                 if month_str is None:
                     raise ValueError(f"Invalid month name: {month_name}")
 
-                return f"{day}-{month_str}-{year}"
+                return f"{year}-{month_str}-{day}"
 
             date_pattern_slash = (
                 r"plenary session\s+"
@@ -246,7 +247,7 @@ class ParliamentActivityExtractor(BaseExtractor):
             if not links_dict:
                 return None
 
-            return json.dumps(links_dict)
+            return links_dict
 
         except Exception as e:
             raise ValueError(

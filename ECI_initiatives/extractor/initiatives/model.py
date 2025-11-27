@@ -21,16 +21,16 @@ class ECIInitiativeDetailsRecord:
 
     timeline_registered: Optional[str]
     timeline_collection_start_date: Optional[str]
-    timeline_collection_closed: Optional[str] 
+    timeline_collection_closed: Optional[str]
     timeline_verification_start: Optional[str]
     timeline_verification_end: Optional[str]
-    timeline_response_commission_date:  Optional[str]
+    timeline_response_commission_date: Optional[str]
 
     timeline: Optional[str]
 
     organizer_representative: Optional[str]  # JSON with representative data
-    organizer_entity: Optional[str]         # JSON with legal entity data
-    organizer_others: Optional[str]         # JSON with members, substitutes, others, DPO data
+    organizer_entity: Optional[str]  # JSON with legal entity data
+    organizer_others: Optional[str]  # JSON with members, substitutes, others, DPO data
 
     funding_total: Optional[str]
     funding_by: Optional[str]

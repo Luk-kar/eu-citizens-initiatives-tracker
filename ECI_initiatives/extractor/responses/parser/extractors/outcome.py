@@ -384,14 +384,14 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                 f"Error extracting applicable date for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_commissions_deadlines(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_commissions_deadlines(self, soup: BeautifulSoup) -> Optional[dict]:
         """
         Extract all Commission deadlines mentioned in the response as JSON.
         Returns a dictionary where keys are dates (YYYY-MM-DD) and
         values are phrases connected to those dates.
         Returns None if no deadlines are mentioned.
 
-        Format: JSON string like:
+        Format: dict like:
         {
             "2018-05-31": "committed to come forward with a legislative proposal",
             "2026-03-31": "will communicate on the most appropriate action",
@@ -399,7 +399,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         }
 
         Returns:
-            JSON string with date->phrase mapping or None if no deadlines found
+            dict with date->phrase mapping or None if no deadlines found
 
         Raises:
             ValueError: If Answer section not found
@@ -465,7 +465,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             if not deadlines_dict:
                 return None
 
-            return json.dumps(deadlines_dict, ensure_ascii=False, indent=2)
+            return deadlines_dict
 
         except Exception as e:
             raise ValueError(
@@ -556,7 +556,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         return deadline.strip()
 
     # TODO: need a refactor
-    def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[dict]:
         """
         Extract LEGISLATIVE actions - proposals, adoptions, laws, regulations, directives.
         Excludes: rejection statements, enforcement activities, policy actions.
@@ -630,7 +630,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                     seen.add(key)
                     unique_actions.append(action)
 
-            return json.dumps(unique_actions, ensure_ascii=False, indent=2)
+            return unique_actions
 
         except Exception as e:
             raise ValueError(
@@ -888,11 +888,11 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         else:
             return "Legislative Action"
 
-    def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[dict]:
         """
         Extract non-legislative actions as JSON array
         Each item contains: type, description, date
-        Returns JSON string or None
+        Returns dict or None
         """
         try:
 
@@ -937,7 +937,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                     seen.add(key)
                     unique_actions.append(action)
 
-            return json.dumps(unique_actions, ensure_ascii=False, indent=2)
+            return unique_actions
 
         except Exception as e:
             raise ValueError(

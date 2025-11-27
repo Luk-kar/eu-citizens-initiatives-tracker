@@ -4,14 +4,16 @@ roadmaps, workshops, partnership programs, and
 court case references from post-response sections.
 """
 
+import calendar
 from datetime import date, datetime
 import re
-from typing import Optional, Tuple, Union, Dict, List
+import json
+from typing import Any, Optional, Tuple, Union, Dict, List
 
 from bs4 import BeautifulSoup, Tag, NavigableString
 
 from ..base.base_extractor import BaseExtractor
-from ..base.date_parser import parse_any_date_format
+from ..base.date_parser import parse_any_date_format, convert_deadline_to_date
 
 
 class FollowUpActivityExtractor(BaseExtractor):
@@ -84,7 +86,9 @@ class FollowUpActivityExtractor(BaseExtractor):
             Returns None if no Follow-up section is found
         """
         # Primary pattern: <h2 id="Follow-up">
-        followup_section = soup.find("h2", id="Follow-up")
+        followup_section = soup.find(
+            "h2", id=["Follow-up", "Updates-on-the-Commissions-proposals"]
+        )
         if followup_section:
             return (followup_section, "h2")
 
@@ -124,205 +128,94 @@ class FollowUpActivityExtractor(BaseExtractor):
                 f"Error checking followup section for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_followup_events(
-        self, soup: BeautifulSoup
-    ) -> Optional[Union[List[str], Dict[str, List[str]]]]:
-        """
-        Extract follow-up events information as structured JSON with links preserved.
-
-        Extracts content from the Follow-up section and returns it in one of three formats:
-        1. List[str] - Simple list of text items (no subsections)
-        2. Dict[str, List[str]] - Dictionary with subsection names as keys and lists of items as values
-        3. None - If no Follow-up section exists
-
-        The Follow-up content can appear:
-        1. As a separate <h2 id="Follow-up"> section
-        2. As an <h4>Follow-up</h4> subsection within "Answer of the European Commission
-        and follow-up" section
-
-        Subsections are identified by <strong> tags that contain the ONLY content of a paragraph,
-        typically ending with a colon (e.g., "<p><strong>Legislative action:</strong></p>").
-        Links are preserved in the format: "link text (url)"
-
-        Returns:
-            - List[str] if section has no subsections, e.g.:
-            ["Item 1", "Item 2 (https://example.com)", "Item 3"]
-
-            - Dict[str, List[str]] if section has subsections, e.g.:
-            {
-                "Legislative action": [
-                    "Amendment to Directive... (https://url1)",
-                    "Proposal for revision... (https://url2)"
-                ],
-                "Implementation and review": [
-                    "Report 1... (https://url3)"
-                ]
-            }
-
-            - None if no Follow-up section exists
-
-        Raises:
-            ValueError: If critical error occurs during extraction
-        """
-        try:
-            # Use the shared lookup method
-            result = self._find_followup_section(soup)
-
-            if not result:
-                # No Follow-up section exists
-                return None
-
-            followup_section, section_marker = result
-
-            # Collect all content with subsection awareness
-            content_parts = []
-            subsections = {}
-            current_subsection = None
-            current_subsection_items = []
-            current_element = followup_section.find_next_sibling()
-
-            while current_element:
-                # Stop at next h2 or h4 marker (depending on which pattern found section)
-                if current_element.name == "h2":
-                    break
-                if section_marker == "h4" and current_element.name == "h4":
-                    break
-
-                if current_element.name:  # Only process actual HTML tags
-                    # Check if this is a subsection header (paragraph with strong tag)
-                    if current_element.name == "p":
-                        strong_tag = current_element.find("strong")
-
-                        # Check if this is a SUBSECTION HEADER pattern:
-                        # The paragraph contains ONLY a <strong> tag (possibly with colon/punctuation)
-                        # and nothing else of substance
-                        is_subsection_header = False
-                        if strong_tag:
-                            # Get the full paragraph text
-                            para_text = self._extract_text_with_links(
-                                current_element
-                            ).strip()
-                            strong_text = strong_tag.get_text(strip=True)
-
-                            # A subsection header has the strong text as its primary content
-                            # (allowing for trailing colons or punctuation)
-                            # Check if the full text is essentially just the strong text
-                            if (
-                                para_text.rstrip(":").rstrip()
-                                == strong_text.rstrip(":").rstrip()
-                            ):
-                                is_subsection_header = True
-
-                        if is_subsection_header:
-                            strong_tag = current_element.find("strong")
-                            subsection_text = strong_tag.get_text(strip=True)
-
-                            # Check for boundary marker BEFORE processing as subsection
-                            if subsection_text.startswith("Other information"):
-                                break
-
-                            # Save previous subsection if exists
-                            if current_subsection and current_subsection_items:
-                                subsections[current_subsection] = (
-                                    current_subsection_items
-                                )
-                                current_subsection_items = []
-
-                            # Start new subsection
-                            current_subsection = subsection_text
-                            # IMPORTANT: Must move to next sibling BEFORE continue
-                            current_element = current_element.find_next_sibling()
-                            continue
-
-                        # Regular paragraph (could have inline strong tags)
-                        # Use link-preserving extraction
-                        text = self._extract_text_with_links(current_element)
-
-                        if text:
-                            if current_subsection:
-                                current_subsection_items.append(text)
-                            else:
-                                content_parts.append(text)
-
-                    elif current_element.name == "ul":
-                        # Process list items with link preservation
-                        for li in current_element.find_all("li", recursive=False):
-                            text = self._extract_text_with_links(li)
-                            if text:
-                                if current_subsection:
-                                    current_subsection_items.append(text)
-                                else:
-                                    content_parts.append(text)
-
-                current_element = current_element.find_next_sibling()
-
-            # Save last subsection if exists
-            if current_subsection and current_subsection_items:
-                subsections[current_subsection] = current_subsection_items
-
-            # Return structured data
-            if subsections:
-                # Has subsections: return dict
-                return subsections if subsections else None
-            elif content_parts:
-                # No subsections: return list
-                return content_parts
-            else:
-                # Empty follow-up section
-                return None
-
-        except Exception as e:
-            raise ValueError(
-                f"Error extracting followup events for {self.registration_number}: {str(e)}"
-            ) from e
-
     def extract_has_partnership_programs(self, soup: BeautifulSoup) -> Optional[bool]:
         """
-        Check if initiative has partnership programs mentioned in follow-up.
+        Check if initiative has partnership programs mentioned in follow-up or response sections.
 
-        Looks for keywords like "partnerships", "partnership programs", "public-public partnerships",
-        etc. in the Follow-up section.
+        Searches in multiple relevant sections:
+        - "Follow-up" (primary section for follow-up information)
+        - "Answer of the European Commission" (alternative section name)
+        - "Commission Response" (alternative section name)
+        - "European Commission's response" (alternative section name)
 
         Args:
             soup: BeautifulSoup parsed HTML document
 
         Returns:
             True if partnership programs are mentioned, False otherwise, None on error
-
-        Raises:
-            ValueError: If critical error occurs during detection
         """
         try:
-            # Use shared lookup method to find Follow-up section
-            result = self._find_followup_section(soup)
+            # Define section names to search (in priority order)
+            section_names = [
+                "Follow-up",
+                "Answer of the European Commission",
+                "Commission Response",
+                "Commission's response",
+                "European Commission's response",
+            ]
 
-            if not result:
+            # Try to find any of the relevant sections
+            followup_section = None
+            section_marker = None
+
+            for section_name in section_names:
+
+                # Try h2 first - use get_text() because headers may contain nested tags
+                for h2 in soup.find_all("h2"):
+
+                    if section_name in h2.get_text(strip=True):
+                        followup_section = h2
+                        section_marker = "h2"
+                        break
+
+                if followup_section:
+                    break
+
+                # Try h4 if h2 not found
+                for h4 in soup.find_all("h4"):
+
+                    if section_name in h4.get_text(strip=True):
+                        followup_section = h4
+                        section_marker = "h4"
+                        break
+
+                if followup_section:
+                    break
+
+            # If no section found, return False
+            if not followup_section:
                 return False
 
-            followup_section, section_marker = result
-
-            # Extract all text from Follow-up section
+            # Extract all text from the found section
             followup_text = followup_section.find_next_sibling()
             full_text = ""
 
             while followup_text and followup_text.name != "h2":
                 if section_marker == "h4" and followup_text.name == "h4":
                     break
-
                 if followup_text.name:
                     full_text += followup_text.get_text(
                         separator=" ", strip=True
                     ).lower()
-
                 followup_text = followup_text.find_next_sibling()
 
             # Check for partnership-related keywords
             partnership_keywords = [
-                "partnership",
-                "partnerships",
+                "partnership program",
+                "partnership plans",
+                "partnership programmes",
                 "public-public partnership",
-                "water operators",
-                "partner",
+                "public-public partnerships",
+                "european partnership for",
+                "partnership between",
+                "partnerships between",
+                "support to partnerships",
+                "cooperation programme",
+                "collaboration programme",
+                "joint programme",
+                "formal partnership",
+                "established partnership",
+                "international partners",
             ]
 
             for keyword in partnership_keywords:
@@ -431,13 +324,33 @@ class FollowUpActivityExtractor(BaseExtractor):
 
             # Check for workshop-related keywords
             workshop_keywords = [
+                # Workshops
                 "workshop",
                 "workshops",
+                # Conferences
                 "conference",
                 "conferences",
+                # Scientific/academic engagement events
+                "scientific conference",
+                "scientific debate",
+                # Stakeholder engagement events
                 "stakeholder meeting",
                 "stakeholder meetings",
-                "dedicated workshop",
+                "stakeholder conference",
+                "stakeholder debate",
+                # Organized/planned events (suggests intentional activity)
+                "organised workshop",
+                "organized workshop",
+                "organised conference",
+                "organized conference",
+                # Series/multiple events
+                "series of workshops",
+                "series of conferences",
+                # Other formal engagement formats
+                "roundtable",
+                "symposium",
+                "seminar",
+                "seminars",
             ]
 
             for keyword in workshop_keywords:
@@ -589,7 +502,7 @@ class FollowUpActivityExtractor(BaseExtractor):
 
         return datetime.now().date()
 
-    def extract_latest_date(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_followup_latest_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract most recent date from follow-up section that is not later than today.
 
         Finds the most recent date in the Follow-up section that does not exceed
@@ -647,7 +560,7 @@ class FollowUpActivityExtractor(BaseExtractor):
                 f"Error extracting latest update date for {self.registration_number}: {str(e)}"
             ) from e
 
-    def extract_most_future_date(self, soup: BeautifulSoup) -> Optional[str]:
+    def extract_followup_most_future_date(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract most recent date from follow-up section.
 
 
@@ -704,3 +617,327 @@ class FollowUpActivityExtractor(BaseExtractor):
             raise ValueError(
                 f"Error extracting latest update date for {self.registration_number}: {str(e)}"
             ) from e
+
+    def extract_followup_events_with_dates(self, soup: BeautifulSoup) -> Optional[dict]:
+        """
+        Extract follow-up actions with associated dates in structured JSON format.
+
+        Returns JSON array with structure:
+        [
+            {
+                "dates": ["2020-01-01", "2021-01-01"],
+                "action": "Following up on its commitment..."
+            },
+            ...
+        ]
+
+        Each action corresponds to a paragraph, list item, or div following the Follow-up header.
+        Dates are extracted from the text and normalized to ISO 8601 format (YYYY-MM-DD).
+        If no dates are found in the action text, the dates array will be empty.
+
+        Args:
+            soup: BeautifulSoup object of the HTML document
+
+        Returns:
+            dict with follow-up actions and dates, or None if no follow-up section exists
+            or no valid actions are found
+
+        Raises:
+            ValueError: If critical error occurs during extraction
+        """
+        try:
+            # Find the Follow-up section
+            result = self._find_followup_section(soup)
+
+            if not result:
+                return None
+
+            # Unpack tuple and pass to extraction
+            follow_up_actions = self._extract_followup_actions(result)
+
+            if not follow_up_actions:
+                raise ValueError(
+                    f"No valid follow-up actions found for initiative {self.registration_number}"
+                )
+
+            return follow_up_actions
+
+        except Exception as e:
+            raise ValueError(
+                f"Error calculating follow-up duration for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def _extract_followup_actions(
+        self, followup_section: Tuple[Tag, str]
+    ) -> List[Dict[str, Union[List[str], str]]]:
+        """
+        Extract follow-up actions from the Follow-up section.
+
+        Args:
+            followup_section: Tuple with (element, marker)
+                            - element: BeautifulSoup element of the Follow-up header
+                            - marker: Type of header ('h2' or 'h4')
+
+        Returns:
+            List of dictionaries with 'dates' and 'action' keys
+        """
+
+        # Unpack the tuple
+        section_element, section_marker = followup_section
+
+        follow_up_actions = []
+        current_element = section_element.find_next_sibling()
+
+        while current_element:
+            # Stop at next major heading
+            if self._should_stop_extraction(current_element, section_marker):
+                break
+
+            # Process paragraphs and divs
+            if current_element.name in ["p", "div"]:
+                action = self._process_text_element(current_element)
+                if action:
+                    follow_up_actions.append(action)
+
+            # Process unordered/ordered lists - extract individual list items
+            elif current_element.name in ["ul", "ol"]:
+                actions = self._process_list_element(current_element)
+                follow_up_actions.extend(actions)
+
+            current_element = current_element.find_next_sibling()
+
+        return follow_up_actions
+
+    def _should_stop_extraction(self, element, section_marker: str) -> bool:
+        """
+        Check if we should stop extracting follow-up actions.
+
+        Args:
+            element: Current BeautifulSoup element
+            section_marker: Type of Follow-up header ('h2' or 'h4')
+
+        Returns:
+            True if extraction should stop, False otherwise
+        """
+
+        if element.name == "h2":
+            return True
+        if section_marker == "h4" and element.name == "h4":
+            return True
+        return False
+
+    def _process_text_element(
+        self, element
+    ) -> Optional[Dict[str, Union[List[str], str]]]:
+        """
+        Process a paragraph or div element.
+
+        Args:
+            element: BeautifulSoup element
+
+        Returns:
+            Dictionary with 'dates' and 'action' keys, or None if should be skipped
+        """
+
+        action_text = element.get_text(separator=" ", strip=True)
+        action_text_normalized = re.sub(r"\s+", " ", action_text)
+
+        # Skip very short content
+        if len(action_text_normalized) < 30:
+            return None
+
+        # Skip generic intro paragraphs or subsection headers
+        if self._should_skip_text(action_text_normalized):
+            return None
+
+        # Extract dates from the text
+        dates = self._extract_dates_from_text(action_text_normalized)
+
+        return {"dates": dates, "action": action_text_normalized}
+
+    def _process_list_element(
+        self, list_element
+    ) -> List[Dict[str, Union[List[str], str]]]:
+        """
+        Process a list element (ul or ol) and extract individual list items.
+
+        Args:
+            list_element: BeautifulSoup list element
+
+        Returns:
+            List of dictionaries with 'dates' and 'action' keys
+        """
+
+        actions = []
+
+        for li in list_element.find_all("li", recursive=False):
+
+            action_text = li.get_text(separator=" ", strip=True)
+            action_text_normalized_spaces = re.sub(r"\s+", " ", action_text)
+
+            # Skip very short items
+            if len(action_text_normalized_spaces) < 30:
+                continue
+
+            # Extract dates from the text
+            dates = self._extract_dates_from_text(action_text_normalized_spaces)
+
+            actions.append({"dates": dates, "action": action_text_normalized_spaces})
+
+        return actions
+
+    def _should_skip_text(self, text: str) -> bool:
+        """
+        Determine if text should be skipped (generic intro or subsection header).
+
+        Args:
+            text: Text content to check
+
+        Returns:
+            True if text should be skipped, False otherwise
+        """
+
+        skip_patterns = [
+            "provides regularly updated information",
+            "provides information on the follow-up",
+            "this section provides",
+        ]
+
+        text_lower = text.lower()
+
+        for pattern in skip_patterns:
+
+            if pattern in text_lower:
+                return True
+
+        # Also skip if it's just a subsection header (ends with colon)
+        if text.endswith(":"):
+            return True
+
+        return False
+
+    def _extract_dates_from_text(self, text: str) -> List[str]:
+        """
+        Extract and normalize dates from text to ISO 8601 format.
+
+        Only keeps the most specific date at each text position to avoid duplicates
+        (e.g., if "01 February 2018" is found, "February 2018" won't be extracted).
+
+        Supported formats:
+        - DD Month YYYY (e.g., "28 October 2015") → YYYY-MM-DD
+        - Month YYYY (e.g., "February 2018") → YYYY-MM-01 (first day) or YYYY-MM-DD (last day)
+        - YYYY (e.g., "2021") → YYYY-01-01
+        - Deadline expressions (e.g., "early 2026", "end of 2023") → converted appropriately
+
+        Args:
+            text: Text content to extract dates from
+
+        Returns:
+            List of ISO 8601 formatted date strings
+        """
+
+        # Generate month names pattern from calendar module
+        month_names_pattern = "|".join(
+            calendar.month_name[1:]
+        )  # Excludes empty string at index 0
+
+        # Date patterns ordered by specificity (most specific first)
+        date_patterns = [
+            # DD Month YYYY (e.g., "28 October 2015", "01 February 2018")
+            (rf"\b(\d{{1,2}})\s+({month_names_pattern})\s+(\d{{4}})\b", "dmy"),
+            # Deadline expressions (e.g., "early 2026", "end of 2023", "end 2024")
+            (
+                rf"\b(?:early|end(?:\s+of)?)\s+(?:({month_names_pattern})\s+)?(\d{{4}})\b",
+                "deadline",
+            ),
+            # Month YYYY (e.g., "February 2018", "October 2015")
+            (rf"\b({month_names_pattern})\s+(\d{{4}})\b", "deadline"),
+            # YYYY only (e.g., "2021", "2023")
+            (r"\b(20\d{2})\b", "y"),
+        ]
+
+        found_dates = []
+        used_positions: set = set()
+
+        # Process patterns in order of specificity
+        for pattern, date_type in date_patterns:
+            matches = list(re.finditer(pattern, text, re.IGNORECASE))
+
+            for match in matches:
+                # Check if this position overlaps with already used position
+                match_range = range(match.start(), match.end())
+
+                if any(pos in used_positions for pos in match_range):
+                    continue
+
+                try:
+                    if date_type == "deadline":
+                        # Use convert_deadline_to_date for flexible deadline parsing
+                        deadline_text = match.group(0)
+                        iso_date = convert_deadline_to_date(deadline_text)
+                    else:
+                        # Use existing parsing for exact dates
+                        iso_date = self._parse_date_match(match, date_type)
+
+                    if iso_date:
+                        found_dates.append(iso_date)
+
+                        # Mark this position as used
+                        for pos in match_range:
+                            used_positions.add(pos)
+
+                except (ValueError, AttributeError):
+                    continue
+
+        # Remove duplicates while preserving order
+        return list(dict.fromkeys(found_dates))
+
+    def _parse_date_match(self, match: re.Match, date_type: str) -> Optional[str]:
+        """
+        Parse a regex match into an ISO 8601 date string.
+
+        Args:
+            match: Regex match object
+            date_type: Type of date format ('dmy', 'my', or 'y')
+
+        Returns:
+            ISO 8601 formatted date string (YYYY-MM-DD), or None if parsing fails
+        """
+
+        try:
+            if date_type == "dmy":
+
+                # DD Month YYYY format
+                day = int(match.group(1))
+                month_name = match.group(2).capitalize()
+                year = int(match.group(3))
+
+                # Convert month name to number using datetime
+                month = datetime.strptime(month_name, "%B").month
+
+                # Validate day is within valid range for the month
+                max_day = calendar.monthrange(year, month)[1]
+                if day > max_day:
+                    return None
+
+                return f"{year:04d}-{month:02d}-{day:02d}"
+
+            elif date_type == "my":
+                # Month YYYY format
+                month_name = match.group(1).capitalize()
+                year = int(match.group(2))
+
+                # Convert month name to number using datetime
+                month = datetime.strptime(month_name, "%B").month
+
+                return f"{year:04d}-{month:02d}-01"
+
+            elif date_type == "y":
+                # YYYY format
+                year = int(match.group(1))
+                return f"{year:04d}-01-01"
+
+        except (ValueError, AttributeError):
+            return None
+
+        return None

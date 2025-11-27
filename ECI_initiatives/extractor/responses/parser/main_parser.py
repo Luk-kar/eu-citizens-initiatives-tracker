@@ -3,6 +3,7 @@ ECI Response HTML Parser - Main Orchestrator
 Coordinates all extractor classes to parse response pages
 """
 
+import json
 from datetime import datetime
 import logging
 from pathlib import Path
@@ -20,7 +21,7 @@ from .extractors.response import CommissionResponseExtractor
 from .extractors.outcome import LegislativeOutcomeExtractor
 from .extractors.followup import FollowUpActivityExtractor
 from .extractors.multimedia import MultimediaDocumentationExtractor
-from .extractors.structural import StructuralAnalysisExtractor
+from .extractors.legislative_references import LegislativeReferences
 
 
 class ECIResponseHTMLParser:
@@ -44,7 +45,7 @@ class ECIResponseHTMLParser:
         )
         self.followup_activity = FollowUpActivityExtractor(logger)
         self.multimedia_docs = MultimediaDocumentationExtractor(logger)
-        self.structural_analysis = StructuralAnalysisExtractor(logger)
+        self.structural_analysis = LegislativeReferences(logger)
 
     @property
     def registration_number(self):
@@ -100,16 +101,18 @@ class ECIResponseHTMLParser:
 
             soup = BeautifulSoup(html_content, "html.parser")
 
-            current_timestamp = datetime.now().isoformat()
-
             # Extract commission communication date for follow-up calculation
             official_communication_adoption_date = (
                 self.commission_response.extract_official_communication_adoption_date(
                     soup
                 )
             )
-            latest_date = self.followup_activity.extract_latest_date(soup)
-            most_future_date = self.followup_activity.extract_most_future_date(soup)
+            followup_latest_date = self.followup_activity.extract_followup_latest_date(
+                soup
+            )
+            followup_most_future_date = (
+                self.followup_activity.extract_followup_most_future_date(soup)
+            )
 
             # Create and return ECI Response object using extractors
             response = ECICommissionResponseRecord(
@@ -137,18 +140,20 @@ class ECIResponseHTMLParser:
                 parliament_hearing_date=self.parliament_activity.extract_parliament_hearing_date(
                     soup
                 ),
-                parliament_hearing_video_urls=self.parliament_activity.extract_parliament_hearing_video_urls(
-                    soup
+                parliament_hearing_video_urls=json.dumps(
+                    self.parliament_activity.extract_parliament_hearing_video_urls(soup)
                 ),
                 plenary_debate_date=self.parliament_activity.extract_plenary_debate_date(
                     soup
                 ),
-                plenary_debate_video_urls=self.parliament_activity.extract_plenary_debate_video_urls(
-                    soup
+                plenary_debate_video_urls=json.dumps(
+                    self.parliament_activity.extract_plenary_debate_video_urls(soup)
                 ),
                 official_communication_adoption_date=official_communication_adoption_date,
-                official_communication_document_urls=self.commission_response.extract_official_communication_document_urls(
-                    soup
+                official_communication_document_urls=json.dumps(
+                    self.commission_response.extract_official_communication_document_urls(
+                        soup
+                    )
                 ),
                 # Commission Response Content
                 commission_answer_text=self.commission_response.extract_commission_answer_text(
@@ -166,8 +171,8 @@ class ECIResponseHTMLParser:
                 commission_promised_new_law=self.legislative_outcome.extract_proposal_commitment_stated(
                     soup
                 ),
-                commission_deadlines=self.legislative_outcome.extract_commissions_deadlines(
-                    soup
+                commission_deadlines=json.dumps(
+                    self.legislative_outcome.extract_commissions_deadlines(soup)
                 ),
                 commission_rejected_initiative=self.legislative_outcome.extract_proposal_rejected(
                     soup
@@ -176,25 +181,29 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 # Actions Taken (What actually happened)
-                laws_actions=self.legislative_outcome.extract_legislative_action(soup),
-                policies_actions=self.legislative_outcome.extract_non_legislative_action(
-                    soup
+                laws_actions=json.dumps(
+                    self.legislative_outcome.extract_legislative_action(soup)
+                ),
+                policies_actions=json.dumps(
+                    self.legislative_outcome.extract_non_legislative_action(soup)
                 ),
                 # Follow-up Activities Section
                 has_followup_section=self.followup_activity.extract_has_followup_section(
                     soup
                 ),
-                followup_events=self.followup_activity.extract_followup_events(soup),
+                followup_events_with_dates=json.dumps(
+                    self.followup_activity.extract_followup_events_with_dates(soup)
+                ),
                 has_roadmap=self.followup_activity.extract_has_roadmap(soup),
                 has_workshop=self.followup_activity.extract_has_workshop(soup),
                 has_partnership_programs=self.followup_activity.extract_has_partnership_programs(
                     soup
                 ),
-                court_cases_referenced=self.followup_activity.extract_court_cases_referenced(
-                    soup
+                court_cases_referenced=json.dumps(
+                    self.followup_activity.extract_court_cases_referenced(soup)
                 ),
-                latest_date=latest_date,
-                most_future_date=most_future_date,
+                followup_latest_date=followup_latest_date,
+                followup_most_future_date=followup_most_future_date,
                 followup_dedicated_website=self.multimedia_docs.extract_followup_dedicated_website(
                     soup
                 ),
@@ -202,19 +211,15 @@ class ECIResponseHTMLParser:
                 commission_factsheet_url=self.multimedia_docs.extract_commission_factsheet_url(
                     soup
                 ),
-                # Structural Analysis Flags
-                referenced_legislation_by_id=self.structural_analysis.extract_referenced_legislation_by_id(
-                    soup
+                # Legislation References
+                referenced_legislation_by_id=json.dumps(
+                    self.structural_analysis.extract_referenced_legislation_by_id(soup)
                 ),
-                referenced_legislation_by_name=self.structural_analysis.extract_referenced_legislation_by_name(
-                    soup
+                referenced_legislation_by_name=json.dumps(
+                    self.structural_analysis.extract_referenced_legislation_by_name(
+                        soup
+                    )
                 ),
-                follow_up_duration_months=self.structural_analysis.calculate_follow_up_duration_months(
-                    official_communication_adoption_date, latest_date
-                ),
-                # Metadata
-                created_timestamp=current_timestamp,
-                last_updated=current_timestamp,
             )
 
             self.logger.info(

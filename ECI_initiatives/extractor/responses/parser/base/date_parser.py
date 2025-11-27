@@ -253,7 +253,7 @@ def format_date_from_match(
     match, day_group=1, month_group=2, year_group=3
 ) -> Optional[str]:
     """
-    Format a date string from regex match groups.
+    Format date from regex match in ISO 8601 format (YYYY-MM-DD)
 
     Args:
         match: Regex match object with date components
@@ -262,7 +262,7 @@ def format_date_from_match(
         year_group: Group index for year (default 3)
 
     Returns:
-        Formatted date string in DD-MM-YYYY format, or None if match is None
+        Formatted date string in YYYY-MM-DD format, or None if match is None
     """
     if not match:
         return None
@@ -270,4 +270,4 @@ def format_date_from_match(
     day = match.group(day_group).zfill(2)
     month = match.group(month_group).zfill(2)
     year = match.group(year_group)
-    return f"{day}-{month}-{year}"
+    return f"{year}-{month}-{day}"

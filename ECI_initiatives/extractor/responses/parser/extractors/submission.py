@@ -102,6 +102,7 @@ class SubmissionDataExtractor(BaseExtractor):
 
     def extract_submission_news_url(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract Commission news announcement URL about submission"""
+
         h2 = soup.find("h2", id="Submission-and-examination")
 
         if h2:
