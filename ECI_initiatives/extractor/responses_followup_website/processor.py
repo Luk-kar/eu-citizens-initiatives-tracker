@@ -63,8 +63,9 @@ class ECIFollowupWebsiteProcessor:
     def run(self):
         # Find all HTML files in the source directory
         html_dir = os.path.join(self.input_dir, "responses_followup_website")
-        html_files = glob.glob(os.path.join(html_dir, "*.html"))
+        html_files = glob.glob(os.path.join(html_dir, "**", "*.html"), recursive=True)
 
+        self.logger.info(f"In the directory:\n{html_dir}")
         self.logger.info(f"Found {len(html_files)} HTML files to process")
 
         records = []
