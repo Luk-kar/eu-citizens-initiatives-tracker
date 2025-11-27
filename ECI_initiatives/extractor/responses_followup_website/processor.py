@@ -68,6 +68,38 @@ class ECIFollowupWebsiteProcessor:
         self.logger.info(f"In the directory:\n{html_dir}")
         self.logger.info(f"Found {len(html_files)} HTML files to process")
 
+        # Load responses list CSV to get initiative_title and followup_dedicated_website
+        # Pattern must exclude files starting with "eci_responses_followup_website"
+        responses_csv_files = []
+        for csv_file in glob.glob(os.path.join(self.input_dir, "eci_responses_*.csv")):
+            # Skip the followup_website output CSV
+            if "followup_website" not in os.path.basename(csv_file):
+                responses_csv_files.append(csv_file)
+
+        if not responses_csv_files:
+            raise FileNotFoundError(
+                f"No responses CSV file found in {self.input_dir}. "
+                f"Expected file matching pattern: eci_responses_YYYY-MM-DD_HH-MM-SS.csv "
+                f"(excluding followup_website files)"
+            )
+
+        # Get the latest responses CSV file (in case multiple exist)
+        responses_csv_path = max(responses_csv_files)
+        self.logger.info(f"Loading responses data from: {responses_csv_path}")
+
+        # Load responses data into dictionary keyed by registration_number
+        responses_data = {}
+        with open(responses_csv_path, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                reg_num = row["registration_number"]
+                responses_data[reg_num] = {
+                    "initiative_title": row["initiative_title"],
+                    "followup_dedicated_website": row["followup_dedicated_website"],
+                }
+
+        self.logger.info(f"Loaded {len(responses_data)} records from responses CSV")
+
         records = []
         for idx, path in enumerate(html_files, 1):
             self.logger.info(
@@ -79,60 +111,57 @@ class ECIFollowupWebsiteProcessor:
                     html_content = f.read()
 
                 extractor = FollowupWebsiteExtractor(html_content)
+
+                # Extract registration number from filename
+                html_file_name = os.path.basename(path)
+                registration_number = extractor.extract_registration_number(
+                    html_file_name
+                )
+
+                # Get initiative_title and followup_dedicated_website from responses CSV
+                if registration_number not in responses_data:
+                    raise ValueError(
+                        f"Registration number {registration_number} not found in responses CSV: {responses_csv_path}. "
+                        f"Cannot process file: {html_file_name}"
+                    )
+
+                initiative_title = responses_data[registration_number][
+                    "initiative_title"
+                ]
+                followup_dedicated_website = responses_data[registration_number][
+                    "followup_dedicated_website"
+                ]
+
                 record = ECIFollowupWebsiteRecord(
                     # Basic Initiative Metadata
-                    registration_number=extract_registration_number(html_file_name),
-                    initiative_title="",  # responses_list_data["initiative_title"]
-                    followup_dedicated_website="",  # responses_list_data["followup_dedicated_website"]
+                    registration_number=registration_number,
+                    initiative_title=initiative_title,
+                    followup_dedicated_website=followup_dedicated_website,
                     # Commission Response Content
-                    commission_answer_text=extractor.extract_commission_answer_text(
-                        soup
-                    ),
-                    official_communication_document_urls=extractor.extract_official_communication_document_urls(
-                        soup
-                    ),
+                    commission_answer_text=extractor.extract_commission_answer_text(),
+                    official_communication_document_urls=extractor.extract_official_communication_document_urls(),
                     # SECTION 1: Final Outcome
-                    final_outcome_status=extractor.extract_final_outcome_status(soup),
-                    law_implementation_date=extractor.extract_law_implementation_date(
-                        soup
-                    ),
+                    final_outcome_status=extractor.extract_final_outcome_status(),
+                    law_implementation_date=extractor.extract_law_implementation_date(),
                     # SECTION 2: Commission's Initial Response
-                    commission_promised_new_law=extractor.extract_commission_promised_new_law(
-                        soup
-                    ),
-                    commission_deadlines=extractor.extract_commission_deadlines(soup),
-                    commission_rejected_initiative=extractor.extract_commission_rejected_initiative(
-                        soup
-                    ),
-                    commission_rejection_reason=extractor.extract_commission_rejection_reason(
-                        soup
-                    ),
+                    commission_promised_new_law=extractor.extract_commission_promised_new_law(),
+                    commission_deadlines=extractor.extract_commission_deadlines(),
+                    commission_rejected_initiative=extractor.extract_commission_rejected_initiative(),
+                    commission_rejection_reason=extractor.extract_commission_rejection_reason(),
                     # SECTION 3: Actions Taken
-                    laws_actions=extractor.extract_laws_actions(soup),
-                    policies_actions=extractor.extract_policies_actions(soup),
+                    laws_actions=extractor.extract_laws_actions(),
+                    policies_actions=extractor.extract_policies_actions(),
                     # Follow-up Activities Section
-                    has_roadmap=extractor.extract_has_roadmap(soup),
-                    has_workshop=extractor.extract_has_workshop(soup),
-                    has_partnership_programs=extractor.extract_has_partnership_programs(
-                        soup
-                    ),
-                    court_cases_referenced=extractor.extract_court_cases_referenced(
-                        soup
-                    ),
-                    followup_latest_date=extractor.extract_followup_latest_date(soup),
-                    followup_most_future_date=extractor.extract_followup_most_future_date(
-                        soup
-                    ),
+                    has_roadmap=extractor.extract_has_roadmap(),
+                    has_workshop=extractor.extract_has_workshop(),
+                    has_partnership_programs=extractor.extract_has_partnership_programs(),
+                    court_cases_referenced=extractor.extract_court_cases_referenced(),
+                    followup_latest_date=extractor.extract_followup_latest_date(),
+                    followup_most_future_date=extractor.extract_followup_most_future_date(),
                     # Structural Analysis Flags
-                    referenced_legislation_by_id=extractor.extract_referenced_legislation_by_id(
-                        soup
-                    ),
-                    referenced_legislation_by_name=extractor.extract_referenced_legislation_by_name(
-                        soup
-                    ),
-                    followup_events_with_dates=extractor.extract_followup_events_with_dates(
-                        soup
-                    ),
+                    referenced_legislation_by_id=extractor.extract_referenced_legislation_by_id(),
+                    referenced_legislation_by_name=extractor.extract_referenced_legislation_by_name(),
+                    followup_events_with_dates=extractor.extract_followup_events_with_dates(),
                 )
                 records.append(record)
                 self.logger.info(
