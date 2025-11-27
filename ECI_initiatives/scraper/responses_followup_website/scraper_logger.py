@@ -37,7 +37,9 @@ def initialize_logger(log_dir: str):
 
     # File handler
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    log_file = os.path.join(log_dir, f"scraper_followup_website_{timestamp}.log")
+    log_file = os.path.join(
+        log_dir, f"scraper_responses_followup_website_{timestamp}.log"
+    )
     file_handler = logging.FileHandler(log_file, encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
     file_formatter = logging.Formatter(
