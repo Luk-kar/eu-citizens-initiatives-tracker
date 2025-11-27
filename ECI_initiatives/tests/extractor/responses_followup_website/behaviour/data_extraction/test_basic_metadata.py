@@ -19,23 +19,24 @@ from ECI_initiatives.extractor.responses_followup_website.parser.extractors impo
 class TestBasicMetadataExtraction:
     """Tests for basic metadata extraction."""
 
-    @classmethod
-    def setup_class(cls):
-        """Setup extractor instance."""
-        # TODO: Initialize extractor with mock HTML
-        pass
+    def test_extract_registration_number_file_name(self):
+        """Test extraction of registration number from filename patterns."""
+        extractor = FollowupWebsiteExtractor("")
 
-    def test_extract_registration_number_from_url(self):
-        """Test extraction of registration number from URL patterns."""
-        # TODO: Implement test
-        pass
+        # Test standard format: YYYY_NNNNNN_en.html -> YYYY/NNNNNN
+        result = extractor.extract_registration_number("2018_000004_en.html")
+        assert result == "2018/000004"
 
-    def test_extract_registration_number_from_content(self):
-        """Test extraction of registration number from page content."""
-        # TODO: Implement test
-        pass
+        result = extractor.extract_registration_number("2022_000002_en.html")
+        assert result == "2022/000002"
 
     def test_extract_registration_number_missing(self):
         """Test error handling when registration number not found."""
-        # TODO: Implement test
-        pass
+        extractor = FollowupWebsiteExtractor("")
+
+        # Test invalid filename format raises ValueError
+        with pytest.raises(ValueError, match="Invalid filename format"):
+            extractor.extract_registration_number("invalid_filename.html")
+
+        with pytest.raises(ValueError, match="Invalid filename format"):
+            extractor.extract_registration_number("2018_0004_en.html")  # Wrong

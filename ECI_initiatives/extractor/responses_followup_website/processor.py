@@ -80,28 +80,59 @@ class ECIFollowupWebsiteProcessor:
 
                 extractor = FollowupWebsiteExtractor(html_content)
                 record = ECIFollowupWebsiteRecord(
-                    registration_number=extractor.extract_registration_number(),
-                    commission_answer_text=extractor.extract_commission_answer_text(),
-                    followup_latest_date=extractor.extract_followup_latest_date(),
-                    followup_most_future_date=extractor.extract_followup_most_future_date(),
-                    commission_deadlines=extractor.extract_commission_deadlines(),
-                    official_communication_document_urls=extractor.extract_official_communication_document_urls(),
-                    followup_dedicated_website=extractor.extract_followup_dedicated_website(),
-                    laws_actions=extractor.extract_laws_actions(),
-                    policies_actions=extractor.extract_policies_actions(),
-                    followup_events_with_dates=extractor.extract_followup_events_with_dates(),
-                    referenced_legislation_by_name=extractor.extract_referenced_legislation_by_name(),
-                    referenced_legislation_by_id=extractor.extract_referenced_legislation_by_id(),
-                    final_outcome_status=extractor.extract_final_outcome_status(),
-                    commission_promised_new_law=extractor.extract_commission_promised_new_law(),
-                    commission_rejected_initiative=extractor.extract_commission_rejected_initiative(),
-                    commission_rejection_reason=extractor.extract_commission_rejection_reason(),
-                    has_followup_section=extractor.extract_has_followup_section(),
-                    has_roadmap=extractor.extract_has_roadmap(),
-                    has_workshop=extractor.extract_has_workshop(),
-                    has_partnership_programs=extractor.extract_has_partnership_programs(),
-                    court_cases_referenced=extractor.extract_court_cases_referenced(),
-                    law_implementation_date=extractor.extract_law_implementation_date(),
+                    # Basic Initiative Metadata
+                    registration_number=extract_registration_number(html_file_name),
+                    initiative_title="",  # responses_list_data["initiative_title"]
+                    followup_dedicated_website="",  # responses_list_data["followup_dedicated_website"]
+                    # Commission Response Content
+                    commission_answer_text=extractor.extract_commission_answer_text(
+                        soup
+                    ),
+                    official_communication_document_urls=extractor.extract_official_communication_document_urls(
+                        soup
+                    ),
+                    # SECTION 1: Final Outcome
+                    final_outcome_status=extractor.extract_final_outcome_status(soup),
+                    law_implementation_date=extractor.extract_law_implementation_date(
+                        soup
+                    ),
+                    # SECTION 2: Commission's Initial Response
+                    commission_promised_new_law=extractor.extract_commission_promised_new_law(
+                        soup
+                    ),
+                    commission_deadlines=extractor.extract_commission_deadlines(soup),
+                    commission_rejected_initiative=extractor.extract_commission_rejected_initiative(
+                        soup
+                    ),
+                    commission_rejection_reason=extractor.extract_commission_rejection_reason(
+                        soup
+                    ),
+                    # SECTION 3: Actions Taken
+                    laws_actions=extractor.extract_laws_actions(soup),
+                    policies_actions=extractor.extract_policies_actions(soup),
+                    # Follow-up Activities Section
+                    has_roadmap=extractor.extract_has_roadmap(soup),
+                    has_workshop=extractor.extract_has_workshop(soup),
+                    has_partnership_programs=extractor.extract_has_partnership_programs(
+                        soup
+                    ),
+                    court_cases_referenced=extractor.extract_court_cases_referenced(
+                        soup
+                    ),
+                    followup_latest_date=extractor.extract_followup_latest_date(soup),
+                    followup_most_future_date=extractor.extract_followup_most_future_date(
+                        soup
+                    ),
+                    # Structural Analysis Flags
+                    referenced_legislation_by_id=extractor.extract_referenced_legislation_by_id(
+                        soup
+                    ),
+                    referenced_legislation_by_name=extractor.extract_referenced_legislation_by_name(
+                        soup
+                    ),
+                    followup_events_with_dates=extractor.extract_followup_events_with_dates(
+                        soup
+                    ),
                 )
                 records.append(record)
                 self.logger.info(

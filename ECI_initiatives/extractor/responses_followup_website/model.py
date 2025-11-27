@@ -5,27 +5,45 @@ from typing import Optional
 @dataclass
 class ECIFollowupWebsiteRecord:
     registration_number: str
-    commission_answer_text: Optional[str]
+    initiative_title: str
+
+    # Basic Initiative Metadata
+    registration_number: str
+    initiative_title: str
+    followup_dedicated_website: str
+
+    # Commission Response Content
+    commission_answer_text: str
+    official_communication_document_urls: Optional[str]  # JSON dict
+
+    # SECTION 1: Final Outcome (What citizens care about most)
+    final_outcome_status: Optional[str]
+    law_implementation_date: Optional[str]
+
+    # SECTION 2: Commission's Initial Response (What they promised)
+    commission_promised_new_law: bool
+    commission_deadlines: Optional[str]  # JSON dict
+    commission_rejected_initiative: bool
+    commission_rejection_reason: Optional[str]
+
+    # SECTION 3: Actions Taken (What actually happened)
+    laws_actions: Optional[str]  # JSON string
+    policies_actions: Optional[str]  # JSON string
+
+    # Follow-up Activities Section
+    has_roadmap: bool
+    has_workshop: bool
+    has_partnership_programs: bool
+    court_cases_referenced: Optional[str]  # JSON dict
     followup_latest_date: Optional[str]
     followup_most_future_date: Optional[str]
-    commission_deadlines: Optional[str]
-    official_communication_document_urls: Optional[str]
-    followup_dedicated_website: Optional[str]
-    laws_actions: Optional[str]
-    policies_actions: Optional[str]
-    followup_events_with_dates: Optional[str]
-    referenced_legislation_by_name: Optional[str]
-    referenced_legislation_by_id: Optional[str]
-    final_outcome_status: Optional[str]
-    commission_promised_new_law: Optional[bool]
-    commission_rejected_initiative: Optional[bool]
-    commission_rejection_reason: Optional[str]
-    has_followup_section: Optional[bool]
-    has_roadmap: Optional[bool]
-    has_workshop: Optional[bool]
-    has_partnership_programs: Optional[bool]
-    court_cases_referenced: Optional[str]
-    law_implementation_date: Optional[str]
+
+    # Multimedia and Documentation Links
+
+    # Structural Analysis Flags
+    referenced_legislation_by_id: Optional[str]  # JSON dict
+    referenced_legislation_by_name: Optional[str]  # JSON dict
+    followup_events_with_dates: str  # JSON list
 
     def to_dict(self) -> dict:
         return asdict(self)
