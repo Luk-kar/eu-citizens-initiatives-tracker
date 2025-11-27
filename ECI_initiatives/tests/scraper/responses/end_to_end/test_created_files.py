@@ -448,10 +448,3 @@ class TestCreatedFiles:
         assert (
             self.responses_dir.parent == self.test_timestamp_dir
         ), "Responses should be created in temporary directory"
-
-
-# Inject fixture into setup_class using pytest hook
-@pytest.fixture(scope="class")
-def inject_data_dir(request, data_dir):
-    """Inject data_dir fixture into TestCreatedFiles class."""
-    request.cls.setup_class(data_dir=data_dir)
