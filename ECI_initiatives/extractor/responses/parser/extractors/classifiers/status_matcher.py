@@ -275,9 +275,25 @@ class LegislativeOutcomeClassifier:
             True if only policy actions (no legislation), False otherwise
         """
 
-        # Check for non-legislative focus without proposals
-        if "intends to focus on" in self.content or "implementation of" in self.content:
-            if "proposal" not in self.content:
+        # Check for non-legislative focus
+        has_non_legislative_focus = (
+            "intends to focus on" in self.content or "implementation of" in self.content
+        )
+
+        if has_non_legislative_focus:
+            # Check if there's an actual proposal (positive context)
+            has_positive_proposal = any(
+                phrase in self.content
+                for phrase in [
+                    "will propose",
+                    "committed to propose",
+                    "intention to table a legislative proposal",
+                    "will table a legislative proposal",
+                ]
+            )
+
+            # If no positive proposal context, it's non-legislative action
+            if not has_positive_proposal:
                 return True
 
         # Specific non-legislative action patterns
