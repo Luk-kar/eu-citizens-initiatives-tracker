@@ -224,6 +224,7 @@ class TestCommissionResponseContent:
         self, html_with_commission_response_paragraphs
     ):
         """Test that excessive whitespace is cleaned up."""
+
         extractor = FollowupWebsiteExtractor(html_with_commission_response_paragraphs)
 
         result = extractor.extract_commission_answer_text()
@@ -233,8 +234,9 @@ class TestCommissionResponseContent:
         # Should not have excessive newlines
         assert "\n\n\n" not in result
 
-    def test_extract_official_communication_document_urls(self):
-        """Test extraction of official document URLs."""
+    def test_extract_official_communication_document_urls_transparency_register(self):
+        """Test extraction of EC transparency register Communication URLs."""
+
         html = """
         <div>
             <div class="ecl">
@@ -244,7 +246,7 @@ class TestCommissionResponseContent:
                 <p>
                     See
                     <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)4747">
-                        official document
+                        Communication
                     </a>
                     for details.
                 </p>
@@ -255,6 +257,253 @@ class TestCommissionResponseContent:
 
         result = extractor.extract_official_communication_document_urls()
 
-        # TODO: Implement this method in extractor
-        # Expected: list of URLs from Commission response section
-        # assert "https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)4747" in result
+        assert result is not None
+        assert isinstance(result, dict)
+        assert "Communication" in result
+        assert (
+            result["Communication"]
+            == "https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)4747"
+        )
+
+    def test_extract_official_communication_document_urls_with_annex(self):
+        """Test extraction includes Annex documents."""
+
+        html = """
+        <div>
+            <p>
+                Read the
+                <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)4747">
+                    Communication
+                </a>
+                and its
+                <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)4747-annex">
+                    Annex
+                </a>
+                .
+            </p>
+        </div>
+        """
+        extractor = FollowupWebsiteExtractor(html)
+
+        result = extractor.extract_official_communication_document_urls()
+
+        assert result is not None
+        assert len(result) == 2
+        assert "Communication" in result
+        assert "Annex" in result
+
+    def test_extract_official_communication_document_urls_presscorner(self):
+        """Test extraction of presscorner press release URLs."""
+
+        html = """
+        <div>
+            <p>
+                See
+                <a href="https://ec.europa.eu/commission/presscorner/detail/en/ip_21_3297">
+                    Press release
+                </a>
+                about this Communication.
+            </p>
+        </div>
+        """
+        extractor = FollowupWebsiteExtractor(html)
+
+        result = extractor.extract_official_communication_document_urls()
+
+        assert result is not None
+        assert "Press release" in result
+        assert (
+            result["Press release"]
+            == "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_3297"
+        )
+
+    def test_extract_official_communication_document_urls_multiple_sources(self):
+        """Test extraction from multiple URL patterns (transparency + presscorner)."""
+
+        html = """
+        <div>
+            <p>
+                The Commission published
+                <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2023)5000">
+                    a Communication
+                </a>
+                and issued a
+                <a href="https://ec.europa.eu/commission/presscorner/detail/en/ip_23_1234">
+                    press release
+                </a>
+                .
+            </p>
+        </div>
+        """
+
+        extractor = FollowupWebsiteExtractor(html)
+
+        result = extractor.extract_official_communication_document_urls()
+
+        assert result is not None
+        assert len(result) == 2
+        assert "a Communication" in result
+        assert "press release" in result
+
+    def test_extract_official_communication_document_urls_excludes_initiative_page(
+        self,
+    ):
+        """Test that initiative overview pages are filtered out."""
+        html = """
+        <div>
+            <p>
+                Read
+                <a href="https://citizens-initiative.europa.eu/initiatives/details/2022/000002_en">
+                    a Communication
+                </a>
+                for more details.
+            </p>
+        </div>
+        """
+        extractor = FollowupWebsiteExtractor(html)
+
+        result = extractor.extract_official_communication_document_urls()
+
+        # Should be filtered out by exclusion pattern
+        assert result is None or "a Communication" not in result
+
+    def test_extract_official_communication_document_urls_duplicate_removal(self):
+        """Test that duplicate URLs are removed."""
+
+        html = """
+        <div>
+            <p>
+                See the
+                <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)4747">
+                    Communication
+                </a>
+                and refer to the
+                <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)4747">
+                    same document
+                </a>
+                again.
+            </p>
+        </div>
+        """
+        extractor = FollowupWebsiteExtractor(html)
+
+        result = extractor.extract_official_communication_document_urls()
+
+        assert result is not None
+
+        # Should have only one entry for the URL (first text wins)
+        assert len(result.keys()) == 1
+        assert "Communication" in result, (
+            f"Key 'same document' not found in result. "
+            f"Available keys: {list(result.keys())}, "
+            f"Full result: {result}"
+        )
+
+    def test_extract_official_communication_document_urls_case_insensitive(self):
+        """Test that 'communication', 'Communication', 'COMMUNICATION' all work."""
+        html = """
+        <div>
+            <p>
+                <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)1">
+                    communication
+                </a>
+                <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)2">
+                    Communication
+                </a>
+                <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)3">
+                    COMMUNICATION
+                </a>
+            </p>
+        </div>
+        """
+        extractor = FollowupWebsiteExtractor(html)
+
+        result = extractor.extract_official_communication_document_urls()
+
+        assert result is not None
+        assert len(result) == 3
+
+    def test_extract_official_communication_document_urls_annexes_plural(self):
+        """Test extraction of 'Annexes' (plural form)."""
+        html = """
+        <div>
+            <p>
+                See the
+                <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)4747-annexes">
+                    Annexes
+                </a>
+                for supporting documents.
+            </p>
+        </div>
+        """
+        extractor = FollowupWebsiteExtractor(html)
+
+        result = extractor.extract_official_communication_document_urls()
+
+        assert result is not None
+        assert "Annexes" in result
+
+    def test_extract_official_communication_document_urls_no_matches(self):
+        """Test returns None when no Communication links found."""
+        html = """
+        <div>
+            <p>
+                This page has
+                <a href="https://example.com">
+                    no official documents
+                </a>
+                at all.
+            </p>
+        </div>
+        """
+        extractor = FollowupWebsiteExtractor(html)
+
+        result = extractor.extract_official_communication_document_urls()
+
+        assert result is None
+
+    def test_extract_official_communication_document_urls_empty_html(self):
+        """Test returns None for empty HTML."""
+        extractor = FollowupWebsiteExtractor("")
+
+        result = extractor.extract_official_communication_document_urls()
+
+        assert result is None
+
+    def test_extract_official_communication_document_urls_mixed_content(self):
+        """Test extraction from realistic mixed content with various link types."""
+        html = """
+        <div>
+            <h2 id="response-of-the-commission">Response of the Commission</h2>
+            <p>
+                The Commission published
+                <a href="https://ec.europa.eu/transparency/documents-register/detail?ref=C(2023)5000&lang=en">
+                    In its communication
+                </a>
+                the Commission sets out plans.
+            </p>
+            <p>
+                See also the
+                <a href="https://ec.europa.eu/commission/presscorner/detail/en/qanda_23_6254">
+                    Questions and Answers
+                </a>
+                press release.
+            </p>
+            <p>
+                Visit the
+                <a href="https://example.com/organizers-page">
+                    organisers' website
+                </a>
+                for more information.
+            </p>
+        </div>
+        """
+        extractor = FollowupWebsiteExtractor(html)
+
+        result = extractor.extract_official_communication_document_urls()
+
+        assert result is not None
+        assert "In its communication" in result
+        assert "Questions and Answers" in result
+        assert "organisers' website" not in result  # Should not match
+        assert len(result) == 2
