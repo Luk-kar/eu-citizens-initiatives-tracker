@@ -9,6 +9,7 @@ from .parser.extractors import FollowupWebsiteExtractor
 
 
 class ECIFollowupWebsiteProcessor:
+
     def __init__(self):
         # Find latest timestamped directory under data
         current_file = Path(__file__)
@@ -61,6 +62,7 @@ class ECIFollowupWebsiteProcessor:
         self.logger.info(f"Log file: {log_file}")
 
     def run(self):
+
         # Find all HTML files in the source directory
         html_dir = os.path.join(self.input_dir, "responses_followup_website")
         html_files = glob.glob(os.path.join(html_dir, "**", "*.html"), recursive=True)
@@ -88,17 +90,11 @@ class ECIFollowupWebsiteProcessor:
         self.logger.info(f"Loading responses data from: {responses_csv_path}")
 
         # Load responses data into dictionary keyed by registration_number
-        responses_data = {}
-        with open(responses_csv_path, mode="r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                reg_num = row["registration_number"]
-                responses_data[reg_num] = {
-                    "initiative_title": row["initiative_title"],
-                    "followup_dedicated_website": row["followup_dedicated_website"],
-                }
+        response_data = ECIResponseDataLoader(responses_csv_path)
 
-        self.logger.info(f"Loaded {len(responses_data)} records from responses CSV")
+        self.logger.info(
+            f"Loaded {len(response_data.records)} records from responses CSV"
+        )
 
         records = []
         for idx, path in enumerate(html_files, 1):
@@ -119,19 +115,16 @@ class ECIFollowupWebsiteProcessor:
                 )
 
                 # Get initiative_title and followup_dedicated_website from responses CSV
-                if registration_number not in responses_data:
+                if registration_number not in response_data.records:
                     raise ValueError(
                         f"Registration number {registration_number} not found in responses CSV: {responses_csv_path}. "
                         f"Cannot process file: {html_file_name}"
                     )
 
-                initiative_title = responses_data[registration_number][
-                    "initiative_title"
-                ]
-                followup_dedicated_website = responses_data[registration_number][
-                    "followup_dedicated_website"
-                ]
-
+                initiative_title = response_data.get_title(registration_number)
+                followup_dedicated_website = response_data.get_website_url(
+                    registration_number
+                )
                 record = ECIFollowupWebsiteRecord(
                     # Basic Initiative Metadata
                     registration_number=registration_number,
@@ -184,3 +177,40 @@ class ECIFollowupWebsiteProcessor:
                 writer.writerow(r.to_dict())
 
         self.logger.info(f"Processing complete. Output written to {self.output_csv}")
+
+
+class ECIResponseDataLoader:
+    """Loads and provides access to ECI response data from CSV files."""
+
+    def __init__(self, csv_path: str):
+        """Load response data from CSV file into memory."""
+
+        self.records = self._load_from_csv(csv_path)
+
+    def _load_from_csv(self, csv_path: str) -> dict:
+        """Parse CSV file and return dictionary keyed by registration number."""
+
+        responses_data = {}
+        with open(csv_path, mode="r", encoding="utf-8") as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                reg_num = row["registration_number"]
+                responses_data[reg_num] = {
+                    "initiative_title": row["initiative_title"],
+                    "followup_dedicated_website": row["followup_dedicated_website"],
+                }
+
+        return responses_data
+
+    def get_title(self, registration_number: str) -> str:
+        """Retrieve initiative title for given registration number."""
+
+        return self.records[registration_number]["initiative_title"]
+
+    def get_website_url(self, registration_number: str) -> str:
+        """Retrieve followup dedicated website URL for given registration number."""
+
+        return self.records[registration_number]["followup_dedicated_website"]
