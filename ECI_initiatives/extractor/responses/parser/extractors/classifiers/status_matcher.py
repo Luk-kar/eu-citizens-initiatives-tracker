@@ -20,6 +20,8 @@ class LegislativeOutcomeClassifier:
         "council adopted the regulation",
         "published in the official journal",
         "following the agreement of the european parliament",
+        "regulation adopted on",
+        "directive adopted on",
     ]
 
     COMMITMENT_PATTERNS = [
@@ -29,6 +31,10 @@ class LegislativeOutcomeClassifier:
         "will table a legislative proposal",  # "will table" - UK\EU idiom phrase
         "committed to table a legislative proposal",
         "to table a legislative proposal",
+        "sets out plans for a legislative proposal",
+        "will present proposals",
+        "commitment to phase out",
+        "plans for a legislative proposal",
     ]
 
     REJECTION_PATTERNS = [
@@ -76,6 +82,7 @@ class LegislativeOutcomeClassifier:
         "call for evidence",
         "preparatory work",
         "with a view to launch",
+        "launched a review",
     ]
 
     def __init__(self, content: str):

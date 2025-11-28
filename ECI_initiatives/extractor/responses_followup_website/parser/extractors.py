@@ -4,6 +4,11 @@ from typing import Optional, Dict
 
 from bs4 import BeautifulSoup
 
+from ...responses.parser.extractors.outcome import (
+    LegislativeOutcomeExtractor,
+)
+from ...responses.parser.base.text_utilities import normalize_whitespace
+
 
 # Extraction stubs (no implementation included)
 class FollowupWebsiteExtractor:
@@ -190,6 +195,32 @@ class FollowupWebsiteExtractor:
                 f"Error extracting official communication document URLs: {str(e)}"
             ) from e
 
+    def extract_final_outcome_status(self) -> Optional[str]:
+        """
+        Extract the final outcome status of the initiative.
+
+        Uses a custom LegislativeOutcomeExtractor for followup website structure
+        to determine the highest status reached by the initiative
+        (e.g., "Law Active", "Law Promised", "Rejected").
+
+        Returns:
+            Citizen-friendly status string or None if status cannot be determined.
+        """
+
+        # Use custom extractor for followup website structure
+        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
+            registration_number=(
+                self.registration_number
+                if hasattr(self, "registration_number")
+                else None
+            )
+        )
+
+        # Extract status using the existing method
+        status = outcome_extractor.extract_highest_status_reached(self.soup)
+
+        return status
+
     def extract_followup_latest_date(self):
         pass
 
@@ -215,9 +246,6 @@ class FollowupWebsiteExtractor:
         pass
 
     def extract_referenced_legislation_by_id(self):
-        pass
-
-    def extract_final_outcome_status(self):
         pass
 
     def extract_commission_promised_new_law(self):
@@ -246,3 +274,89 @@ class FollowupWebsiteExtractor:
 
     def extract_law_implementation_date(self):
         pass
+
+
+class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
+    """
+    Custom extractor for followup website pages.
+
+    Overrides content extraction to handle the nested div structure
+    used in followup website pages, where h2 headers and content
+    are wrapped in separate <div class="ecl"> containers.
+    """
+
+    def _find_answer_section(self, soup: BeautifulSoup):
+        """
+        Find the Answer section header in followup website HTML.
+
+        Followup websites only use 'response-of-the-commission' as the section ID.
+        """
+        return soup.find("h2", id="response-of-the-commission")
+
+    def _extract_legislative_content(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract all text content after Answer section for followup website structure.
+
+        Followup pages structure:
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>Content here...</p>
+            </div>
+        </div>
+
+        Returns:
+            Normalized lowercase string or None if section not found.
+        """
+        answer_section = self._find_answer_section(soup)
+
+        if not answer_section:
+            return None
+
+        all_text = []
+
+        # Followup website structure: h2 is wrapped in div, content in sibling div
+        parent = answer_section.find_parent("div")
+
+        if parent:
+            # Get the next sibling div after the parent (should contain content)
+            content_container = parent.find_next_sibling("div")
+
+            if content_container:
+                # Extract all text from this container
+                # Stop if we hit another section header
+                for element in content_container.descendants:
+                    if hasattr(element, "name"):
+                        # Stop if we hit another h2 (next section)
+                        if element.name == "h2":
+                            break
+                        # Skip elements we don't want
+                        if self._should_skip_element(element):
+                            continue
+
+                # Get all text from the content container
+                all_text.append(content_container.get_text(strip=False))
+
+            # Also check if there are more sibling divs with content
+            next_sibling = (
+                content_container.find_next_sibling("div")
+                if content_container
+                else None
+            )
+            while next_sibling:
+                # Stop if this div contains a new section header
+                if next_sibling.find("h2"):
+                    break
+                if not self._should_skip_element(next_sibling):
+                    all_text.append(next_sibling.get_text(strip=False))
+                next_sibling = next_sibling.find_next_sibling("div")
+
+        if not all_text:
+            return None
+
+        content = " ".join(all_text).lower()
+        content = normalize_whitespace(content)
+
+        return content
