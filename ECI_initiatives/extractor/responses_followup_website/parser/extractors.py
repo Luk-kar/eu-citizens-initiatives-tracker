@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+from typing import Optional, Dict
 
 from bs4 import BeautifulSoup
 
@@ -102,6 +103,93 @@ class FollowupWebsiteExtractor:
 
         return full_text
 
+    def extract_official_communication_document_urls(self) -> Optional[Dict[str, str]]:
+        """
+        Extract links to official Commission Communication documents.
+
+        Searches for links containing 'Communication' or 'Annex' in the text,
+        or links pointing to EC transparency register or presscorner.
+
+        Returns:
+            Dictionary of {link_text: url} or None if no documents found.
+        """
+        try:
+            all_links = []
+
+            # Search through ALL links in the document
+            for link in self.soup.find_all("a", href=True):
+                link_text = link.get_text(strip=True)
+                href = link.get("href", "")
+
+                # Strategy 1: Match links with Communication/Annex in text
+                if re.search(
+                    r"(Communication|Annex|Annexes)", link_text, re.IGNORECASE
+                ):
+                    all_links.append(link)
+                    continue
+
+                # Strategy 2: Match EC transparency register URLs (official Communications)
+                if re.search(
+                    r"ec\.europa\.eu/transparency/documents-register",
+                    href,
+                    re.IGNORECASE,
+                ):
+                    all_links.append(link)
+                    continue
+
+                # Strategy 3: Match EC presscorner URLs (press releases about Communications)
+                if re.search(
+                    r"ec\.europa\.eu/commission/presscorner", href, re.IGNORECASE
+                ):
+                    all_links.append(link)
+                    continue
+
+            if not all_links:
+                return None
+
+            # Build dictionary of {text: url}
+            links_dict = {}
+            for link in all_links:
+                text = link.get_text(strip=True)
+                url = link.get("href", "")
+
+                # Skip empty text or urls
+                if not text or not url:
+                    continue
+
+                links_dict[text] = url
+
+            # Exclusion patterns - remove initiative overview pages
+            exclude_patterns = [
+                r"https?://ec\.citizens-initiative\.europa\.eu/public/initiatives/successful/details/\d{4}/\d{6}(_[a-z]{2})?/?$",
+                r"https?://citizens-initiative\.europa\.eu/initiatives/details/\d{4}/\d{6}[_]?[a-z]{2}/?$",
+            ]
+
+            # Remove duplicates by URL and apply exclusion patterns
+            seen_urls = set()
+            filtered_links_dict = {}
+
+            for text, url in links_dict.items():
+                if url in seen_urls:
+                    continue
+
+                should_exclude = False
+                for pattern in exclude_patterns:
+                    if re.match(pattern, url):
+                        should_exclude = True
+                        break
+
+                if not should_exclude:
+                    filtered_links_dict[text] = url
+                    seen_urls.add(url)
+
+            return filtered_links_dict if filtered_links_dict else None
+
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting official communication document URLs: {str(e)}"
+            ) from e
+
     def extract_followup_latest_date(self):
         pass
 
@@ -109,9 +197,6 @@ class FollowupWebsiteExtractor:
         pass
 
     def extract_commission_deadlines(self):
-        pass
-
-    def extract_official_communication_document_urls(self):
         pass
 
     def extract_followup_dedicated_website(self):
