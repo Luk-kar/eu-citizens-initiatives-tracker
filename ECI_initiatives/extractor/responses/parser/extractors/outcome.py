@@ -348,8 +348,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             # Search through all siblings after Answer section
             for sibling in answer_section.find_next_siblings():
                 if self._should_skip_element(sibling):
-                    if sibling.name == "h2":
-                        continue  # Don't break, check other sections too
                     continue
 
                 text = sibling.get_text(strip=False)

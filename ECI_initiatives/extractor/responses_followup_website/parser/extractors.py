@@ -221,6 +221,9 @@ class FollowupWebsiteExtractor:
 
         return status
 
+    def extract_law_implementation_date(self):
+        pass
+
     def extract_followup_latest_date(self):
         pass
 
@@ -270,9 +273,6 @@ class FollowupWebsiteExtractor:
         pass
 
     def extract_court_cases_referenced(self):
-        pass
-
-    def extract_law_implementation_date(self):
         pass
 
 
