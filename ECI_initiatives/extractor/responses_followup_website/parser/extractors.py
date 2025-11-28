@@ -1,11 +1,13 @@
 from pathlib import Path
 import re
 
+from bs4 import BeautifulSoup
+
 
 # Extraction stubs (no implementation included)
 class FollowupWebsiteExtractor:
     def __init__(self, html_content):
-        self.html_content = html_content
+        self.soup = BeautifulSoup(html_content, "html.parser")
 
     def extract_registration_number(self, html_file_name: str):
         """
@@ -41,8 +43,64 @@ class FollowupWebsiteExtractor:
 
         return f"{year}/{number}"
 
-    def extract_commission_answer_text(self):
-        pass
+    def extract_commission_answer_text(self) -> str:
+        """
+        Extract the Commission's response text content with links preserved.
+
+        Finds the section under "Response of the Commission" heading
+        and extracts all text content with hyperlinks in markdown format.
+
+        Returns:
+            Text content with links in [text](url) format, or empty string if not found.
+        """
+        # Find the "Response of the Commission" header
+        header = self.soup.find("h2", id="response-of-the-commission")
+
+        if not header:
+            header = self.soup.find(
+                "h2", string=lambda text: text and "Response of the Commission" in text
+            )
+
+        if not header:
+            return ""
+
+        # Get the parent container and content div
+        header_parent = header.find_parent("div")
+        if not header_parent:
+            return ""
+
+        content_div = header_parent.find_next_sibling("div", class_="ecl")
+        if not content_div:
+            return ""
+
+        # Create a copy to modify
+        content_copy = content_div.__copy__()
+
+        # Remove unwanted elements
+        for button in content_copy.find_all("button"):
+            button.decompose()
+
+        for svg in content_copy.find_all("svg"):
+            svg.decompose()
+
+        # Convert links to markdown format [text](url)
+        for link in content_copy.find_all("a", href=True):
+            link_text = link.get_text(strip=True)
+            link_url = link.get("href")
+            # Replace the link with markdown format
+            link.replace_with(f"[{link_text}]({link_url})")
+
+        # Extract text
+        text_parts = []
+        for element in content_copy.find_all(["p", "li"]):
+            text = element.get_text(separator=" ", strip=True)
+            if text:
+                text_parts.append(text)
+
+        full_text = "\n".join(text_parts)
+        full_text = " ".join(full_text.split())
+
+        return full_text
 
     def extract_followup_latest_date(self):
         pass
