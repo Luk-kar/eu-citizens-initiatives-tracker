@@ -221,8 +221,30 @@ class FollowupWebsiteExtractor:
 
         return status
 
-    def extract_law_implementation_date(self):
-        pass
+    def extract_law_implementation_date(self) -> Optional[str]:
+        """
+        Extract the date when regulation/directive became applicable.
+
+        Uses the FollowupWebsiteLegislativeOutcomeExtractor to extract the
+        implementation deadline/applicable date from the followup website.
+
+        Returns:
+            Date string in YYYY-MM-DD format or None if not applicable.
+        """
+
+        # Create extractor instance
+        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
+            registration_number=(
+                self.registration_number
+                if hasattr(self, "registration_number")
+                else None
+            )
+        )
+
+        # Extract applicable date using the existing method
+        date = outcome_extractor.extract_applicable_date(self.soup)
+
+        return date
 
     def extract_followup_latest_date(self):
         pass

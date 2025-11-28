@@ -389,10 +389,71 @@ class TestOutcomeExtraction:
         ):
             extractor.extract_final_outcome_status()
 
-    def test_extract_final_outcome_status(self):
-        """Test extraction of final outcome status."""
-        # TODO: Implement test for status classification
-        pass
+    def test_extract_law_implementation_date(self):
+        """Test extraction of law implementation/applicable date."""
+
+        # Test case 1: Law became applicable - specific date
+        html_applicable = """
+        <div>
+            <div class="ecl">
+                <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">
+                    Response of the Commission
+                </h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Regulation was adopted by the Council on 15 March 2023 
+                    and became applicable on 1 January 2024.
+                </p>
+            </div>
+        </div>
+        """
+        extractor_1 = FollowupWebsiteExtractor(html_applicable)
+        result_1 = extractor_1.extract_law_implementation_date()
+
+        assert result_1 == "2024-01-01", f"Expected '2024-01-01', got '{result_1}'"
+
+        # Test case 2: Law not yet applicable - returns None
+        html_committed = """
+        <div>
+            <div class="ecl">
+                <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">
+                    Response of the Commission
+                </h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission sets out plans for a legislative proposal 
+                    to be presented by the end of 2025.
+                </p>
+            </div>
+        </div>
+        """
+        extractor_2 = FollowupWebsiteExtractor(html_committed)
+        result_2 = extractor_2.extract_law_implementation_date()
+
+        assert result_2 is None, "Should return None when law not yet applicable"
+
+        # Test case 3: "Became applicable immediately" using entry into force date
+        html_immediate = """
+        <div>
+            <div class="ecl">
+                <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">
+                    Response of the Commission
+                </h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The regulation entered into force on 18 August 2024 and 
+                    became applicable immediately.
+                </p>
+            </div>
+        </div>
+        """
+        extractor_3 = FollowupWebsiteExtractor(html_immediate)
+        result_3 = extractor_3.extract_law_implementation_date()
+
+        assert result_3 == "2024-08-18", f"Expected '2024-08-18', got '{result_3}'"
 
     def test_extract_commission_promised_new_law(self):
         """Test detection of Commission commitment to new legislation."""
@@ -421,10 +482,5 @@ class TestOutcomeExtraction:
 
     def test_extract_policies_actions(self):
         """Test extraction of non-legislative policy actions JSON."""
-        # TODO: Implement test
-        pass
-
-    def test_extract_law_implementation_date(self):
-        """Test extraction of law implementation/applicable date."""
         # TODO: Implement test
         pass
