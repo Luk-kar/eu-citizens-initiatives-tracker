@@ -22,6 +22,8 @@ class LegislativeOutcomeClassifier:
         "following the agreement of the european parliament",
         "regulation adopted on",
         "directive adopted on",
+        "was adopted by the commission",
+        "implementing regulation adopted",
     ]
 
     COMMITMENT_PATTERNS = [
@@ -83,6 +85,8 @@ class LegislativeOutcomeClassifier:
         "preparatory work",
         "with a view to launch",
         "launched a review",
+        "will communicate, by",
+        "will communicate on",
     ]
 
     def __init__(self, content: str):
@@ -129,6 +133,9 @@ class LegislativeOutcomeClassifier:
             True if adopted but not yet in force, False otherwise
         """
 
+        # First check if already applicable (higher status takes precedence)
+        return any(pattern in self.content for pattern in self.ADOPTION_EVIDENCE)
+
         # Published in Official Journal (but not applicable yet)
         if (
             "published in the official journal" in self.content
@@ -139,17 +146,6 @@ class LegislativeOutcomeClassifier:
                 and "applies from" not in self.content
             ):
                 return True
-
-        # Adopted by Commission or Council
-        if any(
-            phrase in self.content
-            for phrase in [
-                "was adopted by the commission",
-                "council of the eu adopted",
-                "council adopted the regulation",
-            ]
-        ):
-            return True
 
         return False
 

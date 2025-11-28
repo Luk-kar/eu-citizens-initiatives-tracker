@@ -295,63 +295,83 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
 
     def _extract_legislative_content(self, soup: BeautifulSoup) -> Optional[str]:
         """
-        Extract all text content after Answer section for followup website structure.
+        Extract all text content from Response and Follow-up sections.
 
-        Followup pages structure:
-        <div>
-            <div class="ecl">
-                <h2 id="response-of-the-commission">Response of the Commission</h2>
-            </div>
-            <div class="ecl">
-                <p>Content here...</p>
-            </div>
-        </div>
+        Followup website pages have critical status information scattered
+        across multiple sections:
+        - "Response of the Commission"
+        - "Follow-up on the Commission's actions"
+        - "Next steps"
 
         Returns:
             Normalized lowercase string or None if section not found.
         """
-        answer_section = self._find_answer_section(soup)
-
-        if not answer_section:
-            return None
-
         all_text = []
 
-        # Followup website structure: h2 is wrapped in div, content in sibling div
-        parent = answer_section.find_parent("div")
+        # Define sections to extract from (in order)
+        section_ids = [
+            "response-of-the-commission",
+            "follow-up-on-the-commissions-actions",
+            "next-steps",
+        ]
 
-        if parent:
-            # Get the next sibling div after the parent (should contain content)
+        for section_id in section_ids:
+            # Find the section header
+            section_header = soup.find("h2", id=section_id)
+
+            if not section_header:
+                # Try alternative patterns
+                if section_id == "follow-up-on-the-commissions-actions":
+                    # Try variations
+                    section_header = soup.find(
+                        "h2", string=lambda t: t and "follow-up" in t.lower()
+                    )
+                elif section_id == "next-steps":
+                    section_header = soup.find(
+                        "h2", string=lambda t: t and "next steps" in t.lower()
+                    )
+
+            if not section_header:
+                continue  # Skip this section if not found
+
+            # Get parent div of the h2
+            parent = section_header.find_parent("div")
+            if not parent:
+                continue
+
+            # Get the next sibling div after the parent (contains content)
             content_container = parent.find_next_sibling("div")
 
             if content_container:
-                # Extract all text from this container
-                # Stop if we hit another section header
-                for element in content_container.descendants:
-                    if hasattr(element, "name"):
-                        # Stop if we hit another h2 (next section)
-                        if element.name == "h2":
+                # Extract text until we hit another major section or end
+                section_text = []
+
+                # Get this container's text
+                section_text.append(content_container.get_text(strip=False))
+
+                # Check following sibling divs
+                next_sibling = content_container.find_next_sibling("div")
+                while next_sibling:
+                    # Stop if we hit another h2 section (new major section)
+                    if next_sibling.find("h2"):
+                        # But only stop if it's one of our tracked sections or a major section
+                        found_h2 = next_sibling.find("h2")
+                        h2_id = found_h2.get("id", "") if found_h2 else ""
+
+                        # Stop if it's a different major section
+                        if h2_id and h2_id not in section_ids:
                             break
-                        # Skip elements we don't want
-                        if self._should_skip_element(element):
-                            continue
+                        elif h2_id in section_ids:
+                            break  # Hit next section we'll process separately
 
-                # Get all text from the content container
-                all_text.append(content_container.get_text(strip=False))
+                    if not self._should_skip_element(next_sibling):
+                        section_text.append(next_sibling.get_text(strip=False))
 
-            # Also check if there are more sibling divs with content
-            next_sibling = (
-                content_container.find_next_sibling("div")
-                if content_container
-                else None
-            )
-            while next_sibling:
-                # Stop if this div contains a new section header
-                if next_sibling.find("h2"):
-                    break
-                if not self._should_skip_element(next_sibling):
-                    all_text.append(next_sibling.get_text(strip=False))
-                next_sibling = next_sibling.find_next_sibling("div")
+                    next_sibling = next_sibling.find_next_sibling("div")
+
+                # Add section text to overall text
+                if section_text:
+                    all_text.extend(section_text)
 
         if not all_text:
             return None

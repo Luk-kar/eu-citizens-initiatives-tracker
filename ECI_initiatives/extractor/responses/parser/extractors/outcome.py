@@ -136,9 +136,10 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         except ValueError as e:
             if "No known status patterns matched" in str(e):
                 content = self._extract_legislative_content(soup)
-                content_preview = (
-                    content[:500] + "..." if len(content) > 500 else content
-                )
+                content_preview = content
+                # content_preview = (
+                #     content[:500] + "..." if len(content) > 500 else content
+                # )
                 raise ValueError(
                     "Could not determine legislative status for initiative:"
                     f"\n{self.registration_number}\n"
