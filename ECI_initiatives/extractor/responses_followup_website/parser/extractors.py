@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 
 from ...responses.parser.extractors.outcome import (
     LegislativeOutcomeExtractor,
+    APPLICABLE_DATE_PATTERNS,
+    parse_date_string,
 )
 from ...responses.parser.base.text_utilities import normalize_whitespace
 
@@ -430,3 +432,81 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         content = normalize_whitespace(content)
 
         return content
+
+    def extract_applicable_date(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract the date when regulation/directive became applicable.
+
+        Overrides parent to handle followup website nested div structure.
+
+        Returns:
+            Date string in YYYY-MM-DD format or None if not applicable
+
+        Raises:
+            ValueError: If Answer section not found
+        """
+        try:
+            answer_section = self._find_answer_section(soup)
+            if not answer_section:
+                raise ValueError(
+                    f"Could not find Answer section for initiative {self.registration_number}"
+                )
+
+            # Check if this initiative has applicable status
+            matcher = self._get_classifier(soup)
+            if not matcher.check_applicable():
+                return None
+
+            # Followup website structure: get parent div, then its siblings
+            parent = answer_section.find_parent("div")
+            if not parent:
+                return None
+
+            # Get content container (next sibling after parent)
+            content_container = parent.find_next_sibling("div")
+
+            # Search through content and following divs
+            current = content_container
+
+            while current:
+
+                if not self._should_skip_element(current):
+                    text = current.get_text(strip=False)
+
+                    # Check for "immediately" case first
+                    if "became applicable immediately" in text.lower():
+
+                        force_match = re.search(
+                            r"entered into force on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})",
+                            text,
+                            re.IGNORECASE,
+                        )
+
+                        if force_match:
+
+                            date_str = force_match.group(1).strip()
+
+                            parsed_date = parse_date_string(date_str)
+
+                            if parsed_date:
+                                return parsed_date
+
+                    # Check each pattern
+                    for pattern in APPLICABLE_DATE_PATTERNS:
+
+                        match = re.search(pattern, text, re.IGNORECASE)
+                        if match:
+                            if match.groups():
+                                date_str = match.group(1).strip()
+                                parsed_date = parse_date_string(date_str)
+                                if parsed_date:
+                                    return parsed_date
+
+                current = current.find_next_sibling("div")
+
+            return None
+
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting applicable date for {self.registration_number}: {str(e)}"
+            ) from e
