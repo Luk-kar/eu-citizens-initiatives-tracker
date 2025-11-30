@@ -20,28 +20,6 @@ from ECI_initiatives.extractor.responses_followup_website.parser.extractors impo
 )
 
 
-"""
-Behavioural tests for extracting legislative and non-legislative outcomes.
-
-This module tests extraction of:
-- Final outcome status classification
-- Commission commitments and deadlines
-- Commission rejections and reasoning
-- Legislative actions with dates and statuses
-- Non-legislative policy actions
-- Law implementation dates
-"""
-
-# Third party
-import pytest
-from bs4 import BeautifulSoup
-
-# Local
-from ECI_initiatives.extractor.responses_followup_website.parser.extractors import (
-    FollowupWebsiteExtractor,
-)
-
-
 class TestOutcomeExtraction:
     """Tests for outcome classification and extraction."""
 
@@ -456,9 +434,152 @@ class TestOutcomeExtraction:
         assert result_3 == "2024-08-18", f"Expected '2024-08-18', got '{result_3}'"
 
     def test_extract_commission_promised_new_law(self):
-        """Test detection of Commission commitment to new legislation."""
-        # TODO: Implement test
-        pass
+        """Test extraction of whether Commission promised new legislation (True/False)."""
+
+        # Test case 1: Clear promise - End the Cage Age
+        html_1 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    On 30 June 2021, the Commission decided to positively respond to the ECI. 
+                    In its communication the Commission sets out plans for a legislative 
+                    proposal to prohibit cages for the species and categories of animals 
+                    covered by the ECI.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_1 = FollowupWebsiteExtractor(html_1)
+        result_1 = extractor_1.extract_commission_promised_new_law()
+        assert result_1 is True, "Should detect promise for End the Cage Age"
+
+        # Test case 2: Conditional future decision - Fur Free Europe
+        html_2 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission published the response to this initiative on 7 December 2023.
+                </p>
+            </div>
+            <div class="ecl">
+                <h2 id="follow-up-on-the-commissions-actions">Follow-up on the Commission's actions</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Taking into account the EFSA opinion and the outcomes of its own assessment, 
+                    the Commission will communicate, by March 2026, whether it considers it 
+                    appropriate to propose a prohibition.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_2 = FollowupWebsiteExtractor(html_2)
+        result_2 = extractor_2.extract_commission_promised_new_law()
+        assert (
+            result_2 is False
+        ), "Should return False for conditional future decision without commitment"
+
+        # Test case 3: Assessment for decision if create a new law or not with deadline - Glyphosate (aim 2)
+        html_3 = """
+        <div>
+            <div class="ecl">
+                <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    On the second aim, to ensure that the scientific evaluation of pesticides 
+                    for EU regulatory approval is based only on published studies, the Commission 
+                    committed to come forward with a legislative proposal by May 2018.
+                </p>
+            </div>
+                <div class="ecl">
+                <h2 id="follow-up-on-the-commissions-actions">Follow-up on the Commission's actions</h2>
+            </div>
+                <div class="ecl">
+                <p>
+                    ...
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_3 = FollowupWebsiteExtractor(html_3)
+        result_3 = extractor_3.extract_commission_promised_new_law()
+        assert result_3 is False, "Should detect commitment with specific deadline"
+
+        # Test case 4: Explicit rejection - Glyphosate (aim 1)
+        html_4 = """
+        <div>
+            <div class="ecl">
+                <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    On the first aim, to ban glyphosate-based herbicides, the Commission 
+                    concluded that there are neither scientific nor legal grounds to justify 
+                    a ban of glyphosate, and will not make a legislative proposal to that effect.
+                </p>
+            </div>
+            </div>
+                <div class="ecl">
+                <h2 id="follow-up-on-the-commissions-actions">Follow-up on the Commission's actions</h2>
+            </div>
+                <div class="ecl">
+                <p>
+                    ...
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_4 = FollowupWebsiteExtractor(html_4)
+        result_4 = extractor_4.extract_commission_promised_new_law()
+        assert (
+            result_4 is False
+        ), "Should return False when proposal is explicitly rejected"
+
+        # Test case 5: EFSA mandate without legislative commitment
+        html_5 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The European Commission mandated the European Food Safety Authority (EFSA) 
+                    to give an independent view on the protection of animals kept for fur production.
+                </p>
+                <p>
+                    Building further on this scientific input, and on an assessment of economic 
+                    and social impacts, the Commission will then communicate, by March 2026, 
+                    on the most appropriate action.
+                </p>
+            </div>
+            </div>
+                <div class="ecl">
+                <h2 id="follow-up-on-the-commissions-actions">Follow-up on the Commission's actions</h2>
+            </div>
+                <div class="ecl">
+                <p>
+                    ...
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_5 = FollowupWebsiteExtractor(html_5)
+        result_5 = extractor_5.extract_commission_promised_new_law()
+        assert (
+            result_5 is False
+        ), "Should return False for mandate to assess without commitment to propose"
 
     def test_extract_commission_rejected_initiative(self):
         """Test detection of Commission rejection."""

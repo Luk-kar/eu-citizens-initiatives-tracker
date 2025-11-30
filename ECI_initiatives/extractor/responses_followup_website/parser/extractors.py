@@ -246,6 +246,22 @@ class FollowupWebsiteExtractor:
 
         return date
 
+    def extract_commission_promised_new_law(self):
+
+        # Create extractor instance
+        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
+            registration_number=(
+                self.registration_number
+                if hasattr(self, "registration_number")
+                else None
+            )
+        )
+
+        # Extract applicable date using the existing method
+        date = outcome_extractor.extract_proposal_commitment_stated(self.soup)
+
+        return date
+
     def extract_followup_latest_date(self):
         pass
 
@@ -271,9 +287,6 @@ class FollowupWebsiteExtractor:
         pass
 
     def extract_referenced_legislation_by_id(self):
-        pass
-
-    def extract_commission_promised_new_law(self):
         pass
 
     def extract_commission_rejected_initiative(self):
