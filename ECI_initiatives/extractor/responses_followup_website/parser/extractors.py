@@ -544,29 +544,22 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             # Comprehensive deadline patterns covering various commitment types
             deadlines_dict = {}
 
-            # Followup website structure: get parent div, then its siblings
-            parent = answer_section.find_parent("div")
-            if not parent:
-                return None
-
-            # Get content container (next sibling after parent)
-            content_container = parent.find_next_sibling("div")
-
-            # Search through content and following divs
-            current = content_container
+            # Start from answer_section and iterate through ALL following elements
+            current = answer_section.find_next()
 
             while current:
-                # Stop at next h2 section
+                # Stop when we find the social media share element
                 if current.find(class_="ecl-social-media-share__description"):
                     break
 
                 if not self._should_skip_element(current):
                     text = current.get_text(strip=False)
-                    text_lower = text.lower()
+                    text_lower = normalize_whitespace(text.lower())
 
-                    print("+++++++text_lower+++++++")
-                    print(text_lower)
-                    print("++++++++++++++++++++++")
+                    if "call for evidence" in text_lower:
+                        print("+++++++text_lower+++++++")
+                        print(text_lower)
+                        print("++++++++++++++++++++++")
 
                     # Check each pattern
                     for pattern in DEADLINE_PATTERNS:
@@ -579,16 +572,10 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                                     deadline_text
                                 )
                                 # Clean and convert the deadline
-                                print("++++++deadline_cleaned++++++")
-                                print(deadline_cleaned)
-                                print("++++++++++++++++++++++")
                                 if deadline_cleaned:
                                     deadline_date = convert_deadline_to_date(
                                         deadline_cleaned
                                     )
-                                    print("++++++deadline_date++++++")
-                                    print(deadline_date)
-                                    print("++++++++++++++++++++++")
                                     if deadline_date:
                                         # Extract the complete sentence containing this deadline
                                         sentence = self._extract_complete_sentence(
@@ -612,7 +599,8 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                                             else:
                                                 deadlines_dict[deadline_date] = sentence
 
-                current = current.find_next_sibling("div")
+                # Move to next element in document order
+                current = current.find_next()
 
             # Return None if no deadlines found, otherwise return dict
             if not deadlines_dict:
