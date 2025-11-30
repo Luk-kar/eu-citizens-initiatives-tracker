@@ -580,27 +580,23 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                                         deadline_cleaned
                                     )
                                     if deadline_date:
-                                        # Extract the complete sentence containing this deadline
-                                        sentence = self._extract_complete_sentence(
-                                            text_normalized, match.start()
+                                        # Use the entire normalized text from the tag
+                                        full_text = normalize_whitespace(
+                                            text_normalized
                                         )
 
-                                        if sentence:
-                                            # Clean up whitespace (already normalized but ensure consistency)
-                                            sentence = normalize_whitespace(sentence)
-
-                                            # If we already have this date, append to existing phrase
-                                            if deadline_date in deadlines_dict:
-                                                # Only append if it's different content
-                                                if (
-                                                    sentence
-                                                    not in deadlines_dict[deadline_date]
-                                                ):
-                                                    deadlines_dict[
-                                                        deadline_date
-                                                    ] += f"; {sentence}"
-                                            else:
-                                                deadlines_dict[deadline_date] = sentence
+                                        # If we already have this date, append to existing phrase
+                                        if deadline_date in deadlines_dict:
+                                            # Only append if it's different content
+                                            if (
+                                                full_text
+                                                not in deadlines_dict[deadline_date]
+                                            ):
+                                                deadlines_dict[
+                                                    deadline_date
+                                                ] += f"; {full_text}"
+                                        else:
+                                            deadlines_dict[deadline_date] = full_text
 
                 # Move to next element in document order
                 current = current.find_next()
