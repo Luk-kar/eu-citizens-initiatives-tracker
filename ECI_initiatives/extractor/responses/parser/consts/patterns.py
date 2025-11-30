@@ -16,7 +16,7 @@ DEADLINE_PATTERNS = [
     # Consultation and call patterns (action BEFORE deadline)
     r"consultation.*?(?:which )?will run until\s+([^.,;]+)",
     r"consultation.*?(?:runs|run).*?until\s+([^.,;]+)",
-    r"call for evidence.*?(on|until|by|to).*\s+([^.,;]+)",
+    r"call for evidence.*?(?:runs|run).*?until\s+([^.,;]+?)(?:\s+and|\s+or|$)",
     r"(?:call|consultation|initiative).*?(?:will run|runs|running).*?until\s+([^.,;]+)",
     # Assessment and study patterns (action BEFORE deadline)
     r"launch.*?(?:impact )?assessment[,\s]+by\s+([^.,;]+)",

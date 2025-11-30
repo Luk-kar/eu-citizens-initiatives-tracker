@@ -544,6 +544,9 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             # Comprehensive deadline patterns covering various commitment types
             deadlines_dict = {}
 
+            # Allowed tags for text extraction
+            ALLOWED_TAGS = ["li", "p", "ol", "pre"]
+
             # Start from answer_section and iterate through ALL following elements
             current = answer_section.find_next()
 
@@ -552,14 +555,14 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 if current.find(class_="ecl-social-media-share__description"):
                     break
 
-                if not self._should_skip_element(current):
+                # Only process allowed tags
+                if current.name in ALLOWED_TAGS and not self._should_skip_element(
+                    current
+                ):
+                    # Get text and normalize immediately
                     text = current.get_text(strip=False)
-                    text_lower = normalize_whitespace(text.lower())
-
-                    if "call for evidence" in text_lower:
-                        print("+++++++text_lower+++++++")
-                        print(text_lower)
-                        print("++++++++++++++++++++++")
+                    text_normalized = normalize_whitespace(text)
+                    text_lower = text_normalized.lower()
 
                     # Check each pattern
                     for pattern in DEADLINE_PATTERNS:
@@ -579,11 +582,11 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                                     if deadline_date:
                                         # Extract the complete sentence containing this deadline
                                         sentence = self._extract_complete_sentence(
-                                            text, match.start()
+                                            text_normalized, match.start()
                                         )
 
                                         if sentence:
-                                            # Clean up whitespace
+                                            # Clean up whitespace (already normalized but ensure consistency)
                                             sentence = normalize_whitespace(sentence)
 
                                             # If we already have this date, append to existing phrase
