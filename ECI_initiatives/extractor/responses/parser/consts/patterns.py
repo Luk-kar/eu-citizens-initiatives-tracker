@@ -14,6 +14,8 @@ DEADLINE_PATTERNS = [
     r"committed to communicate[,\s]+by\s+([^.,;]+)",
     r"will then communicate[,\s]+by\s+([^.,;]+)",
     # Assessment and study patterns (action BEFORE deadline)
+    # r"consultation.*?(?:which )?will run until\s+([^.,;]+)",
+    # r"consultation.*?(?:runs|run).*?until\s+([^.,;]+)",
     r"launch.*?(?:impact )?assessment[,\s]+by\s+([^.,;]+)",
     r"conduct.*?study[,\s]+by\s+([^.,;]+)",
     r"carry out.*?(?:assessment|study)[,\s]+by\s+([^.,;]+)",

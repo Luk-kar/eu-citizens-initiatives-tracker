@@ -431,6 +431,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                         deadline_text = match.group(1).strip()
 
                         if deadline_text:
+
                             # Clean and convert the deadline
                             deadline_cleaned = self._clean_deadline_text(deadline_text)
                             if deadline_cleaned:

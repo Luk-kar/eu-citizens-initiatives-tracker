@@ -257,18 +257,33 @@ class FollowupWebsiteExtractor:
             )
         )
 
-        # Extract applicable date using the existing method
-        date = outcome_extractor.extract_proposal_commitment_stated(self.soup)
+        # Extract applicable boolean using the existing method
+        is_new_law = outcome_extractor.extract_proposal_commitment_stated(self.soup)
 
-        return date
+        return is_new_law
+
+    def extract_commission_deadlines(self):
+
+        # Create extractor instance
+        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
+            registration_number=(
+                self.registration_number
+                if hasattr(self, "registration_number")
+                else None
+            )
+        )
+
+        # Extract applicable boolean using the existing method
+        commissions_deadlines = outcome_extractor.extract_commissions_deadlines(
+            self.soup
+        )
+
+        return commissions_deadlines
 
     def extract_followup_latest_date(self):
         pass
 
     def extract_followup_most_future_date(self):
-        pass
-
-    def extract_commission_deadlines(self):
         pass
 
     def extract_followup_dedicated_website(self):
