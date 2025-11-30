@@ -406,6 +406,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         try:
 
             answer_section = self._find_answer_section(soup)
+
             if not answer_section:
                 raise ValueError(
                     f"Could not find Answer section for initiative {self.registration_number}"
@@ -416,6 +417,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
             # Search through all siblings after Answer section
             for sibling in answer_section.find_next_siblings():
+
                 if self._should_skip_element(sibling):
                     if sibling.name == "h2":
                         break

@@ -61,12 +61,14 @@ def convert_deadline_to_date(deadline: str) -> Optional[str]:
 
     Args:
         deadline: Cleaned deadline text like "may 2018", "the end of 2023",
-                    "end 2024", "2019", "early 2026"
+                    "end 2024", "2019", "early 2026", or complete dates like
+                    "12 december 2025"
 
     Returns:
         Date string in YYYY-MM-DD format (last day of period) or None if parsing fails
 
     Examples:
+        - "12 December 2025" → "2025-12-12"
         - "May 2018" → "2018-05-31"
         - "the end of 2023" → "2023-12-31"
         - "end of 2024" → "2024-12-31"
@@ -127,6 +129,12 @@ def convert_deadline_to_date(deadline: str) -> Optional[str]:
     if year_only_match:
         year = int(year_only_match.group(1))
         return f"{year}-12-31"
+
+    # Pattern 5: Complete date with day (e.g., "12 December 2025", "1 August 2025")
+    # Try to parse as complete date first
+    complete_date = parse_date_string(deadline)
+    if complete_date:
+        return complete_date
 
     return None
 

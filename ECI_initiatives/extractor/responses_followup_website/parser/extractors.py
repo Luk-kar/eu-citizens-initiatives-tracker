@@ -8,6 +8,8 @@ from ...responses.parser.extractors.outcome import (
     LegislativeOutcomeExtractor,
     APPLICABLE_DATE_PATTERNS,
     parse_date_string,
+    DEADLINE_PATTERNS,
+    convert_deadline_to_date,
 )
 from ...responses.parser.base.text_utilities import normalize_whitespace
 
@@ -264,7 +266,7 @@ class FollowupWebsiteExtractor:
 
         return is_new_law
 
-    def extract_commission_deadlines(self):
+    def extract_commissions_deadlines(self):
 
         # Create extractor instance
         outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
@@ -509,4 +511,116 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         except Exception as e:
             raise ValueError(
                 f"Error extracting applicable date for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def extract_commissions_deadlines(self, soup: BeautifulSoup) -> Optional[dict]:
+        """
+        Extract all Commission deadlines mentioned in the response as JSON.
+        Returns a dictionary where keys are dates (YYYY-MM-DD) and
+        values are phrases connected to those dates.
+        Returns None if no deadlines are mentioned.
+
+        Format: dict like:
+        {
+            "2018-05-31": "committed to come forward with a legislative proposal",
+            "2026-03-31": "will communicate on the most appropriate action",
+            "2024-12-31": "complete the impact assessment"
+        }
+
+        Returns:
+            dict with date->phrase mapping or None if no deadlines found
+
+        Raises:
+            ValueError: If Answer section not found
+        """
+        try:
+            answer_section = self._find_answer_section(soup)
+
+            if not answer_section:
+                raise ValueError(
+                    f"Could not find Answer section for initiative {self.registration_number}"
+                )
+
+            # Comprehensive deadline patterns covering various commitment types
+            deadlines_dict = {}
+
+            # Followup website structure: get parent div, then its siblings
+            parent = answer_section.find_parent("div")
+            if not parent:
+                return None
+
+            # Get content container (next sibling after parent)
+            content_container = parent.find_next_sibling("div")
+
+            # Search through content and following divs
+            current = content_container
+
+            while current:
+                # Stop at next h2 section
+                if current.find(class_="ecl-social-media-share__description"):
+                    break
+
+                if not self._should_skip_element(current):
+                    text = current.get_text(strip=False)
+                    text_lower = text.lower()
+
+                    print("+++++++text_lower+++++++")
+                    print(text_lower)
+                    print("++++++++++++++++++++++")
+
+                    # Check each pattern
+                    for pattern in DEADLINE_PATTERNS:
+                        # Find all matches in this element (handles multiple deadlines per element)
+                        for match in re.finditer(pattern, text_lower, re.IGNORECASE):
+                            deadline_text = match.group(1).strip()
+
+                            if deadline_text:
+                                deadline_cleaned = self._clean_deadline_text(
+                                    deadline_text
+                                )
+                                # Clean and convert the deadline
+                                print("++++++deadline_cleaned++++++")
+                                print(deadline_cleaned)
+                                print("++++++++++++++++++++++")
+                                if deadline_cleaned:
+                                    deadline_date = convert_deadline_to_date(
+                                        deadline_cleaned
+                                    )
+                                    print("++++++deadline_date++++++")
+                                    print(deadline_date)
+                                    print("++++++++++++++++++++++")
+                                    if deadline_date:
+                                        # Extract the complete sentence containing this deadline
+                                        sentence = self._extract_complete_sentence(
+                                            text, match.start()
+                                        )
+
+                                        if sentence:
+                                            # Clean up whitespace
+                                            sentence = normalize_whitespace(sentence)
+
+                                            # If we already have this date, append to existing phrase
+                                            if deadline_date in deadlines_dict:
+                                                # Only append if it's different content
+                                                if (
+                                                    sentence
+                                                    not in deadlines_dict[deadline_date]
+                                                ):
+                                                    deadlines_dict[
+                                                        deadline_date
+                                                    ] += f"; {sentence}"
+                                            else:
+                                                deadlines_dict[deadline_date] = sentence
+
+                current = current.find_next_sibling("div")
+
+            # Return None if no deadlines found, otherwise return dict
+            if not deadlines_dict:
+                return None
+
+            return deadlines_dict
+
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting commission deadlines for {self.registration_number}: {str(e)}"
             ) from e

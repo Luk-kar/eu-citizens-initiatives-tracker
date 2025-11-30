@@ -138,7 +138,7 @@ class ECIFollowupWebsiteProcessor:
                     law_implementation_date=extractor.extract_law_implementation_date(),
                     # SECTION 2: Commission's Initial Response
                     commission_promised_new_law=extractor.extract_commission_promised_new_law(),
-                    commission_deadlines=extractor.extract_commission_deadlines(),
+                    commission_deadlines=extractor.extract_commissions_deadlines(),
                     commission_rejected_initiative=extractor.extract_commission_rejected_initiative(),
                     commission_rejection_reason=extractor.extract_commission_rejection_reason(),
                     # SECTION 3: Actions Taken

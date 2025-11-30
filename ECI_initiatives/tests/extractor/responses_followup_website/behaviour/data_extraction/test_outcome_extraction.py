@@ -581,6 +581,193 @@ class TestOutcomeExtraction:
             result_5 is False
         ), "Should return False for mandate to assess without commitment to propose"
 
+    def test_extract_commission_deadlines(self):
+        """Test extraction of Commission deadline commitments."""
+
+        # # Test case 1: Consultation deadline with "will run until" - End the Cage Age
+        # html_1 = """
+        # <div>
+        #     <div class="ecl">
+        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
+        #     </div>
+        #     <div class="ecl">
+        #         <p>
+        #             Further to the call for evidence launched on 18 June 2025 (and closed
+        #             on 16 July 2025), the Commission published on 19 September 2025 a
+        #             public consultation which will run until 12 December 2025.
+        #         </p>
+        #     </div>
+        # </div>
+        # """
+
+        # extractor_1 = FollowupWebsiteExtractor(html_1)
+        # result_1 = extractor_1.extract_commissions_deadlines()
+
+        # assert result_1 is not None, "Should extract deadline"
+        # assert "2025-12-12" in result_1, "Should contain 2025-12-12"
+        # assert (
+        #     "consultation" in result_1["2025-12-12"].lower()
+        # ), "Should mention consultation"
+
+        # Test case 2: Call for evidence with "runs...until" - Fur Free Europe
+        html_2 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <h2 id="follow-up-on-the-commissions-actions">Follow-up on the Commission's actions</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    On 4 July 2025, the Commission launched a Call for evidence requesting 
+                    input from stakeholders and citizens. The Call for evidence runs for 
+                    four weeks, until 1 August 2025 and the feedback received are publicly 
+                    available.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_2 = FollowupWebsiteExtractor(html_2)
+        result_2 = extractor_2.extract_commissions_deadlines()
+
+        assert result_2 is not None, "Should extract deadline"
+        assert "2025-08-01" in result_2, "Should contain 2025-08-01"
+        assert (
+            "call for evidence" in result_2["2025-08-01"].lower()
+        ), "Should mention call for evidence"
+
+        # Test case 3: Communication deadline with "by" - Fur Free Europe
+        html_3 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <h2 id="follow-up-on-the-commissions-actions">Follow-up on the Commission's actions</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Taking into account the EFSA opinion and the outcomes of its own assessment, 
+                    the Commission will communicate, by March 2026, whether it considers it 
+                    appropriate to propose a prohibition, after a transition period, on the 
+                    keeping in farms and killing of farmed mink, foxes, raccoon dogs or chinchilla.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_3 = FollowupWebsiteExtractor(html_3)
+        result_3 = extractor_3.extract_commissions_deadlines()
+
+        assert result_3 is not None, "Should extract deadline"
+        assert (
+            "2026-03-31" in result_3
+        ), "Should contain 2026-03-31 (March 2026 end of month)"
+        assert (
+            "communicate" in result_3["2026-03-31"].lower()
+        ), "Should mention communicate"
+
+        # Test case 4: Multiple deadlines in same document
+        html_4 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission published on 19 September 2025 a public consultation 
+                    which will run until 12 December 2025.
+                </p>
+            </div>
+            <div class="ecl">
+                <h2 id="follow-up-on-the-commissions-actions">Follow-up</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission will communicate, by March 2026, whether it considers 
+                    it appropriate to propose a prohibition.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_4 = FollowupWebsiteExtractor(html_4)
+        result_4 = extractor_4.extract_commissions_deadlines()
+
+        assert result_4 is not None, "Should extract multiple deadlines"
+        assert len(result_4) == 2, "Should contain exactly 2 deadlines"
+        assert "2025-12-12" in result_4, "Should contain first deadline"
+        assert "2026-03-31" in result_4, "Should contain second deadline"
+
+        # Test case 5: Legislative proposal with specific date
+        html_5 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission committed to come forward with a legislative proposal 
+                    by May 2018 to ensure that the scientific evaluation of pesticides 
+                    for EU regulatory approval is based only on published studies.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_5 = FollowupWebsiteExtractor(html_5)
+        result_5 = extractor_5.extract_commissions_deadlines()
+
+        assert result_5 is not None, "Should extract deadline"
+        assert "2018-05-31" in result_5, "Should contain 2018-05-31"
+        assert (
+            "legislative proposal" in result_5["2018-05-31"].lower()
+        ), "Should mention legislative proposal"
+
+        # Test case 6: No deadlines present
+        html_6 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission decided to positively respond to the ECI. In its 
+                    communication the Commission sets out plans for a legislative proposal.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_6 = FollowupWebsiteExtractor(html_6)
+        result_6 = extractor_6.extract_commissions_deadlines()
+
+        assert result_6 is None, "Should return None when no deadlines found"
+
+        # Test case 7: Past deadline (closed date) should still be captured
+        html_7 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The call for evidence launched on 18 June 2025 and closed on 16 July 2025.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_7 = FollowupWebsiteExtractor(html_7)
+        result_7 = extractor_7.extract_commissions_deadlines()
+
+        # This depends on whether you want to capture "closed on" dates
+        # If not capturing past dates, this should be None
+        # If capturing, adjust assertion accordingly
+        assert result_7 is None, "Should not capture 'closed on' dates (past deadlines)"
+
     def test_extract_commission_rejected_initiative(self):
         """Test detection of Commission rejection."""
         # TODO: Implement test
@@ -589,11 +776,6 @@ class TestOutcomeExtraction:
     def test_extract_commission_rejection_reason(self):
         """Test extraction of rejection reasoning."""
         # TODO: Implement test
-        pass
-
-    def test_extract_commission_deadlines(self):
-        """Test extraction of Commission deadline commitments."""
-        # TODO: Implement test for deadline patterns
         pass
 
     def test_extract_laws_actions(self):

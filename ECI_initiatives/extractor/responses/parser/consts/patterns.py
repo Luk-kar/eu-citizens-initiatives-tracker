@@ -13,9 +13,12 @@ DEADLINE_PATTERNS = [
     r"will (?:then )?communicate[,\s]+by\s+([^.,;]+)",
     r"committed to communicate[,\s]+by\s+([^.,;]+)",
     r"will then communicate[,\s]+by\s+([^.,;]+)",
+    # Consultation and call patterns (action BEFORE deadline)
+    r"consultation.*?(?:which )?will run until\s+([^.,;]+)",
+    r"consultation.*?(?:runs|run).*?until\s+([^.,;]+)",
+    r"call for evidence.*?(on|until|by|to).*\s+([^.,;]+)",
+    r"(?:call|consultation|initiative).*?(?:will run|runs|running).*?until\s+([^.,;]+)",
     # Assessment and study patterns (action BEFORE deadline)
-    # r"consultation.*?(?:which )?will run until\s+([^.,;]+)",
-    # r"consultation.*?(?:runs|run).*?until\s+([^.,;]+)",
     r"launch.*?(?:impact )?assessment[,\s]+by\s+([^.,;]+)",
     r"conduct.*?study[,\s]+by\s+([^.,;]+)",
     r"carry out.*?(?:assessment|study)[,\s]+by\s+([^.,;]+)",
@@ -37,6 +40,9 @@ DEADLINE_PATTERNS = [
     # Other commitment patterns (action BEFORE deadline)
     r"preparatory work.*?(?:with a view to )?launch.*?by\s+([^.,;]+)",
     r"call for evidence.*?by\s+([^.,;]+)",
+    # Generic "until" deadline patterns (action BEFORE deadline)
+    r"will\s+(?:be\s+)?(?:open|available|running).*?until\s+([^.,;]+)",
+    r"(?:open|available|running).*?until\s+([^.,;]+)",
     # DEADLINE-FIRST patterns (deadline BEFORE action)
     r"by\s+([^.,;]+),\s+provide.*?(?:information|data|details)",
     r"by\s+([^.,;]+),\s+the\s+commission\s+will\s+(?:communicate|report|provide)",
