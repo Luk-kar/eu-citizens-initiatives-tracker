@@ -1071,8 +1071,357 @@ class TestOutcomeExtraction:
 
     def test_extract_commission_rejection_reason(self):
         """Test extraction of rejection reasoning."""
-        # TODO: Implement test
-        pass
+
+        # # Test case 1: Empty response section - should raise ValueError
+        # html_empty = """
+        # <div>
+        #     <div class="ecl">
+        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
+        #     </div>
+        #     <div class="ecl">
+        #         <p></p>
+        #     </div>
+        # </div>
+        # """
+
+        # extractor_empty = FollowupWebsiteExtractor(html_empty)
+
+        # with pytest.raises(ValueError, match="Could not extract legislative content"):
+        #     extractor_empty.extract_commission_rejection_reason()
+
+        # # Test case 2: Pure rejection with explicit reasoning
+        # html_pure_rejection = """
+        # <div>
+        #     <div class="ecl">
+        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
+        #     </div>
+        #     <div class="ecl">
+        #         <p>
+        #             The Commission has carefully examined this initiative and
+        #             will not make a legislative proposal. The existing legislative
+        #             framework already provides adequate protection for the concerns raised.
+        #             The proposals fall outside the EU competence in this area.
+        #         </p>
+        #     </div>
+        # </div>
+        # """
+
+        # extractor_2 = FollowupWebsiteExtractor(html_pure_rejection)
+        # result_2 = extractor_2.extract_commission_rejection_reason()
+
+        # assert result_2 is not None, "Should extract rejection reasoning"
+        # assert " decided not to make a legislative proposal" in result_2.lower()
+
+        # # Test case 3: Pure rejection with "decided not to submit"
+        # html_decided_not = """
+        # <div>
+        #     <div class="ecl">
+        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
+        #     </div>
+        #     <div class="ecl">
+        #         <p>
+        #             After thorough analysis, the Commission has decided not to
+        #             submit a legislative proposal on this matter. The current policies
+        #             already in place address the key concerns effectively.
+        #         </p>
+        #     </div>
+        # </div>
+        # """
+
+        # extractor_3 = FollowupWebsiteExtractor(html_decided_not)
+        # result_3 = extractor_3.extract_commission_rejection_reason()
+
+        # assert result_3 is not None
+        # assert " decided not to make a legislative proposal" in result_3.lower()
+
+        # # Test case 4: Rejection - outside EU competence
+        # html_competence = """
+        # <div>
+        #     <div class="ecl">
+        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
+        #     </div>
+        #     <div class="ecl">
+        #         <p>
+        #             The Commission recognizes the importance of this initiative. However,
+        #             the proposals fall outside of EU competence. Member States retain
+        #             primary responsibility in this policy area, and no legislative
+        #             proposal will be brought forward.
+        #         </p>
+        #     </div>
+        # </div>
+        # """
+
+        # extractor_4 = FollowupWebsiteExtractor(html_competence)
+        # result_4 = extractor_4.extract_commission_rejection_reason()
+
+        # assert result_4 is not None
+        # assert " decided not to make a legislative proposal" in result_4.lower()
+
+        # # Test case 5: Rejection with "no repeal" pattern
+        # html_no_repeal = """
+        # <div>
+        #     <div class="ecl">
+        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
+        #     </div>
+        #     <div class="ecl">
+        #         <p>
+        #             Following extensive assessment, no repeal of the existing directive
+        #             was proposed. The Commission will continue to monitor the situation
+        #             and support Member States in effective implementation.
+        #         </p>
+        #     </div>
+        # </div>
+        # """
+
+        # extractor_5 = FollowupWebsiteExtractor(html_no_repeal)
+        # result_5 = extractor_5.extract_commission_rejection_reason()
+
+        # assert result_5 is not None
+        # assert " decided not to make a legislative proposal" in result_5.lower()
+
+        # Test case 6: Mixed response - rejection with commitment to legislative proposal
+        html_mixed = """
+        <div>
+            <div class="ecl">
+                <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">
+                    Response of the Commission
+                </h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission will not make a legislative proposal specifically
+                    addressing the initiative's demands for immediate action. However,
+                    the Commission has committed to come forward with a legislative proposal
+                    on the broader regulatory framework by the end of 2025.
+                </p>
+                <p>
+                    This legislative proposal will include measures to strengthen
+                    oversight and improve transparency, addressing some of the concerns
+                    raised by the organizers.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_6 = FollowupWebsiteExtractor(html_mixed)
+        result_6 = extractor_6.extract_commission_rejection_reason()
+
+        assert result_6 is not None
+        assert "legislative proposal" in result_6.lower()
+        # Should contain both rejection and commitment context
+        assert "will not make a legislative proposal" in result_6.lower()
+        assert "committed to come forward" in result_6.lower()
+
+        # Test case 7: No rejection - should return None
+        html_no_rejection = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission has committed to come forward with a legislative 
+                    proposal addressing the key concerns raised by this initiative. 
+                    The proposal will be presented by the end of 2025.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_7 = FollowupWebsiteExtractor(html_no_rejection)
+        result_7 = extractor_7.extract_commission_rejection_reason()
+
+        assert result_7 is None, "Should return None when no rejection found"
+
+        # Test case 8: Law already applicable - should return None
+        html_applicable = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The new regulation addressing the initiative's objectives was adopted 
+                    in 2024 and became applicable on 1 January 2025. This legislation 
+                    establishes a comprehensive framework for the concerns raised.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_8 = FollowupWebsiteExtractor(html_applicable)
+        result_8 = extractor_8.extract_commission_rejection_reason()
+
+        assert result_8 is None, "Should return None for applicable legislation"
+
+        # Test case 9: Rejection - already covered by existing legislation
+        html_already_covered = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The concerns raised by this initiative are already covered by 
+                    existing legislation. The current regulatory framework provides 
+                    comprehensive measures that address the objectives of the initiative. 
+                    Therefore, no new legislation will be proposed.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_9 = FollowupWebsiteExtractor(html_already_covered)
+        result_9 = extractor_9.extract_commission_rejection_reason()
+
+        assert result_9 is not None
+        assert "already covered" in result_9.lower()
+        assert "no new legislation" in result_9.lower()
+
+        # Test case 10: Rejection with multiple paragraphs
+        html_multi_para = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission has carefully assessed the initiative's objectives.
+                </p>
+                <p>
+                    After thorough analysis, the Commission has decided not to submit 
+                    a legislative proposal on this matter. There are neither scientific 
+                    nor legal grounds to justify new EU legislation at this time.
+                </p>
+                <p>
+                    The existing legislation already provides an adequate framework. 
+                    The Commission will continue to monitor developments in this area.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_10 = FollowupWebsiteExtractor(html_multi_para)
+        result_10 = extractor_10.extract_commission_rejection_reason()
+
+        assert result_10 is not None
+        assert "decided not to submit" in result_10.lower()
+        # Should extract multiple relevant paragraphs
+        assert len(result_10) > 100, "Should extract reasoning from multiple paragraphs"
+
+        # Test case 11: Rejection with minimal text (fallback message)
+        html_minimal = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    No legislative proposal.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_11 = FollowupWebsiteExtractor(html_minimal)
+        result_11 = extractor_11.extract_commission_rejection_reason()
+
+        assert result_11 is not None
+        # Should return fallback message or minimal text
+        assert len(result_11) > 0
+
+        # Test case 12: Mixed response with complex structure
+        html_complex_mixed = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    While no new legislation will be proposed for the specific measures 
+                    requested, the Commission intends to table a legislative proposal 
+                    on the broader policy framework.
+                </p>
+                <p>
+                    The legislative proposal will be presented in Q4 2025 and will include 
+                    provisions to enhance regulatory oversight.
+                </p>
+                <p>
+                    However, the Commission will not make a legislative proposal for 
+                    repealing existing directives as requested by the organizers.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_12 = FollowupWebsiteExtractor(html_complex_mixed)
+        result_12 = extractor_12.extract_commission_rejection_reason()
+
+        assert result_12 is not None
+        # Should extract all paragraphs mentioning "legislative proposal"
+        assert result_12.lower().count("legislative proposal") >= 2
+        assert "will not make a legislative proposal" in result_12.lower()
+        assert "intends to table" in result_12.lower()
+
+    # def test_extract_commission_rejection_reason_error_handling(self):
+    #     """Test error handling for rejection reasoning extraction."""
+
+    #     # Test case 1: Missing response section
+    #     html_missing = """
+    #     <div>
+    #         <div class="ecl">
+    #             <h2 id="some-other-section">Other Section</h2>
+    #         </div>
+    #         <div class="ecl">
+    #             <p>Content without a Commission response.</p>
+    #         </div>
+    #     </div>
+    #     """
+
+    #     extractor_missing = FollowupWebsiteExtractor(html_missing)
+
+    #     with pytest.raises(ValueError, match="Could not extract legislative content"):
+    #         extractor_missing.extract_commission_rejection_reason()
+
+    #     # Test case 2: Malformed HTML
+    #     html_malformed = """
+    #     <div>
+    #         <div class="ecl">
+    #             <h2 id="response-of-the-commission">Response of the Commission
+    #     """
+
+    #     extractor_malformed = FollowupWebsiteExtractor(html_malformed)
+
+    #     # Should either raise ValueError or handle gracefully
+    #     try:
+    #         result = extractor_malformed.extract_commission_rejection_reason()
+    #         # If it doesn't raise, it should return None or handle gracefully
+    #         assert result is None or isinstance(result, str)
+    #     except ValueError:
+    #         # ValueError is acceptable for malformed HTML
+    #         pass
+
+    #     # Test case 3: Commitment only (no rejection) - should return None
+    #     html_commitment_only = """
+    #     <div>
+    #         <div class="ecl">
+    #             <h2 id="response-of-the-commission">Response of the Commission</h2>
+    #         </div>
+    #         <div class="ecl">
+    #             <p>
+    #                 The Commission is committed to table a legislative proposal
+    #                 addressing the initiative's objectives by December 2025.
+    #             </p>
+    #         </div>
+    #     </div>
+    #     """
+
+    #     extractor_commitment = FollowupWebsiteExtractor(html_commitment_only)
+    #     result_commitment = extractor_commitment.extract_commission_rejection_reason()
+
+    #     assert (
+    #         result_commitment is None
+    #     ), "Should return None for commitment without rejection"
 
     def test_extract_laws_actions(self):
         """Test extraction of legislative actions JSON."""

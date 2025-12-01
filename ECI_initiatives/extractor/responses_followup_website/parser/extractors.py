@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from ...responses.parser.extractors.outcome import (
     LegislativeOutcomeExtractor,
     APPLICABLE_DATE_PATTERNS,
+    REJECTION_REASONING_KEYWORDS,
     parse_date_string,
     DEADLINE_PATTERNS,
     convert_deadline_to_date,
@@ -301,7 +302,20 @@ class FollowupWebsiteExtractor:
         return commissions_deadlines
 
     def extract_commission_rejection_reason(self):
-        pass
+
+        # Create extractor instance
+        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
+            registration_number=(
+                self.registration_number
+                if hasattr(self, "registration_number")
+                else None
+            )
+        )
+
+        # Extract applicable boolean using the existing method
+        commissions_deadlines = outcome_extractor.extract_rejection_reasoning(self.soup)
+
+        return commissions_deadlines
 
     def extract_followup_latest_date(self):
         pass
@@ -624,3 +638,107 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             raise ValueError(
                 f"Error extracting commission deadlines for {self.registration_number}: {str(e)}"
             ) from e
+
+    def _extract_mixed_response_reasoning(self, answer_section) -> str:
+        """
+        Extract reasoning for mixed response (both commitment and rejection).
+        Finds all text mentioning 'legislative proposal'.
+
+        Args:
+            answer_section: BeautifulSoup element of Answer section (h2 element)
+
+        Returns:
+            Combined text of all relevant paragraphs
+
+        Raises:
+            ValueError: If no relevant text found
+        """
+        legislative_proposal_paragraphs = []
+
+        # Get the parent div of the h2, then find its siblings
+        parent_div = answer_section.parent
+        siblings = parent_div.find_next_siblings() if parent_div else []
+
+        for sibling in siblings:
+            if self._should_skip_element(sibling):
+                if sibling.name == "h2":
+                    break
+                continue
+
+            # Handle div containers (e.g., <div class="ecl">)
+            if sibling.name == "div":
+                # Look for paragraphs inside the div
+                for element in sibling.find_all(
+                    ["p", "li", "ul", "ol"], recursive=True
+                ):
+                    extracted_text = self._extract_text_with_keyword_filter(
+                        element, ["legislative proposal"]
+                    )
+                    if extracted_text:
+                        legislative_proposal_paragraphs.append(extracted_text)
+            else:
+                # Direct paragraph or list element
+                extracted_text = self._extract_text_with_keyword_filter(
+                    sibling, ["legislative proposal"]
+                )
+                if extracted_text:
+                    legislative_proposal_paragraphs.append(extracted_text)
+
+        if legislative_proposal_paragraphs:
+            return " ".join(legislative_proposal_paragraphs)
+
+        raise ValueError(
+            "Failed to extract rejection reasoning for mixed response: "
+            f"{self.registration_number}.\n"
+            f"The Commission committed to some legislative action but rejected other aims.\n"
+            f"No paragraphs containing 'legislative proposal' were found in the Answer section.\n"
+            f"legislative_proposal_paragraphs:\n{legislative_proposal_paragraphs}\n"
+            f"answer_section:\n{answer_section}\n"
+        )
+
+    def _extract_pure_rejection_reasoning(self, answer_section) -> str:
+        """
+        Extract reasoning for pure rejection (no commitment).
+        Finds all text containing rejection keywords.
+
+        Args:
+            answer_section: BeautifulSoup element of Answer section (h2 element)
+
+        Returns:
+            Combined text of all relevant paragraphs or fallback message
+        """
+        rejection_sentences = []
+
+        # Get the parent div of the h2, then find its siblings
+        parent_div = answer_section.parent
+        siblings = parent_div.find_next_siblings() if parent_div else []
+
+        for sibling in siblings:
+            if self._should_skip_element(sibling):
+                if sibling.name == "h2":
+                    break
+                continue
+
+            # Handle div containers (e.g., <div class="ecl">)
+            if sibling.name == "div":
+                # Look for paragraphs inside the div
+                for element in sibling.find_all(
+                    ["p", "li", "ul", "ol"], recursive=True
+                ):
+                    extracted_text = self._extract_text_with_keyword_filter(
+                        element, REJECTION_REASONING_KEYWORDS
+                    )
+                    if extracted_text:
+                        rejection_sentences.append(extracted_text)
+            else:
+                # Direct paragraph or list element
+                extracted_text = self._extract_text_with_keyword_filter(
+                    sibling, REJECTION_REASONING_KEYWORDS
+                )
+                if extracted_text:
+                    rejection_sentences.append(extracted_text)
+
+        if rejection_sentences:
+            return " ".join(rejection_sentences)
+
+        return "The Commission decided not to make a legislative proposal."
