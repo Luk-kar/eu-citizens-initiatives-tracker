@@ -40,9 +40,6 @@ DEADLINE_PATTERNS = [
     # Other commitment patterns (action BEFORE deadline)
     r"preparatory work.*?(?:with a view to )?launch.*?by\s+([^.,;]+)",
     r"call for evidence.*?by\s+([^.,;]+)",
-    # Generic "until" deadline patterns (action BEFORE deadline)
-    r"will\s+(?:be\s+)?(?:open|available|running).*?until\s+([^.,;]+)",
-    r"(?:open|available|running).*?until\s+([^.,;]+)",
     # DEADLINE-FIRST patterns (deadline BEFORE action)
     r"by\s+([^.,;]+),\s+provide.*?(?:information|data|details)",
     r"by\s+([^.,;]+),\s+the\s+commission\s+will\s+(?:communicate|report|provide)",
