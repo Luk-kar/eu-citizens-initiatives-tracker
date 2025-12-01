@@ -11,6 +11,7 @@ from ...responses.parser.extractors.outcome import (
     parse_date_string,
     DEADLINE_PATTERNS,
     convert_deadline_to_date,
+    LegislativeStatus,
 )
 from ...responses.parser.base.text_utilities import normalize_whitespace
 
@@ -317,6 +318,22 @@ class FollowupWebsiteExtractor:
 
         return commissions_deadlines
 
+    def extract_laws_actions(self):
+
+        # Create extractor instance
+        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
+            registration_number=(
+                self.registration_number
+                if hasattr(self, "registration_number")
+                else None
+            )
+        )
+
+        # Extract applicable boolean using the existing method
+        commissions_deadlines = outcome_extractor.extract_legislative_action(self.soup)
+
+        return commissions_deadlines
+
     def extract_followup_latest_date(self):
         pass
 
@@ -324,9 +341,6 @@ class FollowupWebsiteExtractor:
         pass
 
     def extract_followup_dedicated_website(self):
-        pass
-
-    def extract_laws_actions(self):
         pass
 
     def extract_policies_actions(self):
@@ -743,3 +757,153 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             return " ".join(rejection_sentences)
 
         return "The Commission decided not to make a legislative proposal."
+
+    def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[dict]:
+        """
+        Extract LEGISLATIVE actions - proposals, adoptions, laws, regulations, directives.
+        Excludes: rejection statements, enforcement activities, policy actions.
+        Returns JSON string with list of legislative actions or None
+
+        Each action contains:
+        - type: Type of action (e.g., "Regulation Proposal", "Directive Revision", "Tariff Codes Creation")
+        - description: Brief description of the action
+        - status: Status of action ("proposed", "adopted", "in_force", "withdrawn", "planned")
+        - date: Date in YYYY-MM-DD format (when applicable)
+        - document_url: URL to official document (optional)
+        """
+
+        try:
+            # Check if proposal was rejected
+            matcher = self._get_classifier(soup)
+            rejection_type = matcher.check_rejection_type()
+
+            # If rejected with no commitment, return None
+            if rejection_type and not matcher.check_committed():
+                return None
+
+            # Find the "Response of the Commission" section
+            response_section = self._find_answer_section(soup)
+
+            if not response_section:
+                print("Warning: Could not find 'Response of the Commission' section")
+                return None
+
+            # Allowed tags for text extraction
+            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre", "div"]
+
+            # Collect all relevant content elements
+            content_elements = []
+
+            # Start from answer_section and iterate through ALL following elements
+            current = response_section.find_next()
+
+            while current:
+                # Stop when we find the social media share element
+                if current.find(class_="ecl-social-media-share__description"):
+                    print("Found social media share section, stopping")
+                    break
+
+                # Only process allowed tags
+                if current.name in ALLOWED_TAGS and not self._should_skip_element(
+                    current
+                ):
+                    content_elements.append(current)
+
+                # Move to next element in document order
+                current = current.find_next()
+
+            # Show preview of first few elements
+            for i, elem in enumerate(content_elements[:1]):
+                text_preview = (
+                    elem.get_text(strip=True)
+                    if elem.get_text(strip=True)
+                    else "[empty]"
+                )
+
+            # if len(content_elements) > 1:
+            #     print("===================================")
+            #     print("\n".join(str(elem) for elem in content_elements))
+            #     print("===================================")
+
+            if not content_elements:
+                print("Warning: No content found after Response section")
+                return None
+
+            # Extract actions from the collected content
+            actions = []
+
+            # Process each content element
+            for element in content_elements:
+                # Use existing extraction logic for each element
+                element_actions = self._extract_actions_from_section(element)
+                if element_actions:
+                    actions.extend(element_actions)
+
+            # If no actions found, return None
+            if not actions:
+                print("Warning: No legislative actions extracted from content")
+                return None
+
+            # Remove duplicates (same type, description, and date)
+            unique_actions = []
+            seen = set()
+            for action in actions:
+                key = (
+                    action.get("type", ""),
+                    action.get("description", ""),
+                    action.get("date", ""),
+                )
+                if key not in seen:
+                    seen.add(key)
+                    unique_actions.append(action)
+
+            print(f"Extracted {len(unique_actions)} unique legislative action(s)")
+            return unique_actions
+
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting legislative action for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def _extract_actions_from_section(self, section) -> list:
+        """
+        Extract legislative actions from a specific element.
+
+        Args:
+            section: BeautifulSoup element (can be p, div, li, etc.)
+
+        Returns:
+            List of action dictionaries
+        """
+        actions = []
+
+        # Build action patterns from LegislativeStatus
+        action_patterns = []
+        for status in LegislativeStatus.ALL_STATUSES:
+            for pattern in status.action_patterns:
+                action_patterns.append(
+                    {
+                        "pattern": pattern,
+                        "status_obj": status,
+                    }
+                )
+
+        # Process THE ELEMENT ITSELF (not its siblings)
+        if section.name in ["p", "li"]:
+            self._process_element_for_legislative_action(
+                section, action_patterns, actions
+            )
+        elif section.name in ["ul", "ol"]:
+            # Process each list item individually
+            for li in section.find_all("li", recursive=False):
+                self._process_element_for_legislative_action(
+                    li, action_patterns, actions
+                )
+        elif section.name == "div":
+            # Process paragraphs and lists within the div
+            for elem in section.find_all(["p", "li"], recursive=False):
+                self._process_element_for_legislative_action(
+                    elem, action_patterns, actions
+                )
+
+        return actions

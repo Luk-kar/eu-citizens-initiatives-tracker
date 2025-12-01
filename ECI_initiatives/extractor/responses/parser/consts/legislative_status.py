@@ -64,7 +64,7 @@ class LegislativeStatus:
             ("approved", 1),
         ],
         action_patterns=[
-            r"(?:adopted|approved).*?(?:regulation|directive|law|amendment)",
+            r"(?:adopted|approved).*?(?:regulation|directive|law|amendment|legislation)",
         ],
     )
 
@@ -75,10 +75,20 @@ class LegislativeStatus:
             ("proposal", 1),
             ("proposed", 1),
             ("tabled", 1),
+            ("plans for", 1),
+            ("committed to", 1),
         ],
         action_patterns=[
-            r"(?:proposal|proposed|tabled).*?(?:regulation|directive|law|amendment)",
-            r"(?:revision|revised|recast).*?(?:directive|regulation)",
+            # Standard proposal patterns
+            r"(?:proposal|proposed|tabled).*?(?:regulation|directive|law|amendment|legislation)",
+            r"(?:revision|revised|recast).*?(?:directive|regulation|legislation)",
+            # Commitment/plan patterns
+            r"(?:plans? for|committed? to present|intends? to present|will present).*?(?:legislative proposal)",
+            r"(?:plans? for|committed? to).*?(?:revision|review).*?(?:legislation|directive|regulation)",
+            # Standalone legislative proposal
+            r"legislative proposal(?:\s+to)?",
+            # Proposals on revision
+            r"proposals? on.*?(?:revision|review).*?(?:legislation|directive|regulation)",
         ],
     )
 
@@ -89,6 +99,7 @@ class LegislativeStatus:
             ("will apply", 1),
             ("planned", 1),
             ("foresees", 1),
+            ("intends", 1),
         ],
         action_patterns=[
             r"(?:will apply|planned|to be adopted|foresees).*?(?:from|by|in).*?\d{4}",

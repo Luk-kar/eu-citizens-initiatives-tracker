@@ -571,6 +571,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         - date: Date in YYYY-MM-DD format (when applicable)
         - document_url: URL to official document (optional)
         """
+
         try:
             # Check if proposal was rejected
             matcher = self._get_classifier(soup)
@@ -690,7 +691,9 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         """Process a single HTML element (p or li) for legislative actions"""
 
         # Get text with newlines separating each tag
-        text = element.get_text(separator="\n", strip=True)
+        text = element.get_text(separator=" ", strip=True)
+
+        print(f"text:\n{text}")
 
         # NORMALIZE WHITESPACE: Replace multiple whitespace (including newlines) with single space
         text = normalize_whitespace(text)
