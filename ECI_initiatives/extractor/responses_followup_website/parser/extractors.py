@@ -284,6 +284,25 @@ class FollowupWebsiteExtractor:
 
         return commissions_deadlines
 
+    def extract_commission_rejected_initiative(self):
+
+        # Create extractor instance
+        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
+            registration_number=(
+                self.registration_number
+                if hasattr(self, "registration_number")
+                else None
+            )
+        )
+
+        # Extract applicable boolean using the existing method
+        commissions_deadlines = outcome_extractor.extract_proposal_rejected(self.soup)
+
+        return commissions_deadlines
+
+    def extract_commission_rejection_reason(self):
+        pass
+
     def extract_followup_latest_date(self):
         pass
 
@@ -306,12 +325,6 @@ class FollowupWebsiteExtractor:
         pass
 
     def extract_referenced_legislation_by_id(self):
-        pass
-
-    def extract_commission_rejected_initiative(self):
-        pass
-
-    def extract_commission_rejection_reason(self):
         pass
 
     def extract_has_followup_section(self):

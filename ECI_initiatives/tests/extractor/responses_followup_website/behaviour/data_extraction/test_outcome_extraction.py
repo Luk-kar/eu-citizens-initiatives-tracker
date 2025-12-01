@@ -585,29 +585,29 @@ class TestOutcomeExtraction:
         """Test extraction of Commission deadline commitments."""
 
         # # Test case 1: Consultation deadline with "will run until" - End the Cage Age
-        # html_1 = """
-        # <div>
-        #     <div class="ecl">
-        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
-        #     </div>
-        #     <div class="ecl">
-        #         <p>
-        #             Further to the call for evidence launched on 18 June 2025 (and closed
-        #             on 16 July 2025), the Commission published on 19 September 2025 a
-        #             public consultation which will run until 12 December 2025.
-        #         </p>
-        #     </div>
-        # </div>
-        # """
+        html_1 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Further to the call for evidence launched on 18 June 2025 (and closed
+                    on 16 July 2025), the Commission published on 19 September 2025 a
+                    public consultation which will run until 12 December 2025.
+                </p>
+            </div>
+        </div>
+        """
 
-        # extractor_1 = FollowupWebsiteExtractor(html_1)
-        # result_1 = extractor_1.extract_commissions_deadlines()
+        extractor_1 = FollowupWebsiteExtractor(html_1)
+        result_1 = extractor_1.extract_commissions_deadlines()
 
-        # assert result_1 is not None, "Should extract deadline"
-        # assert "2025-12-12" in result_1, "Should contain 2025-12-12"
-        # assert (
-        #     "consultation" in result_1["2025-12-12"].lower()
-        # ), "Should mention consultation"
+        assert result_1 is not None, "Should extract deadline"
+        assert "2025-12-12" in result_1, "Should contain 2025-12-12"
+        assert (
+            "consultation" in result_1["2025-12-12"].lower()
+        ), "Should mention consultation"
 
         # Test case 2: Call for evidence with "runs...until" - Fur Free Europe
         html_2 = """
@@ -770,8 +770,304 @@ class TestOutcomeExtraction:
 
     def test_extract_commission_rejected_initiative(self):
         """Test detection of Commission rejection."""
-        # TODO: Implement test
-        pass
+
+        # Test case 1: Explicit rejection - will not make a legislative proposal
+        html_1 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission has carefully examined this initiative and 
+                    will not make a legislative proposal at this time. The existing 
+                    framework already addresses the key concerns raised.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_1 = FollowupWebsiteExtractor(html_1)
+        result_1 = extractor_1.extract_commission_rejected_initiative()
+
+        assert result_1 is True, "Should detect explicit rejection"
+
+        # Test case 2: Rejection - decided not to submit a legislative proposal
+        html_2 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    After thorough analysis, the Commission has decided not to 
+                    submit a legislative proposal on this matter. The current 
+                    legislative framework is adequate.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_2 = FollowupWebsiteExtractor(html_2)
+        result_2 = extractor_2.extract_commission_rejected_initiative()
+
+        assert result_2 is True, "Should detect rejection decision"
+
+        # Test case 3: Rejection - outside EU competence
+        html_3 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission recognizes the importance of this issue, however 
+                    the proposals fall outside the EU competence. Therefore, no 
+                    legislative proposal will be brought forward.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_3 = FollowupWebsiteExtractor(html_3)
+        result_3 = extractor_3.extract_commission_rejected_initiative()
+
+        assert result_3 is True, "Should detect competence-based rejection"
+
+        # Test case 4: Rejection with "no repeal" pattern
+        html_4 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Following the assessment, no repeal of the existing directive 
+                    was proposed. The Commission will continue to monitor the 
+                    situation and support Member States in implementation.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_4 = FollowupWebsiteExtractor(html_4)
+        result_4 = extractor_4.extract_commission_rejected_initiative()
+
+        assert result_4 is True, "Should detect no repeal rejection pattern"
+
+        # Test case 5: Rejection - already covered by existing legislation
+        html_5 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission notes that the concerns raised are already covered 
+                    by existing legislation. The current policies already in place 
+                    provide the necessary framework, and no new legislation will be proposed.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_5 = FollowupWebsiteExtractor(html_5)
+        result_5 = extractor_5.extract_commission_rejected_initiative()
+
+        assert result_5 is True, "Should detect rejection based on existing framework"
+
+        # Test case 6: Rejection with actions - committed to non-legislative measures
+        html_6 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    While the Commission will not make a legislative proposal on this 
+                    matter, it is committed to supporting Member States through guidance 
+                    and best practice sharing. The Commission will monitor the situation 
+                    closely.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_6 = FollowupWebsiteExtractor(html_6)
+        result_6 = extractor_6.extract_commission_rejected_initiative()
+
+        assert result_6 is True, "Should detect rejection with non-legislative actions"
+
+        # Test case 7: No rejection - Commission committed to proposal
+        html_7 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission has committed to come forward with a legislative 
+                    proposal by the end of 2025. This proposal will address the key 
+                    concerns raised by the initiative.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_7 = FollowupWebsiteExtractor(html_7)
+        result_7 = extractor_7.extract_commission_rejected_initiative()
+
+        assert (
+            result_7 is False
+        ), "Should not detect rejection when committed to proposal"
+
+        # Test case 8: No rejection - law already applicable
+        html_8 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Following the adoption of the regulation in 2024, the new rules 
+                    became applicable on 1 January 2025. This addresses the core 
+                    objectives of the initiative.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_8 = FollowupWebsiteExtractor(html_8)
+        result_8 = extractor_8.extract_commission_rejected_initiative()
+
+        assert (
+            result_8 is False
+        ), "Should not detect rejection for applicable legislation"
+
+        # Test case 9: Rejection - no new legislation will be proposed
+        html_9 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission appreciates the concerns raised. However, given 
+                    the recently debated and agreed legislation on this topic, no 
+                    new legislation will be proposed at this stage.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_9 = FollowupWebsiteExtractor(html_9)
+        result_9 = extractor_9.extract_commission_rejected_initiative()
+
+        assert (
+            result_9 is True
+        ), "Should detect rejection with 'no new legislation' phrase"
+
+        # Test case 10: Rejection - neither scientific nor legal grounds
+        html_10 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    After careful examination, the Commission concludes that there are 
+                    neither scientific nor legal grounds to proceed with new legislation 
+                    on this matter.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_10 = FollowupWebsiteExtractor(html_10)
+        result_10 = extractor_10.extract_commission_rejected_initiative()
+
+        assert (
+            result_10 is True
+        ), "Should detect rejection based on scientific/legal grounds"
+
+        # Test case 1: Empty response section
+        html_empty = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p></p>
+            </div>
+        </div>
+        """
+
+        extractor_empty = FollowupWebsiteExtractor(html_empty)
+
+        # Should raise ValueError due to empty content
+        with pytest.raises(ValueError, match="Could not extract legislative content"):
+            extractor_empty.extract_commission_rejected_initiative()
+
+        # Test case 2: Missing response section
+        html_missing = """
+        <div>
+            <div class="ecl">
+                <h2 id="some-other-section">Other Section</h2>
+            </div>
+            <div class="ecl">
+                <p>Some content that is not a Commission response.</p>
+            </div>
+        </div>
+        """
+
+        extractor_missing = FollowupWebsiteExtractor(html_missing)
+
+        # Should raise ValueError due to missing Answer section
+        with pytest.raises(ValueError, match="Could not extract legislative content"):
+            extractor_missing.extract_commission_rejected_initiative()
+
+        # Test case 3: Mixed signals - rejection phrase but also commitment
+        html_mixed = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    While no new legislation will be proposed specifically for this 
+                    initiative, the Commission has committed to come forward with a 
+                    legislative proposal on the broader regulatory framework.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_mixed = FollowupWebsiteExtractor(html_mixed)
+        result_mixed = extractor_mixed.extract_commission_rejected_initiative()
+
+        # Should still detect rejection due to explicit rejection phrase
+        assert (
+            result_mixed is True
+        ), "Should detect rejection even with commitment mentioned"
+
+        # Test case 4: Case insensitivity test
+        html_case = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The COMMISSION will NOT MAKE A LEGISLATIVE PROPOSAL on this matter.
+                </p>
+            </div>
+        </div>
+        """
+
+        extractor_case = FollowupWebsiteExtractor(html_case)
+        result_case = extractor_case.extract_commission_rejected_initiative()
+
+        assert result_case is True, "Should handle case-insensitive rejection detection"
 
     def test_extract_commission_rejection_reason(self):
         """Test extraction of rejection reasoning."""
