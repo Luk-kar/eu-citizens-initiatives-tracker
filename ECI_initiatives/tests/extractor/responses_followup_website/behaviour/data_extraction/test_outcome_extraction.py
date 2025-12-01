@@ -1366,70 +1366,339 @@ class TestOutcomeExtraction:
         assert "will not make a legislative proposal" in result_12.lower()
         assert "intends to table" in result_12.lower()
 
-    # def test_extract_commission_rejection_reason_error_handling(self):
-    #     """Test error handling for rejection reasoning extraction."""
-
-    #     # Test case 1: Missing response section
-    #     html_missing = """
-    #     <div>
-    #         <div class="ecl">
-    #             <h2 id="some-other-section">Other Section</h2>
-    #         </div>
-    #         <div class="ecl">
-    #             <p>Content without a Commission response.</p>
-    #         </div>
-    #     </div>
-    #     """
-
-    #     extractor_missing = FollowupWebsiteExtractor(html_missing)
-
-    #     with pytest.raises(ValueError, match="Could not extract legislative content"):
-    #         extractor_missing.extract_commission_rejection_reason()
-
-    #     # Test case 2: Malformed HTML
-    #     html_malformed = """
-    #     <div>
-    #         <div class="ecl">
-    #             <h2 id="response-of-the-commission">Response of the Commission
-    #     """
-
-    #     extractor_malformed = FollowupWebsiteExtractor(html_malformed)
-
-    #     # Should either raise ValueError or handle gracefully
-    #     try:
-    #         result = extractor_malformed.extract_commission_rejection_reason()
-    #         # If it doesn't raise, it should return None or handle gracefully
-    #         assert result is None or isinstance(result, str)
-    #     except ValueError:
-    #         # ValueError is acceptable for malformed HTML
-    #         pass
-
-    #     # Test case 3: Commitment only (no rejection) - should return None
-    #     html_commitment_only = """
-    #     <div>
-    #         <div class="ecl">
-    #             <h2 id="response-of-the-commission">Response of the Commission</h2>
-    #         </div>
-    #         <div class="ecl">
-    #             <p>
-    #                 The Commission is committed to table a legislative proposal
-    #                 addressing the initiative's objectives by December 2025.
-    #             </p>
-    #         </div>
-    #     </div>
-    #     """
-
-    #     extractor_commitment = FollowupWebsiteExtractor(html_commitment_only)
-    #     result_commitment = extractor_commitment.extract_commission_rejection_reason()
-
-    #     assert (
-    #         result_commitment is None
-    #     ), "Should return None for commitment without rejection"
-
     def test_extract_laws_actions(self):
         """Test extraction of legislative actions JSON."""
-        # TODO: Implement test
-        pass
+
+        # Test case 1: Pure rejection - should return None
+        html_rejection = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission has decided not to make a legislative proposal.
+                    The existing framework is sufficient.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_1 = FollowupWebsiteExtractor(html_rejection)
+        result_1 = extractor_1.extract_laws_actions()
+
+        assert result_1 is None, "Should return None for pure rejection"
+
+        # Test case 2: Adopted regulation with date and URL
+        html_adopted = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Through an Implementing Regulation adopted on 17 July 2025, 
+                    American mink (Neovison vison) is now listed under the Invasive 
+                    Alien Species Regulation.
+                </p>
+                <p>
+                    Official document: <a href="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1422">
+                    Regulation (EU) 2025/1422</a>
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_2 = FollowupWebsiteExtractor(html_adopted)
+        result_2 = extractor_2.extract_laws_actions()
+
+        assert result_2 is not None, "Should extract adopted regulation"
+        assert isinstance(result_2, list), "Should return list of actions"
+        assert len(result_2) >= 1, "Should have at least one action"
+
+        action = result_2[0]
+        assert action["status"] == "adopted", "Status should be 'adopted'"
+        assert (
+            action["date"] == "2025-07-17"
+        ), "Should extract date in YYYY-MM-DD format"
+        assert "regulation" in action["type"].lower(), "Type should mention regulation"
+        assert (
+            "mink" in action["description"].lower()
+        ), "Description should contain key info"
+
+        # Test case 3: Proposed legislation (legislative proposal)
+        html_proposed = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission has committed to come forward with a legislative proposal 
+                    to prohibit cages for laying hens, breeding rabbits, and other species 
+                    by the end of 2023.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_3 = FollowupWebsiteExtractor(html_proposed)
+        result_3 = extractor_3.extract_laws_actions()
+
+        assert result_3 is not None, "Should extract proposed legislation"
+        assert isinstance(result_3, list), "Should return list of actions"
+
+        action = result_3[0]
+        assert action["status"] == "proposed", "Status should be 'proposed'"
+        assert "legislative proposal" in action["description"].lower()
+        assert "prohibit cages" in action["description"].lower()
+
+        # Test case 4: Plans for legislative proposal
+        html_plans = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission has plans for a legislative proposal on animal welfare 
+                    that will be presented in 2024.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_4 = FollowupWebsiteExtractor(html_plans)
+        result_4 = extractor_4.extract_laws_actions()
+
+        assert result_4 is not None, "Should extract planned proposal"
+        assert len(result_4) >= 1
+        assert result_4[0]["status"] in [
+            "proposed",
+            "planned",
+        ], "Status should be proposed or planned"
+
+        # Test case 5: Revision of existing legislation
+        html_revision = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission committed to present proposals on the revision of 
+                    the existing EU animal welfare legislation by December 2023.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_5 = FollowupWebsiteExtractor(html_revision)
+        result_5 = extractor_5.extract_laws_actions()
+
+        assert result_5 is not None, "Should extract revision proposal"
+        action = result_5[0]
+        assert "revision" in action["description"].lower()
+        assert action["status"] == "proposed"
+
+        # Test case 6: Legislation entered into force
+        html_in_force = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The new Regulation (EU) 2024/1234 entered into force on 15 January 2024 
+                    and addresses the key objectives of the initiative.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_6 = FollowupWebsiteExtractor(html_in_force)
+        result_6 = extractor_6.extract_laws_actions()
+
+        assert result_6 is not None, "Should extract in-force legislation"
+        action = result_6[0]
+        assert action["status"] == "in_force", "Status should be 'in_force'"
+        assert action["date"] == "2024-01-15", "Should extract force date"
+
+        # Test case 7: Multiple actions
+        html_multiple = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    A new directive was adopted on 1 March 2024 establishing minimum standards.
+                </p>
+                <p>
+                    Additionally, the Commission will table a legislative proposal for 
+                    enhanced protections by June 2025.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_7 = FollowupWebsiteExtractor(html_multiple)
+        result_7 = extractor_7.extract_laws_actions()
+
+        assert result_7 is not None, "Should extract multiple actions"
+        assert len(result_7) >= 2, "Should have at least 2 actions"
+
+        statuses = [action["status"] for action in result_7]
+        assert "adopted" in statuses, "Should include adopted action"
+        assert "proposed" in statuses, "Should include proposed action"
+
+        # Test case 8: Withdrawn legislation
+        html_withdrawn = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission has withdrawn its proposal for a regulation on this matter 
+                    following consultation feedback.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_8 = FollowupWebsiteExtractor(html_withdrawn)
+        result_8 = extractor_8.extract_laws_actions()
+
+        assert result_8 is not None, "Should extract withdrawn action"
+        assert result_8[0]["status"] == "withdrawn"
+
+        # Test case 9: Action with document URL
+        html_with_url = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission adopted Regulation (EU) 2024/567 on 10 May 2024.
+                    <a href="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R0567">
+                    View the regulation</a>
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_9 = FollowupWebsiteExtractor(html_with_url)
+        result_9 = extractor_9.extract_laws_actions()
+
+        assert result_9 is not None
+        action = result_9[0]
+        assert "document_url" in action, "Should extract document URL"
+        assert "eur-lex.europa.eu" in action["document_url"]
+
+        # Test case 10: Empty response section
+        html_empty = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p></p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_10 = FollowupWebsiteExtractor(html_empty)
+        result_10 = extractor_10.extract_laws_actions()
+
+        assert result_10 is None, "Should return None for empty content"
+
+        # Test case 11: Mixed response - rejection for some aims, commitment for others
+        html_mixed = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission will not make a legislative proposal to ban all animal testing.
+                </p>
+                <p>
+                    However, the Commission is committed to present a legislative proposal 
+                    to strengthen animal welfare standards in research facilities by 2025.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_11 = FollowupWebsiteExtractor(html_mixed)
+        result_11 = extractor_11.extract_laws_actions()
+
+        assert (
+            result_11 is not None
+        ), "Should extract committed action from mixed response"
+        assert len(result_11) >= 1
+        assert "animal welfare" in result_11[0]["description"].lower()
+
+        # Test case 12: Tariff codes creation (planned status)
+        html_tariff = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    New CN tariff codes for specific products will be created and 
+                    will apply from 1 January 2026.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_12 = FollowupWebsiteExtractor(html_tariff)
+        result_12 = extractor_12.extract_laws_actions()
+
+        assert result_12 is not None, "Should extract tariff code creation"
+        assert result_12[0]["status"] == "planned"
+        assert "tariff" in result_12[0]["description"].lower()
+
+        # Test case 13: No duplicates
+        html_duplicates = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission adopted a regulation on 1 June 2024.
+                </p>
+                <p>
+                    As mentioned, the regulation was adopted on 1 June 2024.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_13 = FollowupWebsiteExtractor(html_duplicates)
+        result_13 = extractor_13.extract_laws_actions()
+
+        assert result_13 is not None
+        # Should deduplicate identical actions
+        assert len(result_13) == 1, "Should remove duplicate actions"
 
     def test_extract_policies_actions(self):
         """Test extraction of non-legislative policy actions JSON."""

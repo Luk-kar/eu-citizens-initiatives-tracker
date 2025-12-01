@@ -80,15 +80,12 @@ class LegislativeStatus:
         ],
         action_patterns=[
             # Standard proposal patterns
-            r"(?:proposal|proposed|tabled).*?(?:regulation|directive|law|amendment|legislation)",
-            r"(?:revision|revised|recast).*?(?:directive|regulation|legislation)",
+            r"(?:revision|revised|recast|decided|proposal|proposed|tabled)(?:(?!\bnot\b).)*?(?:regulation|directive|law|amendment|legislation|legislative)",
             # Commitment/plan patterns
-            r"(?:plans? for|committed? to present|intends? to present|will present).*?(?:legislative proposal)",
-            r"(?:plans? for|committed? to).*?(?:revision|review).*?(?:legislation|directive|regulation)",
-            # Standalone legislative proposal
-            r"legislative proposal(?:\s+to)?",
+            r"(?:plans? for|committed? to present|intends? to present|will present)(?:(?!\bnot\b).)*?(?:legislative proposal)",
+            r"(?:plans? for|committed? to)(?:(?!\bnot\b).)*?(?:revision|review)(?:(?!\bnot\b).)*?(?:legislation|directive|regulation)",
             # Proposals on revision
-            r"proposals? on.*?(?:revision|review).*?(?:legislation|directive|regulation)",
+            r"proposals? on(?:(?!\bnot\b).)*?(?:revision|review)(?:(?!\bnot\b).)*?(?:legislation|directive|regulation)",
         ],
     )
 

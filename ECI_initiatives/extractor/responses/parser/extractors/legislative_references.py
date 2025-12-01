@@ -276,8 +276,6 @@ class LegislationNameExtractor:
             is_generic = False
             for prefix in generic_prefixes:
 
-                # print([item, item_lower, prefix.lower(), keyword.lower()])
-
                 # Pattern: "Proposal for Regulation" or "Proposal for the Regulation"
                 if item_lower == f"{prefix.lower()} {keyword.lower()}":
                     is_generic = True

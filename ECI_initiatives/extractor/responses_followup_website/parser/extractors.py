@@ -785,7 +785,7 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             response_section = self._find_answer_section(soup)
 
             if not response_section:
-                print("Warning: Could not find 'Response of the Commission' section")
+                # Raise error
                 return None
 
             # Allowed tags for text extraction
@@ -800,7 +800,6 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             while current:
                 # Stop when we find the social media share element
                 if current.find(class_="ecl-social-media-share__description"):
-                    print("Found social media share section, stopping")
                     break
 
                 # Only process allowed tags
@@ -820,13 +819,8 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                     else "[empty]"
                 )
 
-            # if len(content_elements) > 1:
-            #     print("===================================")
-            #     print("\n".join(str(elem) for elem in content_elements))
-            #     print("===================================")
-
             if not content_elements:
-                print("Warning: No content found after Response section")
+                # raise an error
                 return None
 
             # Extract actions from the collected content
@@ -841,7 +835,6 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
 
             # If no actions found, return None
             if not actions:
-                print("Warning: No legislative actions extracted from content")
                 return None
 
             # Remove duplicates (same type, description, and date)
@@ -857,7 +850,6 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                     seen.add(key)
                     unique_actions.append(action)
 
-            print(f"Extracted {len(unique_actions)} unique legislative action(s)")
             return unique_actions
 
         except Exception as e:

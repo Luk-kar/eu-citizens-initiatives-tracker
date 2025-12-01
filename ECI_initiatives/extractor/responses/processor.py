@@ -68,8 +68,6 @@ class ECIResponseDataProcessor:
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error finding scrape sessions: {e}")
-            # else:
-            #     print(f"Error finding scrape sessions: {e}")
 
         return None
 

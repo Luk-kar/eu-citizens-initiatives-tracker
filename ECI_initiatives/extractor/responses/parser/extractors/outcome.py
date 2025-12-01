@@ -693,8 +693,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         # Get text with newlines separating each tag
         text = element.get_text(separator=" ", strip=True)
 
-        print(f"text:\n{text}")
-
         # NORMALIZE WHITESPACE: Replace multiple whitespace (including newlines) with single space
         text = normalize_whitespace(text)
 
