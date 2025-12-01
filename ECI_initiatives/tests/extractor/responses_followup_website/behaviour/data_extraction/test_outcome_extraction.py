@@ -1072,112 +1072,115 @@ class TestOutcomeExtraction:
     def test_extract_commission_rejection_reason(self):
         """Test extraction of rejection reasoning."""
 
-        # # Test case 1: Empty response section - should raise ValueError
-        # html_empty = """
-        # <div>
-        #     <div class="ecl">
-        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
-        #     </div>
-        #     <div class="ecl">
-        #         <p></p>
-        #     </div>
-        # </div>
-        # """
+        # Test case 1: Empty response section - should raise ValueError
+        html_empty = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p></p>
+            </div>
+        </div>
+        """
 
-        # extractor_empty = FollowupWebsiteExtractor(html_empty)
+        extractor_empty = FollowupWebsiteExtractor(html_empty)
 
-        # with pytest.raises(ValueError, match="Could not extract legislative content"):
-        #     extractor_empty.extract_commission_rejection_reason()
+        with pytest.raises(ValueError, match="Could not extract legislative content"):
+            extractor_empty.extract_commission_rejection_reason()
 
-        # # Test case 2: Pure rejection with explicit reasoning
-        # html_pure_rejection = """
-        # <div>
-        #     <div class="ecl">
-        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
-        #     </div>
-        #     <div class="ecl">
-        #         <p>
-        #             The Commission has carefully examined this initiative and
-        #             will not make a legislative proposal. The existing legislative
-        #             framework already provides adequate protection for the concerns raised.
-        #             The proposals fall outside the EU competence in this area.
-        #         </p>
-        #     </div>
-        # </div>
-        # """
+        # Test case 2: Pure rejection with explicit reasoning
+        html_pure_rejection = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission has carefully examined this initiative and
+                    will not make a legislative proposal. The existing legislative
+                    framework already provides adequate protection for the concerns raised.
+                    The proposals fall outside the EU competence in this area.
+                </p>
+            </div>
+        </div>
+        """
 
-        # extractor_2 = FollowupWebsiteExtractor(html_pure_rejection)
-        # result_2 = extractor_2.extract_commission_rejection_reason()
+        extractor_2 = FollowupWebsiteExtractor(html_pure_rejection)
+        result_2 = extractor_2.extract_commission_rejection_reason()
 
-        # assert result_2 is not None, "Should extract rejection reasoning"
-        # assert " decided not to make a legislative proposal" in result_2.lower()
+        assert result_2 is not None, "Should extract rejection reasoning"
+        assert " will not make a legislative proposal." in result_2.lower()
 
-        # # Test case 3: Pure rejection with "decided not to submit"
-        # html_decided_not = """
-        # <div>
-        #     <div class="ecl">
-        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
-        #     </div>
-        #     <div class="ecl">
-        #         <p>
-        #             After thorough analysis, the Commission has decided not to
-        #             submit a legislative proposal on this matter. The current policies
-        #             already in place address the key concerns effectively.
-        #         </p>
-        #     </div>
-        # </div>
-        # """
+        # Test case 3: Pure rejection with "decided not to submit"
+        html_decided_not = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    After thorough analysis, the Commission has decided not to
+                    submit a legislative proposal on this matter. The current policies
+                    already in place address the key concerns effectively.
+                </p>
+            </div>
+        </div>
+        """
 
-        # extractor_3 = FollowupWebsiteExtractor(html_decided_not)
-        # result_3 = extractor_3.extract_commission_rejection_reason()
+        extractor_3 = FollowupWebsiteExtractor(html_decided_not)
+        result_3 = extractor_3.extract_commission_rejection_reason()
 
-        # assert result_3 is not None
-        # assert " decided not to make a legislative proposal" in result_3.lower()
+        assert result_3 is not None
+        assert (
+            " already in place address the key concerns effectively" in result_3.lower()
+        )
 
-        # # Test case 4: Rejection - outside EU competence
-        # html_competence = """
-        # <div>
-        #     <div class="ecl">
-        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
-        #     </div>
-        #     <div class="ecl">
-        #         <p>
-        #             The Commission recognizes the importance of this initiative. However,
-        #             the proposals fall outside of EU competence. Member States retain
-        #             primary responsibility in this policy area, and no legislative
-        #             proposal will be brought forward.
-        #         </p>
-        #     </div>
-        # </div>
-        # """
+        # Test case 4: Rejection - outside EU competence
+        html_competence = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission recognizes the importance of this initiative. However,
+                    the proposals fall outside of EU competence. Member States retain
+                    primary responsibility in this policy area, and no legislative
+                    proposal will be brought forward.
+                </p>
+            </div>
+        </div>
+        """
 
-        # extractor_4 = FollowupWebsiteExtractor(html_competence)
-        # result_4 = extractor_4.extract_commission_rejection_reason()
+        extractor_4 = FollowupWebsiteExtractor(html_competence)
+        result_4 = extractor_4.extract_commission_rejection_reason()
 
-        # assert result_4 is not None
-        # assert " decided not to make a legislative proposal" in result_4.lower()
+        assert result_4 is not None
+        assert " proposals fall outside of eu competence" in result_4.lower()
 
-        # # Test case 5: Rejection with "no repeal" pattern
-        # html_no_repeal = """
-        # <div>
-        #     <div class="ecl">
-        #         <h2 id="response-of-the-commission">Response of the Commission</h2>
-        #     </div>
-        #     <div class="ecl">
-        #         <p>
-        #             Following extensive assessment, no repeal of the existing directive
-        #             was proposed. The Commission will continue to monitor the situation
-        #             and support Member States in effective implementation.
-        #         </p>
-        #     </div>
-        # </div>
-        # """
+        # Test case 5: Rejection with "no repeal" pattern
+        html_no_repeal = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Following extensive assessment, no repeal of the existing directive
+                    was proposed. The Commission will continue to monitor the situation
+                    and support Member States in effective implementation.
+                </p>
+            </div>
+        </div>
+        """
 
-        # extractor_5 = FollowupWebsiteExtractor(html_no_repeal)
-        # result_5 = extractor_5.extract_commission_rejection_reason()
+        extractor_5 = FollowupWebsiteExtractor(html_no_repeal)
+        result_5 = extractor_5.extract_commission_rejection_reason()
 
-        # assert result_5 is not None
-        # assert " decided not to make a legislative proposal" in result_5.lower()
+        assert result_5 is not None
+        assert "commission will continue to monitor the situation" in result_5.lower()
+        assert "no repeal of the existing directive" in result_5.lower()
 
         # Test case 6: Mixed response - rejection with commitment to legislative proposal
         html_mixed = """

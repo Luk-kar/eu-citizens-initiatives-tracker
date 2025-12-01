@@ -653,6 +653,7 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         Raises:
             ValueError: If no relevant text found
         """
+
         legislative_proposal_paragraphs = []
 
         # Get the parent div of the h2, then find its siblings
