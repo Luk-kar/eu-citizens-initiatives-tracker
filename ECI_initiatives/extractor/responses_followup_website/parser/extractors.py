@@ -588,59 +588,49 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             # Allowed tags for text extraction
             ALLOWED_TAGS = ["li", "p", "ol", "pre"]
 
-            # Start from answer_section and iterate through ALL following elements
-            current = answer_section.find_next()
+            # Gather all relevant content elements using helper method
+            content_elements = self._gather_content_elements(
+                answer_section,
+                ALLOWED_TAGS,
+                check_non_empty=False,  # Don't check for non-empty in gathering phase
+            )
 
-            while current:
-                # Stop when we find the social media share element
-                if current.find(class_="ecl-social-media-share__description"):
-                    break
+            # Process each content element
+            for current in content_elements:
+                # Get text and normalize immediately
+                text = current.get_text(strip=False)
+                text_normalized = normalize_whitespace(text)
+                text_lower = text_normalized.lower()
 
-                # Only process allowed tags
-                if current.name in ALLOWED_TAGS and not self._should_skip_element(
-                    current
-                ):
-                    # Get text and normalize immediately
-                    text = current.get_text(strip=False)
-                    text_normalized = normalize_whitespace(text)
-                    text_lower = text_normalized.lower()
+                # Check each pattern
+                for pattern in DEADLINE_PATTERNS:
+                    # Find all matches in this element (handles multiple deadlines per element)
+                    for match in re.finditer(pattern, text_lower, re.IGNORECASE):
+                        deadline_text = match.group(1).strip()
 
-                    # Check each pattern
-                    for pattern in DEADLINE_PATTERNS:
-                        # Find all matches in this element (handles multiple deadlines per element)
-                        for match in re.finditer(pattern, text_lower, re.IGNORECASE):
-                            deadline_text = match.group(1).strip()
-
-                            if deadline_text:
-                                deadline_cleaned = self._clean_deadline_text(
-                                    deadline_text
+                        if deadline_text:
+                            deadline_cleaned = self._clean_deadline_text(deadline_text)
+                            # Clean and convert the deadline
+                            if deadline_cleaned:
+                                deadline_date = convert_deadline_to_date(
+                                    deadline_cleaned
                                 )
-                                # Clean and convert the deadline
-                                if deadline_cleaned:
-                                    deadline_date = convert_deadline_to_date(
-                                        deadline_cleaned
-                                    )
-                                    if deadline_date:
-                                        # Use the entire normalized text from the tag
-                                        full_text = normalize_whitespace(
-                                            text_normalized
-                                        )
+                                if deadline_date:
+                                    # Use the entire normalized text from the tag
+                                    full_text = normalize_whitespace(text_normalized)
 
-                                        # If we already have this date, append to existing phrase
-                                        if deadline_date in deadlines_dict:
-                                            # Only append if it's different content
-                                            if (
-                                                full_text
-                                                not in deadlines_dict[deadline_date]
-                                            ):
-                                                deadlines_dict[
-                                                    deadline_date
-                                                ] += f"; {full_text}"
-                                        else:
-                                            deadlines_dict[deadline_date] = full_text
-
-                # Move to next element in document order
-                current = current.find_next()
+                                    # If we already have this date, append to existing phrase
+                                    if deadline_date in deadlines_dict:
+                                        # Only append if it's different content
+                                        if (
+                                            full_text
+                                            not in deadlines_dict[deadline_date]
+                                        ):
+                                            deadlines_dict[
+                                                deadline_date
+                                            ] += f"; {full_text}"
+                                    else:
+                                        deadlines_dict[deadline_date] = full_text
 
             # Return None if no deadlines found, otherwise return dict
             if not deadlines_dict:
@@ -773,13 +763,6 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         """
 
         try:
-            # # Check if proposal was rejected
-            # matcher = self._get_classifier(soup)
-            # rejection_type = matcher.check_rejection_type()
-
-            # # If rejected with no commitment, return None
-            # if rejection_type and not matcher.check_committed():
-            #     return None
 
             # Find the "Response of the Commission" section
             response_section = self._find_answer_section(soup)
@@ -792,33 +775,14 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             # Allowed tags for text extraction
             ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
 
-            # Collect all relevant content elements
-            content_elements = []
-
-            # Start from answer_section and iterate through ALL following elements
-            current = response_section.find_next()
-
-            while current:
-                # Stop when we find the social media share element
-                if "ecl-social-media-share__description" in current.get("class", []):
-                    break
-
-                # Only process allowed tags with non-empty text
-                if (
-                    current.name in ALLOWED_TAGS
-                    and not self._should_skip_element(current)
-                    and current.get_text(strip=True)  # Check for non-empty text
-                ):
-                    content_elements.append(current)
-
-                # Move to next element in document order
-                current = current.find_next()
+            content_elements = self._gather_content_elements(
+                response_section, ALLOWED_TAGS, check_non_empty=True
+            )
 
             if not content_elements:
                 raise ValueError(
                     f"No content elements found in response section for {self.registration_number}"
                 )
-            print(f"content_elements\n{content_elements}")
 
             # Extract actions from the collected content
             actions = []
@@ -893,3 +857,41 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 )
 
         return actions
+
+    def _gather_content_elements(
+        self, start_section, allowed_tags: list, check_non_empty: bool = True
+    ) -> list:
+        """
+        Gather content elements following a section until social media share element.
+
+        Args:
+            start_section: BeautifulSoup element to start from (e.g., h2 section header)
+            allowed_tags: List of tag names to collect (e.g., ["li", "p", "ol"])
+            check_non_empty: If True, only include elements with non-empty text
+
+        Returns:
+            List of BeautifulSoup elements matching the criteria
+        """
+        content_elements = []
+
+        # Start from section and iterate through ALL following elements
+        current = start_section.find_next()
+
+        while current:
+            # Stop when we find the social media share element
+            if "ecl-social-media-share__description" in current.get("class", []):
+                break
+
+            # Only process allowed tags with optional non-empty text check
+            if current.name in allowed_tags and not self._should_skip_element(current):
+                if check_non_empty:
+                    # Check for non-empty text
+                    if current.get_text(strip=True):
+                        content_elements.append(current)
+                else:
+                    content_elements.append(current)
+
+            # Move to next element in document order
+            current = current.find_next()
+
+        return content_elements
