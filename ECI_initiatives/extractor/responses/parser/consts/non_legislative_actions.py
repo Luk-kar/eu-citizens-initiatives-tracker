@@ -76,6 +76,7 @@ class NonLegislativeAction:
         name="Funding Programme",
         keywords=[
             "funding",
+            "financial support",
             "horizon europe",
             "erasmus",
             "creative europe",
@@ -151,16 +152,61 @@ class NonLegislativeAction:
     )
 
     # All action types for iteration
+    # Ordered by "Legislative Pipeline Approach" - from highest to lowest proximity to legislative proposal
+    # This ordering reflects formal EU Better Regulation requirements and ECI success patterns
     ALL_ACTION_TYPES: List[ActionType] = [
-        MONITORING_ENFORCEMENT,
-        POLICY_IMPLEMENTATION,
-        SCIENTIFIC_ACTIVITY,
-        FUNDING_PROGRAMME,
+        #
+        # TIER 1: Pre-legislative requirements (mandatory before Commission can propose legislation)
         IMPACT_ASSESSMENT_CONSULTATION,
-        STAKEHOLDER_DIALOGUE,
-        INTERNATIONAL_COOPERATION,
-        DATA_COLLECTION_TRANSPARENCY,
+        # Mandatory for all significant legislative proposals
+        # Requires 12-week public consultation; positive (Regulatory Scrutiny Board) opinion needed
+        # before interservice consultation can proceed
+        # Strongest signal Commission is seriously exploring legislation
+        #
+        SCIENTIFIC_ACTIVITY,
+        # Provides evidence base for impact assessments and policy options
+        # EFSA opinions create legal/technical justification for intervention
+        # Most successful ECI outcome: End Cage Age got legislative commitment
+        # after EFSA opinions
+        #
+        # TIER 2: Policy commitment signals (indicate legislative intent but not binding)
         POLICY_ROADMAP_STRATEGY,
+        # Sets legislative timeline and political commitment
+        # Often includes "will table proposal by [date]" language
+        # Part of Commission Work Programme planning
+        #
+        DATA_COLLECTION_TRANSPARENCY,
+        # Identifies problems requiring legislative solutions
+        # Creates objective pressure through public evidence
+        # Ban Glyphosate ECI's only legislative success was
+        # Transparency Regulation
+        #
+        # TIER 3: Consultation mechanisms (can build consensus OR substitute for legislation)
+        STAKEHOLDER_DIALOGUE,
+        # Part of "Better Regulation" stakeholder input requirements
+        # Can refine legislative options OR become endless consultation
+        # Right2Water organizers rejected stakeholder dialogue as inadequate
+        #
+        # TIER 4: Implementation and support (parallel to legislation, not leading to it)
+        MONITORING_ENFORCEMENT,
+        # Reveals inadequacies in current law, creates reform impetus
+        # Often used as substitute: "better enforce existing law"
+        #
+        FUNDING_PROGRAMME,
+        # Supports implementation but doesn't drive legislation
+        # Financial instruments like Horizon Europe, CAP eco-schemes
+        # High substitution risk: "here's money instead of regulation"
+        #
+        POLICY_IMPLEMENTATION,
+        # Applies existing rules; parallel to legislation
+        # Classic substitute response: "implement what we have"
+        #
+        INTERNATIONAL_COOPERATION,
+        # Structurally peripheral: international cooperation actions don't
+        # produce EU legislative acts; instead create non-binding commitments
+        # or long-term negotiation processes outside standard Better Regulation
+        # framework (no RSB review, no impact assessment requirement for
+        # advocacy activities)
     ]
 
     # Keywords that indicate non-legislative content to skip during legislative action extraction

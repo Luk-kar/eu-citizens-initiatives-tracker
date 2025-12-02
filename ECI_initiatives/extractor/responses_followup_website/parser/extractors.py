@@ -334,16 +334,29 @@ class FollowupWebsiteExtractor:
 
         return laws_actions
 
+    def extract_policies_actions(self):
+        # Create extractor instance
+        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
+            registration_number=(
+                self.registration_number
+                if hasattr(self, "registration_number")
+                else None
+            )
+        )
+
+        # Extract applicable boolean using the existing method
+        policies_actions = outcome_extractor.extract_non_legislative_action(self.soup)
+
+        return policies_actions
+
     def extract_followup_latest_date(self):
+
         pass
 
     def extract_followup_most_future_date(self):
         pass
 
     def extract_followup_dedicated_website(self):
-        pass
-
-    def extract_policies_actions(self):
         pass
 
     def extract_followup_events_with_dates(self):
@@ -857,6 +870,59 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 )
 
         return actions
+
+    def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[dict]:
+        """
+        Extract non-legislative actions as JSON array
+        Each item contains: type, description, date
+        Returns dict or None
+        """
+        try:
+            # Find Answer and Follow-up sections
+            answer_section = self._find_answer_section(soup)
+
+            # Allowed tags for text extraction
+            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
+
+            # Gather all relevant content elements using helper method
+            content_elements = self._gather_content_elements(
+                answer_section, ALLOWED_TAGS, check_non_empty=True
+            )
+
+            actions = []
+
+            # Process each content element
+            for element in content_elements:
+                # Extract non-legislative actions from this element
+                element_actions = self._extract_non_legislative_actions_from_section(
+                    element
+                )
+                if element_actions:
+                    actions.extend(element_actions)
+
+            # If no actions found, return None
+            if not actions:
+                return None
+
+            # Remove duplicates (same type, description, and date)
+            unique_actions = []
+            seen = set()
+            for action in actions:
+                key = (
+                    action.get("type", ""),
+                    action.get("description", ""),
+                    action.get("date", ""),
+                )
+                if key not in seen:
+                    seen.add(key)
+                    unique_actions.append(action)
+
+            return unique_actions
+
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting non-legislative action for {self.registration_number}: {str(e)}"
+            ) from e
 
     def _gather_content_elements(
         self, start_section, allowed_tags: list, check_non_empty: bool = True
