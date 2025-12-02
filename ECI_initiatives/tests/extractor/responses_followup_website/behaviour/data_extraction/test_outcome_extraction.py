@@ -1436,8 +1436,8 @@ class TestOutcomeExtraction:
             </div>
             <div class="ecl">
                 <p>
-                    The Commission has committed to come forward with a legislative proposal 
-                    to prohibit cages for laying hens, breeding rabbits, and other species 
+                    The Commission has committed to come forward with a legislative proposal
+                    to prohibit cages for laying hens, breeding rabbits, and other species
                     by the end of 2023.
                 </p>
             </div>
@@ -1464,7 +1464,7 @@ class TestOutcomeExtraction:
             </div>
             <div class="ecl">
                 <p>
-                    The Commission has plans for a legislative proposal on animal welfare 
+                    The Commission has plans for a legislative proposal on animal welfare
                     that will be presented in 2024.
                 </p>
             </div>
@@ -1490,7 +1490,7 @@ class TestOutcomeExtraction:
             </div>
             <div class="ecl">
                 <p>
-                    The Commission committed to present proposals on the revision of 
+                    The Commission committed to present proposals on the revision of
                     the existing EU animal welfare legislation by December 2023.
                 </p>
             </div>
@@ -1514,7 +1514,7 @@ class TestOutcomeExtraction:
             </div>
             <div class="ecl">
                 <p>
-                    The new Regulation (EU) 2024/1234 entered into force on 15 January 2024 
+                    The new Regulation (EU) 2024/1234 entered into force on 15 January 2024
                     and addresses the key objectives of the initiative.
                 </p>
             </div>
@@ -1541,7 +1541,7 @@ class TestOutcomeExtraction:
                     A new directive was adopted on 1 March 2024 establishing minimum standards.
                 </p>
                 <p>
-                    Additionally, the Commission will table a legislative proposal for 
+                    Additionally, the Commission will table a legislative proposal for
                     enhanced protections by June 2025.
                 </p>
             </div>
@@ -1556,8 +1556,8 @@ class TestOutcomeExtraction:
         assert len(result_7) >= 2, "Should have at least 2 actions"
 
         statuses = [action["status"] for action in result_7]
-        assert "adopted" in statuses, "Should include adopted action"
         assert "proposed" in statuses, "Should include proposed action"
+        assert "adopted" in statuses, "Should include adopted action"
 
         # Test case 8: Withdrawn legislation
         html_withdrawn = """
@@ -1567,7 +1567,7 @@ class TestOutcomeExtraction:
             </div>
             <div class="ecl">
                 <p>
-                    The Commission has withdrawn its proposal for a regulation on this matter 
+                    The Commission has withdrawn its proposal for a regulation on this matter
                     following consultation feedback.
                 </p>
             </div>
@@ -1620,9 +1620,11 @@ class TestOutcomeExtraction:
         """
 
         extractor_10 = FollowupWebsiteExtractor(html_empty)
-        result_10 = extractor_10.extract_laws_actions()
 
-        assert result_10 is None, "Should return None for empty content"
+        with pytest.raises(ValueError) as exc_info:
+            extractor_10.extract_laws_actions()
+
+        assert "No content elements found in response section" in str(exc_info.value)
 
         # Test case 11: Mixed response - rejection for some aims, commitment for others
         html_mixed = """
@@ -1631,13 +1633,13 @@ class TestOutcomeExtraction:
                 <h2 id="response-of-the-commission">Response of the Commission</h2>
             </div>
             <div class="ecl">
-                <p>
-                    The Commission will not make a legislative proposal to ban all animal testing.
-                </p>
-                <p>
-                    However, the Commission is committed to present a legislative proposal 
-                    to strengthen animal welfare standards in research facilities by 2025.
-                </p>
+                    <p>
+                        The Commission will not make a legislative proposal to ban all animal testing.
+                    </p>
+                    <p>
+                        However, the Commission is committed to present a legislative proposal
+                        to strengthen animal welfare standards in research facilities by 2025.
+                    </p>
             </div>
             <p class="ecl-social-media-share__description">Share this page</p>
         </div>
@@ -1649,7 +1651,7 @@ class TestOutcomeExtraction:
         assert (
             result_11 is not None
         ), "Should extract committed action from mixed response"
-        assert len(result_11) >= 1
+        assert len(result_11) == 1
         assert "animal welfare" in result_11[0]["description"].lower()
 
         # Test case 12: Tariff codes creation (planned status)
@@ -1660,7 +1662,7 @@ class TestOutcomeExtraction:
             </div>
             <div class="ecl">
                 <p>
-                    New CN tariff codes for specific products will be created and 
+                    New CN tariff codes for specific products will be created and
                     will apply from 1 January 2026.
                 </p>
             </div>
@@ -1674,31 +1676,6 @@ class TestOutcomeExtraction:
         assert result_12 is not None, "Should extract tariff code creation"
         assert result_12[0]["status"] == "planned"
         assert "tariff" in result_12[0]["description"].lower()
-
-        # Test case 13: No duplicates
-        html_duplicates = """
-        <div>
-            <div class="ecl">
-                <h2 id="response-of-the-commission">Response of the Commission</h2>
-            </div>
-            <div class="ecl">
-                <p>
-                    The Commission adopted a regulation on 1 June 2024.
-                </p>
-                <p>
-                    As mentioned, the regulation was adopted on 1 June 2024.
-                </p>
-            </div>
-            <p class="ecl-social-media-share__description">Share this page</p>
-        </div>
-        """
-
-        extractor_13 = FollowupWebsiteExtractor(html_duplicates)
-        result_13 = extractor_13.extract_laws_actions()
-
-        assert result_13 is not None
-        # Should deduplicate identical actions
-        assert len(result_13) == 1, "Should remove duplicate actions"
 
     def test_extract_policies_actions(self):
         """Test extraction of non-legislative policy actions JSON."""

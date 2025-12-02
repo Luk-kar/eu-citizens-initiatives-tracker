@@ -330,9 +330,9 @@ class FollowupWebsiteExtractor:
         )
 
         # Extract applicable boolean using the existing method
-        commissions_deadlines = outcome_extractor.extract_legislative_action(self.soup)
+        laws_actions = outcome_extractor.extract_legislative_action(self.soup)
 
-        return commissions_deadlines
+        return laws_actions
 
     def extract_followup_latest_date(self):
         pass
@@ -773,23 +773,24 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         """
 
         try:
-            # Check if proposal was rejected
-            matcher = self._get_classifier(soup)
-            rejection_type = matcher.check_rejection_type()
+            # # Check if proposal was rejected
+            # matcher = self._get_classifier(soup)
+            # rejection_type = matcher.check_rejection_type()
 
-            # If rejected with no commitment, return None
-            if rejection_type and not matcher.check_committed():
-                return None
+            # # If rejected with no commitment, return None
+            # if rejection_type and not matcher.check_committed():
+            #     return None
 
             # Find the "Response of the Commission" section
             response_section = self._find_answer_section(soup)
 
             if not response_section:
-                # Raise error
-                return None
+                raise ValueError(
+                    f"Response section not found for {self.registration_number}"
+                )
 
             # Allowed tags for text extraction
-            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre", "div"]
+            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
 
             # Collect all relevant content elements
             content_elements = []
@@ -799,37 +800,35 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
 
             while current:
                 # Stop when we find the social media share element
-                if current.find(class_="ecl-social-media-share__description"):
+                if "ecl-social-media-share__description" in current.get("class", []):
                     break
 
-                # Only process allowed tags
-                if current.name in ALLOWED_TAGS and not self._should_skip_element(
-                    current
+                # Only process allowed tags with non-empty text
+                if (
+                    current.name in ALLOWED_TAGS
+                    and not self._should_skip_element(current)
+                    and current.get_text(strip=True)  # Check for non-empty text
                 ):
                     content_elements.append(current)
 
                 # Move to next element in document order
                 current = current.find_next()
 
-            # Show preview of first few elements
-            for i, elem in enumerate(content_elements[:1]):
-                text_preview = (
-                    elem.get_text(strip=True)
-                    if elem.get_text(strip=True)
-                    else "[empty]"
-                )
-
             if not content_elements:
-                # raise an error
-                return None
+                raise ValueError(
+                    f"No content elements found in response section for {self.registration_number}"
+                )
+            print(f"content_elements\n{content_elements}")
 
             # Extract actions from the collected content
             actions = []
 
             # Process each content element
             for element in content_elements:
+
                 # Use existing extraction logic for each element
                 element_actions = self._extract_actions_from_section(element)
+
                 if element_actions:
                     actions.extend(element_actions)
 
@@ -882,17 +881,12 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
 
         # Process THE ELEMENT ITSELF (not its siblings)
         if section.name in ["p", "li"]:
+            # Direct text element - process it
             self._process_element_for_legislative_action(
                 section, action_patterns, actions
             )
-        elif section.name in ["ul", "ol"]:
-            # Process each list item individually
-            for li in section.find_all("li", recursive=False):
-                self._process_element_for_legislative_action(
-                    li, action_patterns, actions
-                )
-        elif section.name == "div":
-            # Process paragraphs and lists within the div
+        else:
+            # Container element (div, ul, ol) - find text elements within
             for elem in section.find_all(["p", "li"], recursive=False):
                 self._process_element_for_legislative_action(
                     elem, action_patterns, actions

@@ -1717,8 +1717,7 @@ class TestCommissionResponseContent:
 
         # Check proposal
         proposal = next((a for a in result if a["status"] == "proposed"), None)
-        assert proposal is not None
-        assert proposal["date"] == "2018-04-11"
+        assert proposal is None  # the proposal was adopted
 
         # Check in force
         in_force = next((a for a in result if a["status"] == "in_force"), None)

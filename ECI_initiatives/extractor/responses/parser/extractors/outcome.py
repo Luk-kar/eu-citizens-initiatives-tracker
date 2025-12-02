@@ -135,11 +135,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
         except ValueError as e:
             if "No known status patterns matched" in str(e):
-                content = self._extract_legislative_content(soup)
-                content_preview = content
-                # content_preview = (
-                #     content[:500] + "..." if len(content) > 500 else content
-                # )
+                content_preview = self._extract_legislative_content(soup)
+
                 raise ValueError(
                     "Could not determine legislative status for initiative:"
                     f"\n{self.registration_number}\n"
@@ -695,10 +692,6 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
         # NORMALIZE WHITESPACE: Replace multiple whitespace (including newlines) with single space
         text = normalize_whitespace(text)
-
-        # Skip non-legislative content using the class method
-        if NonLegislativeAction.should_skip_for_legislative(text):
-            return
 
         text_lower = text.lower()
 

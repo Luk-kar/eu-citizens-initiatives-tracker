@@ -40,7 +40,7 @@ class LegislativeStatus:
             ("became applicable", 2),
         ],
         action_patterns=[
-            r"(?:entered into force|became applicable|applies from|came into force|apply from)",
+            r"(?<!will\s)(?:entered into force|became applicable|applies from|came into force|apply from)",
         ],
     )
 
@@ -52,7 +52,10 @@ class LegislativeStatus:
             ("withdraw", 1),
         ],
         action_patterns=[
-            r"(?:withdrawn|withdraw|withdrew)",
+            # Verb before instrument: "withdrawn proposal for a regulation"
+            r"(?:withdrawn|withdraw|withdrew)(?:(?!\bnot\b).)*?(?:proposal|regulation|directive|law|amendment|legislation)",
+            # Instrument before verb: "proposal was withdrawn"
+            r"(?:proposal|regulation|directive|law|amendment|legislation)(?:(?!\bnot\b).)*?(?:was |were )?(?:withdrawn|withdraw|withdrew)",
         ],
     )
 
@@ -64,7 +67,10 @@ class LegislativeStatus:
             ("approved", 1),
         ],
         action_patterns=[
-            r"(?:adopted|approved).*?(?:regulation|directive|law|amendment|legislation)",
+            # Instrument before verb: "directive was adopted"
+            r"(?:regulation|directive|law|amendment|legislation)(?:(?!\bnot\b).)*?(?:was |were )?(?:adopted|approved)",
+            # Verb before instrument: "adopted directive"
+            r"(?:adopted|approved)(?:(?!\bnot\b).)*?(?:regulation|directive|law|amendment|legislation)",
         ],
     )
 
@@ -82,7 +88,7 @@ class LegislativeStatus:
             # Standard proposal patterns
             r"(?:revision|revised|recast|decided|proposal|proposed|tabled)(?:(?!\bnot\b).)*?(?:regulation|directive|law|amendment|legislation|legislative)",
             # Commitment/plan patterns
-            r"(?:plans? for|committed? to present|intends? to present|will present)(?:(?!\bnot\b).)*?(?:legislative proposal)",
+            r"(?:plans? for|committed? to|intends? to|will)(?:(?!\bnot\b).)*?(?:legislative proposal)",
             r"(?:plans? for|committed? to)(?:(?!\bnot\b).)*?(?:revision|review)(?:(?!\bnot\b).)*?(?:legislation|directive|regulation)",
             # Proposals on revision
             r"proposals? on(?:(?!\bnot\b).)*?(?:revision|review)(?:(?!\bnot\b).)*?(?:legislation|directive|regulation)",
