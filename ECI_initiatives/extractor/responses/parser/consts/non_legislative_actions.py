@@ -202,6 +202,10 @@ class NonLegislativeAction:
         # Classic substitute response: "implement what we have"
         #
         INTERNATIONAL_COOPERATION,
+        # Follows Article 218 TFEU (international agreements procedure), not
+        # Article 294 TFEU (ordinary legislative procedure) - requires Council
+        # authorization for negotiations with foreign partners, indefinite
+        # timelines, and outcomes dependent on third-party agreement
         # Structurally peripheral: international cooperation actions don't
         # produce EU legislative acts; instead create non-binding commitments
         # or long-term negotiation processes outside standard Better Regulation
