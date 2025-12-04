@@ -21,6 +21,68 @@ class NonLegislativeAction:
         keywords: List[str]
 
     # Define all non-legislative action types as class attributes
+    IMPACT_ASSESSMENT_CONSULTATION = ActionType(
+        name="Impact Assessment and Consultation",
+        keywords=[
+            "impact assessment",
+            "public consultation",
+            "call for evidence",
+            "consultation on",
+        ],
+    )
+
+    SCIENTIFIC_ACTIVITY = ActionType(
+        name="Scientific Activity",
+        keywords=[
+            "scientific conference",
+            "scientific opinion",
+            "efsa",
+            "workshop",
+            "colloquium",
+        ],
+    )
+
+    POLICY_ROADMAP_STRATEGY = ActionType(
+        name="Policy Roadmap and Strategy",
+        keywords=[
+            "roadmap",
+            "strategic plan",
+            "strengthened",
+            "modernised",
+            "enhanced",
+            "policy framework",
+            "long-term strategy",
+            "mechanisms in place",
+            "vision for",
+            "strategic agenda",
+            "policy priorities",
+            "milestones",
+            "action plan",
+        ],
+    )
+
+    DATA_COLLECTION_TRANSPARENCY = ActionType(
+        name="Data Collection and Transparency",
+        keywords=[
+            "data collection",
+            "transparency",
+            "benchmarking",
+            "eurobarometer",
+            "report was published",
+            "publication",
+        ],
+    )
+
+    STAKEHOLDER_DIALOGUE = ActionType(
+        name="Stakeholder Dialogue",
+        keywords=[
+            "stakeholder",
+            "stakeholder partnership",
+            "stakeholder dialogue",
+            "partnership with stakeholders",
+        ],
+    )
+
     MONITORING_ENFORCEMENT = ActionType(
         name="Monitoring and Enforcement",
         keywords=[
@@ -39,36 +101,6 @@ class NonLegislativeAction:
             "withhold payments",
             "conditional funding",
             "withhold the corresponding payments",
-        ],
-    )
-
-    POLICY_IMPLEMENTATION = ActionType(
-        name="Policy Implementation",
-        keywords=[
-            "will continue",
-            "continue to",
-            "ensure",
-            "ensuring",
-            "guarantee",
-            "maintain",
-            "maintaining",
-            "non-discriminatory access",
-            "equal access",
-            "implementation",
-            "implementing",
-            "safeguard",
-            "set of benchmarks",
-        ],
-    )
-
-    SCIENTIFIC_ACTIVITY = ActionType(
-        name="Scientific Activity",
-        keywords=[
-            "scientific conference",
-            "scientific opinion",
-            "efsa",
-            "workshop",
-            "colloquium",
         ],
     )
 
@@ -93,23 +125,22 @@ class NonLegislativeAction:
         ],
     )
 
-    IMPACT_ASSESSMENT_CONSULTATION = ActionType(
-        name="Impact Assessment and Consultation",
+    POLICY_IMPLEMENTATION = ActionType(
+        name="Policy Implementation",
         keywords=[
-            "impact assessment",
-            "public consultation",
-            "call for evidence",
-            "consultation on",
-        ],
-    )
-
-    STAKEHOLDER_DIALOGUE = ActionType(
-        name="Stakeholder Dialogue",
-        keywords=[
-            "stakeholder",
-            "stakeholder partnership",
-            "stakeholder dialogue",
-            "partnership with stakeholders",
+            "will continue",
+            "continue to",
+            "ensure",
+            "ensuring",
+            "guarantee",
+            "maintain",
+            "maintaining",
+            "non-discriminatory access",
+            "equal access",
+            "implementation",
+            "implementing",
+            "safeguard",
+            "set of benchmarks",
         ],
     )
 
@@ -128,37 +159,6 @@ class NonLegislativeAction:
             "Sustainable Development Goals EU",
             "EU-wide public consultation",
             "advocating universal access",
-        ],
-    )
-
-    DATA_COLLECTION_TRANSPARENCY = ActionType(
-        name="Data Collection and Transparency",
-        keywords=[
-            "data collection",
-            "transparency",
-            "benchmarking",
-            "eurobarometer",
-            "report was published",
-            "publication",
-        ],
-    )
-
-    POLICY_ROADMAP_STRATEGY = ActionType(
-        name="Policy Roadmap and Strategy",
-        keywords=[
-            "roadmap",
-            "strategic plan",
-            "strengthened",
-            "modernised",
-            "enhanced",
-            "policy framework",
-            "long-term strategy",
-            "mechanisms in place",
-            "vision for",
-            "strategic agenda",
-            "policy priorities",
-            "milestones",
-            "action plan",
         ],
     )
 
