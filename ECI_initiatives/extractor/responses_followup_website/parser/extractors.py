@@ -1,6 +1,7 @@
 from pathlib import Path
 import re
 from typing import Optional, Dict
+import logging
 
 from bs4 import BeautifulSoup
 
@@ -349,6 +350,16 @@ class FollowupWebsiteExtractor:
 
         return policies_actions
 
+    def extract_has_roadmap(self):
+
+        # Create extractor instance
+        follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
+
+        # Extract applicable boolean using the existing method
+        has_roadmap = follow_up_activity_extractor.extract_has_roadmap(self.soup)
+
+        return has_roadmap
+
     def extract_followup_latest_date(self):
 
         pass
@@ -369,9 +380,6 @@ class FollowupWebsiteExtractor:
         pass
 
     def extract_has_followup_section(self):
-        pass
-
-    def extract_has_roadmap(self):
         pass
 
     def extract_has_workshop(self):
@@ -1018,3 +1026,51 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             current = current.next_sibling
 
         return actions
+
+    def extract_has_roadmap(self, soup: BeautifulSoup) -> Optional[bool]:
+        """
+        Check if initiative has a roadmap mentioned in follow-up.
+
+        Looks for keywords like "roadmap", "roadmap to phase out", etc. in the Follow-up section.
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            True if roadmap is mentioned, False otherwise, None on error
+
+        Raises:
+            ValueError: If critical error occurs during detection
+        """
+        try:
+            # Find Answer and Follow-up sections
+            answer_section = self._find_answer_section(soup)
+
+            # Allowed tags for text extraction
+            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
+
+            content_elements = self._gather_content_elements(
+                answer_section,
+                ALLOWED_TAGS,
+                check_non_empty=False,  # Don't check for non-empty in gathering phase
+            )
+
+            roadmap_keywords = ["roadmap", "road map"]
+
+            # Process each content element
+            for current in content_elements:
+
+                text = current.get_text(strip=False)
+                text_normalized = normalize_whitespace(text)
+                text_lower = text_normalized.lower()
+
+                for keyword in roadmap_keywords:
+                    if keyword in text_lower:
+                        return True
+
+            return False
+
+        except Exception as e:
+            raise ValueError(
+                f"Error checking roadmap for {self.registration_number}: {str(e)}"
+            ) from e

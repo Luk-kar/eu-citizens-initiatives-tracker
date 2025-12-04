@@ -68,6 +68,8 @@ class NonLegislativeAction:
             "transparency",
             "benchmarking",
             "eurobarometer",
+            "collected factual information",
+            "data on",
             "report was published",
             "publication",
         ],
@@ -80,6 +82,7 @@ class NonLegislativeAction:
             "stakeholder partnership",
             "stakeholder dialogue",
             "partnership with stakeholders",
+            "public consultation",
         ],
     )
 
@@ -141,6 +144,7 @@ class NonLegislativeAction:
             "implementing",
             "safeguard",
             "set of benchmarks",
+            "collect evidence on the current regulation",
         ],
     )
 
