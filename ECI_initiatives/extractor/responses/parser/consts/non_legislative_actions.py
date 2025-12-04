@@ -87,6 +87,9 @@ class NonLegislativeAction:
             "union funding",
             "multiannual financial framework",
             "mff",
+            "research and innovation",
+            "research projects",
+            "pilot project",
         ],
     )
 
@@ -151,6 +154,11 @@ class NonLegislativeAction:
             "policy framework",
             "long-term strategy",
             "mechanisms in place",
+            "vision for",
+            "strategic agenda",
+            "policy priorities",
+            "milestones",
+            "action plan",
         ],
     )
 

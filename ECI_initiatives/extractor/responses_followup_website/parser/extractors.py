@@ -893,6 +893,7 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
 
             # Process each content element
             for element in content_elements:
+
                 # Extract non-legislative actions from this element
                 element_actions = self._extract_non_legislative_actions_from_section(
                     element
@@ -961,3 +962,59 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             current = current.find_next()
 
         return content_elements
+
+    def _extract_non_legislative_actions_from_section(self, section) -> list:
+        """
+        Extract non-legislative actions from a specific element or section
+
+        Args:
+            section: BeautifulSoup element (can be p, li, h2, div, etc.)
+
+        Returns:
+            List of action dictionaries
+        """
+        actions = []
+
+        # If section is a text element (p, li), process it directly
+        if section.name in ["p", "li"]:
+            self._process_element_for_non_legislative_action(section, actions)
+            return actions
+
+        # If section is a container (ul, ol), process its direct children
+        if section.name in ["ul", "ol"]:
+            list_items = section.find_all("li", recursive=False)
+            for li in list_items:
+                self._process_element_for_non_legislative_action(li, actions)
+            return actions
+
+        # Otherwise (e.g., h2 section header), iterate through siblings after it
+        current = section.next_sibling
+
+        while current:
+            # Stop at next h2 section
+            if hasattr(current, "name") and current.name == "h2":
+                break
+
+            if not hasattr(current, "name"):
+                current = current.next_sibling
+                continue
+
+            # Process paragraph elements
+            if current.name == "p":
+                self._process_element_for_non_legislative_action(current, actions)
+
+            # Process unordered lists
+            elif current.name == "ul":
+                list_items = current.find_all("li", recursive=False)
+                for li in list_items:
+                    self._process_element_for_non_legislative_action(li, actions)
+
+            # Process ordered lists
+            elif current.name == "ol":
+                list_items = current.find_all("li", recursive=False)
+                for li in list_items:
+                    self._process_element_for_non_legislative_action(li, actions)
+
+            current = current.next_sibling
+
+        return actions

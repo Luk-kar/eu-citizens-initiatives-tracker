@@ -955,7 +955,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         # Iterate through siblings after section header
         current = section.next_sibling
 
-        while current:
+        while current:  # TODO refacor
             # Stop at next h2 section
             if hasattr(current, "name") and current.name == "h2":
                 break
@@ -1017,6 +1017,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             "revision of legislation",
             "labelling requirements",
             "mandatory labelling",
+            "sets out plans for a legislative proposal",
         ]
 
         header_sections = [
