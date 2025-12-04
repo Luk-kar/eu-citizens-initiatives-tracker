@@ -1679,5 +1679,410 @@ class TestOutcomeExtraction:
 
     def test_extract_policies_actions(self):
         """Test extraction of non-legislative policy actions JSON."""
+
+        # Test case 1: Scientific Activity (EFSA opinion)
+        html_scientific = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The European Commission mandated the European Food Safety Authority (EFSA) 
+                    to give an independent view on the protection of animals kept for fur production. 
+                    EFSA published the scientific opinion on the welfare of animals kept for fur 
+                    production on 30 July 2025.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_1 = FollowupWebsiteExtractor(html_scientific)
+        result_1 = extractor_1.extract_policies_actions()
+
+        assert result_1 is not None, "Should extract scientific activity"
+        assert isinstance(result_1, list), "Should return list of actions"
+        assert len(result_1) >= 1, "Should have at least one action"
+
+        action = result_1[0]
+        assert (
+            action["type"] == "Scientific Activity"
+        ), "Type should be 'Scientific Activity'"
+        assert (
+            action["date"] == "2025-07-30"
+        ), "Should extract date in YYYY-MM-DD format"
+        assert (
+            "efsa" in action["description"].lower()
+            or "food safety authority" in action["description"].lower()
+        )
+
+        # Test case 2: Impact Assessment and Consultation (Call for evidence)
+        html_consultation = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    On 4 July 2025, the Commission launched a Call for evidence requesting 
+                    input from stakeholders and citizens on the follow-up to be given to the 
+                    European Citizens' Initiative. The Call for evidence runs for four weeks, 
+                    until 1 August 2025.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_2 = FollowupWebsiteExtractor(html_consultation)
+        result_2 = extractor_2.extract_policies_actions()
+
+        assert result_2 is not None, "Should extract consultation action"
+        action = result_2[0]
+        assert action["type"] == "Impact Assessment and Consultation"
+        assert action["date"] == "2025-07-04"
+        assert "call for evidence" in action["description"].lower()
+
+        # Test case 3: Funding Programme
+        html_funding = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    A pilot project "Best Practice Hens" implemented from 2021 to 2023, 
+                    aimed to help egg producers meet market demand by providing practical 
+                    guidance on how to transition to alternative, higher-welfare cage-free systems.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_3 = FollowupWebsiteExtractor(html_funding)
+        result_3 = extractor_3.extract_policies_actions()
+
+        assert result_3 is not None, "Should extract funding programme"
+        action = result_3[0]
+        assert action["type"] == "Funding Programme"
+        assert "pilot project" in action["description"].lower()
+
+        # Test case 4: Policy Roadmap and Strategy
+        html_roadmap = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    As established by the Vision for Agriculture and Food adopted on 19 February 2025, 
+                    building on the recommendations of the Strategic Dialogue on the Future of EU 
+                    Agriculture, the Commission will closely exchange with farmers, the food chain 
+                    and civil society.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_4 = FollowupWebsiteExtractor(html_roadmap)
+        result_4 = extractor_4.extract_policies_actions()
+
+        assert result_4 is not None, "Should extract policy roadmap"
+        action = result_4[0]
+        assert action["type"] == "Policy Roadmap and Strategy"
+        assert action["date"] == "2025-02-19"
+        assert "vision" in action["description"].lower()
+
+        # Test case 5: Policy Implementation
+        html_implementation = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Through an Implementing Regulation adopted on 17 July 2025, American mink 
+                    (Neovison vison) is now listed under the Invasive Alien Species Regulation. 
+                    The listing of this species will enter into force in August 2027.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_5 = FollowupWebsiteExtractor(html_implementation)
+        result_5 = extractor_5.extract_policies_actions()
+
+        assert result_5 is not None, "Should extract policy implementation"
+        action = result_5[0]
+        assert action["type"] == "Policy Implementation"
+        assert action["date"] == "2025-07-17"
+
+        # Test case 6: Monitoring and Enforcement
+        html_monitoring = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission will actively monitor the implementation of these measures 
+                    across Member States to ensure compliance with EU standards and will take 
+                    enforcement action where necessary.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_6 = FollowupWebsiteExtractor(html_monitoring)
+        result_6 = extractor_6.extract_policies_actions()
+
+        assert result_6 is not None, "Should extract monitoring action"
+        action = result_6[0]
+        assert action["type"] == "Monitoring and Enforcement"
+        assert "monitor" in action["description"].lower()
+
+        # Test case 7: Stakeholder Dialogue
+        html_stakeholder = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission has established a stakeholder dialogue platform to engage 
+                    with industry representatives, civil society organizations, and Member States 
+                    on the development of best practices for animal welfare standards.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_7 = FollowupWebsiteExtractor(html_stakeholder)
+        result_7 = extractor_7.extract_policies_actions()
+
+        assert result_7 is not None, "Should extract stakeholder dialogue"
+        action = result_7[0]
+        assert action["type"] == "Stakeholder Dialogue"
+
+        # Test case 8: International Cooperation
+        html_international = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission is working with international partners through ICCAT and 
+                    other international fora to promote best practices and achieve better 
+                    alignment on sustainability standards at the international level.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_8 = FollowupWebsiteExtractor(html_international)
+        result_8 = extractor_8.extract_policies_actions()
+
+        assert result_8 is not None, "Should extract international cooperation"
+        action = result_8[0]
+        assert action["type"] == "International Cooperation"
+
+        # Test case 9: Multiple policy actions
+        html_multiple = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    EFSA published a scientific opinion on animal welfare on 15 March 2024.
+                </p>
+                <p>
+                    The Commission launched a public consultation on 20 April 2024 to gather 
+                    stakeholder input on potential policy options.
+                </p>
+                <p>
+                    A new funding programme under Horizon Europe will support research projects 
+                    on alternative farming systems starting in 2025.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_9 = FollowupWebsiteExtractor(html_multiple)
+        result_9 = extractor_9.extract_policies_actions()
+
+        assert result_9 is not None, "Should extract multiple actions"
+        assert len(result_9) >= 3, "Should have at least 3 actions"
+
+        types = [action["type"] for action in result_9]
+        assert "Scientific Activity" in types
+        assert "Impact Assessment and Consultation" in types
+        assert "Funding Programme" in types
+
+        # Test case 10: No policy actions (pure legislative response)
+        html_legislative_only = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission adopted Regulation (EU) 2024/567 on 10 May 2024, which 
+                    entered into force on 1 June 2024 and addresses all objectives of the initiative.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_10 = FollowupWebsiteExtractor(html_legislative_only)
+        result_10 = extractor_10.extract_policies_actions()
+
+        assert result_10 is None, "Should return None for legislative-only response"
+
+        # Test case 11: Duplicate removal
+        html_duplicates = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    EFSA published a scientific opinion on animal welfare on 30 July 2025.
+                </p>
+                <p>
+                    EFSA published a scientific opinion on animal welfare on 30 July 2025.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_11 = FollowupWebsiteExtractor(html_duplicates)
+        result_11 = extractor_11.extract_policies_actions()
+
+        assert result_11 is not None
+        assert (
+            len(result_11) == 1
+        ), "Should remove duplicate actions with identical type, description, and date"
+
+        extractor_11 = FollowupWebsiteExtractor(html_duplicates)
+        result_11 = extractor_11.extract_policies_actions()
+
+        assert result_11 is not None
+        assert len(result_11) == 1, "Should remove duplicate actions"
+
+        # Test case 12: Skip legislative keywords
+        html_skip_legislative = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission has decided not to submit a legislative proposal on this matter.
+                </p>
+                <p>
+                    However, EFSA will conduct a workshop on best practices on 15 June 2025.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_12 = FollowupWebsiteExtractor(html_skip_legislative)
+        result_12 = extractor_12.extract_policies_actions()
+
+        assert result_12 is not None, "Should extract non-legislative action"
+        assert len(result_12) == 1, "Should skip legislative keywords"
+        assert result_12[0]["type"] == "Scientific Activity"
+
+        # Test case 13: Action with date but no specific day
+        html_partial_date = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Taking into account the EFSA opinion and the outcomes of its own assessment, 
+                    the Commission will communicate by March 2026 whether it considers it 
+                    appropriate to propose a prohibition.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_13 = FollowupWebsiteExtractor(html_partial_date)
+        result_13 = extractor_13.extract_policies_actions()
+
+        assert result_13 is not None
+        action = result_13[0]
+        assert action["type"] == "Scientific Activity"
+        assert action["date"] == "2026-03-01", "Should default to first day of month"
+
+        # Test case 14: Short text (should be skipped)
+        html_short = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>Short text.</p>
+                <p>
+                    The Commission conducted stakeholder consultations throughout 2024 to 
+                    gather diverse perspectives on animal welfare policy options.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_14 = FollowupWebsiteExtractor(html_short)
+        result_14 = extractor_14.extract_policies_actions()
+
+        assert result_14 is not None
+        assert len(result_14) == 1, "Should skip short text"
+
+        # Test case 15: Data Collection and Transparency
+        html_data = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    A comprehensive report was published by the Commission in December 2024 
+                    providing transparency on the implementation status across Member States, 
+                    including detailed benchmarking data on compliance rates.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_15 = FollowupWebsiteExtractor(html_data)
+        result_15 = extractor_15.extract_policies_actions()
+
+        assert result_15 is not None
+        action = result_15[0]
+        assert action["type"] == "Data Collection and Transparency"
+        assert (
+            "report was published" in action["description"].lower()
+            or "transparency" in action["description"].lower()
+        )
+
+    def test_extract_policies_actions(self):
+        """Test extraction of non-legislative policy actions JSON."""
         # TODO: Implement test
         pass
