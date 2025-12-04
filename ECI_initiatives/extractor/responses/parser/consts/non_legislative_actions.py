@@ -77,6 +77,8 @@ class NonLegislativeAction:
         keywords=[
             "funding",
             "financial support",
+            "financial incentives",
+            "subsidies",
             "horizon europe",
             "erasmus",
             "creative europe",
@@ -102,8 +104,9 @@ class NonLegislativeAction:
         name="Stakeholder Dialogue",
         keywords=[
             "stakeholder",
-            "partnership",
+            "stakeholder partnership",
             "stakeholder dialogue",
+            "partnership with stakeholders",
         ],
     )
 
@@ -146,7 +149,7 @@ class NonLegislativeAction:
             "modernised",
             "enhanced",
             "policy framework",
-            "mechanism",
+            "long-term strategy",
             "mechanisms in place",
         ],
     )
