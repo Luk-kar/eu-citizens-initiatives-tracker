@@ -1003,21 +1003,21 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         # Skip legislative keywords (these belong to legislative actions)
         legislative_keywords = [
             r"\bentered into force\b",
-            "became applicable",
-            "withdrawal",
-            "decided not to submit a legislative proposal",
-            "come forward with a legislative proposal",
-            "table a legislative proposal",
-            "no new legislation",
-            "came into force on",
-            "amendment to the directive",
-            "amendment to the regulation",
-            "amending directive",
-            "amending regulation",
-            "revision of legislation",
-            "labelling requirements",
-            "mandatory labelling",
-            "sets out plans for a legislative proposal",
+            r"\bbecame applicable\b",
+            r"\bwithdrawal\b",
+            r"\bdecided not to submit a legislative proposal\b",
+            r"\bcome forward with a legislative proposal\b",
+            r"\btable a legislative proposal\b",
+            r"\bno new legislation\b",
+            r"\bcame into force on\b",
+            r"\bamendment to the directive\b",
+            r"\bamendment to the regulation\b",
+            r"\bamending directive\b",
+            r"\bamending regulation\b",
+            r"\brevision of legislation\b",
+            r"\blabelling requirements\b",
+            r"\bmandatory labelling\b",
+            r"\bsets out plans for a legislative proposal\b",
         ]
 
         header_sections = [
@@ -1026,7 +1026,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         ]
 
         # If contains legislative keywords, skip (unless it's about enforcement)
-        if any(keyword in text_lower for keyword in legislative_keywords):
+        if any(re.search(keyword, text_lower) for keyword in legislative_keywords):
             return
 
         # other trouble phrases

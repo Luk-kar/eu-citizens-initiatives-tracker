@@ -1,5 +1,6 @@
 """Non-legislative action type definitions with classification keywords."""
 
+import re
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -14,7 +15,7 @@ class NonLegislativeAction:
 
         Attributes:
             name: Human-readable action type name (e.g., 'Monitoring and Enforcement', 'Funding Programme')
-            keywords: List of keywords used to classify text as this action type
+            keywords: List of regex patterns used to classify text as this action type
         """
 
         name: str
@@ -24,145 +25,148 @@ class NonLegislativeAction:
     IMPACT_ASSESSMENT_CONSULTATION = ActionType(
         name="Impact Assessment and Consultation",
         keywords=[
-            "impact assessment",
-            "public consultation",
-            "call for evidence",
-            "consultation on",
+            r"\bimpact assessments?\b",
+            r"\bpublic consultations?\b",
+            r"\bcalls? for evidence\b",
+            r"\bconsultations? on\b",
         ],
     )
 
     SCIENTIFIC_ACTIVITY = ActionType(
         name="Scientific Activity",
         keywords=[
-            "scientific conference",
-            "scientific opinion",
-            "efsa",
-            "workshop",
-            "colloquium",
+            r"\bscientific conferences?\b",
+            r"\bscientific opinions?\b",
+            r"\befsa\b",
+            r"\bworkshops?\b",
+            r"\bcolloquia\b",
+            r"\bcolloquiums?\b",
         ],
     )
 
     POLICY_ROADMAP_STRATEGY = ActionType(
         name="Policy Roadmap and Strategy",
         keywords=[
-            "roadmap",
-            "strategic plan",
-            "strengthened",
-            "modernised",
-            "enhanced",
-            "policy framework",
-            "long-term strategy",
-            "mechanisms in place",
-            "vision for",
-            "strategic agenda",
-            "policy priorities",
-            "milestones",
-            "action plan",
+            r"\broadmaps?\b",
+            r"\bstrategic plans?\b",
+            r"\bstrengthened\b",
+            r"\bmodernised\b",
+            r"\benhanced\b",
+            r"\bpolicy frameworks?\b",
+            r"\blong-term strateg(?:y|ies)\b",
+            r"\bmechanisms? in place\b",
+            r"\bvisions? for\b",
+            r"\bstrategic agendas?\b",
+            r"\bpolicy priorities\b",
+            r"\bmilestones?\b",
+            r"\baction plans?\b",
         ],
     )
 
     DATA_COLLECTION_TRANSPARENCY = ActionType(
         name="Data Collection and Transparency",
         keywords=[
-            "data collection",
-            "transparency",
-            "benchmarking",
-            "eurobarometer",
-            "collected factual information",
-            "data on",
-            "report was published",
-            "publication",
+            r"\bdata collection\b",
+            r"\btransparency\b",
+            r"\bbenchmarking\b",
+            r"\beurobarometers?\b",
+            r"\bcollected factual information\b",
+            r"\bdata on\b",
+            r"\breports? (?:was|were) published\b",
+            r"\bpublications?\b",
         ],
     )
 
     STAKEHOLDER_DIALOGUE = ActionType(
         name="Stakeholder Dialogue",
         keywords=[
-            "stakeholder",
-            "stakeholder partnership",
-            "stakeholder dialogue",
-            "partnership with stakeholders",
-            "public consultation",
+            r"\bstakeholders?\b",
+            r"\bstakeholder partnerships?\b",
+            r"\bstakeholder dialogues?\b",
+            r"\bpartnerships? with stakeholders\b",
+            r"\bpublic consultations?\b",
         ],
     )
 
     MONITORING_ENFORCEMENT = ActionType(
         name="Monitoring and Enforcement",
         keywords=[
-            "monitoring",
-            "monitor",
-            "active monitoring",
-            "will monitor",
-            "better enforce",
-            "strengthen enforcement",
-            "enforcement",
-            "ensure compliance",
-            "ensuring compliance",
-            "compliance",
-            "support member states",
-            "guarantee equal treatment",
-            "withhold payments",
-            "conditional funding",
-            "withhold the corresponding payments",
+            r"\bmonitoring\b",
+            r"\bmonitor\b",
+            r"\bactive monitoring\b",
+            r"\bwill monitor\b",
+            r"\bbetter enforce\b",
+            r"\bstrengthen enforcement\b",
+            r"\benforcement\b",
+            r"\bensure compliance\b",
+            r"\bensuring compliance\b",
+            r"\bcompliance\b",
+            r"\bsupport member states\b",
+            r"\bguarantee equal treatment\b",
+            r"\bwithhold payments?\b",
+            r"\bconditional funding\b",
+            r"\bwithhold the corresponding payments?\b",
         ],
     )
 
     FUNDING_PROGRAMME = ActionType(
         name="Funding Programme",
         keywords=[
-            "funding",
-            "financial support",
-            "financial incentives",
-            "subsidies",
-            "horizon europe",
-            "erasmus",
-            "creative europe",
-            "cohesion policy",
-            "cohesion funding",
-            "union funding",
-            "multiannual financial framework",
-            "mff",
-            "research and innovation",
-            "research projects",
-            "pilot project",
+            r"\bfunding\b",
+            r"\bfinancial support\b",
+            r"\bfinancial incentives?\b",
+            r"\bsubsidies\b",
+            r"\bhorizon europe\b",
+            r"\berasmus\b",
+            r"\bcreative europe\b",
+            r"\bcohesion policy\b",
+            r"\bcohesion policies\b",
+            r"\bcohesion funding\b",
+            r"\bunion funding\b",
+            r"\bmultiannual financial frameworks?\b",
+            r"\bmff\b",
+            r"\bresearch and innovation\b",
+            r"\bresearch projects?\b",
+            r"\bpilot projects?\b",
         ],
     )
 
     POLICY_IMPLEMENTATION = ActionType(
         name="Policy Implementation",
         keywords=[
-            "will continue",
-            "continue to",
-            "ensure",
-            "ensuring",
-            "guarantee",
-            "maintain",
-            "maintaining",
-            "non-discriminatory access",
-            "equal access",
-            "implementation",
-            "implementing",
-            "safeguard",
-            "set of benchmarks",
-            "collect evidence on the current regulation",
+            r"\bwill continue\b",
+            r"\bcontinue to\b",
+            r"\bensure\b",
+            r"\bensuring\b",
+            r"\bguarantee\b",
+            r"\bmaintain\b",
+            r"\bmaintaining\b",
+            r"\bnon-discriminatory access\b",
+            r"\bequal access\b",
+            r"\bimplementation\b",
+            r"\bimplementing\b",
+            r"\bsafeguard\b",
+            r"\bsets? of benchmarks?\b",
+            r"\bcollect evidence on the current regulations?\b",
         ],
     )
 
     INTERNATIONAL_COOPERATION = ActionType(
         name="International Cooperation",
         keywords=[
-            "international cooperation",
-            "reaching out",
-            "international partners",
-            "international level",
-            "international fora",
-            "international commission",
-            "un general assembly",
-            "ICCAT",
-            "best practices between Member States",
-            "Sustainable Development Goals EU",
-            "EU-wide public consultation",
-            "advocating universal access",
+            r"\binternational cooperation\b",
+            r"\breaching out\b",
+            r"\binternational partners?\b",
+            r"\binternational levels?\b",
+            r"\binternational fora\b",
+            r"\binternational forums?\b",
+            r"\binternational commissions?\b",
+            r"\bun general assembly\b",
+            r"\bICCAT\b",
+            r"\bbest practices? between Member States\b",
+            r"\bSustainable Development Goals EU\b",
+            r"\bEU-wide public consultations?\b",
+            r"\badvocating universal access\b",
         ],
     )
 
@@ -230,24 +234,24 @@ class NonLegislativeAction:
 
     # Keywords that indicate non-legislative content to skip during legislative action extraction
     SKIP_WORDS_LEGISLATIVE = [
-        "roadmap",
-        "tasked",
-        "will communicate",
-        "will report",
-        "impact assessment",
-        "stakeholder",
-        "consultation",
-        "workshop",
-        "meeting",
-        "better enforcement",
-        "in parallel to the legislation",
-        "seek specific supporting measures",
+        r"\broadmaps?\b",
+        r"\btasked\b",
+        r"\bwill communicate\b",
+        r"\bwill report\b",
+        r"\bimpact assessments?\b",
+        r"\bstakeholders?\b",
+        r"\bconsultations?\b",
+        r"\bworkshops?\b",
+        r"\bmeetings?\b",
+        r"\bbetter enforcement\b",
+        r"\bin parallel to the legislation\b",
+        r"\bseek specific supporting measures?\b",
     ]
 
     @classmethod
     def classify_text(cls, text: str) -> Optional[ActionType]:
         """
-        Classify text by matching keywords to action types.
+        Classify text by matching regex patterns to action types.
 
         Args:
             text: Text to classify (should be lowercased)
@@ -258,7 +262,7 @@ class NonLegislativeAction:
         text_lower = text.lower()
 
         for action_type in cls.ALL_ACTION_TYPES:
-            if any(keyword in text_lower for keyword in action_type.keywords):
+            if any(re.search(keyword, text_lower) for keyword in action_type.keywords):
                 return action_type
 
         return None
@@ -275,15 +279,15 @@ class NonLegislativeAction:
             True if text contains skip keywords, False otherwise
         """
         text_lower = text.lower()
-        return any(word in text_lower for word in cls.SKIP_WORDS_LEGISLATIVE)
+        return any(re.search(word, text_lower) for word in cls.SKIP_WORDS_LEGISLATIVE)
 
     @classmethod
     def get_all_keywords(cls) -> List[str]:
         """
-        Get all keywords from all action types.
+        Get all regex patterns from all action types.
 
         Returns:
-            Flat list of all keywords
+            Flat list of all regex patterns
         """
         keywords = []
         for action_type in cls.ALL_ACTION_TYPES:
