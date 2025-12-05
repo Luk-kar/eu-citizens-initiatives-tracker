@@ -1131,8 +1131,132 @@ class TestFollowupActivityExtraction:
 
     def test_extract_court_cases_referenced(self):
         """Test extraction of court case references."""
-        # TODO: Implement test for court case JSON structure
-        pass
+
+        # Test case 1: No court cases - returns None or empty
+        html_no_cases = """
+        <div>
+            <div class="ecl">
+                <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">
+                    Response of the Commission
+                </h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission published the response to this initiative on 7 December 2023.
+                    No legal proceedings have been initiated.
+                </p>
+            </div>
+        </div>
+        """
+        extractor_1 = FollowupWebsiteExtractor(html_no_cases)
+        result_1 = extractor_1.extract_court_cases_referenced()
+
+        assert (
+            result_1 is None or result_1 == []
+        ), f"Expected None or empty list, got {result_1}"
+
+        # Test case 2: Single court case referenced
+        html_single_case = """
+        <div>
+            <div class="ecl">
+                <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">
+                    Response of the Commission
+                </h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission's decision was challenged before the European Court of Justice 
+                    in Case C-123/23. The Court ruled on 15 March 2024 that the Commission's 
+                    assessment was lawful.
+                </p>
+            </div>
+        </div>
+        """
+        extractor_2 = FollowupWebsiteExtractor(html_single_case)
+        result_2 = extractor_2.extract_court_cases_referenced()
+
+        assert result_2 is not None, "Should find court case reference"
+        assert isinstance(
+            result_2, (list, dict)
+        ), "Should return list or dict structure"
+        if isinstance(result_2, list):
+            assert len(result_2) >= 1, "Should contain at least one court case"
+
+        # Test case 3: Multiple court cases
+        html_multiple_cases = """
+        <div>
+            <div class="ecl">
+                <h2 class="ecl-u-type-heading-2" id="follow-up-on-the-commissions-actions">
+                    Follow-up on the Commission's actions
+                </h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Legal challenges were brought in Case C-456/22 and Case C-789/23.
+                    The General Court delivered its judgment in Case T-111/23 on 10 June 2024.
+                </p>
+            </div>
+        </div>
+        """
+        extractor_3 = FollowupWebsiteExtractor(html_multiple_cases)
+        result_3 = extractor_3.extract_court_cases_referenced()
+
+        assert result_3 is not None, "Should find multiple court case references"
+        # Result is a dict with structure: {"court_of_justice": [...], "general_court": [...]}
+        if isinstance(result_3, dict):
+            total_cases = sum(len(v) for v in result_3.values())
+            assert (
+                total_cases >= 2
+            ), f"Should contain at least 2 court cases, found {total_cases}"
+
+        # Test case 4: Court case with detailed information
+        html_detailed_case = """
+        <div>
+            <div class="ecl">
+                <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">
+                    Response of the Commission
+                </h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    An action for annulment was filed with the European Court of Justice 
+                    (Case C-234/24) challenging the Commission's decision. The proceedings 
+                    are ongoing, with a hearing scheduled for December 2025.
+                </p>
+            </div>
+        </div>
+        """
+        extractor_4 = FollowupWebsiteExtractor(html_detailed_case)
+        result_4 = extractor_4.extract_court_cases_referenced()
+
+        assert result_4 is not None, "Should find court case with details"
+        assert isinstance(result_4, dict), "Should return dict structure"
+        assert "court_of_justice" in result_4, "Should identify Court of Justice case"
+
+        # Test case 5: Court names without case numbers
+        html_court_no_number = """
+        <div>
+            <div class="ecl">
+                <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">
+                    Response of the Commission
+                </h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The matter was referred to the European Court of Justice for a preliminary 
+                    ruling. The Court's decision is expected in 2025.
+                </p>
+            </div>
+        </div>
+        """
+        extractor_5 = FollowupWebsiteExtractor(html_court_no_number)
+        result_5 = extractor_5.extract_court_cases_referenced()
+
+        # May return None if implementation requires case numbers
+        # This tests the edge case of court mentions without formal case numbers
+        assert result_5 is None or isinstance(
+            result_5, dict
+        ), "Should handle court mentions without case numbers gracefully"
 
     def test_extract_followup_latest_date(self):
         """Test extraction of most recent follow-up date."""

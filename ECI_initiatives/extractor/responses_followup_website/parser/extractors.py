@@ -15,13 +15,15 @@ from ...responses.parser.extractors.outcome import (
     convert_deadline_to_date,
     LegislativeStatus,
 )
+from ...responses.parser.extractors.followup import FollowUpActivityExtractor
 from ...responses.parser.base.text_utilities import normalize_whitespace
 
 
 # Extraction stubs (no implementation included)
 class FollowupWebsiteExtractor:
-    def __init__(self, html_content):
+    def __init__(self, html_content, logger: Optional[logging.Logger] = None):
         self.soup = BeautifulSoup(html_content, "html.parser")
+        self.logger = logger or logging.getLogger(__name__)
 
     def extract_registration_number(self, html_file_name: str):
         """
@@ -383,6 +385,18 @@ class FollowupWebsiteExtractor:
 
         return has_workshop
 
+    def extract_court_cases_referenced(self):
+
+        # Create extractor instance
+        follow_up_activity_extractor = FollowUpActivityExtractor(logger=self.logger)
+
+        # Extract applicable boolean using the existing method
+        court_cases = follow_up_activity_extractor.extract_court_cases_referenced(
+            self.soup
+        )
+
+        return court_cases
+
     def extract_followup_latest_date(self):
         pass
 
@@ -402,9 +416,6 @@ class FollowupWebsiteExtractor:
         pass
 
     def extract_has_followup_section(self):
-        pass
-
-    def extract_court_cases_referenced(self):
         pass
 
 
