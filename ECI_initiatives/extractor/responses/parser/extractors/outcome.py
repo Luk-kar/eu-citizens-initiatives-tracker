@@ -1002,7 +1002,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
         # Skip legislative keywords (these belong to legislative actions)
         legislative_keywords = [
-            "entered into force",
+            r"\bentered into force\b",
             "became applicable",
             "withdrawal",
             "decided not to submit a legislative proposal",

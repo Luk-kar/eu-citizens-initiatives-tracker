@@ -2,6 +2,7 @@ from pathlib import Path
 import re
 from typing import Optional, Dict
 import logging
+import re
 
 from bs4 import BeautifulSoup
 
@@ -1055,7 +1056,7 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 check_non_empty=False,  # Don't check for non-empty in gathering phase
             )
 
-            roadmap_keywords = ["roadmap", "road map"]
+            roadmap_keywords = [r"\broadmaps?\b", r"\broad maps?\b"]
 
             # Process each content element
             for current in content_elements:
@@ -1065,7 +1066,7 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 text_lower = text_normalized.lower()
 
                 for keyword in roadmap_keywords:
-                    if keyword in text_lower:
+                    if re.search(keyword, text_lower):
                         return True
 
             return False
