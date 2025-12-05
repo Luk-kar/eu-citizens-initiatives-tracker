@@ -1,3 +1,4 @@
+from datetime import datetime, date
 from pathlib import Path
 import re
 from typing import Optional, Dict
@@ -15,7 +16,10 @@ from ...responses.parser.extractors.outcome import (
     convert_deadline_to_date,
     LegislativeStatus,
 )
-from ...responses.parser.extractors.followup import FollowUpActivityExtractor
+from ...responses.parser.extractors.followup import (
+    FollowUpActivityExtractor,
+    parse_any_date_format,
+)
 from ...responses.parser.base.text_utilities import normalize_whitespace
 
 
@@ -398,7 +402,16 @@ class FollowupWebsiteExtractor:
         return court_cases
 
     def extract_followup_latest_date(self):
-        pass
+
+        # Create extractor instance
+        follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
+
+        # Extract applicable boolean using the existing method
+        latest_date = follow_up_activity_extractor.extract_followup_latest_date(
+            self.soup
+        )
+
+        return latest_date
 
     def extract_followup_most_future_date(self):
         pass
@@ -1244,3 +1257,210 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             raise ValueError(
                 f"Error checking partnership programs for {self.registration_number}: {str(e)}"
             ) from e
+
+    def _extract_dates_from_content_elements(
+        self, content_elements: list
+    ) -> Optional[list[str]]:
+        """
+        Extract all date strings from content elements.
+
+        This private helper method finds all potential date strings in common formats
+        within the provided content elements and returns them as a list for further processing.
+
+        Date formats matched:
+            - "27 March 2021" (full month name)
+            - "27 Mar 2021" (abbreviated month name)
+            - "27/03/2021" (slash-separated)
+            - "27-03-2021" (dash-separated)
+            - "2021-03-27" (ISO format)
+            - "February 2024" (month and year only)
+            - "Mar 2024" (abbreviated month and year)
+            - "2024" (year only)
+
+        Args:
+            content_elements: List of BeautifulSoup elements to extract dates from
+
+        Returns:
+            List of date strings found in content elements, or None if no
+            content elements provided. Returns empty list if elements exist but
+            no dates are found.
+
+        Raises:
+            ValueError: If critical error occurs during extraction
+        """
+        try:
+            if not content_elements:
+                return None
+
+            # Extract all text from gathered content elements
+            full_text = ""
+            for element in content_elements:
+                full_text += element.get_text(separator=" ", strip=True) + " "
+
+            # Regex pattern to find all potential dates
+            # Matches patterns like: "27 March 2021", "March 2021", "27/03/2021", etc.
+            date_pattern = (
+                r"(?:(?:\d{1,2}\s+)?(?:January|February|March|April|May|June|"
+                r"July|August|September|October|November|December|"
+                r"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4})|"
+                r"(?:\d{1,2}[-/]\d{1,2}[-/]\d{2,4})|"
+                r"(?:\d{4}[-/]\d{1,2}[-/]\d{1,2})|"
+                r"(?:\b\d{4}\b)"
+            )
+
+            date_matches = re.findall(date_pattern, full_text, re.IGNORECASE)
+
+            return date_matches if date_matches else []
+
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting dates from content elements for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def _parse_date_strings(self, date_matches: list[str]) -> Optional[list[str]]:
+        """
+        Parse raw date strings into standardized YYYY-MM-DD format.
+
+        Converts various date formats into a consistent format using the
+        parse_any_date_format helper function. Invalid dates are skipped.
+
+        Args:
+            date_matches: List of raw date strings to parse
+
+        Returns:
+            List of successfully parsed date strings in YYYY-MM-DD format.
+            Returns None if input is empty or no dates could be parsed.
+
+        Raises:
+            ValueError: If critical error occurs during parsing
+        """
+        try:
+            if not date_matches:
+                return None
+
+            # Parse all found dates and keep track of valid ones
+            parsed_dates = []
+
+            for date_str in date_matches:
+                parsed = parse_any_date_format(date_str)
+                if parsed:
+                    parsed_dates.append(parsed)
+
+            return parsed_dates if parsed_dates else None
+
+        except Exception as e:
+            raise ValueError(
+                f"Error parsing date strings for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def _filter_latest_date_by_today(self, parsed_dates: list[str]) -> Optional[str]:
+        """
+        Filter dates to only include those not later than today, and return the latest.
+
+        Removes any future-dated entries and returns the most recent valid date.
+
+        Args:
+            parsed_dates: List of date strings in YYYY-MM-DD format
+
+        Returns:
+            Latest date string <= today's date in YYYY-MM-DD format.
+            Returns None if input is empty or all dates are in the future.
+
+        Raises:
+            ValueError: If critical error occurs during filtering
+        """
+        try:
+            if not parsed_dates:
+                return None
+
+            # Get current date
+            today = self._get_today_date()
+
+            # Filter dates to only include those not later than today
+            valid_dates = []
+            for date_str in parsed_dates:
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+                if date_obj <= today:
+                    valid_dates.append(date_str)
+
+            if not valid_dates:
+                return None
+
+            # Sort dates and return the latest (last in sorted list)
+            valid_dates.sort()
+            return valid_dates[-1]
+
+        except Exception as e:
+            raise ValueError(
+                f"Error filtering dates for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def extract_followup_latest_date(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract most recent date from follow-up section that is not later than today.
+
+        Finds the most recent date in the Follow-up section that does not exceed
+        the current date, filtering out any future-dated entries.
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            Latest date found in YYYY-MM-DD format that is <= today's date.
+            Returns None if no valid dates are found, no dates exist in the Follow-up
+            section, or if the Follow-up section doesn't exist.
+
+        Raises:
+            ValueError: If critical error occurs during extraction
+        """
+        try:
+            # Find Answer section (acts as starting point for followup content)
+            answer_section = self._find_answer_section(soup)
+
+            if not answer_section:
+                raise ValueError(
+                    f"Answer section not found for {self.registration_number}."
+                )
+
+            # Allowed tags for text extraction
+            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
+
+            # Step 1: Gather all relevant content elements
+            content_elements = self._gather_content_elements(
+                answer_section,
+                ALLOWED_TAGS,
+                check_non_empty=False,  # Don't check for non-empty in gathering phase
+            )
+
+            if not content_elements:
+                raise ValueError(
+                    f"Expected at least one element with tags:\n{ALLOWED_TAGS}\n"
+                    f"for:\n{self.registration_number}"
+                )
+
+            # Step 2: Extract date strings from content elements
+            date_matches = self._extract_dates_from_content_elements(content_elements)
+
+            if not date_matches:
+                return None
+
+            # Step 3: Parse date strings to YYYY-MM-DD format
+            parsed_dates = self._parse_date_strings(date_matches)
+
+            if not parsed_dates:
+                return None
+
+            # Step 4: Filter dates to only those <= today and return the latest
+            latest_date = self._filter_latest_date_by_today(parsed_dates)
+
+            return latest_date
+
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting latest update date for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def _get_today_date(self) -> date:
+        """Return today's date."""
+
+        return datetime.now().date()

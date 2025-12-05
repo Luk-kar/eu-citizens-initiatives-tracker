@@ -14,10 +14,13 @@ This module tests extraction of:
 # Third party
 import pytest
 from bs4 import BeautifulSoup
+from datetime import date
+from unittest.mock import patch
 
 # Local
 from ECI_initiatives.extractor.responses_followup_website.parser.extractors import (
     FollowupWebsiteExtractor,
+    FollowupWebsiteLegislativeOutcomeExtractor,
 )
 
 
@@ -1260,8 +1263,242 @@ class TestFollowupActivityExtraction:
 
     def test_extract_followup_latest_date(self):
         """Test extraction of most recent follow-up date."""
-        # TODO: Implement test
-        pass
+        from datetime import date
+        from unittest.mock import patch
+        from bs4 import BeautifulSoup
+
+        # Use a fixed "today" date for all tests
+        test_today = date(2024, 12, 5)
+
+        # Test 1: Normal case - multiple dates, returns latest that is <= today
+        html_multiple_dates = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>The Commission published a report on 15 March 2024.</p>
+
+                <p>A workshop was held on 20 June 2024.</p>
+                <p>The latest update was made on 10 September 2024.</p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_1 = FollowupWebsiteLegislativeOutcomeExtractor("TEST_001")
+        with patch.object(extractor_1, "_get_today_date", return_value=test_today):
+            soup_1 = BeautifulSoup(html_multiple_dates, "html.parser")
+            result_1 = extractor_1.extract_followup_latest_date(soup_1)
+            assert (
+                result_1 == "2024-09-10"
+            ), "Should return latest date that is not in the future"
+
+        # Test 2: Future dates filtered out - only returns dates <= today
+        html_with_future = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>Past event on 15 March 2024.</p>
+                <p>Current event on 1 December 2024.</p>
+                <p>Future deadline on 15 December 2024.</p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_2 = FollowupWebsiteLegislativeOutcomeExtractor("TEST_002")
+        with patch.object(extractor_2, "_get_today_date", return_value=test_today):
+            soup_2 = BeautifulSoup(html_with_future, "html.parser")
+            result_2 = extractor_2.extract_followup_latest_date(soup_2)
+            assert (
+                result_2 == "2024-12-01"
+            ), "Should filter out future dates (Dec 15) and return Dec 1"
+
+        # Test 3: No dates found - returns None
+        html_no_dates = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+                <p>The Commission is working on this initiative.</p>
+                <p>No specific dates mentioned in this content.</p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_3 = FollowupWebsiteLegislativeOutcomeExtractor("TEST_003")
+        with patch.object(extractor_3, "_get_today_date", return_value=test_today):
+            soup_3 = BeautifulSoup(html_no_dates, "html.parser")
+            result_3 = extractor_3.extract_followup_latest_date(soup_3)
+            assert (
+                result_3 is None
+            ), "Should return None when no dates are found in content"
+
+        # Test 4: No Answer section - returns None
+        html_no_section = """
+        <div>
+            <div class="ecl">
+                <h2 id="some-other-section">Some Other Section</h2>
+            </div>
+            <div class="ecl">
+                <p>Content with date 15 March 2024.</p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_4 = FollowupWebsiteLegislativeOutcomeExtractor("TEST_004")
+        with patch.object(extractor_4, "_get_today_date", return_value=test_today):
+            soup_4 = BeautifulSoup(html_no_section, "html.parser")
+            try:
+                extractor_4.extract_followup_latest_date(soup_4)
+                assert False, "Should raise ValueError when Answer section is not found"
+            except ValueError as e:
+                assert (
+                    "answer section not found for" in str(e).lower()
+                ), "ValueError should mention Answer section not found"
+
+        # Test 5: Various date formats
+        html_various_formats = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>Full month: 15 March 2024</p>
+                <p>Abbreviated: 20 Jun 2024</p>
+                <p>ISO format: 2024-09-10</p>
+                <p>Slash format: 25/11/2024</p>
+                <p>Month only: February 2024</p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_5 = FollowupWebsiteLegislativeOutcomeExtractor("TEST_005")
+        with patch.object(extractor_5, "_get_today_date", return_value=test_today):
+            soup_5 = BeautifulSoup(html_various_formats, "html.parser")
+            result_5 = extractor_5.extract_followup_latest_date(soup_5)
+            assert (
+                result_5 == "2024-11-25"
+            ), "Should parse various date formats and return latest"
+
+        # Test 6: All dates are in future - returns None
+        html_all_future = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>Upcoming event on 15 March 2025.</p>
+            </div>
+            <div class="ecl">
+                <p>Future deadline on 20 June 2025.</p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_6 = FollowupWebsiteLegislativeOutcomeExtractor("TEST_006")
+        with patch.object(extractor_6, "_get_today_date", return_value=test_today):
+            soup_6 = BeautifulSoup(html_all_future, "html.parser")
+            result_6 = extractor_6.extract_followup_latest_date(soup_6)
+            assert (
+                result_6 is None
+            ), "Should return None when all dates are in the future"
+
+        # Test 7: Date equals today - should be included
+        html_today = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>Published today: 5 December 2024</p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_7 = FollowupWebsiteLegislativeOutcomeExtractor("TEST_007")
+        with patch.object(extractor_7, "_get_today_date", return_value=test_today):
+            soup_7 = BeautifulSoup(html_today, "html.parser")
+            result_7 = extractor_7.extract_followup_latest_date(soup_7)
+            assert (
+                result_7 == "2024-12-05"
+            ), "Should include dates equal to today (boundary case)"
+
+        # Test 8: Empty content elements - raises ValueError
+        html_no_content = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_8 = FollowupWebsiteLegislativeOutcomeExtractor("TEST_008")
+        with patch.object(extractor_8, "_get_today_date", return_value=test_today):
+            soup_8 = BeautifulSoup(html_no_content, "html.parser")
+            try:
+                extractor_8.extract_followup_latest_date(soup_8)
+                assert False, "Should raise ValueError when no content elements found"
+            except ValueError as e:
+                error_msg = str(e).lower()
+                assert (
+                    "expected at least one element with tags" in error_msg
+                ), f"ValueError should mention expected element tags, but got: {str(e)}"
+
+        # Test 9: Unparseable date formats ignored
+        html_mixed_valid_invalid = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>Valid date: 15 March 2024</p>
+                <p>Invalid: sometime in spring</p>
+                <p>Another valid: 20 June 2024</p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_9 = FollowupWebsiteLegislativeOutcomeExtractor("TEST_009")
+        with patch.object(extractor_9, "_get_today_date", return_value=test_today):
+            soup_9 = BeautifulSoup(html_mixed_valid_invalid, "html.parser")
+            result_9 = extractor_9.extract_followup_latest_date(soup_9)
+            assert (
+                result_9 == "2024-06-20"
+            ), "Should ignore unparseable dates and return latest valid date"
+
+        # Test 10: Real-world example - End the Cage Age scenario
+        html_real_world = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>As established by the Vision for Agriculture adopted on 19 February 2024.</p>
+                <p>Further to the call for evidence launched on 18 March 2024 
+                (and closed on 16 May 2024), the Commission published on 19 September 2024 
+                a public consultation which will run until 12 December 2024.</p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_10 = FollowupWebsiteLegislativeOutcomeExtractor("TEST_010")
+        with patch.object(extractor_10, "_get_today_date", return_value=test_today):
+            soup_10 = BeautifulSoup(html_real_world, "html.parser")
+            result_10 = extractor_10.extract_followup_latest_date(soup_10)
+            assert (
+                result_10 == "2024-09-19"
+            ), "Should return Sept 19, filtering out future Dec 12 deadline"
 
     def test_extract_followup_most_future_date(self):
         """Test extraction of most future follow-up date."""
