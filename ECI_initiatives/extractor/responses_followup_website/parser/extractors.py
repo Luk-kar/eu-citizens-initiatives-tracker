@@ -20,6 +20,7 @@ from ...responses.parser.extractors.followup import (
     FollowUpActivityExtractor,
     parse_any_date_format,
 )
+from ...responses.parser.extractors.structural import StructuralAnalysisExtractor
 from ...responses.parser.base.text_utilities import normalize_whitespace
 
 
@@ -271,7 +272,6 @@ class FollowupWebsiteExtractor:
             )
         )
 
-        # Extract applicable boolean using the existing method
         is_new_law = outcome_extractor.extract_proposal_commitment_stated(self.soup)
 
         return is_new_law
@@ -287,7 +287,6 @@ class FollowupWebsiteExtractor:
             )
         )
 
-        # Extract applicable boolean using the existing method
         commissions_deadlines = outcome_extractor.extract_commissions_deadlines(
             self.soup
         )
@@ -305,7 +304,6 @@ class FollowupWebsiteExtractor:
             )
         )
 
-        # Extract applicable boolean using the existing method
         commissions_deadlines = outcome_extractor.extract_proposal_rejected(self.soup)
 
         return commissions_deadlines
@@ -321,7 +319,6 @@ class FollowupWebsiteExtractor:
             )
         )
 
-        # Extract applicable boolean using the existing method
         commissions_deadlines = outcome_extractor.extract_rejection_reasoning(self.soup)
 
         return commissions_deadlines
@@ -337,7 +334,6 @@ class FollowupWebsiteExtractor:
             )
         )
 
-        # Extract applicable boolean using the existing method
         laws_actions = outcome_extractor.extract_legislative_action(self.soup)
 
         return laws_actions
@@ -352,7 +348,6 @@ class FollowupWebsiteExtractor:
             )
         )
 
-        # Extract applicable boolean using the existing method
         policies_actions = outcome_extractor.extract_non_legislative_action(self.soup)
 
         return policies_actions
@@ -362,7 +357,6 @@ class FollowupWebsiteExtractor:
         # Create extractor instance
         follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
 
-        # Extract applicable boolean using the existing method
         has_roadmap = follow_up_activity_extractor.extract_has_roadmap(self.soup)
 
         return has_roadmap
@@ -372,7 +366,6 @@ class FollowupWebsiteExtractor:
         # Create extractor instance
         follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
 
-        # Extract applicable boolean using the existing method
         has_workshop = follow_up_activity_extractor.extract_has_workshop(self.soup)
 
         return has_workshop
@@ -382,7 +375,6 @@ class FollowupWebsiteExtractor:
         # Create extractor instance
         follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
 
-        # Extract applicable boolean using the existing method
         has_workshop = follow_up_activity_extractor.extract_has_partnership_programs(
             self.soup
         )
@@ -394,7 +386,6 @@ class FollowupWebsiteExtractor:
         # Create extractor instance
         follow_up_activity_extractor = FollowUpActivityExtractor(logger=self.logger)
 
-        # Extract applicable boolean using the existing method
         court_cases = follow_up_activity_extractor.extract_court_cases_referenced(
             self.soup
         )
@@ -406,7 +397,6 @@ class FollowupWebsiteExtractor:
         # Create extractor instance
         follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
 
-        # Extract applicable boolean using the existing method
         latest_date = follow_up_activity_extractor.extract_followup_latest_date(
             self.soup
         )
@@ -418,12 +408,22 @@ class FollowupWebsiteExtractor:
         # Create extractor instance
         follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
 
-        # Extract applicable boolean using the existing method
         most_future_date = (
             follow_up_activity_extractor.extract_followup_most_future_date(self.soup)
         )
 
         return most_future_date
+
+    def extract_referenced_legislation_by_id(self):
+
+        # Create extractor instance
+        follow_up_activity_extractor = StructuralAnalysisExtractor(logger=self.logger)
+
+        legislation_by_id = (
+            follow_up_activity_extractor.extract_referenced_legislation_by_id(self.soup)
+        )
+
+        return legislation_by_id
 
     def extract_followup_dedicated_website(self):
         pass
@@ -432,9 +432,6 @@ class FollowupWebsiteExtractor:
         pass
 
     def extract_referenced_legislation_by_name(self):
-        pass
-
-    def extract_referenced_legislation_by_id(self):
         pass
 
     def extract_has_followup_section(self):

@@ -66,7 +66,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
 
             # Define regex patterns for text extraction
             patterns = {
-                "Regulation": r"Regulation\s+\((?:EU|EC)\)\s+(?:No\.?\s*)?(\d{1,4}/\d{4})",
+                "Regulation": r"Regulation\s+\(?(?:EU|EC|EEC)\)?\s+(?:No\.?\s*)?(\d{1,4}/\d{1,4})",
                 "Directive": r"Directive\s+(\d{4}/\d{1,3}(?:/(?:EU|EC))?)",
                 "Decision": r"(?:(?:Council|Commission)\s+)?Decision\s+(?:\((?:EU|EC|EEC)\)\s+)?(?:No\.?\s+)?(\d+/\d+)",
                 "CELEX": r"CELEX[=:]\s*([0-9]{5}[A-Z]{1,2}[0-9]{4}[A-Z]?[0-9]{0,4})",
@@ -518,14 +518,3 @@ class StructuralAnalysisExtractor(BaseExtractor):
             return None
 
         return json.dumps(cleaned_result, indent=2, ensure_ascii=False)
-
-    def calculate_follow_up_duration_months(
-        self, commission_date: Optional[str], latest_update: Optional[str]
-    ) -> Optional[int]:
-        """Calculate months between Commission response and latest follow-up"""
-        try:
-            return None
-        except Exception as e:
-            raise ValueError(
-                f"Error calculating follow-up duration for {self.registration_number}: {str(e)}"
-            ) from e
