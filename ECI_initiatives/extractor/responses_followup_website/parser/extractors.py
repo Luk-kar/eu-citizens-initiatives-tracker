@@ -1362,48 +1362,6 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 f"Error parsing date strings for {self.registration_number}: {str(e)}"
             ) from e
 
-    def _filter_latest_date_by_today(self, parsed_dates: list[str]) -> Optional[str]:
-        """
-        Filter dates to only include those not later than today, and return the latest.
-
-        Removes any future-dated entries and returns the most recent valid date.
-
-        Args:
-            parsed_dates: List of date strings in YYYY-MM-DD format
-
-        Returns:
-            Latest date string <= today's date in YYYY-MM-DD format.
-            Returns None if input is empty or all dates are in the future.
-
-        Raises:
-            ValueError: If critical error occurs during filtering
-        """
-        try:
-            if not parsed_dates:
-                return None
-
-            # Get current date
-            today = self._get_today_date()
-
-            # Filter dates to only include those not later than today
-            valid_dates = []
-            for date_str in parsed_dates:
-                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-                if date_obj <= today:
-                    valid_dates.append(date_str)
-
-            if not valid_dates:
-                return None
-
-            # Sort dates and return the latest (last in sorted list)
-            valid_dates.sort()
-            return valid_dates[-1]
-
-        except Exception as e:
-            raise ValueError(
-                f"Error filtering dates for {self.registration_number}: {str(e)}"
-            ) from e
-
     def extract_followup_latest_date(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract most recent date from follow-up section that is not later than today.
@@ -1539,6 +1497,75 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 f"Error extracting most future date for {self.registration_number}: {str(e)}"
             ) from e
 
+    def _filter_dates_by_condition(
+        self, parsed_dates: list[str], condition: callable, return_first: bool = False
+    ) -> Optional[str]:
+        """
+        Filter dates by a condition and return either the latest or earliest.
+
+        Generic helper method to filter dates based on a comparison condition
+        relative to today's date.
+
+        Args:
+            parsed_dates: List of date strings in YYYY-MM-DD format
+            condition: Callable that takes (date_obj, today) and returns bool
+            return_first: If True, return first (earliest) date; if False, return last (latest)
+
+        Returns:
+            Date string in YYYY-MM-DD format matching the condition.
+            Returns None if input is empty or no dates match the condition.
+
+        Raises:
+            ValueError: If critical error occurs during filtering
+        """
+        try:
+            if not parsed_dates:
+                return None
+
+            # Get current date
+            today = self._get_today_date()
+
+            # Filter dates based on condition
+            filtered_dates = []
+            for date_str in parsed_dates:
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+                if condition(date_obj, today):
+                    filtered_dates.append(date_str)
+
+            if not filtered_dates:
+                return None
+
+            # Sort dates and return requested position
+            filtered_dates.sort()
+            return filtered_dates[0] if return_first else filtered_dates[-1]
+
+        except Exception as e:
+            raise ValueError(
+                f"Error filtering dates for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def _filter_latest_date_by_today(self, parsed_dates: list[str]) -> Optional[str]:
+        """
+        Filter dates to only include those not later than today, and return the latest.
+
+        Removes any future-dated entries and returns the most recent valid date.
+
+        Args:
+            parsed_dates: List of date strings in YYYY-MM-DD format
+
+        Returns:
+            Latest date string <= today's date in YYYY-MM-DD format.
+            Returns None if input is empty or all dates are in the future.
+
+        Raises:
+            ValueError: If critical error occurs during filtering
+        """
+        return self._filter_dates_by_condition(
+            parsed_dates,
+            condition=lambda date_obj, today: date_obj <= today,
+            return_first=False,  # Return latest (last in sorted list)
+        )
+
     def _filter_most_future_date_by_today(
         self, parsed_dates: list[str]
     ) -> Optional[str]:
@@ -1557,28 +1584,8 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         Raises:
             ValueError: If critical error occurs during filtering
         """
-        try:
-            if not parsed_dates:
-                return None
-
-            # Get current date
-            today = self._get_today_date()
-
-            # Filter dates to only include those after today
-            future_dates = []
-            for date_str in parsed_dates:
-                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-                if date_obj > today:
-                    future_dates.append(date_str)
-
-            if not future_dates:
-                return None
-
-            # Sort dates and return the furthest future date (last in sorted list)
-            future_dates.sort()
-            return future_dates[-1]
-
-        except Exception as e:
-            raise ValueError(
-                f"Error filtering future dates for {self.registration_number}: {str(e)}"
-            ) from e
+        return self._filter_dates_by_condition(
+            parsed_dates,
+            condition=lambda date_obj, today: date_obj > today,
+            return_first=False,  # Return furthest future (last in sorted list)
+        )
