@@ -371,6 +371,18 @@ class FollowupWebsiteExtractor:
 
         return has_workshop
 
+    def extract_has_partnership_programs(self):
+
+        # Create extractor instance
+        follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
+
+        # Extract applicable boolean using the existing method
+        has_workshop = follow_up_activity_extractor.extract_has_partnership_programs(
+            self.soup
+        )
+
+        return has_workshop
+
     def extract_followup_latest_date(self):
         pass
 
@@ -390,9 +402,6 @@ class FollowupWebsiteExtractor:
         pass
 
     def extract_has_followup_section(self):
-        pass
-
-    def extract_has_partnership_programs(self):
         pass
 
     def extract_court_cases_referenced(self):
@@ -1152,4 +1161,75 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         except Exception as e:
             raise ValueError(
                 f"Error checking roadmap for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def extract_has_partnership_programs(self, soup: BeautifulSoup) -> Optional[bool]:
+        """
+        Check if initiative has partnership programs mentioned in follow-up.
+
+        Looks for keywords related to partnership programs, collaboration programmes,
+        joint programmes, etc. in the Follow-up section.
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            True if partnership programs are mentioned, False otherwise, None on error
+
+        Raises:
+            ValueError: If critical error occurs during detection
+        """
+        try:
+            # Find Answer and Follow-up sections
+            answer_section = self._find_answer_section(soup)
+
+            # Allowed tags for text extraction
+            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
+
+            content_elements = self._gather_content_elements(
+                answer_section,
+                ALLOWED_TAGS,
+                check_non_empty=False,  # Don't check for non-empty in gathering phase
+            )
+
+            partnership_keywords = [
+                # Partnership programs/programmes
+                r"\bpartnership programs?\b",
+                r"\bpartnership programmes?\b",
+                r"\bpartnership plans?\b",
+                # Public-public partnerships
+                r"\bpublic-public partnerships?\b",
+                # European partnerships
+                r"\beuropean partnerships? for\b",
+                # General partnerships
+                r"\bpartnership between\b",
+                r"\bpartnerships between\b",
+                r"\bsupport to partnerships?\b",
+                # Cooperation/collaboration programmes
+                r"\bcooperation programmes?\b",
+                r"\bcollaboration programmes?\b",
+                # Joint programmes
+                r"\bjoint programmes?\b",
+                # Formal/established partnerships
+                r"\bformal partnerships?\b",
+                r"\bestablished partnerships?\b",
+                # International partners
+                r"\binternational partners?\b",
+            ]
+
+            # Process each content element
+            for current in content_elements:
+                text = current.get_text(strip=False)
+                text_normalized = normalize_whitespace(text)
+                text_lower = text_normalized.lower()
+
+                for keyword in partnership_keywords:
+                    if re.search(keyword, text_lower):
+                        return True
+
+            return False
+
+        except Exception as e:
+            raise ValueError(
+                f"Error checking partnership programs for {self.registration_number}: {str(e)}"
             ) from e

@@ -642,8 +642,492 @@ class TestFollowupActivityExtraction:
 
     def test_extract_has_partnership_programs(self):
         """Test detection of partnership programs."""
-        # TODO: Implement test
-        pass
+
+        # Test case 1: Partnership program (singular)
+        html_partnership_program = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission launched a partnership program with Member States 
+                    to facilitate implementation of the new framework.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_1 = FollowupWebsiteExtractor(html_partnership_program)
+        result_1 = extractor_1.extract_has_partnership_programs()
+
+        assert result_1 is True, "Should detect 'partnership program'"
+
+        # Test case 2: Partnership programmes (plural, UK spelling)
+        html_partnership_programmes = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Several partnership programmes have been established to support 
+                    the transition to sustainable farming practices.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_2 = FollowupWebsiteExtractor(html_partnership_programmes)
+        result_2 = extractor_2.extract_has_partnership_programs()
+
+        assert result_2 is True, "Should detect 'partnership programmes' (UK spelling)"
+
+        # Test case 3: Partnership plans
+        html_partnership_plans = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission developed partnership plans to engage with 
+                    international organizations and industry stakeholders.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_3 = FollowupWebsiteExtractor(html_partnership_plans)
+        result_3 = extractor_3.extract_has_partnership_programs()
+
+        assert result_3 is True, "Should detect 'partnership plans'"
+
+        # Test case 4: Public-public partnership
+        html_public_public = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    A public-public partnership between EU agencies will coordinate 
+                    research efforts in this area.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_4 = FollowupWebsiteExtractor(html_public_public)
+        result_4 = extractor_4.extract_has_partnership_programs()
+
+        assert result_4 is True, "Should detect 'public-public partnership'"
+
+        # Test case 5: European partnership for
+        html_european_partnership = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission supports the European partnership for animal health 
+                    and welfare research under Horizon Europe.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_5 = FollowupWebsiteExtractor(html_european_partnership)
+        result_5 = extractor_5.extract_has_partnership_programs()
+
+        assert result_5 is True, "Should detect 'European partnership for'"
+
+        # Test case 6: Partnership between
+        html_partnership_between = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    A partnership between the Commission and EFSA will strengthen 
+                    scientific capacity in the field.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_6 = FollowupWebsiteExtractor(html_partnership_between)
+        result_6 = extractor_6.extract_has_partnership_programs()
+
+        assert result_6 is True, "Should detect 'partnership between'"
+
+        # Test case 7: Partnerships between (plural)
+        html_partnerships_between = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Partnerships between Member States and third countries will 
+                    facilitate knowledge exchange.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_7 = FollowupWebsiteExtractor(html_partnerships_between)
+        result_7 = extractor_7.extract_has_partnership_programs()
+
+        assert result_7 is True, "Should detect 'partnerships between'"
+
+        # Test case 8: Support to partnerships
+        html_support_partnerships = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission provides support to partnerships aimed at 
+                    improving animal welfare standards.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_8 = FollowupWebsiteExtractor(html_support_partnerships)
+        result_8 = extractor_8.extract_has_partnership_programs()
+
+        assert result_8 is True, "Should detect 'support to partnerships'"
+
+        # Test case 9: Cooperation programme
+        html_cooperation_programme = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    A cooperation programme with international organizations will 
+                    enhance research capacity.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_9 = FollowupWebsiteExtractor(html_cooperation_programme)
+        result_9 = extractor_9.extract_has_partnership_programs()
+
+        assert result_9 is True, "Should detect 'cooperation programme'"
+
+        # Test case 10: Collaboration programme
+        html_collaboration_programme = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission established a collaboration programme to work 
+                    with Member States on implementation.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_10 = FollowupWebsiteExtractor(html_collaboration_programme)
+        result_10 = extractor_10.extract_has_partnership_programs()
+
+        assert result_10 is True, "Should detect 'collaboration programme'"
+
+        # Test case 11: Joint programme
+        html_joint_programme = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    A joint programme between EU and national authorities will 
+                    coordinate monitoring activities.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_11 = FollowupWebsiteExtractor(html_joint_programme)
+        result_11 = extractor_11.extract_has_partnership_programs()
+
+        assert result_11 is True, "Should detect 'joint programme'"
+
+        # Test case 12: Formal partnership
+        html_formal_partnership = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission entered into a formal partnership with the World 
+                    Organisation for Animal Health.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_12 = FollowupWebsiteExtractor(html_formal_partnership)
+        result_12 = extractor_12.extract_has_partnership_programs()
+
+        assert result_12 is True, "Should detect 'formal partnership'"
+
+        # Test case 13: Established partnership
+        html_established_partnership = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    An established partnership with research institutions will 
+                    provide scientific evidence for policy development.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_13 = FollowupWebsiteExtractor(html_established_partnership)
+        result_13 = extractor_13.extract_has_partnership_programs()
+
+        assert result_13 is True, "Should detect 'established partnership'"
+
+        # Test case 14: International partners
+        html_international_partners = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission is working with international partners to align 
+                    animal welfare standards globally.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_14 = FollowupWebsiteExtractor(html_international_partners)
+        result_14 = extractor_14.extract_has_partnership_programs()
+
+        assert result_14 is True, "Should detect 'international partners'"
+
+        # Test case 15: No partnership keywords
+        html_no_partnership = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission will conduct a comprehensive assessment and 
+                    propose new measures based on stakeholder feedback.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_15 = FollowupWebsiteExtractor(html_no_partnership)
+        result_15 = extractor_15.extract_has_partnership_programs()
+
+        assert (
+            result_15 is False
+        ), "Should return False when no partnership keywords present"
+
+        # Test case 16: Case insensitivity - uppercase
+        html_uppercase = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission launched a PARTNERSHIP PROGRAM to support Member States.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_16 = FollowupWebsiteExtractor(html_uppercase)
+        result_16 = extractor_16.extract_has_partnership_programs()
+
+        assert result_16 is True, "Should detect uppercase 'PARTNERSHIP PROGRAM'"
+
+        # Test case 17: Case insensitivity - mixed case
+        html_mixed_case = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    A Joint Programme between agencies will coordinate research efforts.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_17 = FollowupWebsiteExtractor(html_mixed_case)
+        result_17 = extractor_17.extract_has_partnership_programs()
+
+        assert result_17 is True, "Should detect mixed case 'Joint Programme'"
+
+        # Test case 18: Partnership in list items
+        html_list = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <ul>
+                    <li>Stakeholder consultation</li>
+                    <li>Development of partnership programmes</li>
+                    <li>Implementation monitoring</li>
+                </ul>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_18 = FollowupWebsiteExtractor(html_list)
+        result_18 = extractor_18.extract_has_partnership_programs()
+
+        assert result_18 is True, "Should detect partnership in list items"
+
+        # Test case 19: Multiple partnership keywords
+        html_multiple = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission launched a partnership program with Member States.
+                </p>
+                <p>
+                    Additionally, a cooperation programme with international partners 
+                    will be established.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_19 = FollowupWebsiteExtractor(html_multiple)
+        result_19 = extractor_19.extract_has_partnership_programs()
+
+        assert result_19 is True, "Should detect multiple partnership keywords"
+
+        # Test case 20: Empty content
+        html_empty = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_20 = FollowupWebsiteExtractor(html_empty)
+        result_20 = extractor_20.extract_has_partnership_programs()
+
+        assert result_20 is False, "Should return False for empty content"
+
+        # Test case 21: Partnership in context
+        html_context = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission is committed to establishing a formal partnership 
+                    with international organizations to develop global standards for 
+                    animal welfare. This partnership programme will facilitate knowledge 
+                    exchange and coordinate research efforts across borders.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_21 = FollowupWebsiteExtractor(html_context)
+        result_21 = extractor_21.extract_has_partnership_programs()
+
+        assert result_21 is True, "Should detect partnership in longer contextual text"
+
+        # Test case 22: False positive check - "partnerships" not followed by relevant words
+        html_false_positive = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Commission encourages partnerships. This will improve outcomes.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_22 = FollowupWebsiteExtractor(html_false_positive)
+        result_22 = extractor_22.extract_has_partnership_programs()
+
+        assert (
+            result_22 is False
+        ), "Should not match standalone 'partnerships' without context"
+
+        # Test case 23: Public-public partnerships (plural)
+        html_public_public_plural = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    Several public-public partnerships have been formed to address 
+                    cross-border animal health issues.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_23 = FollowupWebsiteExtractor(html_public_public_plural)
+        result_23 = extractor_23.extract_has_partnership_programs()
+
+        assert result_23 is True, "Should detect 'public-public partnerships' (plural)"
 
     def test_extract_court_cases_referenced(self):
         """Test extraction of court case references."""
