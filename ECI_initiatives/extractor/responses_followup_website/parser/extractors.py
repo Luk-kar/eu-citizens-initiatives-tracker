@@ -414,7 +414,16 @@ class FollowupWebsiteExtractor:
         return latest_date
 
     def extract_followup_most_future_date(self):
-        pass
+
+        # Create extractor instance
+        follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
+
+        # Extract applicable boolean using the existing method
+        most_future_date = (
+            follow_up_activity_extractor.extract_followup_most_future_date(self.soup)
+        )
+
+        return most_future_date
 
     def extract_followup_dedicated_website(self):
         pass
@@ -1464,3 +1473,112 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         """Return today's date."""
 
         return datetime.now().date()
+
+    def extract_followup_most_future_date(self, soup: BeautifulSoup) -> Optional[str]:
+        """
+        Extract the furthest future date from follow-up section.
+
+        Finds the most distant future date in the Follow-up section that exceeds
+        the current date, focusing on planned future actions and deadlines.
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+
+        Returns:
+            Furthest future date found in YYYY-MM-DD format that is > today's date.
+            Returns None if no future dates are found, or if the Follow-up
+            section doesn't exist.
+
+        Raises:
+            ValueError: If Answer section not found or critical error occurs during extraction
+        """
+        try:
+            # Find Answer section (acts as starting point for followup content)
+            answer_section = self._find_answer_section(soup)
+
+            if not answer_section:
+                raise ValueError(
+                    f"Answer section not found for {self.registration_number}."
+                )
+
+            # Allowed tags for text extraction
+            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
+
+            # Step 1: Gather all relevant content elements
+            content_elements = self._gather_content_elements(
+                answer_section,
+                ALLOWED_TAGS,
+                check_non_empty=False,  # Don't check for non-empty in gathering phase
+            )
+
+            if not content_elements:
+                raise ValueError(
+                    f"Expected at least one element with tags:\n{ALLOWED_TAGS}\n"
+                    f"for:\n{self.registration_number}"
+                )
+
+            # Step 2: Extract date strings from content elements
+            date_matches = self._extract_dates_from_content_elements(content_elements)
+
+            if not date_matches:
+                return None
+
+            # Step 3: Parse date strings to YYYY-MM-DD format
+            parsed_dates = self._parse_date_strings(date_matches)
+
+            if not parsed_dates:
+                return None
+
+            # Step 4: Filter dates to only those > today and return the furthest
+            most_future_date = self._filter_most_future_date_by_today(parsed_dates)
+
+            return most_future_date
+
+        except Exception as e:
+            raise ValueError(
+                f"Error extracting most future date for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def _filter_most_future_date_by_today(
+        self, parsed_dates: list[str]
+    ) -> Optional[str]:
+        """
+        Filter dates to only include those after today, and return the furthest.
+
+        Removes any past or current dates and returns the most distant future date.
+
+        Args:
+            parsed_dates: List of date strings in YYYY-MM-DD format
+
+        Returns:
+            Furthest future date string in YYYY-MM-DD format that is > today's date.
+            Returns None if input is empty or all dates are in the past/present.
+
+        Raises:
+            ValueError: If critical error occurs during filtering
+        """
+        try:
+            if not parsed_dates:
+                return None
+
+            # Get current date
+            today = self._get_today_date()
+
+            # Filter dates to only include those after today
+            future_dates = []
+            for date_str in parsed_dates:
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+                if date_obj > today:
+                    future_dates.append(date_str)
+
+            if not future_dates:
+                return None
+
+            # Sort dates and return the furthest future date (last in sorted list)
+            future_dates.sort()
+            return future_dates[-1]
+
+        except Exception as e:
+            raise ValueError(
+                f"Error filtering future dates for {self.registration_number}: {str(e)}"
+            ) from e
