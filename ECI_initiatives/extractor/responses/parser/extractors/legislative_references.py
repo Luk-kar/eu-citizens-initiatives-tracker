@@ -366,12 +366,15 @@ class LegislationNameExtractor:
 
     def _split_multiple_legislations(self, items: List[str], keyword: str) -> List[str]:
         """
-        Split items that contain multiple legislations connected by 'and', 'or', or newlines.
+        Split items that contain multiple legislations connected by 'and', 'or', commas, or newlines.
         Removes the original combined items and reconstructs individual references.
 
         Example:
             Input: ["Water Framework Directive and Floods Directive", "Birds Directive"]
             Output: ["Water Framework Directive", "Floods Directive", "Birds Directive"]
+
+            Input: ["GDPR and REACH Regulation"]
+            Output: ["GDPR Regulation", "REACH Regulation"]
 
         Args:
             items: List of legislation strings
@@ -424,8 +427,38 @@ class LegislationNameExtractor:
                             # Reconstruct with keyword
                             split_items.append(f"{part} {keyword}".strip())
                     # NOTE: We do NOT append the original combined item
+
+                elif keyword_count == 1:
+
+                    # Single keyword - check if there are multiple items with shared keyword
+                    # Pattern: "GDPR and REACH Regulation" or "A, B and C Regulation"
+                    pattern = rf"(\w+\s)+(and|or|,|;)\s(\w+\s)+{re.escape(keyword)}"
+
+                    match = re.search(pattern, newline_part, re.IGNORECASE)
+
+                    if match:
+                        # Found pattern like "A and B Regulation"
+                        items_str = match.group(1)
+
+                        # Split by comma, "and", or "or"
+                        individual_items = re.split(
+                            r"\s*(?:and|or|,|;)\s+", items_str, flags=re.IGNORECASE
+                        )
+
+                        # Clean and reconstruct each item with the keyword
+                        for individual_item in individual_items:
+
+                            individual_item = individual_item.strip()
+
+                            if individual_item:
+                                split_items.append(
+                                    f"{individual_item} {keyword}".strip()
+                                )
+                    else:
+                        # Single keyword, no multiple items pattern - keep as is
+                        split_items.append(newline_part)
                 else:
-                    # Single keyword - keep as is
+                    # No keyword found - keep as is (shouldn't happen in normal flow)
                     split_items.append(newline_part)
 
         return split_items
