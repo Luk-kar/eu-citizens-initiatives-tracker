@@ -161,6 +161,7 @@ class LegislationNameExtractor:
         Returns:
             Regex pattern string for matching legislative names
         """
+
         EU_LEGISLATION_PREPOSITIONS = r"(?:of|and|the|for|on|in|to)"
         EU_PUNCTUATION_LINKS = r"\s*[\'\‐]\s*"
         EU_NAME_SPACERS = (
@@ -168,7 +169,13 @@ class LegislationNameExtractor:
         )
         TITLE_CASE_WORD = r"[A-Z]\w*"
 
-        return rf"\b{TITLE_CASE_WORD}(?:{EU_NAME_SPACERS}?\s*{TITLE_CASE_WORD})*(?:{EU_NAME_SPACERS}?\s*{type_legislation})\b"
+        pattern_type_at_end = rf"\b{TITLE_CASE_WORD}(?:{EU_NAME_SPACERS}?\s*{TITLE_CASE_WORD})*(?:{EU_NAME_SPACERS}?\s*{type_legislation})\b"
+
+        # Start with type_legislation, match title, optionally end with type_legislation
+        TITLE_CASE_WORD = rf"(?!{type_legislation}\b)[A-Z]\w*"
+        pattern_type_at_beginning = rf"\b{type_legislation}{EU_NAME_SPACERS}\s*{TITLE_CASE_WORD}(?:{EU_NAME_SPACERS}?\s*{TITLE_CASE_WORD})*\b"
+
+        return rf"\b{pattern_type_at_beginning}|{pattern_type_at_end}\b"
 
     def _extract_pattern_matches(
         self,
@@ -540,7 +547,56 @@ class LegislationNameExtractor:
             if any(keyword in part for keyword in keywords):
                 filtered_parts.append(part.strip())
 
-        return full_text, filtered_parts
+        # Step 3: Split parts that have more than 1 keyword and contain and/or
+        final_parts = []
+
+        for part in filtered_parts:
+            # Count how many keywords are in this part
+            keyword_count = sum(1 for keyword in keywords if keyword in part)
+
+            # Check if part contains "and" or "or" (case-insensitive with word boundaries)
+            has_conjunction = bool(re.search(r"\b(and|or)\b", part, re.IGNORECASE))
+
+            if keyword_count > 1 and has_conjunction:
+                # Split on and/or that appears before a keyword
+                # Pattern: match and|or followed by optional whitespace and then a keyword
+                keywords_pattern = "|".join(re.escape(kw) for kw in keywords)
+                split_pattern = (
+                    rf"\s+\b(and|or)\b\s+(?=(?:the\s+)?(?:{keywords_pattern})\b)"
+                )
+
+                # Split and clean up the parts
+                sub_parts = re.split(split_pattern, part, flags=re.IGNORECASE)
+
+                # Filter out the conjunctions themselves and empty strings
+                for sub_part in sub_parts:
+                    cleaned = sub_part.strip()
+                    if cleaned and cleaned.lower() not in ["and", "or"]:
+                        final_parts.append(cleaned)
+            else:
+                final_parts.append(part)
+
+        # Step 4: Filter out leading and trailing prepositions using regex
+        prepositions_pattern = r"\b(?:the|an|a|of|and|for|on|in|to|at|by|with)\b"
+
+        cleaned_final_parts = []
+        for part in final_parts:
+            # Remove leading prepositions (one or more at the start)
+            cleaned = re.sub(
+                rf"^\s*(?:{prepositions_pattern}\s+)+", "", part, flags=re.IGNORECASE
+            )
+
+            # Remove trailing prepositions (one or more at the end)
+            cleaned = re.sub(
+                rf"(?:\s+{prepositions_pattern})+\s*$", "", cleaned, flags=re.IGNORECASE
+            )
+
+            # Add to result if not empty after cleaning
+            cleaned = cleaned.strip()
+            if cleaned:
+                cleaned_final_parts.append(cleaned)
+
+        return full_text, cleaned_final_parts
 
     def _extract_directives_and_regulations(
         self, filtered_parts: List[str], result: Dict[str, List[str]]
@@ -557,8 +613,10 @@ class LegislationNameExtractor:
         regulation_pattern = self._create_legislative_pattern("Regulation")
 
         for part in filtered_parts:
+
             # Extract directives
             directive_matches = re.findall(directive_pattern, part)
+            print(f"directive_matches:\n|{directive_matches}|")
             for match in directive_matches:
                 result["directives"].append(match.strip())
 
