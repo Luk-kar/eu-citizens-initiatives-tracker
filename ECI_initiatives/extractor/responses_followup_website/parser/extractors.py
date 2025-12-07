@@ -22,6 +22,7 @@ from ...responses.parser.extractors.followup import (
 )
 from ...responses.parser.extractors.structural import StructuralAnalysisExtractor
 from ...responses.parser.base.text_utilities import normalize_whitespace
+from ...responses.parser.extractors.legislative_references import LegislativeReferences
 
 
 # Extraction stubs (no implementation included)
@@ -425,13 +426,23 @@ class FollowupWebsiteExtractor:
 
         return legislation_by_id
 
+    def extract_referenced_legislation_by_name(self):
+
+        # Create extractor instance
+        follow_up_activity_extractor = LegislativeReferences(logger=self.logger)
+
+        legislation_by_name = (
+            follow_up_activity_extractor.extract_referenced_legislation_by_name(
+                self.soup
+            )
+        )
+
+        return legislation_by_name
+
     def extract_followup_dedicated_website(self):
         pass
 
     def extract_followup_events_with_dates(self):
-        pass
-
-    def extract_referenced_legislation_by_name(self):
         pass
 
     def extract_has_followup_section(self):

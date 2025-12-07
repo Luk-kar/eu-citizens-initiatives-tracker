@@ -460,6 +460,7 @@ class StructuralAnalysisExtractor(BaseExtractor):
             self, result: Dict[str, List[str]]
         ) -> Dict[str, List[str]]:
             """Apply cleaning, filtering, and deduplication to all result categories."""
+
             for key in ["directives", "regulations", "treaties", "charters"]:
                 # Clean leading articles
                 result[key] = clean_leading_articles(result[key])

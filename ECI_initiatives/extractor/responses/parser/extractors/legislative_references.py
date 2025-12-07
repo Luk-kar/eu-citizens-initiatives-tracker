@@ -256,6 +256,12 @@ class LegislationNameExtractor:
             "new",
             "Draft",
             "draft",
+            "Implementing",
+            "implementing",
+            "Delegated",
+            "delegated",
+            "Amending",
+            "amending",
         ]
 
         for item in items:
