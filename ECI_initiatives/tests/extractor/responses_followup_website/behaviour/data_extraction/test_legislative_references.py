@@ -497,7 +497,7 @@ class TestLegislativeReferences:
         assert "directives" in result
         assert "Water Framework Directive" in result["directives"]
         assert "regulations" in result
-        assert "REACH Regulation" in result["regulations"]
+        assert "REACH" in result["regulations"]
         assert "treaties" in result
         assert "charters" in result
 

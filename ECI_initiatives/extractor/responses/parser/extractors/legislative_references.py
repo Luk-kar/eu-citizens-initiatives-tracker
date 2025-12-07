@@ -368,20 +368,21 @@ class LegislationNameExtractor:
         """
         Split items that contain multiple legislations connected by 'and', 'or', commas, or newlines.
         Removes the original combined items and reconstructs individual references.
+        Does NOT add keyword suffix to abbreviations or items that already contain it.
 
         Example:
             Input: ["Water Framework Directive and Floods Directive", "Birds Directive"]
             Output: ["Water Framework Directive", "Floods Directive", "Birds Directive"]
 
             Input: ["GDPR and REACH Regulation"]
-            Output: ["GDPR Regulation", "REACH Regulation"]
+            Output: ["GDPR", "REACH"]  # NOT ["GDPR Regulation", "REACH Regulation"]
 
         Args:
             items: List of legislation strings
             keyword: The legislation keyword to split on ("Directive", "Regulation", etc.)
 
         Returns:
-            List of split individual legislation references
+            List of split individual legislation references WITHOUT keyword suffixes
         """
         split_items = []
 
@@ -429,10 +430,9 @@ class LegislationNameExtractor:
                     # NOTE: We do NOT append the original combined item
 
                 elif keyword_count == 1:
-
                     # Single keyword - check if there are multiple items with shared keyword
                     # Pattern: "GDPR and REACH Regulation" or "A, B and C Regulation"
-                    pattern = rf"(\w+\s)+(and|or|,|;)\s(\w+\s)+{re.escape(keyword)}"
+                    pattern = rf"((?:\w+(?:\s+\w+)*(?:,\s*|\s+(?:and|or)\s+))+\w+(?:\s+\w+)*)\s+{re.escape(keyword)}"
 
                     match = re.search(pattern, newline_part, re.IGNORECASE)
 
@@ -442,18 +442,32 @@ class LegislationNameExtractor:
 
                         # Split by comma, "and", or "or"
                         individual_items = re.split(
-                            r"\s*(?:and|or|,|;)\s+", items_str, flags=re.IGNORECASE
+                            r"\s*(?:,|and|or)\s+", items_str, flags=re.IGNORECASE
                         )
 
-                        # Clean and reconstruct each item with the keyword
+                        # Clean each item - DO NOT add keyword suffix
                         for individual_item in individual_items:
-
                             individual_item = individual_item.strip()
 
+                            # Remove trailing conjunction from the part
+                            individual_item = re.sub(
+                                r"\s*\b(?:and|or)\b\s*$",
+                                "",
+                                individual_item,
+                                flags=re.IGNORECASE,
+                            )
+
+                            # Remove leading conjunction from the part
+                            individual_item = re.sub(
+                                r"^\s*\b(?:and|or)\b\s*",
+                                "",
+                                individual_item,
+                                flags=re.IGNORECASE,
+                            )
+
                             if individual_item:
-                                split_items.append(
-                                    f"{individual_item} {keyword}".strip()
-                                )
+                                # DO NOT add keyword - just append the clean item
+                                split_items.append(individual_item.strip())
                     else:
                         # Single keyword, no multiple items pattern - keep as is
                         split_items.append(newline_part)
