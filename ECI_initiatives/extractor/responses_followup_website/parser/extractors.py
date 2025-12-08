@@ -1,9 +1,9 @@
+# Extraction stubs (no implementation included)
 from datetime import datetime, date
 from pathlib import Path
 import re
 from typing import Optional, Dict, List, Union
 import logging
-import re
 
 from bs4 import BeautifulSoup
 
@@ -25,13 +25,60 @@ from ...responses.parser.base.text_utilities import normalize_whitespace
 from ...responses.parser.extractors.legislative_references import LegislativeReferences
 
 
-# Extraction stubs (no implementation included)
 class FollowupWebsiteExtractor:
-    def __init__(self, html_content, logger: Optional[logging.Logger] = None):
+    """Extracts structured data from European Citizens' Initiative followup website HTML."""
+
+    def __init__(self, html_content: str, logger: Optional[logging.Logger] = None):
         self.soup = BeautifulSoup(html_content, "html.parser")
         self.logger = logger or logging.getLogger(__name__)
+        self.registration_number = None
 
-    def extract_registration_number(self, html_file_name: str):
+        # Initialize extractors once (lazy loading via properties)
+        self._outcome_extractor = None
+        self._activity_extractor = None
+        self._structural_extractor = None
+        self._legislative_ref_extractor = None
+
+    @property
+    def outcome_extractor(self):
+        """Lazy initialization of outcome extractor."""
+        if self._outcome_extractor is None:
+            self._outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
+                registration_number=self.registration_number
+            )
+        return self._outcome_extractor
+
+    @property
+    def activity_extractor(self):
+        """Lazy initialization of activity extractor."""
+        if self._activity_extractor is None:
+            self._activity_extractor = FollowUpActivityExtractor(logger=self.logger)
+        return self._activity_extractor
+
+    @property
+    def structural_extractor(self):
+        """Lazy initialization of structural extractor."""
+        if self._structural_extractor is None:
+            self._structural_extractor = StructuralAnalysisExtractor(logger=self.logger)
+        return self._structural_extractor
+
+    @property
+    def legislative_ref_extractor(self):
+        """Lazy initialization of legislative references extractor."""
+        if self._legislative_ref_extractor is None:
+            self._legislative_ref_extractor = LegislativeReferences(logger=self.logger)
+        return self._legislative_ref_extractor
+
+    @property
+    def followup_extractor(self):
+        """Lazy initialization of followup-specific extractor."""
+        if not hasattr(self, "_followup_extractor") or self._followup_extractor is None:
+            self._followup_extractor = FollowupWebsiteFollowUpExtractor(
+                logger=self.logger, registration_number=self.registration_number
+            )
+        return self._followup_extractor
+
+    def extract_registration_number(self, html_file_name: str) -> str:
         """
         Extract registration number from filename.
 
@@ -47,10 +94,7 @@ class FollowupWebsiteExtractor:
         Raises:
             ValueError: If filename doesn't match expected pattern
         """
-        # Get just the filename if full path provided
         filename = Path(html_file_name).name
-
-        # Pattern: YYYY_NNNNNN_en.html
         pattern = r"^(\d{4})_(\d{6})_[a-z]{2}\.html$"
         match = re.match(pattern, filename)
 
@@ -60,10 +104,9 @@ class FollowupWebsiteExtractor:
                 f"Expected format: YYYY_NNNNNN_en.html"
             )
 
-        year = match.group(1)
-        number = match.group(2)
-
-        return f"{year}/{number}"
+        year, number = match.groups()
+        self.registration_number = f"{year}/{number}"
+        return self.registration_number
 
     def extract_commission_answer_text(self) -> str:
         """
@@ -75,54 +118,54 @@ class FollowupWebsiteExtractor:
         Returns:
             Text content with links in [text](url) format, or empty string if not found.
         """
-        # Find the "Response of the Commission" header
-        header = self.soup.find("h2", id="response-of-the-commission")
+        header = self._find_commission_header()
+        if not header:
+            return ""
 
+        content_div = self._get_commission_content_div(header)
+        if not content_div:
+            return ""
+
+        return self._extract_text_with_links(content_div)
+
+    def _find_commission_header(self):
+        """Find the 'Response of the Commission' header element."""
+        header = self.soup.find("h2", id="response-of-the-commission")
         if not header:
             header = self.soup.find(
                 "h2", string=lambda text: text and "Response of the Commission" in text
             )
+        return header
 
-        if not header:
-            return ""
-
-        # Get the parent container and content div
+    def _get_commission_content_div(self, header):
+        """Get the content div following the commission header."""
         header_parent = header.find_parent("div")
         if not header_parent:
-            return ""
+            return None
+        return header_parent.find_next_sibling("div", class_="ecl")
 
-        content_div = header_parent.find_next_sibling("div", class_="ecl")
-        if not content_div:
-            return ""
-
-        # Create a copy to modify
+    def _extract_text_with_links(self, content_div):
+        """Extract text from content div with links converted to markdown."""
         content_copy = content_div.__copy__()
 
         # Remove unwanted elements
-        for button in content_copy.find_all("button"):
-            button.decompose()
+        for element in content_copy.find_all(["button", "svg"]):
+            element.decompose()
 
-        for svg in content_copy.find_all("svg"):
-            svg.decompose()
-
-        # Convert links to markdown format [text](url)
+        # Convert links to markdown format
         for link in content_copy.find_all("a", href=True):
             link_text = link.get_text(strip=True)
             link_url = link.get("href")
-            # Replace the link with markdown format
             link.replace_with(f"[{link_text}]({link_url})")
 
-        # Extract text
-        text_parts = []
-        for element in content_copy.find_all(["p", "li"]):
-            text = element.get_text(separator=" ", strip=True)
-            if text:
-                text_parts.append(text)
+        # Extract text from paragraphs and list items
+        text_parts = [
+            element.get_text(separator=" ", strip=True)
+            for element in content_copy.find_all(["p", "li"])
+            if element.get_text(strip=True)
+        ]
 
-        full_text = "\n".join(text_parts)
-        full_text = " ".join(full_text.split())
-
-        return full_text
+        return " ".join(" ".join(text_parts).split())
 
     def extract_official_communication_document_urls(self) -> Optional[Dict[str, str]]:
         """
@@ -135,326 +178,151 @@ class FollowupWebsiteExtractor:
             Dictionary of {link_text: url} or None if no documents found.
         """
         try:
-            all_links = []
-
-            # Search through ALL links in the document
-            for link in self.soup.find_all("a", href=True):
-                link_text = link.get_text(strip=True)
-                href = link.get("href", "")
-
-                # Strategy 1: Match links with Communication/Annex in text
-                if re.search(
-                    r"(Communication|Annex|Annexes)", link_text, re.IGNORECASE
-                ):
-                    all_links.append(link)
-                    continue
-
-                # Strategy 2: Match EC transparency register URLs (official Communications)
-                if re.search(
-                    r"ec\.europa\.eu/transparency/documents-register",
-                    href,
-                    re.IGNORECASE,
-                ):
-                    all_links.append(link)
-                    continue
-
-                # Strategy 3: Match EC presscorner URLs (press releases about Communications)
-                if re.search(
-                    r"ec\.europa\.eu/commission/presscorner", href, re.IGNORECASE
-                ):
-                    all_links.append(link)
-                    continue
-
+            all_links = self._collect_communication_links()
             if not all_links:
                 return None
 
-            # Build dictionary of {text: url}
-            links_dict = {}
-            for link in all_links:
-                text = link.get_text(strip=True)
-                url = link.get("href", "")
+            links_dict = self._build_links_dictionary(all_links)
+            filtered_links = self._filter_excluded_urls(links_dict)
 
-                # Skip empty text or urls
-                if not text or not url:
-                    continue
-
-                links_dict[text] = url
-
-            # Exclusion patterns - remove initiative overview pages
-            exclude_patterns = [
-                r"https?://ec\.citizens-initiative\.europa\.eu/public/initiatives/successful/details/\d{4}/\d{6}(_[a-z]{2})?/?$",
-                r"https?://citizens-initiative\.europa\.eu/initiatives/details/\d{4}/\d{6}[_]?[a-z]{2}/?$",
-            ]
-
-            # Remove duplicates by URL and apply exclusion patterns
-            seen_urls = set()
-            filtered_links_dict = {}
-
-            for text, url in links_dict.items():
-                if url in seen_urls:
-                    continue
-
-                should_exclude = False
-                for pattern in exclude_patterns:
-                    if re.match(pattern, url):
-                        should_exclude = True
-                        break
-
-                if not should_exclude:
-                    filtered_links_dict[text] = url
-                    seen_urls.add(url)
-
-            return filtered_links_dict if filtered_links_dict else None
+            return filtered_links if filtered_links else None
 
         except Exception as e:
             raise ValueError(
                 f"Error extracting official communication document URLs: {str(e)}"
             ) from e
 
+    def _collect_communication_links(self) -> List:
+        """Collect all links matching communication criteria."""
+        all_links = []
+
+        for link in self.soup.find_all("a", href=True):
+            link_text = link.get_text(strip=True)
+            href = link.get("href", "")
+
+            if self._is_communication_link(link_text, href):
+                all_links.append(link)
+
+        return all_links
+
+    def _is_communication_link(self, link_text: str, href: str) -> bool:
+        """Check if link matches communication criteria."""
+        # Match links with Communication/Annex in text
+        if re.search(r"(Communication|Annex|Annexes)", link_text, re.IGNORECASE):
+            return True
+
+        # Match EC transparency register URLs
+        if re.search(
+            r"ec\.europa\.eu/transparency/documents-register", href, re.IGNORECASE
+        ):
+            return True
+
+        # Match EC presscorner URLs
+        if re.search(r"ec\.europa\.eu/commission/presscorner", href, re.IGNORECASE):
+            return True
+
+        return False
+
+    def _build_links_dictionary(self, links: List) -> Dict[str, str]:
+        """Build dictionary from link elements."""
+        return {
+            link.get_text(strip=True): link.get("href", "")
+            for link in links
+            if link.get_text(strip=True) and link.get("href", "")
+        }
+
+    def _filter_excluded_urls(self, links_dict: Dict[str, str]) -> Dict[str, str]:
+        """Remove duplicate and excluded URLs."""
+        exclude_patterns = [
+            r"https?://ec\.citizens-initiative\.europa\.eu/public/initiatives/successful/details/\d{4}/\d{6}(_[a-z]{2})?/?$",
+            r"https?://citizens-initiative\.europa\.eu/initiatives/details/\d{4}/\d{6}[_]?[a-z]{2}/?$",
+        ]
+
+        seen_urls = set()
+        filtered_links = {}
+
+        for text, url in links_dict.items():
+            if url in seen_urls:
+                continue
+
+            if not any(re.match(pattern, url) for pattern in exclude_patterns):
+                filtered_links[text] = url
+                seen_urls.add(url)
+
+        return filtered_links
+
+    # Outcome extraction methods (delegating to outcome_extractor)
     def extract_final_outcome_status(self) -> Optional[str]:
-        """
-        Extract the final outcome status of the initiative.
-
-        Uses a custom LegislativeOutcomeExtractor for followup website structure
-        to determine the highest status reached by the initiative
-        (e.g., "Law Active", "Law Promised", "Rejected").
-
-        Returns:
-            Citizen-friendly status string or None if status cannot be determined.
-        """
-
-        # Use custom extractor for followup website structure
-        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
-            registration_number=(
-                self.registration_number
-                if hasattr(self, "registration_number")
-                else None
-            )
-        )
-
-        # Extract status using the existing method
-        status = outcome_extractor.extract_highest_status_reached(self.soup)
-
-        return status
+        """Extract the final outcome status of the initiative."""
+        return self.outcome_extractor.extract_highest_status_reached(self.soup)
 
     def extract_law_implementation_date(self) -> Optional[str]:
-        """
-        Extract the date when regulation/directive became applicable.
-
-        Uses the FollowupWebsiteLegislativeOutcomeExtractor to extract the
-        implementation deadline/applicable date from the followup website.
-
-        Returns:
-            Date string in YYYY-MM-DD format or None if not applicable.
-        """
-
-        # Create extractor instance
-        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
-            registration_number=(
-                self.registration_number
-                if hasattr(self, "registration_number")
-                else None
-            )
-        )
-
-        # Extract applicable date using the existing method
-        date = outcome_extractor.extract_applicable_date(self.soup)
-
-        return date
+        """Extract the date when regulation/directive became applicable."""
+        return self.outcome_extractor.extract_applicable_date(self.soup)
 
     def extract_commission_promised_new_law(self):
-
-        # Create extractor instance
-        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
-            registration_number=(
-                self.registration_number
-                if hasattr(self, "registration_number")
-                else None
-            )
-        )
-
-        is_new_law = outcome_extractor.extract_proposal_commitment_stated(self.soup)
-
-        return is_new_law
+        """Check if Commission promised new law."""
+        return self.outcome_extractor.extract_proposal_commitment_stated(self.soup)
 
     def extract_commissions_deadlines(self):
-
-        # Create extractor instance
-        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
-            registration_number=(
-                self.registration_number
-                if hasattr(self, "registration_number")
-                else None
-            )
-        )
-
-        commissions_deadlines = outcome_extractor.extract_commissions_deadlines(
-            self.soup
-        )
-
-        return commissions_deadlines
+        """Extract Commission's deadlines."""
+        return self.outcome_extractor.extract_commissions_deadlines(self.soup)
 
     def extract_commission_rejected_initiative(self):
-
-        # Create extractor instance
-        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
-            registration_number=(
-                self.registration_number
-                if hasattr(self, "registration_number")
-                else None
-            )
-        )
-
-        commissions_deadlines = outcome_extractor.extract_proposal_rejected(self.soup)
-
-        return commissions_deadlines
+        """Check if Commission rejected the initiative."""
+        return self.outcome_extractor.extract_proposal_rejected(self.soup)
 
     def extract_commission_rejection_reason(self):
-
-        # Create extractor instance
-        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
-            registration_number=(
-                self.registration_number
-                if hasattr(self, "registration_number")
-                else None
-            )
-        )
-
-        commissions_deadlines = outcome_extractor.extract_rejection_reasoning(self.soup)
-
-        return commissions_deadlines
+        """Extract Commission's rejection reasoning."""
+        return self.outcome_extractor.extract_rejection_reasoning(self.soup)
 
     def extract_laws_actions(self):
-
-        # Create extractor instance
-        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
-            registration_number=(
-                self.registration_number
-                if hasattr(self, "registration_number")
-                else None
-            )
-        )
-
-        laws_actions = outcome_extractor.extract_legislative_action(self.soup)
-
-        return laws_actions
+        """Extract legislative actions."""
+        return self.outcome_extractor.extract_legislative_action(self.soup)
 
     def extract_policies_actions(self):
-        # Create extractor instance
-        outcome_extractor = FollowupWebsiteLegislativeOutcomeExtractor(
-            registration_number=(
-                self.registration_number
-                if hasattr(self, "registration_number")
-                else None
-            )
-        )
-
-        policies_actions = outcome_extractor.extract_non_legislative_action(self.soup)
-
-        return policies_actions
+        """Extract non-legislative actions."""
+        return self.outcome_extractor.extract_non_legislative_action(self.soup)
 
     def extract_has_roadmap(self):
-
-        # Create extractor instance
-        follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
-
-        has_roadmap = follow_up_activity_extractor.extract_has_roadmap(self.soup)
-
-        return has_roadmap
+        """Check if initiative has a roadmap."""
+        return self.outcome_extractor.extract_has_roadmap(self.soup)
 
     def extract_has_workshop(self):
-
-        # Create extractor instance
-        follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
-
-        has_workshop = follow_up_activity_extractor.extract_has_workshop(self.soup)
-
-        return has_workshop
+        """Check if initiative has workshops."""
+        return self.outcome_extractor.extract_has_workshop(self.soup)
 
     def extract_has_partnership_programs(self):
+        """Check if initiative has partnership programs."""
+        return self.outcome_extractor.extract_has_partnership_programs(self.soup)
 
-        # Create extractor instance
-        follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
-
-        has_workshop = follow_up_activity_extractor.extract_has_partnership_programs(
-            self.soup
-        )
-
-        return has_workshop
-
+    # Activity extraction methods (delegating to activity_extractor)
     def extract_court_cases_referenced(self):
-
-        # Create extractor instance
-        follow_up_activity_extractor = FollowUpActivityExtractor(logger=self.logger)
-
-        court_cases = follow_up_activity_extractor.extract_court_cases_referenced(
-            self.soup
-        )
-
-        return court_cases
+        """Extract referenced court cases."""
+        return self.activity_extractor.extract_court_cases_referenced(self.soup)
 
     def extract_followup_latest_date(self):
+        """Extract latest followup date."""
+        return self.outcome_extractor.extract_followup_latest_date(self.soup)
 
-        # Create extractor instance
-        follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
+    def extract_followup_most_future_date(self):
+        """Extract most future followup date."""
+        return self.outcome_extractor.extract_followup_most_future_date(self.soup)
 
-        latest_date = follow_up_activity_extractor.extract_followup_latest_date(
+    # Legislative reference extraction methods
+    def extract_referenced_legislation_by_id(self):
+        """Extract referenced legislation by ID."""
+        return self.structural_extractor.extract_referenced_legislation_by_id(self.soup)
+
+    def extract_referenced_legislation_by_name(self):
+        """Extract referenced legislation by name."""
+        return self.legislative_ref_extractor.extract_referenced_legislation_by_name(
             self.soup
         )
 
-        return latest_date
-
-    def extract_followup_most_future_date(self):
-
-        # Create extractor instance
-        follow_up_activity_extractor = FollowupWebsiteLegislativeOutcomeExtractor()
-
-        most_future_date = (
-            follow_up_activity_extractor.extract_followup_most_future_date(self.soup)
-        )
-
-        return most_future_date
-
-    def extract_referenced_legislation_by_id(self):
-
-        # Create extractor instance
-        follow_up_activity_extractor = StructuralAnalysisExtractor(logger=self.logger)
-
-        legislation_by_id = (
-            follow_up_activity_extractor.extract_referenced_legislation_by_id(self.soup)
-        )
-
-        return legislation_by_id
-
-    def extract_referenced_legislation_by_name(self):
-
-        # Create extractor instance
-        follow_up_activity_extractor = LegislativeReferences(logger=self.logger)
-
-        legislation_by_name = (
-            follow_up_activity_extractor.extract_referenced_legislation_by_name(
-                self.soup
-            )
-        )
-
-        return legislation_by_name
-
     def extract_followup_events_with_dates(self):
-        # Create extractor instance
-        follow_up_activity_extractor = FollowupWebsiteFollowUpExtractor(
-            logger=self.logger,
-            registration_number=(
-                self.registration_number
-                if hasattr(self, "registration_number")
-                else None
-            ),
-        )
-
-        events_with_dates = (
-            follow_up_activity_extractor.extract_followup_events_with_dates(self.soup)
-        )
-
-        return events_with_dates
+        """Extract followup events with their dates."""
+        return self.followup_extractor.extract_followup_events_with_dates(self.soup)
 
 
 class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
