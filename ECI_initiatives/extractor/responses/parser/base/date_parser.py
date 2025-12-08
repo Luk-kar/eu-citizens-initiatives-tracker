@@ -57,15 +57,17 @@ def parse_date_string(date_str: str) -> Optional[str]:
 
 def convert_deadline_to_date(deadline: str) -> Optional[str]:
     """
-    Convert deadline text to YYYY-MM-DD format (last day of month/year).
+    Convert deadline text to YYYY-MM-DD format (last day of period).
 
     Args:
         deadline: Cleaned deadline text like "may 2018", "the end of 2023",
-                    "end 2024", "2019", "early 2026", or complete dates like
-                    "12 december 2025"
+                    "end 2024", "2019", "early 2026", "Q1 2023",
+                    "first half of 2023", "second quarter of 2024",
+                    "since 2023", or complete dates like "12 december 2025"
 
     Returns:
-        Date string in YYYY-MM-DD format (last day of period) or None if parsing fails
+        Date string in YYYY-MM-DD format (last day of period, or first day for "since")
+        or None if parsing fails
 
     Examples:
         - "12 December 2025" → "2025-12-12"
@@ -76,6 +78,14 @@ def convert_deadline_to_date(deadline: str) -> Optional[str]:
         - "2019" → "2019-12-31"
         - "March 2026" → "2026-03-31"
         - "early 2026" → "2026-03-31"
+        - "first half of 2023" → "2023-06-30"
+        - "second half of 2023" → "2023-12-31"
+        - "half of 2023" → "2023-06-30"
+        - "first quarter of 2024" → "2024-03-31"
+        - "Q1 2023" → "2023-03-31"
+        - "Q2 2023" → "2023-06-30"
+        - "middle of 2023" → "2023-06-30"
+        - "since 2023" → "2023-01-01"
     """
     deadline_lower = deadline.lower().strip()
 
@@ -83,29 +93,87 @@ def convert_deadline_to_date(deadline: str) -> Optional[str]:
     if not re.search(r"\d{4}", deadline_lower):
         return None
 
-    # Pattern 1: "the end of YYYY" or "end of YYYY"
+    # Extract year for use in patterns
+    year_match = re.search(r"(\d{4})", deadline_lower)
+    if not year_match:
+        return None
+    year = int(year_match.group(1))
+
+    # Pattern: "since YYYY" - interpret as start of year (January 1)
+    since_match = re.search(r"\bsince\s+(\d{4})\b", deadline_lower)
+    if since_match:
+        return f"{year}-01-01"
+
+    # Pattern: Quarters - "Q1 YYYY", "Q2 YYYY", etc.
+    quarter_q_match = re.search(r"\bq([1-4])\s+\d{4}\b", deadline_lower)
+    if quarter_q_match:
+        quarter = int(quarter_q_match.group(1))
+        quarter_end_months = {1: 3, 2: 6, 3: 9, 4: 12}
+        month = quarter_end_months[quarter]
+        last_day = calendar.monthrange(year, month)[1]
+        return f"{year}-{month:02d}-{last_day:02d}"
+
+    # Pattern: Quarters - "first quarter of YYYY", "second quarter of YYYY", etc.
+    quarter_text_match = re.search(
+        r"\b(first|second|third|fourth|last)\s+quarter(?:\s+of)?\s+\d{4}\b",
+        deadline_lower,
+    )
+    if quarter_text_match:
+        quarter_text = quarter_text_match.group(1)
+        quarter_map = {"first": 1, "second": 2, "third": 3, "fourth": 4, "last": 4}
+        quarter = quarter_map.get(quarter_text)
+        if quarter:
+            quarter_end_months = {1: 3, 2: 6, 3: 9, 4: 12}
+            month = quarter_end_months[quarter]
+            last_day = calendar.monthrange(year, month)[1]
+            return f"{year}-{month:02d}-{last_day:02d}"
+
+    # Pattern: Halves - "first half of YYYY", "second half of YYYY", "last half of YYYY"
+    half_match = re.search(
+        r"\b(first|second|last)\s+half(?:\s+of)?\s+\d{4}\b", deadline_lower
+    )
+    if half_match:
+        half_text = half_match.group(1)
+        if half_text in ["first"]:
+            # First half ends June 30
+            last_day = calendar.monthrange(year, 6)[1]
+            return f"{year}-06-{last_day:02d}"
+        elif half_text in ["second", "last"]:
+            # Second/last half ends December 31
+            return f"{year}-12-31"
+
+    # Pattern: Generic "half of YYYY" - interpret as mid-year (June 30)
+    half_generic_match = re.search(r"\bhalf(?:\s+of)?\s+\d{4}\b", deadline_lower)
+    if half_generic_match:
+        last_day = calendar.monthrange(year, 6)[1]
+        return f"{year}-06-{last_day:02d}"
+
+    # Pattern: "middle of YYYY" - interpret as end of first half (June 30)
+    middle_match = re.search(r"\bmiddle(?:\s+of)?\s+\d{4}\b", deadline_lower)
+    if middle_match:
+        last_day = calendar.monthrange(year, 6)[1]
+        return f"{year}-06-{last_day:02d}"
+
+    # Pattern: "the end of YYYY" or "end of YYYY"
     endof_match = re.match(r"(?:the\s+)?end\s+of\s+(\d{4})", deadline_lower)
     if endof_match:
-        year = int(endof_match.group(1))
         return f"{year}-12-31"
 
-    # Pattern 1b: "end YYYY" (without "of")
+    # Pattern: "end YYYY" (without "of")
     end_match = re.match(r"end\s+(\d{4})", deadline_lower)
     if end_match:
-        year = int(end_match.group(1))
         return f"{year}-12-31"
 
-    # Pattern 2: "early YYYY" (interpret as end of Q1 = March 31)
+    # Pattern: "early YYYY" (interpret as end of Q1 = March 31)
     early_match = re.match(r"early\s+(\d{4})", deadline_lower)
     if early_match:
-        year = int(early_match.group(1))
-        return f"{year}-03-31"
+        last_day = calendar.monthrange(year, 3)[1]
+        return f"{year}-03-{last_day:02d}"
 
-    # Pattern 3: "Month YYYY" (e.g., "May 2018", "march 2026")
+    # Pattern: "Month YYYY" (e.g., "May 2018", "march 2026")
     monthyear_match = re.match(r"([a-z]+)\s+(\d{4})", deadline_lower)
     if monthyear_match:
         month_name = monthyear_match.group(1).capitalize()
-        year = int(monthyear_match.group(2))
 
         # Parse month name to month number
         try:
@@ -124,13 +192,12 @@ def convert_deadline_to_date(deadline: str) -> Optional[str]:
         last_day = calendar.monthrange(year, month_num)[1]
         return f"{year}-{month_num:02d}-{last_day:02d}"
 
-    # Pattern 4: Just a year "YYYY" (e.g., "2019")
+    # Pattern: Just a year "YYYY" (e.g., "2019")
     year_only_match = re.match(r"^(\d{4})$", deadline_lower)
     if year_only_match:
-        year = int(year_only_match.group(1))
         return f"{year}-12-31"
 
-    # Pattern 5: Complete date with day (e.g., "12 December 2025", "1 August 2025")
+    # Pattern: Complete date with day (e.g., "12 December 2025", "1 August 2025")
     # Try to parse as complete date first
     complete_date = parse_date_string(deadline)
     if complete_date:

@@ -824,9 +824,10 @@ class FollowUpActivityExtractor(BaseExtractor):
         (e.g., if "01 February 2018" is found, "February 2018" won't be extracted).
 
         Supported formats:
-        - DD Month YYYY (e.g., "28 October 2015") → YYYY-MM-DD
-        - Month YYYY (e.g., "February 2018") → YYYY-MM-01 (first day) or YYYY-MM-DD (last day)
-        - YYYY (e.g., "2021") → YYYY-01-01
+        - DD Month YYYY (e.g., "28 October 2015", "15 Mar 2021") → YYYY-MM-DD
+        - YYYY-MM-DD (e.g., "2025-09-10") → ISO format
+        - Month YYYY (e.g., "February 2018", "Mar 2024") → YYYY-MM-DD (last day)
+        - YYYY (e.g., "2021") → YYYY-12-31
         - Deadline expressions (e.g., "early 2026", "end of 2023") → converted appropriately
 
         Args:
@@ -837,20 +838,28 @@ class FollowUpActivityExtractor(BaseExtractor):
         """
 
         # Generate month names pattern from calendar module
-        month_names_pattern = "|".join(
+        month_names_full = "|".join(
             calendar.month_name[1:]
-        )  # Excludes empty string at index 0
+        )  # Full: January, February, ...
+        month_names_abbr = "|".join(
+            calendar.month_abbr[1:]
+        )  # Abbreviated: Jan, Feb, ...
+
+        # Combine full and abbreviated month names
+        month_names_pattern = f"(?:{month_names_full}|{month_names_abbr})"
 
         # Date patterns ordered by specificity (most specific first)
         date_patterns = [
-            # DD Month YYYY (e.g., "28 October 2015", "01 February 2018")
+            # ISO format YYYY-MM-DD (e.g., "2025-09-10", "2024-12-31")
+            (r"\b(\d{4})-(\d{1,2})-(\d{1,2})\b", "iso"),
+            # DD Month YYYY (e.g., "28 October 2015", "01 February 2018", "15 Mar 2021")
             (rf"\b(\d{{1,2}})\s+({month_names_pattern})\s+(\d{{4}})\b", "dmy"),
             # Deadline expressions (e.g., "early 2026", "end of 2023", "end 2024")
             (
                 rf"\b(?:early|end(?:\s+of)?)\s+(?:({month_names_pattern})\s+)?(\d{{4}})\b",
                 "deadline",
             ),
-            # Month YYYY (e.g., "February 2018", "October 2015")
+            # Month YYYY (e.g., "February 2018", "October 2015", "Mar 2024", "Jun 2023")
             (rf"\b({month_names_pattern})\s+(\d{{4}})\b", "deadline"),
             # YYYY only (e.g., "2021", "2023")
             (r"\b(20\d{2})\b", "y"),
@@ -898,22 +907,50 @@ class FollowUpActivityExtractor(BaseExtractor):
 
         Args:
             match: Regex match object
-            date_type: Type of date format ('dmy', 'my', or 'y')
+            date_type: Type of date format ('iso', 'dmy', 'my', or 'y')
 
         Returns:
             ISO 8601 formatted date string (YYYY-MM-DD), or None if parsing fails
         """
 
         try:
-            if date_type == "dmy":
+            if date_type == "iso":
+                # ISO format YYYY-MM-DD (e.g., "2025-09-10")
+                year = int(match.group(1))
+                month = int(match.group(2))
+                day = int(match.group(3))
 
-                # DD Month YYYY format
+                # Validate month and day ranges
+                if not (1 <= month <= 12):
+                    return None
+
+                max_day = calendar.monthrange(year, month)[1]
+                if not (1 <= day <= max_day):
+                    return None
+
+                return f"{year:04d}-{month:02d}-{day:02d}"
+
+            elif date_type == "dmy":
+
+                # DD Month YYYY format (e.g., "28 October 2015" or "15 Mar 2021")
                 day = int(match.group(1))
                 month_name = match.group(2).capitalize()
                 year = int(match.group(3))
 
-                # Convert month name to number using datetime
-                month = datetime.strptime(month_name, "%B").month
+                # Convert month name to number - try full name first, then abbreviated
+                month = None
+                try:
+                    month = datetime.strptime(month_name, "%B").month  # Full: January
+                except ValueError:
+                    try:
+                        month = datetime.strptime(
+                            month_name, "%b"
+                        ).month  # Abbreviated: Jan
+                    except ValueError:
+                        return None
+
+                if month is None:
+                    return None
 
                 # Validate day is within valid range for the month
                 max_day = calendar.monthrange(year, month)[1]
@@ -923,12 +960,24 @@ class FollowUpActivityExtractor(BaseExtractor):
                 return f"{year:04d}-{month:02d}-{day:02d}"
 
             elif date_type == "my":
-                # Month YYYY format
+                # Month YYYY format (e.g., "February 2018" or "Mar 2024")
                 month_name = match.group(1).capitalize()
                 year = int(match.group(2))
 
-                # Convert month name to number using datetime
-                month = datetime.strptime(month_name, "%B").month
+                # Convert month name to number - try full name first, then abbreviated
+                month = None
+                try:
+                    month = datetime.strptime(month_name, "%B").month  # Full: January
+                except ValueError:
+                    try:
+                        month = datetime.strptime(
+                            month_name, "%b"
+                        ).month  # Abbreviated: Jan
+                    except ValueError:
+                        return None
+
+                if month is None:
+                    return None
 
                 return f"{year:04d}-{month:02d}-01"
 

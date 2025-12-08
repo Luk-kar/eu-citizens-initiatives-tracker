@@ -1734,8 +1734,386 @@ class TestFollowupActivityExtraction:
 
     def test_extract_followup_events_with_dates(self):
         """Test extraction of structured follow-up events."""
-        # TODO: Test single date extraction
-        # TODO: Test multiple dates per event
-        # TODO: Test date format parsing
-        # TODO: Test event description extraction
-        pass
+
+        # Test 1: Single event with single date
+        html_single_date = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <p>The Commission will adopt a legislative proposal by 15 March 2025.</p>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="related-links">Related links</h2>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_1 = FollowupWebsiteExtractor(html_single_date)
+        result_1 = extractor_1.extract_followup_events_with_dates()
+
+        assert result_1 is not None, "Should return list of events"
+        assert len(result_1) == 1, "Should extract one event"
+        assert result_1[0]["dates"] == ["2025-03-15"], "Should extract single date"
+        assert (
+            "legislative proposal" in result_1[0]["action"]
+        ), "Should extract action text"
+
+        # Test 2: Single event with multiple dates
+        html_multiple_dates = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <p>Public consultation from 20 January 2025 to 15 March 2025, with interim report on 10 February 2025.</p>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="press-release">Press release</h2>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_2 = FollowupWebsiteExtractor(html_multiple_dates)
+        result_2 = extractor_2.extract_followup_events_with_dates()
+
+        assert len(result_2) == 1, "Should extract one event"
+        assert len(result_2[0]["dates"]) == 3, "Should extract three dates"
+        assert "2025-01-20" in result_2[0]["dates"], "Should extract start date"
+        assert "2025-02-10" in result_2[0]["dates"], "Should extract interim date"
+        assert "2025-03-15" in result_2[0]["dates"], "Should extract end date"
+
+        # Test 3: Multiple events with various date counts
+        html_multiple_events = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="follow-up">Follow-up actions</h2>
+                </div>
+                <div class="ecl">
+                    <p>Workshop scheduled for 20 March 2025.</p>
+                    <p>The Commission is working with stakeholders.</p>
+                    <p>Final report due 15 June 2025 and 30 September 2025.</p>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="video">Video</h2>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_3 = FollowupWebsiteExtractor(html_multiple_events)
+        result_3 = extractor_3.extract_followup_events_with_dates()
+
+        assert len(result_3) == 3, "Should extract three events"
+        assert len(result_3[0]["dates"]) == 1, "First event has one date"
+        assert len(result_3[1]["dates"]) == 0, "Second event has no dates"
+        assert len(result_3[2]["dates"]) == 2, "Third event has two dates"
+
+        # Test 4: List items extraction
+        html_with_lists = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <ul>
+                        <li>Impact assessment by 10 January 2025</li>
+                        <li>Stakeholder consultation by 20 March 2025</li>
+                        <li>Legislative proposal by 15 June 2025</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="related-links">Related links</h2>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_4 = FollowupWebsiteExtractor(html_with_lists)
+        result_4 = extractor_4.extract_followup_events_with_dates()
+
+        assert len(result_4) == 3, "Should extract three list items"
+        assert result_4[0]["dates"] == ["2025-01-10"], "First item date"
+        assert result_4[1]["dates"] == ["2025-03-20"], "Second item date"
+        assert result_4[2]["dates"] == ["2025-06-15"], "Third item date"
+
+        # Test 5: Various date formats
+        html_date_formats = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="timeline">Timeline</h2>
+                </div>
+                <div class="ecl">
+                    <p>Full format: 15 March 2025</p>
+                    <p>Abbreviated: 20 Jun 2025</p>
+                    <p>ISO format: 2025-09-10</p>
+                    <p>Month only: February 2025</p>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="press-release">Press release</h2>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_5 = FollowupWebsiteExtractor(html_date_formats)
+        result_5 = extractor_5.extract_followup_events_with_dates()
+
+        assert len(result_5) == 4, "Should extract four events"
+        assert "2025-03-15" in result_5[0]["dates"], "Should parse full format"
+        assert "2025-06-20" in result_5[1]["dates"], "Should parse abbreviated format"
+        assert "2025-09-10" in result_5[2]["dates"], "Should parse ISO format"
+        assert len(result_5[3]["dates"]) > 0, "Should parse month-only format"
+
+        # Test 6: Link preservation in action text
+        html_with_links = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <p>See the <a href="https://example.com/report">impact assessment report</a> published on 15 March 2025.</p>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="related-links">Related links</h2>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_6 = FollowupWebsiteExtractor(html_with_links)
+        result_6 = extractor_6.extract_followup_events_with_dates()
+
+        assert len(result_6) == 1, "Should extract one event"
+        assert (
+            "https://example.com/report" in result_6[0]["action"]
+        ), "Should preserve link URL"
+        assert (
+            "impact assessment report" in result_6[0]["action"]
+        ), "Should preserve link text"
+
+        # Test 7: Stop at press-release section
+        html_stop_press = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <p>Before press release: 15 March 2025</p>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="press-release">Press release</h2>
+                </div>
+                <div class="ecl">
+                    <p>After press release: 20 June 2025</p>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_7 = FollowupWebsiteExtractor(html_stop_press)
+        result_7 = extractor_7.extract_followup_events_with_dates()
+
+        assert len(result_7) == 1, "Should stop at press-release"
+        assert (
+            "Before press release" in result_7[0]["action"]
+        ), "Should only extract before stop section"
+        assert not any(
+            "After press release" in r["action"] for r in result_7
+        ), "Should not extract after stop section"
+
+        # Test 8: No response section - raises ValueError
+        html_no_section = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="some-other-section">Other Section</h2>
+                </div>
+                <div class="ecl">
+                    <p>Content with date 15 March 2025.</p>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_8 = FollowupWebsiteExtractor(html_no_section)
+
+        try:
+            extractor_8.extract_followup_events_with_dates()
+            assert False, "Should raise ValueError when Response section is not found"
+        except ValueError as e:
+            assert (
+                "response of the commission" in str(e).lower()
+            ), "Should mention Response section not found"
+
+        # Test 9: No content after response section - raises ValueError
+        html_no_content = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="related-links">Related links</h2>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_9 = FollowupWebsiteExtractor(html_no_content)
+
+        try:
+            extractor_9.extract_followup_events_with_dates()
+            assert False, "Should raise ValueError when no content elements found"
+        except ValueError as e:
+            assert (
+                "no valid follow-up actions found" in str(e).lower()
+            ), "Should mention no actions found"
+
+        # Test 10: Real-world example - End the Cage Age
+        html_real_world = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <p>As established by the Vision for Agriculture adopted on 19 February 2024.</p>
+                    <p>Further to the call for evidence launched on 18 March 2024 (and closed on 16 May 2024), 
+                    the Commission published on 19 September 2024 a public consultation which will run until 12 December 2024.</p>
+                    <ul>
+                        <li>Impact assessment: Q2 2025</li>
+                        <li>Legislative proposal: Q4 2025</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="press-release">Press release</h2>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_10 = FollowupWebsiteExtractor(html_real_world)
+        result_10 = extractor_10.extract_followup_events_with_dates()
+
+        assert len(result_10) == 4, "Should extract 2 paragraphs + 2 list items"
+        # First paragraph should have 1 date
+        assert len(result_10[0]["dates"]) == 1, "First paragraph has 1 date"
+        assert "2024-02-19" in result_10[0]["dates"], "Should extract Feb 19 date"
+        # Second paragraph should have 4 dates
+        assert len(result_10[1]["dates"]) == 4, "Second paragraph has 4 dates"
+        # List items
+        assert (
+            "Impact assessment" in result_10[2]["action"]
+        ), "Should extract first list item"
+        assert (
+            "Legislative proposal" in result_10[3]["action"]
+        ), "Should extract second list item"
+
+        # Test 11: Nested content structure
+        html_nested = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="timeline">Timeline</h2>
+                </div>
+                <div class="ecl">
+                    <div class="nested-content">
+                        <p>Nested paragraph with date 15 March 2025.</p>
+                        <ul>
+                            <li>Nested list item with date 20 June 2025.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="video">Video</h2>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_11 = FollowupWebsiteExtractor(html_nested)
+        result_11 = extractor_11.extract_followup_events_with_dates()
+
+        assert len(result_11) == 2, "Should extract nested content"
+        assert (
+            "2025-03-15" in result_11[0]["dates"]
+        ), "Should extract date from nested paragraph"
+        assert (
+            "2025-06-20" in result_11[1]["dates"]
+        ), "Should extract date from nested list item"
