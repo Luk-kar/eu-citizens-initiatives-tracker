@@ -616,12 +616,13 @@ class LegislationNameExtractor:
 
             # Extract directives
             directive_matches = re.findall(directive_pattern, part)
-            print(f"directive_matches:\n|{directive_matches}|")
+
             for match in directive_matches:
                 result["directives"].append(match.strip())
 
             # Extract regulations
             regulation_matches = re.findall(regulation_pattern, part)
+
             for match in regulation_matches:
                 result["regulations"].append(match.strip())
 
