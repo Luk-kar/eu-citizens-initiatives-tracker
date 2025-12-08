@@ -1,12 +1,14 @@
-# Extraction stubs (no implementation included)
+# Python
 from datetime import datetime, date
 from pathlib import Path
 import re
 from typing import Optional, Dict, List, Union
 import logging
 
+# Third-party
 from bs4 import BeautifulSoup
 
+# Local
 from ...responses.parser.extractors.outcome import (
     LegislativeOutcomeExtractor,
     APPLICABLE_DATE_PATTERNS,
