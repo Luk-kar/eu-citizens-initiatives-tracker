@@ -2,7 +2,7 @@
 from datetime import datetime, date
 from pathlib import Path
 import re
-from typing import Optional, Dict, List, Union
+from typing import Optional, Dict, List, Union, Callable
 import logging
 
 # Third-party
@@ -336,6 +336,9 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
     are wrapped in separate <div class="ecl"> containers.
     """
 
+    # Class constant for standard content tags (excludes "ul" to avoid duplicates with "li")
+    DEFAULT_CONTENT_TAGS = ["li", "p", "ol", "pre"]
+
     def _find_answer_section(self, soup: BeautifulSoup):
         """
         Find the Answer section header in followup website HTML.
@@ -373,7 +376,6 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             if not section_header:
                 # Try alternative patterns
                 if section_id == "follow-up-on-the-commissions-actions":
-                    # Try variations
                     section_header = soup.find(
                         "h2", string=lambda t: t and "follow-up" in t.lower()
                     )
@@ -383,7 +385,7 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                     )
 
             if not section_header:
-                continue  # Skip this section if not found
+                continue
 
             # Get parent div of the h2
             parent = section_header.find_parent("div")
@@ -394,7 +396,6 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             content_container = parent.find_next_sibling("div")
 
             if content_container:
-                # Extract text until we hit another major section or end
                 section_text = []
 
                 # Get this container's text
@@ -403,24 +404,21 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 # Check following sibling divs
                 next_sibling = content_container.find_next_sibling("div")
                 while next_sibling:
-                    # Stop if we hit another h2 section (new major section)
+                    # Stop if we hit another h2 section
                     if next_sibling.find("h2"):
-                        # But only stop if it's one of our tracked sections or a major section
                         found_h2 = next_sibling.find("h2")
                         h2_id = found_h2.get("id", "") if found_h2 else ""
 
-                        # Stop if it's a different major section
                         if h2_id and h2_id not in section_ids:
                             break
                         elif h2_id in section_ids:
-                            break  # Hit next section we'll process separately
+                            break
 
                     if not self._should_skip_element(next_sibling):
                         section_text.append(next_sibling.get_text(strip=False))
 
                     next_sibling = next_sibling.find_next_sibling("div")
 
-                # Add section text to overall text
                 if section_text:
                     all_text.extend(section_text)
 
@@ -431,6 +429,187 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         content = normalize_whitespace(content)
 
         return content
+
+    # ========================================================================
+    # TEMPLATE METHODS FOR CONTENT GATHERING & ITERATION
+    # ========================================================================
+
+    def _process_content_elements(
+        self,
+        soup: BeautifulSoup,
+        processor_func: Callable,
+        allowed_tags: Optional[List[str]] = None,
+        check_non_empty: bool = True,
+        accumulate_results: bool = True,
+        early_exit_on_match: bool = False,
+    ) -> any:
+        """
+        Template method for content gathering and processing pattern.
+
+        Handles the common workflow of:
+        1. Finding answer section
+        2. Gathering content elements
+        3. Iterating and processing with callback
+        4. Returning results
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+            processor_func: Callback function that processes each element.
+                           Signature: processor_func(element, **context) -> result
+                           - For accumulate_results=True: returns items to accumulate (list/dict/value)
+                           - For accumulate_results=False: returns bool (for early exit patterns)
+            allowed_tags: List of HTML tags to collect. Defaults to DEFAULT_CONTENT_TAGS
+            check_non_empty: If True, only include elements with non-empty text
+            accumulate_results: If True, accumulates results from processor_func into a list.
+                               If False, used for boolean checks (returns first True)
+            early_exit_on_match: If True, stops processing when processor_func returns truthy value
+                                (only applies when accumulate_results=False)
+
+        Returns:
+            - If accumulate_results=True: List of accumulated results from processor_func
+            - If accumulate_results=False: Boolean (True if any processor_func returned True)
+
+        Raises:
+            ValueError: If answer section not found or no content elements found
+        """
+        try:
+            # Step 1: Find answer section
+            answer_section = self._find_answer_section(soup)
+            if not answer_section:
+                raise ValueError(
+                    f"Answer section not found for {self.registration_number}"
+                )
+
+            # Step 2: Use provided tags or default
+            tags_to_use = (
+                allowed_tags if allowed_tags is not None else self.DEFAULT_CONTENT_TAGS
+            )
+
+            # Step 3: Gather content elements
+            content_elements = self._gather_content_elements(
+                answer_section, tags_to_use, check_non_empty=check_non_empty
+            )
+
+            if not content_elements:
+                if check_non_empty:
+                    raise ValueError(
+                        f"Expected at least one element with tags: {tags_to_use} "
+                        f"for {self.registration_number}"
+                    )
+                # If not checking non-empty, empty list is acceptable
+                return [] if accumulate_results else False
+
+            # Step 4: Process elements
+            if accumulate_results:
+                # Accumulation mode: collect all results
+                results = []
+                for element in content_elements:
+                    result = processor_func(element)
+                    if result is not None:
+                        # Handle different return types
+                        if isinstance(result, list):
+                            results.extend(result)
+                        elif isinstance(result, dict):
+                            results.append(result)
+                        else:
+                            results.append(result)
+                return results
+            else:
+                # Boolean/early-exit mode: return True on first match
+                for element in content_elements:
+                    result = processor_func(element)
+                    if result and early_exit_on_match:
+                        return True
+                return False
+
+        except Exception as e:
+            raise ValueError(
+                f"Error processing content elements for {self.registration_number}: {str(e)}"
+            ) from e
+
+    def _process_content_with_text_extraction(
+        self,
+        soup: BeautifulSoup,
+        processor_func: Callable,
+        allowed_tags: Optional[List[str]] = None,
+        check_non_empty: bool = False,
+    ) -> any:
+        """
+        Convenience wrapper for common pattern of extracting and normalizing text.
+
+        Automatically extracts and normalizes text from each element before passing
+        to processor_func.
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+            processor_func: Callback function that processes normalized text.
+                           Signature: processor_func(text, text_normalized, text_lower, element) -> result
+            allowed_tags: List of HTML tags to collect
+            check_non_empty: If True, only include elements with non-empty text
+
+        Returns:
+            Results from _process_content_elements
+        """
+
+        def text_processor(element):
+            # Extract and normalize text
+            text = element.get_text(strip=False)
+            text_normalized = normalize_whitespace(text)
+            text_lower = text_normalized.lower()
+
+            # Call user's processor with normalized text
+            return processor_func(text, text_normalized, text_lower, element)
+
+        return self._process_content_elements(
+            soup,
+            text_processor,
+            allowed_tags=allowed_tags,
+            check_non_empty=check_non_empty,
+            accumulate_results=True,
+        )
+
+    def _check_keywords_in_content(
+        self,
+        soup: BeautifulSoup,
+        keywords: List[str],
+        allowed_tags: Optional[List[str]] = None,
+    ) -> bool:
+        """
+        Check if any keyword regex pattern matches in content elements.
+
+        Args:
+            soup: BeautifulSoup parsed HTML document
+            keywords: List of regex patterns to search for
+            allowed_tags: List of HTML tags to collect
+
+        Returns:
+            True if any keyword found, False otherwise
+        """
+
+        def check_keywords(text, text_normalized, text_lower, element):
+            """Check if text contains any keywords."""
+            for keyword in keywords:
+                if re.search(keyword, text_lower):
+                    return True
+            return False
+
+        return self._process_content_elements(
+            soup,
+            lambda elem: check_keywords(
+                elem.get_text(strip=False),
+                normalize_whitespace(elem.get_text(strip=False)),
+                normalize_whitespace(elem.get_text(strip=False)).lower(),
+                elem,
+            ),
+            allowed_tags=allowed_tags,
+            check_non_empty=False,
+            accumulate_results=False,
+            early_exit_on_match=True,
+        )
+
+    # ========================================================================
+    # EXTRACTION METHODS (REFACTORED TO USE TEMPLATES)
+    # ========================================================================
 
     def extract_applicable_date(self, soup: BeautifulSoup) -> Optional[str]:
         """
@@ -482,17 +661,13 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                         )
 
                         if force_match:
-
                             date_str = force_match.group(1).strip()
-
                             parsed_date = parse_date_string(date_str)
-
                             if parsed_date:
                                 return parsed_date
 
                     # Check each pattern
                     for pattern in APPLICABLE_DATE_PATTERNS:
-
                         match = re.search(pattern, text, re.IGNORECASE)
                         if match:
                             if match.groups():
@@ -513,15 +688,14 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
     def extract_commissions_deadlines(self, soup: BeautifulSoup) -> Optional[dict]:
         """
         Extract all Commission deadlines mentioned in the response as JSON.
+
         Returns a dictionary where keys are dates (YYYY-MM-DD) and
         values are phrases connected to those dates.
-        Returns None if no deadlines are mentioned.
 
         Format: dict like:
         {
             "2018-05-31": "committed to come forward with a legislative proposal",
             "2026-03-31": "will communicate on the most appropriate action",
-            "2024-12-31": "complete the impact assessment"
         }
 
         Returns:
@@ -531,53 +705,26 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             ValueError: If Answer section not found
         """
         try:
-            answer_section = self._find_answer_section(soup)
-
-            if not answer_section:
-                raise ValueError(
-                    f"Could not find Answer section for initiative {self.registration_number}"
-                )
-
-            # Comprehensive deadline patterns covering various commitment types
             deadlines_dict = {}
 
-            # Allowed tags for text extraction
-            ALLOWED_TAGS = ["li", "p", "ol", "pre"]
-
-            # Gather all relevant content elements using helper method
-            content_elements = self._gather_content_elements(
-                answer_section,
-                ALLOWED_TAGS,
-                check_non_empty=False,  # Don't check for non-empty in gathering phase
-            )
-
-            # Process each content element
-            for current in content_elements:
-                # Get text and normalize immediately
-                text = current.get_text(strip=False)
-                text_normalized = normalize_whitespace(text)
-                text_lower = text_normalized.lower()
-
+            def process_deadline_element(text, text_normalized, text_lower, element):
+                """Process each element for deadline patterns."""
                 # Check each pattern
                 for pattern in DEADLINE_PATTERNS:
-                    # Find all matches in this element (handles multiple deadlines per element)
                     for match in re.finditer(pattern, text_lower, re.IGNORECASE):
                         deadline_text = match.group(1).strip()
 
                         if deadline_text:
                             deadline_cleaned = self._clean_deadline_text(deadline_text)
-                            # Clean and convert the deadline
                             if deadline_cleaned:
                                 deadline_date = convert_deadline_to_date(
                                     deadline_cleaned
                                 )
                                 if deadline_date:
-                                    # Use the entire normalized text from the tag
-                                    full_text = normalize_whitespace(text_normalized)
+                                    full_text = text_normalized
 
-                                    # If we already have this date, append to existing phrase
+                                    # Append or create entry
                                     if deadline_date in deadlines_dict:
-                                        # Only append if it's different content
                                         if (
                                             full_text
                                             not in deadlines_dict[deadline_date]
@@ -587,12 +734,17 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                                             ] += f"; {full_text}"
                                     else:
                                         deadlines_dict[deadline_date] = full_text
+                return None  # We accumulate in deadlines_dict directly
 
-            # Return None if no deadlines found, otherwise return dict
-            if not deadlines_dict:
-                return None
+            # Use the template method
+            self._process_content_with_text_extraction(
+                soup,
+                process_deadline_element,
+                allowed_tags=["li", "p", "ol", "pre"],  # Explicit tags for deadlines
+                check_non_empty=False,
+            )
 
-            return deadlines_dict
+            return deadlines_dict if deadlines_dict else None
 
         except Exception as e:
             raise ValueError(
@@ -613,7 +765,6 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         Raises:
             ValueError: If no relevant text found
         """
-
         legislative_proposal_paragraphs = []
 
         # Get the parent div of the h2, then find its siblings
@@ -707,67 +858,40 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
     def extract_legislative_action(self, soup: BeautifulSoup) -> Optional[dict]:
         """
         Extract LEGISLATIVE actions - proposals, adoptions, laws, regulations, directives.
+
         Excludes: rejection statements, enforcement activities, policy actions.
+
         Returns JSON string with list of legislative actions or None
 
         Each action contains:
-        - type: Type of action (e.g., "Regulation Proposal", "Directive Revision", "Tariff Codes Creation")
+        - type: Type of action (e.g., "Regulation Proposal", "Directive Revision")
         - description: Brief description of the action
         - status: Status of action ("proposed", "adopted", "in_force", "withdrawn", "planned")
         - date: Date in YYYY-MM-DD format (when applicable)
         - document_url: URL to official document (optional)
         """
-
         try:
 
-            # Find the "Response of the Commission" section
-            response_section = self._find_answer_section(soup)
+            def process_legislative_element(element):
+                """Extract legislative actions from element."""
+                return self._extract_actions_from_section(element)
 
-            if not response_section:
-                raise ValueError(
-                    f"Response section not found for {self.registration_number}"
-                )
-
-            # Allowed tags for text extraction
-            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
-
-            content_elements = self._gather_content_elements(
-                response_section, ALLOWED_TAGS, check_non_empty=True
+            # Use the template method
+            actions = self._process_content_elements(
+                soup,
+                process_legislative_element,
+                allowed_tags=None,  # Uses DEFAULT_CONTENT_TAGS
+                check_non_empty=True,
+                accumulate_results=True,
             )
 
-            if not content_elements:
-                raise ValueError(
-                    f"No content elements found in response section for {self.registration_number}"
-                )
-
-            # Extract actions from the collected content
-            actions = []
-
-            # Process each content element
-            for element in content_elements:
-
-                # Use existing extraction logic for each element
-                element_actions = self._extract_actions_from_section(element)
-
-                if element_actions:
-                    actions.extend(element_actions)
-
-            # If no actions found, return None
             if not actions:
                 return None
 
-            # Remove duplicates (same type, description, and date)
-            unique_actions = []
-            seen = set()
-            for action in actions:
-                key = (
-                    action.get("type", ""),
-                    action.get("description", ""),
-                    action.get("date", ""),
-                )
-                if key not in seen:
-                    seen.add(key)
-                    unique_actions.append(action)
+            # Remove duplicates
+            unique_actions = self._deduplicate_actions(
+                actions, key_fields=["type", "description", "date"]
+            )
 
             return unique_actions
 
@@ -816,50 +940,34 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
 
     def extract_non_legislative_action(self, soup: BeautifulSoup) -> Optional[dict]:
         """
-        Extract non-legislative actions as JSON array
+        Extract non-legislative actions as JSON array.
+
         Each item contains: type, description, date
+
         Returns dict or None
         """
         try:
-            # Find Answer and Follow-up sections
-            answer_section = self._find_answer_section(soup)
 
-            # Allowed tags for text extraction
-            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
+            def process_non_legislative_element(element):
+                """Extract non-legislative actions from element."""
+                return self._extract_non_legislative_actions_from_section(element)
 
-            # Gather all relevant content elements using helper method
-            content_elements = self._gather_content_elements(
-                answer_section, ALLOWED_TAGS, check_non_empty=True
+            # Use the template method
+            actions = self._process_content_elements(
+                soup,
+                process_non_legislative_element,
+                allowed_tags=None,  # Uses DEFAULT_CONTENT_TAGS
+                check_non_empty=True,
+                accumulate_results=True,
             )
 
-            actions = []
-
-            # Process each content element
-            for element in content_elements:
-
-                # Extract non-legislative actions from this element
-                element_actions = self._extract_non_legislative_actions_from_section(
-                    element
-                )
-                if element_actions:
-                    actions.extend(element_actions)
-
-            # If no actions found, return None
             if not actions:
                 return None
 
-            # Remove duplicates (same type, description, and date)
-            unique_actions = []
-            seen = set()
-            for action in actions:
-                key = (
-                    action.get("type", ""),
-                    action.get("description", ""),
-                    action.get("date", ""),
-                )
-                if key not in seen:
-                    seen.add(key)
-                    unique_actions.append(action)
+            # Remove duplicates
+            unique_actions = self._deduplicate_actions(
+                actions, key_fields=["type", "description", "date"]
+            )
 
             return unique_actions
 
@@ -908,7 +1016,7 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
 
     def _extract_non_legislative_actions_from_section(self, section) -> list:
         """
-        Extract non-legislative actions from a specific element or section
+        Extract non-legislative actions from a specific element or section.
 
         Args:
             section: BeautifulSoup element (can be p, li, h2, div, etc.)
@@ -966,44 +1074,20 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         """
         Check if initiative has a roadmap mentioned in follow-up.
 
-        Looks for keywords like "roadmap", "roadmap to phase out", etc. in the Follow-up section.
+        Looks for keywords like "roadmap", "roadmap to phase out", etc.
 
         Args:
             soup: BeautifulSoup parsed HTML document
 
         Returns:
-            True if roadmap is mentioned, False otherwise, None on error
+            True if roadmap is mentioned, False otherwise
 
         Raises:
             ValueError: If critical error occurs during detection
         """
         try:
-            # Find Answer and Follow-up sections
-            answer_section = self._find_answer_section(soup)
-
-            # Allowed tags for text extraction
-            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
-
-            content_elements = self._gather_content_elements(
-                answer_section,
-                ALLOWED_TAGS,
-                check_non_empty=False,  # Don't check for non-empty in gathering phase
-            )
-
             roadmap_keywords = [r"\broadmaps?\b", r"\broad maps?\b"]
-
-            # Process each content element
-            for current in content_elements:
-
-                text = current.get_text(strip=False)
-                text_normalized = normalize_whitespace(text)
-                text_lower = text_normalized.lower()
-
-                for keyword in roadmap_keywords:
-                    if re.search(keyword, text_lower):
-                        return True
-
-            return False
+            return self._check_keywords_in_content(soup, roadmap_keywords)
 
         except Exception as e:
             raise ValueError(
@@ -1012,141 +1096,73 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
 
     def extract_has_workshop(self, soup: BeautifulSoup) -> Optional[bool]:
         """
-        Check if initiative has a roadmap mentioned in follow-up.
-
-        Looks for keywords like "roadmap", "roadmap to phase out", etc. in the Follow-up section.
+        Check if initiative has workshops/conferences mentioned in follow-up.
 
         Args:
             soup: BeautifulSoup parsed HTML document
 
         Returns:
-            True if roadmap is mentioned, False otherwise, None on error
+            True if workshop/conference mentioned, False otherwise
 
         Raises:
             ValueError: If critical error occurs during detection
         """
         try:
-
-            # Find Answer and Follow-up sections
-            answer_section = self._find_answer_section(soup)
-
-            # Allowed tags for text extraction
-            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
-
-            content_elements = self._gather_content_elements(
-                answer_section,
-                ALLOWED_TAGS,
-                check_non_empty=False,  # Don't check for non-empty in gathering phase
-            )
-
             workshop_keywords = [
-                # Workshops
                 r"\bworkshops?\b",
-                # Conferences
                 r"\bconferences?\b",
-                # Scientific/academic engagement events
                 r"\bscientific conferences?\b",
                 r"\bscientific debates?\b",
-                # Stakeholder engagement events
                 r"\bstakeholder meetings?\b",
                 r"\bstakeholder conferences?\b",
                 r"\bstakeholder debates?\b",
-                # Organized/planned events (suggests intentional activity)
                 r"\borgani[sz]ed workshops?\b",
                 r"\borgani[sz]ed conferences?\b",
-                # Series/multiple events
                 r"\bseries of workshops?\b",
                 r"\bseries of conferences?\b",
-                # Other formal engagement formats
                 r"\broundtables?\b",
                 r"\bsymposia\b",
                 r"\bsymposiums?\b",
                 r"\bseminars?\b",
             ]
-
-            # Process each content element
-            for current in content_elements:
-
-                text = current.get_text(strip=False)
-                text_normalized = normalize_whitespace(text)
-                text_lower = text_normalized.lower()
-
-                for keyword in workshop_keywords:
-                    if re.search(keyword, text_lower):
-                        return True
-
-            return False
+            return self._check_keywords_in_content(soup, workshop_keywords)
 
         except Exception as e:
             raise ValueError(
-                f"Error checking roadmap for {self.registration_number}: {str(e)}"
+                f"Error checking workshop for {self.registration_number}: {str(e)}"
             ) from e
 
     def extract_has_partnership_programs(self, soup: BeautifulSoup) -> Optional[bool]:
         """
         Check if initiative has partnership programs mentioned in follow-up.
 
-        Looks for keywords related to partnership programs, collaboration programmes,
-        joint programmes, etc. in the Follow-up section.
-
         Args:
             soup: BeautifulSoup parsed HTML document
 
         Returns:
-            True if partnership programs are mentioned, False otherwise, None on error
+            True if partnership programs mentioned, False otherwise
 
         Raises:
             ValueError: If critical error occurs during detection
         """
         try:
-            # Find Answer and Follow-up sections
-            answer_section = self._find_answer_section(soup)
-
-            # Allowed tags for text extraction
-            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
-
-            content_elements = self._gather_content_elements(
-                answer_section,
-                ALLOWED_TAGS,
-                check_non_empty=False,  # Don't check for non-empty in gathering phase
-            )
-
             partnership_keywords = [
-                # Partnership programs/programmes
                 r"\bpartnership programs?\b",
                 r"\bpartnership programmes?\b",
                 r"\bpartnership plans?\b",
-                # Public-public partnerships
                 r"\bpublic-public partnerships?\b",
-                # European partnerships
                 r"\beuropean partnerships? for\b",
-                # General partnerships
                 r"\bpartnership between\b",
                 r"\bpartnerships between\b",
                 r"\bsupport to partnerships?\b",
-                # Cooperation/collaboration programmes
                 r"\bcooperation programmes?\b",
                 r"\bcollaboration programmes?\b",
-                # Joint programmes
                 r"\bjoint programmes?\b",
-                # Formal/established partnerships
                 r"\bformal partnerships?\b",
                 r"\bestablished partnerships?\b",
-                # International partners
                 r"\binternational partners?\b",
             ]
-
-            # Process each content element
-            for current in content_elements:
-                text = current.get_text(strip=False)
-                text_normalized = normalize_whitespace(text)
-                text_lower = text_normalized.lower()
-
-                for keyword in partnership_keywords:
-                    if re.search(keyword, text_lower):
-                        return True
-
-            return False
+            return self._check_keywords_in_content(soup, partnership_keywords)
 
         except Exception as e:
             raise ValueError(
@@ -1155,12 +1171,9 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
 
     def _extract_dates_from_content_elements(
         self, content_elements: list
-    ) -> Optional[list[str]]:
+    ) -> Optional[list]:
         """
         Extract all date strings from content elements.
-
-        This private helper method finds all potential date strings in common formats
-        within the provided content elements and returns them as a list for further processing.
 
         Date formats matched:
             - "27 March 2021" (full month name)
@@ -1176,9 +1189,8 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
             content_elements: List of BeautifulSoup elements to extract dates from
 
         Returns:
-            List of date strings found in content elements, or None if no
-            content elements provided. Returns empty list if elements exist but
-            no dates are found.
+            List of date strings found, or None if no content elements provided.
+            Returns empty list if elements exist but no dates found.
 
         Raises:
             ValueError: If critical error occurs during extraction
@@ -1193,7 +1205,6 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 full_text += element.get_text(separator=" ", strip=True) + " "
 
             # Regex pattern to find all potential dates
-            # Matches patterns like: "27 March 2021", "March 2021", "27/03/2021", etc.
             date_pattern = (
                 r"(?:(?:\d{1,2}\s+)?(?:January|February|March|April|May|June|"
                 r"July|August|September|October|November|December|"
@@ -1212,12 +1223,9 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 f"Error extracting dates from content elements for {self.registration_number}: {str(e)}"
             ) from e
 
-    def _parse_date_strings(self, date_matches: list[str]) -> Optional[list[str]]:
+    def _parse_date_strings(self, date_matches: list) -> Optional[list]:
         """
         Parse raw date strings into standardized YYYY-MM-DD format.
-
-        Converts various date formats into a consistent format using the
-        parse_any_date_format helper function. Invalid dates are skipped.
 
         Args:
             date_matches: List of raw date strings to parse
@@ -1248,20 +1256,78 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 f"Error parsing date strings for {self.registration_number}: {str(e)}"
             ) from e
 
+    def _get_today_date(self) -> date:
+        """Return today's date. Can be mocked for testing."""
+        return datetime.now().date()
+
+    def _filter_latest_date_by_today(self, parsed_dates: list) -> Optional[str]:
+        """
+        Filter dates to only those <= today and return the latest.
+
+        Args:
+            parsed_dates: List of date strings in YYYY-MM-DD format
+
+        Returns:
+            Latest date that is <= today, or None if no valid dates
+        """
+        today = self._get_today_date()
+
+        # Convert strings to date objects and filter
+        valid_dates = []
+        for date_str in parsed_dates:
+            try:
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+                if date_obj <= today:
+                    valid_dates.append(date_obj)
+            except ValueError:
+                continue
+
+        if not valid_dates:
+            return None
+
+        # Return the latest (maximum) date
+        latest = max(valid_dates)
+        return latest.strftime("%Y-%m-%d")
+
+    def _filter_most_future_date_by_today(self, parsed_dates: list) -> Optional[str]:
+        """
+        Filter dates to only those > today and return the furthest future date.
+
+        Args:
+            parsed_dates: List of date strings in YYYY-MM-DD format
+
+        Returns:
+            Furthest future date that is > today, or None if no valid dates
+        """
+        today = self._get_today_date()
+
+        # Convert strings to date objects and filter
+        future_dates = []
+        for date_str in parsed_dates:
+            try:
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+                if date_obj > today:
+                    future_dates.append(date_obj)
+            except ValueError:
+                continue
+
+        if not future_dates:
+            return None
+
+        # Return the furthest future (maximum) date
+        furthest = max(future_dates)
+        return furthest.strftime("%Y-%m-%d")
+
     def extract_followup_latest_date(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract most recent date from follow-up section that is not later than today.
-
-        Finds the most recent date in the Follow-up section that does not exceed
-        the current date, filtering out any future-dated entries.
 
         Args:
             soup: BeautifulSoup parsed HTML document
 
         Returns:
             Latest date found in YYYY-MM-DD format that is <= today's date.
-            Returns None if no valid dates are found, no dates exist in the Follow-up
-            section, or if the Follow-up section doesn't exist.
+            Returns None if no valid dates found.
 
         Raises:
             ValueError: If critical error occurs during extraction
@@ -1275,20 +1341,15 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                     f"Answer section not found for {self.registration_number}."
                 )
 
-            # Allowed tags for text extraction
-            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
-
             # Step 1: Gather all relevant content elements
             content_elements = self._gather_content_elements(
-                answer_section,
-                ALLOWED_TAGS,
-                check_non_empty=False,  # Don't check for non-empty in gathering phase
+                answer_section, self.DEFAULT_CONTENT_TAGS, check_non_empty=False
             )
 
             if not content_elements:
                 raise ValueError(
-                    f"Expected at least one element with tags:\n{ALLOWED_TAGS}\n"
-                    f"for:\n{self.registration_number}"
+                    f"Expected at least one element with tags: {self.DEFAULT_CONTENT_TAGS} "
+                    f"for {self.registration_number}"
                 )
 
             # Step 2: Extract date strings from content elements
@@ -1313,28 +1374,19 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 f"Error extracting latest update date for {self.registration_number}: {str(e)}"
             ) from e
 
-    def _get_today_date(self) -> date:
-        """Return today's date."""
-
-        return datetime.now().date()
-
     def extract_followup_most_future_date(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract the furthest future date from follow-up section.
-
-        Finds the most distant future date in the Follow-up section that exceeds
-        the current date, focusing on planned future actions and deadlines.
 
         Args:
             soup: BeautifulSoup parsed HTML document
 
         Returns:
             Furthest future date found in YYYY-MM-DD format that is > today's date.
-            Returns None if no future dates are found, or if the Follow-up
-            section doesn't exist.
+            Returns None if no future dates found.
 
         Raises:
-            ValueError: If Answer section not found or critical error occurs during extraction
+            ValueError: If Answer section not found or critical error occurs
         """
         try:
             # Find Answer section (acts as starting point for followup content)
@@ -1345,20 +1397,15 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                     f"Answer section not found for {self.registration_number}."
                 )
 
-            # Allowed tags for text extraction
-            ALLOWED_TAGS = ["li", "p", "ol", "ul", "pre"]
-
             # Step 1: Gather all relevant content elements
             content_elements = self._gather_content_elements(
-                answer_section,
-                ALLOWED_TAGS,
-                check_non_empty=False,  # Don't check for non-empty in gathering phase
+                answer_section, self.DEFAULT_CONTENT_TAGS, check_non_empty=False
             )
 
             if not content_elements:
                 raise ValueError(
-                    f"Expected at least one element with tags:\n{ALLOWED_TAGS}\n"
-                    f"for:\n{self.registration_number}"
+                    f"Expected at least one element with tags: {self.DEFAULT_CONTENT_TAGS} "
+                    f"for {self.registration_number}"
                 )
 
             # Step 2: Extract date strings from content elements
@@ -1383,98 +1430,35 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                 f"Error extracting most future date for {self.registration_number}: {str(e)}"
             ) from e
 
-    def _filter_dates_by_condition(
-        self, parsed_dates: list[str], condition: callable, return_first: bool = False
-    ) -> Optional[str]:
-        """
-        Filter dates by a condition and return either the latest or earliest.
+    # ========================================================================
+    # HELPER METHODS
+    # ========================================================================
 
-        Generic helper method to filter dates based on a comparison condition
-        relative to today's date.
+    def _deduplicate_actions(
+        self,
+        actions: List[dict],
+        key_fields: List[str] = ["type", "description", "date"],
+    ) -> List[dict]:
+        """
+        Remove duplicate actions based on specified key fields.
 
         Args:
-            parsed_dates: List of date strings in YYYY-MM-DD format
-            condition: Callable that takes (date_obj, today) and returns bool
-            return_first: If True, return first (earliest) date; if False, return last (latest)
+            actions: List of action dictionaries
+            key_fields: Fields to use for deduplication key
 
         Returns:
-            Date string in YYYY-MM-DD format matching the condition.
-            Returns None if input is empty or no dates match the condition.
-
-        Raises:
-            ValueError: If critical error occurs during filtering
+            List of unique actions preserving original order
         """
-        try:
-            if not parsed_dates:
-                return None
+        unique_actions = []
+        seen = set()
 
-            # Get current date
-            today = self._get_today_date()
+        for action in actions:
+            key = tuple(action.get(field, "") for field in key_fields)
+            if key not in seen:
+                seen.add(key)
+                unique_actions.append(action)
 
-            # Filter dates based on condition
-            filtered_dates = []
-            for date_str in parsed_dates:
-                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-                if condition(date_obj, today):
-                    filtered_dates.append(date_str)
-
-            if not filtered_dates:
-                return None
-
-            # Sort dates and return requested position
-            filtered_dates.sort()
-            return filtered_dates[0] if return_first else filtered_dates[-1]
-
-        except Exception as e:
-            raise ValueError(
-                f"Error filtering dates for {self.registration_number}: {str(e)}"
-            ) from e
-
-    def _filter_latest_date_by_today(self, parsed_dates: list[str]) -> Optional[str]:
-        """
-        Filter dates to only include those not later than today, and return the latest.
-
-        Removes any future-dated entries and returns the most recent valid date.
-
-        Args:
-            parsed_dates: List of date strings in YYYY-MM-DD format
-
-        Returns:
-            Latest date string <= today's date in YYYY-MM-DD format.
-            Returns None if input is empty or all dates are in the future.
-
-        Raises:
-            ValueError: If critical error occurs during filtering
-        """
-        return self._filter_dates_by_condition(
-            parsed_dates,
-            condition=lambda date_obj, today: date_obj <= today,
-            return_first=False,  # Return latest (last in sorted list)
-        )
-
-    def _filter_most_future_date_by_today(
-        self, parsed_dates: list[str]
-    ) -> Optional[str]:
-        """
-        Filter dates to only include those after today, and return the furthest.
-
-        Removes any past or current dates and returns the most distant future date.
-
-        Args:
-            parsed_dates: List of date strings in YYYY-MM-DD format
-
-        Returns:
-            Furthest future date string in YYYY-MM-DD format that is > today's date.
-            Returns None if input is empty or all dates are in the past/present.
-
-        Raises:
-            ValueError: If critical error occurs during filtering
-        """
-        return self._filter_dates_by_condition(
-            parsed_dates,
-            condition=lambda date_obj, today: date_obj > today,
-            return_first=False,  # Return furthest future (last in sorted list)
-        )
+        return unique_actions
 
 
 class FollowupWebsiteFollowUpExtractor(FollowUpActivityExtractor):

@@ -1624,7 +1624,10 @@ class TestOutcomeExtraction:
         with pytest.raises(ValueError) as exc_info:
             extractor_10.extract_laws_actions()
 
-        assert "No content elements found in response section" in str(exc_info.value)
+        assert (
+            "Expected at least one element with tags: ['li', 'p', 'ol', 'pre'] for"
+            in str(exc_info.value)
+        )
 
         # Test case 11: Mixed response - rejection for some aims, commitment for others
         html_mixed = """
