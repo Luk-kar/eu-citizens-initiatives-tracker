@@ -195,3 +195,40 @@ class TestFollowupCreatedFiles:
             ECIFollowupWebsiteProcessor()
 
         assert "No responses CSV file found" in str(exc_info.value)
+
+    def test_processor_raises_when_no_html_files(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Verify that ECIFollowupWebsiteProcessor raises FileNotFoundError when
+        no HTML files exist in responses_followup_website directory.
+        """
+        # Emulate project root and data root: <tmp>/ECI_initiatives/data
+        project_root = tmp_path / "ECI_initiatives"
+        data_root = project_root / "data"
+        data_root.mkdir(parents=True, exist_ok=True)
+
+        # Create timestamped session with CSV but WITHOUT HTML files
+        session_dir = self._create_timestamped_session_dir(data_root)
+        self._write_dummy_responses_csv(session_dir)
+
+        # Create empty responses_followup_website directory
+        html_dir = session_dir / "responses_followup_website"
+        html_dir.mkdir(parents=True, exist_ok=True)
+
+        # Patch __file__ resolution inside ECIFollowupWebsiteProcessor
+        processor_module = ECIFollowupWebsiteProcessor.__module__
+        processor_file = (
+            project_root / "extractor" / "responses_followup_website" / "processor.py"
+        )
+        processor_file.parent.mkdir(parents=True, exist_ok=True)
+        processor_file.write_text("# dummy file to satisfy Path(__file__) resolution\n")
+
+        module_obj = importlib.import_module(processor_module)
+        monkeypatch.setattr(module_obj, "__file__", str(processor_file))
+
+        # Should raise FileNotFoundError during initialization when finding HTML files
+        with pytest.raises(FileNotFoundError) as exc_info:
+            ECIFollowupWebsiteProcessor()
+
+        assert "No HTML files found" in str(exc_info.value)
