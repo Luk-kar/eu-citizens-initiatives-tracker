@@ -164,36 +164,37 @@ class TestFollowupCreatedFiles:
         has_non_empty_row = any(any(v for v in row.values()) for row in rows)
         assert has_non_empty_row, "At least one row in followup CSV should have data"
 
+    def test_processor_raises_when_no_responses_csv(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Verify that ECIFollowupWebsiteProcessor raises FileNotFoundError when
+        no non-followup eci_responses_*.csv exists in the latest data directory.
+        """
+        # Emulate project root and data root: <tmp>/ECI_initiatives/data
+        project_root = tmp_path / "ECI_initiatives"
+        data_root = project_root / "data"
+        data_root.mkdir(parents=True, exist_ok=True)
 
-def test_processor_raises_when_no_responses_csv(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
-    """
-    Verify that ECIFollowupWebsiteProcessor raises FileNotFoundError when
-    no non-followup eci_responses_*.csv exists in the latest data directory.
-    """
+        # Create timestamped session WITHOUT the responses CSV
+        session_dir = self._create_timestamped_session_dir(data_root)
 
-    project_root = tmp_path / "ECI_initiatives"
-    data_root = project_root / "data"
-    data_root.mkdir(parents=True, exist_ok=True)
+        # Patch __file__ resolution inside ECIFollowupWebsiteProcessor
+        processor_module = ECIFollowupWebsiteProcessor.__module__
+        processor_file = (
+            project_root / "extractor" / "responses_followup_website" / "processor.py"
+        )
+        processor_file.parent.mkdir(parents=True, exist_ok=True)
+        processor_file.write_text("# dummy file to satisfy Path(__file__) resolution\n")
 
-    # Create an empty timestamped session without any CSV
-    session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    session_dir = data_root / session_name
-    session_dir.mkdir(parents=True, exist_ok=True)
+        module_obj = importlib.import_module(processor_module)
+        monkeypatch.setattr(module_obj, "__file__", str(processor_file))
 
-    # Patch __file__ so processor resolves project_root to our tmp project
-    processor_file = (
-        project_root / "extractor" / "responses_followup_website" / "processor.py"
-    )
-    processor_file.parent.mkdir(parents=True, exist_ok=True)
-    processor_file.write_text("# dummy file\n")
+        # Instantiate processor (this succeeds)
+        processor = ECIFollowupWebsiteProcessor()
 
-    from ECI_initiatives.extractor.responses_followup_website import (
-        processor as proc_mod,
-    )
+        # Should raise FileNotFoundError when run() tries to load responses CSV
+        with pytest.raises(FileNotFoundError) as exc_info:
+            processor.run()
 
-    monkeypatch.setattr(proc_mod, "__file__", str(processor_file))
-
-    with pytest.raises(FileNotFoundError):
-        ECIFollowupWebsiteProcessor()
+        assert "No responses CSV file found" in str(exc_info.value)
