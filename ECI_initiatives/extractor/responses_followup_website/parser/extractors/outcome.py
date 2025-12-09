@@ -1,3 +1,15 @@
+"""
+Custom outcome extraction logic adapted for the nested div structure of ECI follow-up website pages.
+
+Extends the base legislative outcome extractor to handle follow-up websites where
+content sections are wrapped in separate div containers rather
+than following standard HTML structure.
+
+Extracts legislative status, deadlines,
+actions, and rejection reasoning from the Commission's response
+and follow-up sections scattered across multiple page areas.
+"""
+
 # Python
 from datetime import datetime, date
 import re
@@ -441,8 +453,6 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
                                             ] += f"; {full_text}"
                                     else:
                                         deadlines_dict[deadline_date] = full_text
-
-                return None  # We accumulate in deadlines_dict directly
 
             # Use the template method
             self._process_content_with_text_extraction(
