@@ -1263,9 +1263,6 @@ class TestFollowupActivityExtraction:
 
     def test_extract_followup_latest_date(self):
         """Test extraction of most recent follow-up date."""
-        from datetime import date
-        from unittest.mock import patch
-        from bs4 import BeautifulSoup
 
         # Use a fixed "today" date for all tests
         test_today = date(2024, 12, 5)
@@ -1502,9 +1499,6 @@ class TestFollowupActivityExtraction:
 
     def test_extract_followup_most_future_date(self):
         """Test extraction of most future follow-up date."""
-        from datetime import date
-        from unittest.mock import patch
-        from bs4 import BeautifulSoup
 
         # Use a fixed "today" date for all tests
         test_today = date(2024, 12, 5)
