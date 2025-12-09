@@ -190,11 +190,8 @@ class TestFollowupCreatedFiles:
         module_obj = importlib.import_module(processor_module)
         monkeypatch.setattr(module_obj, "__file__", str(processor_file))
 
-        # Instantiate processor (this succeeds)
-        processor = ECIFollowupWebsiteProcessor()
-
-        # Should raise FileNotFoundError when run() tries to load responses CSV
+        # Should raise FileNotFoundError during initialization when loading CSV
         with pytest.raises(FileNotFoundError) as exc_info:
-            processor.run()
+            ECIFollowupWebsiteProcessor()
 
         assert "No responses CSV file found" in str(exc_info.value)

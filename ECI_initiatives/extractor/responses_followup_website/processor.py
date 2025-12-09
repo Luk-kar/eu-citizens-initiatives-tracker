@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from datetime import datetime
 
+
 # Local
 from .model import ECIFollowupWebsiteRecord
 from .parser.extractors import FollowupWebsiteExtractor
@@ -36,8 +37,11 @@ class ECIFollowupWebsiteProcessor:
         self.output_dir = self.input_dir
         self.extractor_run_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-        # Setup logging
+        # Setup logging first
         self._setup_logging()
+
+        # Load response data early - will raise FileNotFoundError if CSV missing
+        self.response_data = self._load_response_data()
 
         self.output_csv = os.path.join(
             self.output_dir,
@@ -70,46 +74,6 @@ class ECIFollowupWebsiteProcessor:
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"Log file: {log_file}")
 
-    def run(self):
-        """Process all HTML files and generate output CSV."""
-
-        html_files = self._find_html_files()
-        response_data = self._load_response_data()
-
-        records = []
-
-        for idx, path in enumerate(html_files, 1):
-
-            self.logger.info(
-                f"Processing file {idx}/{len(html_files)}: {os.path.basename(path)}"
-            )
-
-            try:
-                record = self._process_html_file(path, response_data)
-
-                records.append(record)
-                self.logger.info(
-                    f"Successfully processed: {record.registration_number}"
-                )
-
-            except Exception as e:
-                self.logger.error(f"Error processing {path}: {e}", exc_info=True)
-                continue
-
-        self._write_output_csv(records)
-        self.logger.info(f"Processing complete. Output written to {self.output_csv}")
-
-    def _find_html_files(self) -> list:
-        """Find all HTML files in the responses_followup_website directory."""
-
-        html_dir = os.path.join(self.input_dir, "responses_followup_website")
-        html_files = glob.glob(os.path.join(html_dir, "**", "*.html"), recursive=True)
-
-        self.logger.info(f"In the directory:\n{html_dir}")
-        self.logger.info(f"Found {len(html_files)} HTML files to process")
-
-        return html_files
-
     def _load_response_data(self) -> "ECIResponseDataLoader":
         """Load responses list CSV to get initiative metadata."""
 
@@ -137,6 +101,45 @@ class ECIFollowupWebsiteProcessor:
         )
 
         return response_data
+
+    def run(self):
+        """Process all HTML files and generate output CSV."""
+
+        html_files = self._find_html_files()
+
+        records = []
+
+        for idx, path in enumerate(html_files, 1):
+
+            self.logger.info(
+                f"Processing file {idx}/{len(html_files)}: {os.path.basename(path)}"
+            )
+
+            try:
+                record = self._process_html_file(path, self.response_data)
+
+                records.append(record)
+                self.logger.info(
+                    f"Successfully processed: {record.registration_number}"
+                )
+
+            except Exception as e:
+                self.logger.error(f"Error processing {path}: {e}", exc_info=True)
+                continue
+
+        self._write_output_csv(records)
+        self.logger.info(f"Processing complete. Output written to {self.output_csv}")
+
+    def _find_html_files(self) -> list:
+        """Find all HTML files in the responses_followup_website directory."""
+
+        html_dir = os.path.join(self.input_dir, "responses_followup_website")
+        html_files = glob.glob(os.path.join(html_dir, "**", "*.html"), recursive=True)
+
+        self.logger.info(f"In the directory:\n{html_dir}")
+        self.logger.info(f"Found {len(html_files)} HTML files to process")
+
+        return html_files
 
     def _process_html_file(
         self, path: str, response_data: "ECIResponseDataLoader"
