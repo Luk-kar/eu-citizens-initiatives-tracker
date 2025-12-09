@@ -303,8 +303,8 @@ class ResponsesAndFollowupMerger:
         # Merge rows
         self.logger.info(
             (
-                f"Merging {len(followup_data)} rows "
-                f"into base data {len(base_data)} "
+                f"Merging {len(followup_data)} followup rows "
+                f"into {len(base_data)} response rows  "
                 "..."
             )
         )
