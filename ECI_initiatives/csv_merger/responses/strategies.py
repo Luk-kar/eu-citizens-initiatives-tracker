@@ -2,8 +2,13 @@
 Field merging strategies for combining base and followup CSV data.
 """
 
+import json
+import logging
 from typing import Dict, Callable
+from datetime import datetime
 
+# Setup logger
+logger = logging.getLogger(__name__)
 
 # ============================================================================
 # Field-Specific Merge Strategies
@@ -15,7 +20,6 @@ def merge_by_preferring_followup(
 ) -> str:
     """
     Prefer followup value if non-empty, otherwise use base value.
-
     Use for fields where followup data is more recent/authoritative.
 
     Args:
@@ -27,7 +31,17 @@ def merge_by_preferring_followup(
     Returns:
         Merged value
     """
-    pass
+    if (
+        followup_value
+        and followup_value.strip()
+        and followup_value.strip() not in ["", "None", "null"]
+    ):
+        logger.debug(f"{registration_number} - {field_name}: Using followup value")
+        return followup_value
+    logger.debug(
+        f"{registration_number} - {field_name}: Using base value (followup empty)"
+    )
+    return base_value
 
 
 def merge_by_preferring_base(
@@ -35,7 +49,6 @@ def merge_by_preferring_base(
 ) -> str:
     """
     Prefer base value if non-empty, otherwise use followup value.
-
     Use for fields where base data is more authoritative.
 
     Args:
@@ -47,15 +60,24 @@ def merge_by_preferring_base(
     Returns:
         Merged value
     """
-    pass
+    if (
+        base_value
+        and base_value.strip()
+        and base_value.strip() not in ["", "None", "null"]
+    ):
+        logger.debug(f"{registration_number} - {field_name}: Using base value")
+        return base_value
+    logger.debug(
+        f"{registration_number} - {field_name}: Using followup value (base empty)"
+    )
+    return followup_value
 
 
 def merge_by_concatenation(
     base_value: str, followup_value: str, field_name: str, registration_number: str
 ) -> str:
     """
-    Concatenate both values if both are non-empty.
-
+    Concatenate both values if both are non-empty, with proper labeling.
     Use for fields that can accumulate information (e.g., notes, descriptions).
 
     Args:
@@ -65,9 +87,27 @@ def merge_by_concatenation(
         registration_number: Registration number
 
     Returns:
-        Merged value (concatenated)
+        Merged value (concatenated with labels)
     """
-    pass
+    base_clean = base_value.strip() if base_value else ""
+    followup_clean = followup_value.strip() if followup_value else ""
+
+    if base_clean and followup_clean:
+        if base_clean == followup_clean:
+            logger.debug(
+                f"{registration_number} - {field_name}: Values identical, keeping single copy"
+            )
+            return base_clean
+        logger.info(
+            f"{registration_number} - {field_name}: Concatenating base and followup values"
+        )
+        return f"**Original Commission Commitments:**\n{base_clean}\n\n**Current Commission Commitments:**\n{followup_clean}"
+    elif followup_clean:
+        logger.debug(f"{registration_number} - {field_name}: Using followup value only")
+        return followup_clean
+    else:
+        logger.debug(f"{registration_number} - {field_name}: Using base value only")
+        return base_clean
 
 
 def merge_dates_by_latest(
@@ -75,8 +115,8 @@ def merge_dates_by_latest(
 ) -> str:
     """
     Compare dates and return the latest one.
-
     Use for date fields where the most recent date is preferred.
+    Warns if followup date is earlier than base date.
 
     Args:
         base_value: Date string from base CSV
@@ -87,7 +127,45 @@ def merge_dates_by_latest(
     Returns:
         Latest date
     """
-    pass
+    base_clean = base_value.strip() if base_value else ""
+    followup_clean = followup_value.strip() if followup_value else ""
+
+    if not base_clean and not followup_clean:
+        return ""
+    elif not base_clean:
+        logger.debug(
+            f"{registration_number} - {field_name}: Using followup date (base empty)"
+        )
+        return followup_clean
+    elif not followup_clean:
+        logger.debug(
+            f"{registration_number} - {field_name}: Using base date (followup empty)"
+        )
+        return base_clean
+
+    # Try to parse dates
+    try:
+        base_date = datetime.fromisoformat(base_clean)
+        followup_date = datetime.fromisoformat(followup_clean)
+
+        if followup_date < base_date:
+            logger.warning(
+                f"{registration_number} - {field_name}: Followup date ({followup_clean}) "
+                f"is earlier than base date ({base_clean})"
+            )
+
+        latest = max(base_date, followup_date)
+        result = latest.isoformat()
+        logger.debug(
+            f"{registration_number} - {field_name}: Selected latest date: {result}"
+        )
+        return result
+    except ValueError as e:
+        logger.warning(
+            f"{registration_number} - {field_name}: Could not parse dates "
+            f"(base: {base_clean}, followup: {followup_clean}), keeping followup"
+        )
+        return followup_clean
 
 
 def merge_dates_by_earliest(
@@ -95,7 +173,6 @@ def merge_dates_by_earliest(
 ) -> str:
     """
     Compare dates and return the earliest one.
-
     Use for date fields where the earliest date is preferred (e.g., submission dates).
 
     Args:
@@ -107,7 +184,39 @@ def merge_dates_by_earliest(
     Returns:
         Earliest date
     """
-    pass
+    base_clean = base_value.strip() if base_value else ""
+    followup_clean = followup_value.strip() if followup_value else ""
+
+    if not base_clean and not followup_clean:
+        return ""
+    elif not base_clean:
+        logger.debug(
+            f"{registration_number} - {field_name}: Using followup date (base empty)"
+        )
+        return followup_clean
+    elif not followup_clean:
+        logger.debug(
+            f"{registration_number} - {field_name}: Using base date (followup empty)"
+        )
+        return base_clean
+
+    # Try to parse dates
+    try:
+        base_date = datetime.fromisoformat(base_clean)
+        followup_date = datetime.fromisoformat(followup_clean)
+
+        earliest = min(base_date, followup_date)
+        result = earliest.isoformat()
+        logger.debug(
+            f"{registration_number} - {field_name}: Selected earliest date: {result}"
+        )
+        return result
+    except ValueError:
+        logger.warning(
+            f"{registration_number} - {field_name}: Could not parse dates "
+            f"(base: {base_clean}, followup: {followup_clean}), keeping base"
+        )
+        return base_clean
 
 
 def merge_json_lists(
@@ -115,7 +224,6 @@ def merge_json_lists(
 ) -> str:
     """
     Merge JSON list structures, removing duplicates.
-
     Use for fields containing JSON arrays that should be combined.
 
     Args:
@@ -127,7 +235,45 @@ def merge_json_lists(
     Returns:
         Merged JSON string
     """
-    pass
+    base_clean = base_value.strip() if base_value else ""
+    followup_clean = followup_value.strip() if followup_value else ""
+
+    # Parse JSON lists
+    base_list = []
+    followup_list = []
+
+    if base_clean and base_clean not in ["", "[]", "null", "None"]:
+        try:
+            base_list = json.loads(base_clean)
+            if not isinstance(base_list, list):
+                base_list = []
+        except json.JSONDecodeError:
+            logger.warning(
+                f"{registration_number} - {field_name}: Could not parse base JSON list"
+            )
+
+    if followup_clean and followup_clean not in ["", "[]", "null", "None"]:
+        try:
+            followup_list = json.loads(followup_clean)
+            if not isinstance(followup_list, list):
+                followup_list = []
+        except json.JSONDecodeError:
+            logger.warning(
+                f"{registration_number} - {field_name}: Could not parse followup JSON list"
+            )
+
+    # Combine and deduplicate
+    merged = base_list.copy()
+    for item in followup_list:
+        if item not in merged:
+            merged.append(item)
+
+    if merged:
+        logger.debug(
+            f"{registration_number} - {field_name}: Merged {len(base_list)} + {len(followup_list)} -> {len(merged)} items"
+        )
+
+    return json.dumps(merged) if merged else ""
 
 
 def merge_json_objects(
@@ -135,7 +281,6 @@ def merge_json_objects(
 ) -> str:
     """
     Merge JSON object structures, with followup values overriding base values.
-
     Use for fields containing JSON objects (dictionaries).
 
     Args:
@@ -147,7 +292,43 @@ def merge_json_objects(
     Returns:
         Merged JSON string
     """
-    pass
+    base_clean = base_value.strip() if base_value else ""
+    followup_clean = followup_value.strip() if followup_value else ""
+
+    # Parse JSON objects
+    base_obj = {}
+    followup_obj = {}
+
+    if base_clean and base_clean not in ["", "{}", "null", "None"]:
+        try:
+            base_obj = json.loads(base_clean)
+            if not isinstance(base_obj, dict):
+                base_obj = {}
+        except json.JSONDecodeError:
+            logger.warning(
+                f"{registration_number} - {field_name}: Could not parse base JSON object"
+            )
+
+    if followup_clean and followup_clean not in ["", "{}", "null", "None"]:
+        try:
+            followup_obj = json.loads(followup_clean)
+            if not isinstance(followup_obj, dict):
+                followup_obj = {}
+        except json.JSONDecodeError:
+            logger.warning(
+                f"{registration_number} - {field_name}: Could not parse followup JSON object"
+            )
+
+    # Merge: start with base, override with followup
+    merged = base_obj.copy()
+    merged.update(followup_obj)
+
+    if merged:
+        logger.debug(
+            f"{registration_number} - {field_name}: Merged {len(base_obj)} + {len(followup_obj)} -> {len(merged)} keys"
+        )
+
+    return json.dumps(merged) if merged else ""
 
 
 def merge_boolean_or(
@@ -155,7 +336,6 @@ def merge_boolean_or(
 ) -> str:
     """
     Logical OR for boolean fields (True/False strings).
-
     Returns True if either value is True.
 
     Args:
@@ -167,7 +347,14 @@ def merge_boolean_or(
     Returns:
         Boolean string result
     """
-    pass
+    base_bool = str(base_value).strip().lower() in ["true", "1", "yes"]
+    followup_bool = str(followup_value).strip().lower() in ["true", "1", "yes"]
+
+    result = base_bool or followup_bool
+    logger.debug(
+        f"{registration_number} - {field_name}: OR({base_bool}, {followup_bool}) = {result}"
+    )
+    return str(result)
 
 
 def merge_boolean_and(
@@ -175,7 +362,6 @@ def merge_boolean_and(
 ) -> str:
     """
     Logical AND for boolean fields (True/False strings).
-
     Returns True only if both values are True.
 
     Args:
@@ -187,7 +373,14 @@ def merge_boolean_and(
     Returns:
         Boolean string result
     """
-    pass
+    base_bool = str(base_value).strip().lower() in ["true", "1", "yes"]
+    followup_bool = str(followup_value).strip().lower() in ["true", "1", "yes"]
+
+    result = base_bool and followup_bool
+    logger.debug(
+        f"{registration_number} - {field_name}: AND({base_bool}, {followup_bool}) = {result}"
+    )
+    return str(result)
 
 
 def merge_urls_list(
@@ -195,7 +388,6 @@ def merge_urls_list(
 ) -> str:
     """
     Merge URL lists, removing duplicates while preserving order.
-
     Use for fields containing multiple URLs.
 
     Args:
@@ -207,7 +399,8 @@ def merge_urls_list(
     Returns:
         Merged URL list
     """
-    pass
+    # Similar to merge_json_lists but specialized for URLs
+    return merge_json_lists(base_value, followup_value, field_name, registration_number)
 
 
 def merge_keep_base_only(
@@ -215,7 +408,6 @@ def merge_keep_base_only(
 ) -> str:
     """
     Always keep base value, ignore followup value.
-
     Use for immutable fields that should never be updated.
 
     Args:
@@ -227,7 +419,10 @@ def merge_keep_base_only(
     Returns:
         Base value
     """
-    pass
+    logger.debug(
+        f"{registration_number} - {field_name}: Keeping base value (immutable field)"
+    )
+    return base_value
 
 
 def merge_keep_followup_only(
@@ -235,7 +430,6 @@ def merge_keep_followup_only(
 ) -> str:
     """
     Always keep followup value, ignore base value.
-
     Use for fields that should always be overridden by followup data.
 
     Args:
@@ -247,7 +441,143 @@ def merge_keep_followup_only(
     Returns:
         Followup value
     """
-    pass
+    logger.debug(
+        f"{registration_number} - {field_name}: Keeping followup value (override field)"
+    )
+    return followup_value
+
+
+def merge_promised_new_law(
+    base_value: str, followup_value: str, field_name: str, registration_number: str
+) -> str:
+    """
+    Special logic for commission_promised_new_law:
+    - If Dataset 1 is False and Dataset 2 is True, set True
+    - If both False, then False
+    - If Dataset 1 is True and Dataset 2 is False, keep True
+
+    A Commission promise is one-way - once made, it doesn't become unmade.
+    """
+    base_bool = str(base_value).strip().lower() in ["true", "1", "yes"]
+    followup_bool = str(followup_value).strip().lower() in ["true", "1", "yes"]
+
+    # Once promised (True in either), always promised
+    result = base_bool or followup_bool
+
+    if base_bool and not followup_bool:
+        logger.debug(
+            f"{registration_number} - {field_name}: Keeping True from base (one-way commitment)"
+        )
+    elif not base_bool and followup_bool:
+        logger.info(
+            f"{registration_number} - {field_name}: Updated to True from followup"
+        )
+
+    return str(result)
+
+
+def merge_rejected_initiative(
+    base_value: str, followup_value: str, field_name: str, registration_number: str
+) -> str:
+    """
+    Special logic for commission_rejected_initiative:
+    - If Dataset 1 is True, keep it (Dataset 1 overwrites Dataset 2)
+    - If Dataset 1 is False and Dataset 2 is True, keep Dataset 2
+
+    Rejection is permanent - Dataset 1 is authoritative source.
+    """
+    base_bool = str(base_value).strip().lower() in ["true", "1", "yes"]
+    followup_bool = str(followup_value).strip().lower() in ["true", "1", "yes"]
+
+    # Dataset 1 takes priority
+    if base_bool:
+        logger.debug(
+            f"{registration_number} - {field_name}: Keeping True from base (authoritative)"
+        )
+        return str(True)
+
+    # If base is False, use followup
+    if followup_bool:
+        logger.info(f"{registration_number} - {field_name}: Using True from followup")
+        return str(True)
+
+    logger.debug(f"{registration_number} - {field_name}: Both False")
+    return str(False)
+
+
+def merge_outcome_status_with_validation(
+    base_value: str, followup_value: str, field_name: str, registration_number: str
+) -> str:
+    """
+    Prioritize Dataset 2 (followup) when available, with validation.
+    Flag illogical transitions for manual review.
+    """
+    base_clean = base_value.strip() if base_value else ""
+    followup_clean = followup_value.strip() if followup_value else ""
+
+    if not followup_clean:
+        logger.debug(
+            f"{registration_number} - {field_name}: Using base value (followup empty)"
+        )
+        return base_clean
+
+    # Check for illogical transitions
+    if base_clean and followup_clean and base_clean != followup_clean:
+        # Define status progression order
+        status_order = ["Being Studied", "Law Proposed", "Law Approved", "Law Rejected"]
+
+        try:
+            base_idx = (
+                status_order.index(base_clean) if base_clean in status_order else -1
+            )
+            followup_idx = (
+                status_order.index(followup_clean)
+                if followup_clean in status_order
+                else -1
+            )
+
+            # Warn if status appears to go backwards (except rejection can happen at any point)
+            if base_idx != -1 and followup_idx != -1:
+                if followup_clean == "Law Rejected":
+                    logger.info(
+                        f"{registration_number} - {field_name}: Status changed to rejected: {base_clean} -> {followup_clean}"
+                    )
+                elif followup_idx < base_idx:
+                    logger.warning(
+                        f"{registration_number} - {field_name}: ILLOGICAL STATUS TRANSITION "
+                        f"(backwards): {base_clean} -> {followup_clean} - MANUAL REVIEW NEEDED"
+                    )
+                else:
+                    logger.info(
+                        f"{registration_number} - {field_name}: Status progressed: {base_clean} -> {followup_clean}"
+                    )
+        except ValueError:
+            pass
+
+    logger.debug(
+        f"{registration_number} - {field_name}: Using followup value (more current)"
+    )
+    return followup_clean
+
+
+def merge_law_implementation_date(
+    base_value: str, followup_value: str, field_name: str, registration_number: str
+) -> str:
+    """
+    Keep Dataset 1 if Dataset 2 is null; update with Dataset 2 when exists.
+    """
+    followup_clean = followup_value.strip() if followup_value else ""
+    base_clean = base_value.strip() if base_value else ""
+
+    if followup_clean and followup_clean not in ["", "None", "null"]:
+        if base_clean and base_clean != followup_clean:
+            logger.info(
+                f"{registration_number} - {field_name}: Updated from {base_clean} to {followup_clean}"
+            )
+        return followup_clean
+
+    logger.debug(f"{registration_number} - {field_name}: Keeping base value")
+    return base_clean
 
 
 # ============================================================================
@@ -258,30 +588,60 @@ def merge_keep_followup_only(
 def get_merge_strategy_for_field(field_name: str) -> Callable:
     """
     Return the appropriate merge strategy function for a given field.
-
-    This function maps field names to their specific merge strategies.
+    This function maps field names to their specific merge strategies based on
+    the detailed merge strategy document.
 
     Args:
         field_name: Name of the field to merge
 
     Returns:
         Merge strategy function for the field
-
-    TODO: Implement field-to-strategy mapping based on business requirements.
-    Example mapping:
-    {
-        'registration_number': merge_keep_base_only,
-        'initiative_title': merge_keep_base_only,
-        'commission_answer_text': merge_by_preferring_followup,
-        'followup_latest_date': merge_dates_by_latest,
-        'commission_submission_date': merge_dates_by_earliest,
-        'has_followup_section': merge_boolean_or,
-        'official_communication_document_urls': merge_json_objects,
-        'laws_actions': merge_json_lists,
-        ...
-    }
     """
-    pass
+    # Mapping based on merging_strategy.txt
+    strategy_map = {
+        # Identity columns (immutable)
+        "registration_number": merge_keep_base_only,
+        "initiative_title": merge_keep_base_only,
+        # Unique to Dataset 1 - keep all (immutable)
+        "response_url": merge_keep_base_only,
+        "initiative_url": merge_keep_base_only,
+        "submission_text": merge_keep_base_only,
+        "commission_submission_date": merge_keep_base_only,
+        "submission_news_url": merge_keep_base_only,
+        "commission_meeting_date": merge_keep_base_only,
+        "commission_officials_met": merge_keep_base_only,
+        "parliament_hearing_date": merge_keep_base_only,
+        "parliament_hearing_video_urls": merge_keep_base_only,
+        "plenary_debate_date": merge_keep_base_only,
+        "plenary_debate_video_urls": merge_keep_base_only,
+        "official_communication_adoption_date": merge_keep_base_only,
+        "commission_factsheet_url": merge_keep_base_only,
+        "has_followup_section": merge_keep_base_only,
+        # Overlapping columns with specific strategies
+        "followup_dedicated_website": merge_keep_base_only,  # Identical in both
+        "commission_answer_text": merge_by_concatenation,  # Merge with labels
+        "official_communication_document_urls": merge_json_objects,  # Union with Dataset 1 key priority
+        "final_outcome_status": merge_outcome_status_with_validation,  # Prioritize Dataset 2 with validation
+        "law_implementation_date": merge_law_implementation_date,  # Update with Dataset 2 when exists
+        "commission_promised_new_law": merge_promised_new_law,  # One-way True logic
+        "commission_deadlines": merge_by_concatenation,  # Merge with labels
+        "commission_rejected_initiative": merge_rejected_initiative,  # Dataset 1 priority, one-way True
+        "commission_rejection_reason": merge_by_concatenation,  # Combine with labels
+        "laws_actions": merge_json_lists,  # Append unique actions
+        "policies_actions": merge_json_lists,  # Append with deduplication
+        "has_roadmap": merge_boolean_or,  # Logical OR
+        "has_workshop": merge_boolean_or,  # Logical OR
+        "has_partnership_programs": merge_boolean_or,  # Logical OR
+        "court_cases_referenced": merge_json_lists,  # Combine, deduplicate
+        "followup_latest_date": merge_dates_by_latest,  # Maximum with warning
+        "followup_most_future_date": merge_dates_by_latest,  # Maximum with warning
+        "referenced_legislation_by_id": merge_json_objects,  # Union
+        "referenced_legislation_by_name": merge_json_objects,  # Union
+        "followup_events_with_dates": merge_json_lists,  # Merge, deduplicate
+    }
+
+    # Return the specific strategy or default to preferring followup
+    return strategy_map.get(field_name, merge_by_preferring_followup)
 
 
 # ============================================================================
@@ -294,7 +654,6 @@ def merge_field_values(
 ) -> str:
     """
     Merge a single field from base and followup CSVs.
-
     This is the main entry point that delegates to field-specific strategies.
 
     Args:
@@ -305,19 +664,22 @@ def merge_field_values(
 
     Returns:
         The merged value for this field
-
-    Notes:
-        Current placeholder behavior:
-        - If followup_value is non-empty, prefer it over base_value
-        - Otherwise, keep base_value
-
-        TODO: Implement by calling get_merge_strategy_for_field() and applying
-        the appropriate strategy for each field.
     """
-    # Placeholder implementation: prefer followup if non-empty, else base
-    if followup_value and followup_value.strip():
-        return followup_value
-    return base_value
+    # Get the appropriate strategy for this field
+    strategy_func = get_merge_strategy_for_field(field_name)
+
+    # Apply the strategy
+    try:
+        result = strategy_func(
+            base_value, followup_value, field_name, registration_number
+        )
+        return result
+    except Exception as e:
+        logger.error(
+            f"{registration_number} - {field_name}: Error during merge: {e}. "
+            f"Falling back to base value."
+        )
+        return base_value
 
 
 # ============================================================================
@@ -330,34 +692,6 @@ IMMUTABLE_FIELDS = [
     "initiative_title",
     "initiative_url",
     "response_url",
-]
-
-# Followup-preferred fields (followup data is more recent):
-FOLLOWUP_PREFERRED_FIELDS = [
-    "commission_answer_text",
-    "official_communication_document_urls",
-    "final_outcome_status",
-    "law_implementation_date",
-    "commission_promised_new_law",
-    "commission_deadlines",
-    "commission_rejected_initiative",
-    "commission_rejection_reason",
-    "laws_actions",
-    "policies_actions",
-    "has_roadmap",
-    "has_workshop",
-    "has_partnership_programs",
-    "court_cases_referenced",
-    "followup_latest_date",
-    "followup_most_future_date",
-    "referenced_legislation_by_id",
-    "referenced_legislation_by_name",
-    "followup_events_with_dates",
-    "followup_dedicated_website",
-]
-
-# Base-preferred fields (base data is authoritative):
-BASE_PREFERRED_FIELDS = [
     "submission_text",
     "commission_submission_date",
     "submission_news_url",
@@ -370,6 +704,48 @@ BASE_PREFERRED_FIELDS = [
     "official_communication_adoption_date",
     "commission_factsheet_url",
     "has_followup_section",
+    "followup_dedicated_website",
+]
+
+# Followup-preferred fields (followup data is more recent):
+FOLLOWUP_PREFERRED_FIELDS = [
+    "final_outcome_status",
+    "law_implementation_date",
+]
+
+# Boolean OR fields:
+BOOLEAN_OR_FIELDS = [
+    "has_roadmap",
+    "has_workshop",
+    "has_partnership_programs",
+]
+
+# Special boolean logic fields:
+SPECIAL_BOOLEAN_FIELDS = [
+    "commission_promised_new_law",  # One-way True
+    "commission_rejected_initiative",  # Dataset 1 priority
+]
+
+# Concatenation fields (merge with labels):
+CONCATENATION_FIELDS = [
+    "commission_answer_text",
+    "commission_deadlines",
+    "commission_rejection_reason",
+]
+
+# JSON list fields (merge/append):
+JSON_LIST_FIELDS = [
+    "laws_actions",
+    "policies_actions",
+    "court_cases_referenced",
+    "followup_events_with_dates",
+]
+
+# JSON object fields (union):
+JSON_OBJECT_FIELDS = [
+    "official_communication_document_urls",
+    "referenced_legislation_by_id",
+    "referenced_legislation_by_name",
 ]
 
 # Date fields:
@@ -382,27 +758,4 @@ DATE_FIELDS = [
     "law_implementation_date",
     "followup_latest_date",
     "followup_most_future_date",
-]
-
-# Boolean fields:
-BOOLEAN_FIELDS = [
-    "commission_promised_new_law",
-    "commission_rejected_initiative",
-    "has_followup_section",
-    "has_roadmap",
-    "has_workshop",
-    "has_partnership_programs",
-]
-
-# JSON/structured fields:
-JSON_FIELDS = [
-    "official_communication_document_urls",
-    "parliament_hearing_video_urls",
-    "plenary_debate_video_urls",
-    "commission_deadlines",
-    "laws_actions",
-    "policies_actions",
-    "referenced_legislation_by_id",
-    "referenced_legislation_by_name",
-    "followup_events_with_dates",
 ]
