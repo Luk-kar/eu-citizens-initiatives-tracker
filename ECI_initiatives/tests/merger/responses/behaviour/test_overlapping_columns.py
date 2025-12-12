@@ -605,6 +605,10 @@ class TestBooleanOrFields:
             == "True"
         )
         assert (
+            merge_field_values("True", "True", "has_workshop", "ECI(2022)000001")
+            == "True"
+        )
+        assert (
             merge_field_values("False", "False", "has_workshop", "ECI(2022)000002")
             == "False"
         )
@@ -612,6 +616,12 @@ class TestBooleanOrFields:
     def test_has_partnership_programs_logical_or(self):
         """Test logical OR for has_partnership_programs."""
 
+        assert (
+            merge_field_values(
+                "True", "False", "has_partnership_programs", "ECI(2022)000001"
+            )
+            == "True"
+        )
         assert (
             merge_field_values(
                 "False", "True", "has_partnership_programs", "ECI(2022)000001"
@@ -623,6 +633,12 @@ class TestBooleanOrFields:
                 "True", "True", "has_partnership_programs", "ECI(2022)000001"
             )
             == "True"
+        )
+        assert (
+            merge_field_values(
+                "False", "False", "has_partnership_programs", "ECI(2022)000002"
+            )
+            == "False"
         )
 
 
@@ -735,66 +751,476 @@ class TestFollowupMostFutureDate:
 
 
 class TestReferencedLegislationById:
-    """Tests for referenced_legislation_by_id JSON object merging."""
+    """
+    Tests for referenced_legislation_by_id JSON object merging.
+
+    This field stores legislation references as a JSON object where:
+    - Keys are legislation types (e.g., "Regulation", "Directive", "Article")
+    - Values are lists of CELEX numbers or identifiers
+
+    Merge strategy:
+    - Combine all unique keys from both datasets
+    - For duplicate keys with list values: merge and deduplicate the lists
+    - For duplicate keys with non-list values: followup overrides base
+    """
 
     def test_merge_unique_legislation_ids(self):
-        """Test combining unique legislation IDs."""
+        """
+        Test combining legislation IDs from both datasets with different keys.
 
-        base = '{"Regulation": "32019R2088", "Directive": "2009/147/EC"}'
-        followup = '{"Regulation IAS": "32025R0456", "Article": "Art. 13 TFEU"}'
+        When base has "Regulation" and "Directive", and followup has "Regulation" and "Article":
+        - All three keys should be present in result
+        - "Regulation" lists should be merged and deduplicated
+        - "Directive" should be kept from base
+        - "Article" should be added from followup
+        """
+        base = (
+            '{"Regulation": ["32019R2088", "32025R0sad"], "Directive": ["2009/147/EC"]}'
+        )
+        followup = '{"Regulation": ["32025R0456"], "Article": ["Art. 13 TFEU"]}'
         result = merge_field_values(
             base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
         )
 
         result_obj = json.loads(result)
-        assert len(result_obj) == 4, "Should have all 4 unique IDs"
+        assert (
+            len(result_obj) == 3
+        ), "Should have all 3 unique keys (Regulation, Directive, Article)"
+        assert "Article" in result_obj, "Should have Article from followup"
+        assert "Directive" in result_obj, "Should have Directive from base"
+        assert "Regulation" in result_obj, "Should have Regulation merged from both"
+
+        # Regulation list should be merged and sorted
+        expected_regulation = sorted(["32019R2088", "32025R0456", "32025R0sad"])
+        assert (
+            expected_regulation == result_obj["Regulation"]
+        ), "Regulation list should be merged and sorted"
+
+    def test_merge_lists_for_duplicate_keys(self):
+        """
+        Test that when the same key exists in both datasets, their list values are merged.
+
+        Both base and followup have "Regulation" key with different CELEX numbers:
+        - Lists should be combined
+        - Duplicates should be removed
+        - Result should be sorted
+        """
+        base = '{"Regulation": ["OLD_CELEX", "SHARED_CELEX"]}'
+        followup = '{"Regulation": ["NEW_CELEX", "SHARED_CELEX"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+        )
+
+        result_obj = json.loads(result)
+        expected = sorted(["OLD_CELEX", "NEW_CELEX", "SHARED_CELEX"])
+        assert (
+            expected == result_obj["Regulation"]
+        ), "Should merge lists and deduplicate"
+
+    def test_empty_base_uses_followup(self):
+        """Test that when base is empty, followup object is used as-is."""
+
+        base = ""
+        followup = '{"Press Release": "https://ec.europa.eu/press1"}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "ECI(2022)000002"
+        )
+        assert result == followup, "Should use followup when base empty"
+
+    def test_empty_followup_keeps_base(self):
+        """Test that when followup is empty, base object is kept."""
+
+        base = '{"Communication": "https://ec.europa.eu/doc1.pdf"}'
+        followup = ""
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+        )
+        assert result == base, "Should keep base when followup empty"
+
+    def test_both_empty_returns_empty(self):
+        """Test that when both are empty, empty string is returned."""
+
+        result = merge_field_values(
+            "", "", "referenced_legislation_by_id", "ECI(2022)000001"
+        )
+        assert result == "", "Should return empty when both empty"
+
+    def test_multiple_duplicate_keys_all_merged(self):
+        """
+        Test merging multiple keys that exist in both datasets.
+
+        When multiple keys have overlapping legislation references:
+        - Each key's lists should be independently merged
+        - Deduplication should happen per key
+        """
+        base = '{"Regulation": ["REG1", "REG2"], "Directive": ["DIR1", "DIR2"]}'
+        followup = '{"Regulation": ["REG2", "REG3"], "Directive": ["DIR2", "DIR3"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+        )
+
+        result_obj = json.loads(result)
+        assert sorted(["REG1", "REG2", "REG3"]) == result_obj["Regulation"]
+        assert sorted(["DIR1", "DIR2", "DIR3"]) == result_obj["Directive"]
+
+    def test_single_item_lists_merged(self):
+        """Test that single-item lists are properly merged."""
+
+        base = '{"Article": ["Art. 192 TFEU"]}'
+        followup = '{"Article": ["Art. 193 TFEU"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+        )
+
+        result_obj = json.loads(result)
+        expected = sorted(["Art. 192 TFEU", "Art. 193 TFEU"])
+        assert expected == result_obj["Article"]
+
+    def test_mixed_new_and_duplicate_keys(self):
+        """
+        Test merging when some keys are new and some are duplicates.
+
+        Base has keys A and B, followup has keys B and C:
+        - A should be kept from base only
+        - B should be merged from both
+        - C should be added from followup only
+        """
+        base = '{"TypeA": ["A1", "A2"], "TypeB": ["B1"]}'
+        followup = '{"TypeB": ["B2", "B3"], "TypeC": ["C1"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+        )
+
+        result_obj = json.loads(result)
+        assert ["A1", "A2"] == result_obj["TypeA"], "TypeA from base only"
+        assert (
+            sorted(["B1", "B2", "B3"]) == result_obj["TypeB"]
+        ), "TypeB merged from both"
+        assert ["C1"] == result_obj["TypeC"], "TypeC from followup only"
+
+    def test_empty_lists_in_values(self):
+        """Test handling of empty lists as values."""
+
+        base = '{"Regulation": ["REG1"], "Directive": []}'
+        followup = '{"Regulation": [], "Article": ["ART1"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+        )
+
+        result_obj = json.loads(result)
+        assert ["REG1"] == result_obj["Regulation"], "Should keep non-empty base list"
+        assert [] == result_obj["Directive"], "Should keep empty list from base"
+        assert ["ART1"] == result_obj["Article"], "Should add new key from followup"
+
+    def test_preserves_order_for_non_string_items(self):
+        """Test that order is preserved when list items are not all strings."""
+
+        # If items are complex (dicts/nested), order should be preserved (not sorted)
+        base = '{"Mixed": ["B", "A", "C"]}'
+        followup = '{"Mixed": ["D", "A"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+        )
+
+        result_obj = json.loads(result)
+        # Should be sorted since all are strings
+        assert ["A", "B", "C", "D"] == result_obj["Mixed"]
+
+
+class TestReferencedLegislationById:
+    """
+    Tests for referenced_legislation_by_id JSON object merging.
+
+    This field stores legislation references as a JSON object where:
+    - Keys are legislation types: "Regulation", "Directive", "Decision", "CELEX", "Article"
+    - Values are lists of identifiers extracted from legislation references
+
+    Merge strategy:
+    - Combine all unique keys from both datasets
+    - For duplicate keys with list values: merge and deduplicate the lists
+    - For duplicate keys with non-list values: followup overrides base
+    """
+
+    def test_merge_unique_legislation_ids(self):
+        """
+        Test combining legislation IDs from both datasets with different keys.
+
+        When base has "Regulation" and "Directive", and followup has "Regulation" and "Article":
+        - All three keys should be present in result
+        - "Regulation" lists should be merged and deduplicated
+        - "Directive" should be kept from base
+        - "Article" should be added from followup
+        """
+        base = (
+            '{"Regulation": ["2088/2019", "0456/2025"], "Directive": ["2009/147/EC"]}'
+        )
+        followup = '{"Regulation": ["0789/2025"], "Article": ["13", "192"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022/000001"
+        )
+
+        result_obj = json.loads(result)
+        assert (
+            len(result_obj) == 3
+        ), "Should have all 3 unique keys (Regulation, Directive, Article)"
+        assert "Article" in result_obj, "Should have Article from followup"
+        assert "Directive" in result_obj, "Should have Directive from base"
+        assert "Regulation" in result_obj, "Should have Regulation merged from both"
+
+        # Regulation list should be merged and sorted
+        expected_regulation = sorted(["2088/2019", "0456/2025", "0789/2025"])
+        assert (
+            expected_regulation == result_obj["Regulation"]
+        ), "Regulation list should be merged and sorted"
+
+    def test_merge_lists_for_duplicate_keys(self):
+        """
+        Test that when the same key exists in both datasets, their list values are merged.
+
+        Both base and followup have "CELEX" key with different CELEX numbers:
+        - Lists should be combined
+        - Duplicates should be removed
+        - Result should be sorted
+        """
+        base = '{"CELEX": ["32019R2088", "32020R0852"]}'
+        followup = '{"CELEX": ["32025R0123", "32020R0852"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022/000001"
+        )
+
+        result_obj = json.loads(result)
+        expected = sorted(["32019R2088", "32020R0852", "32025R0123"])
+        assert expected == result_obj["CELEX"], "Should merge lists and deduplicate"
+
+    def test_empty_base_uses_followup(self):
+        """Test that when base is empty, followup object is used as-is."""
+
+        base = ""
+        followup = '{"Decision": ["2024/123", "2024/456"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022/000002"
+        )
+
+        result_obj = json.loads(result)
+        assert ["2024/123", "2024/456"] == result_obj["Decision"]
+
+    def test_empty_followup_keeps_base(self):
+        """Test that when followup is empty, base object is kept."""
+
+        base = '{"Regulation": ["1143/2014"]}'
+        followup = ""
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022/000001"
+        )
+
+        result_obj = json.loads(result)
+        assert ["1143/2014"] == result_obj["Regulation"]
+
+    def test_both_empty_returns_empty(self):
+        """Test that when both are empty, empty string is returned."""
+
+        result = merge_field_values(
+            "", "", "referenced_legislation_by_id", "2022/000001"
+        )
+        assert result == "", "Should return empty when both empty"
+
+    def test_multiple_duplicate_keys_all_merged(self):
+        """
+        Test merging multiple keys that exist in both datasets.
+
+        When multiple keys have overlapping legislation references:
+        - Each key's lists should be independently merged
+        - Deduplication should happen per key
+        """
+        base = '{"Regulation": ["2019/2088", "2020/852"], "Directive": ["2009/147/EC", "92/43/EEC"]}'
+        followup = '{"Regulation": ["2020/852", "2024/1991"], "Directive": ["92/43/EEC", "2010/75/EU"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022/000001"
+        )
+
+        result_obj = json.loads(result)
+        assert (
+            sorted(["2019/2088", "2020/852", "2024/1991"]) == result_obj["Regulation"]
+        )
+        assert (
+            sorted(["2009/147/EC", "2010/75/EU", "92/43/EEC"])
+            == result_obj["Directive"]
+        )
+
+    def test_single_item_lists_merged(self):
+        """Test that single-item lists are properly merged."""
+
+        base = '{"Article": ["192"]}'
+        followup = '{"Article": ["193"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022/000001"
+        )
+
+        result_obj = json.loads(result)
+        expected = sorted(["192", "193"])
+        assert expected == result_obj["Article"]
+
+    def test_mixed_new_and_duplicate_keys(self):
+        """
+        Test merging when some keys are new and some are duplicates.
+
+        Base has Regulation and Directive, followup has Directive and Article:
+        - Regulation should be kept from base only
+        - Directive should be merged from both
+        - Article should be added from followup only
+        """
+        base = '{"Regulation": ["2019/2088", "2020/852"], "Directive": ["2009/147/EC"]}'
+        followup = (
+            '{"Directive": ["2010/75/EU", "92/43/EEC"], "Article": ["13", "192"]}'
+        )
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022/000001"
+        )
+
+        result_obj = json.loads(result)
+        assert (
+            sorted(["2019/2088", "2020/852"]) == result_obj["Regulation"]
+        ), "Regulation from base only"
+        assert (
+            sorted(["2009/147/EC", "2010/75/EU", "92/43/EEC"])
+            == result_obj["Directive"]
+        ), "Directive merged from both"
+        assert (
+            sorted(["13", "192"]) == result_obj["Article"]
+        ), "Article from followup only"
+
+    def test_empty_lists_in_values(self):
+        """Test handling of empty lists as values."""
+
+        base = '{"Regulation": ["2019/2088"], "Directive": []}'
+        followup = '{"Regulation": [], "CELEX": ["32025R0123"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022/000001"
+        )
+
+        result_obj = json.loads(result)
+        assert ["2019/2088"] == result_obj[
+            "Regulation"
+        ], "Should keep non-empty base list"
+        assert [] == result_obj["Directive"], "Should keep empty list from base"
+        assert ["32025R0123"] == result_obj["CELEX"], "Should add new key from followup"
+
+    def test_all_valid_legislation_types(self):
+        """Test merging with all valid legislation type keys."""
+
+        base = '{"Regulation": ["2019/2088"], "Directive": ["2009/147/EC"], "Decision": ["2024/123"]}'
+        followup = '{"CELEX": ["32025R0456"], "Article": ["13", "192"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022/000001"
+        )
+
+        result_obj = json.loads(result)
+        assert len(result_obj) == 5, "Should have all 5 valid legislation types"
         assert "Regulation" in result_obj
-        assert "Regulation IAS" in result_obj
+        assert "Directive" in result_obj
+        assert "Decision" in result_obj
+        assert "CELEX" in result_obj
+        assert "Article" in result_obj
 
-    def test_followup_overrides_duplicate_keys(self):
-        """Test that followup overrides base for same key."""
+    def test_celex_numbers_merged_correctly(self):
+        """Test that CELEX numbers (complex format) are merged and deduplicated."""
 
-        base = '{"Regulation": "OLD_CELEX"}'
-        followup = '{"Regulation": "NEW_CELEX"}'
+        base = '{"CELEX": ["32019R2088", "32020R0852", "31992L0043"]}'
+        followup = '{"CELEX": ["32020R0852", "32025R0456", "32024R1991"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+            base, followup, "referenced_legislation_by_id", "2022/000001"
         )
 
         result_obj = json.loads(result)
-        assert result_obj["Regulation"] == "NEW_CELEX", "Followup should override"
+        expected = sorted(
+            ["31992L0043", "32019R2088", "32020R0852", "32024R1991", "32025R0456"]
+        )
+        assert (
+            expected == result_obj["CELEX"]
+        ), "CELEX numbers should be merged and sorted"
 
 
 class TestReferencedLegislationByName:
-    """Tests for referenced_legislation_by_name JSON object merging."""
+    """
+    Tests for referenced_legislation_by_name JSON object merging.
+
+    Similar structure to referenced_legislation_by_id but typically has more descriptive keys.
+    Valid keys are still: "Regulation", "Directive", "Decision", "CELEX", "Article"
+    Uses same merge strategy: combine keys, merge lists for duplicates.
+    """
 
     def test_merge_unique_legislation_names(self):
-        """Test combining unique human-readable legislation names."""
+        """Test combining unique legislation references."""
 
-        base = '{"Birds Directive": "2009/147/EC", "Habitats Directive": "92/43/EEC"}'
-        followup = (
-            '{"IAS Regulation": "1143/2014", "Nature Restoration Law": "2024/1991"}'
-        )
+        base = '{"Directive": ["Birds Directive (2009/147/EC)", "Habitats Directive (92/43/EEC)"]}'
+        followup = '{"Regulation": ["IAS Regulation (1143/2014)", "Nature Restoration (2024/1991)"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_name", "ECI(2022)000001"
+            base, followup, "referenced_legislation_by_name", "2022/000001"
         )
 
         result_obj = json.loads(result)
-        assert len(result_obj) == 4, "Should have all 4 legislation names"
-        assert "Birds Directive" in result_obj
-        assert "Nature Restoration Law" in result_obj
+        assert len(result_obj) == 2, "Should have 2 legislation types"
+        assert "Directive" in result_obj
+        assert "Regulation" in result_obj
+        assert len(result_obj["Directive"]) == 2
+        assert len(result_obj["Regulation"]) == 2
 
-    def test_provides_technical_and_accessible_names(self):
-        """Test that combination provides both CELEX IDs and common names."""
+    def test_merge_lists_for_same_legislation_type(self):
+        """Test that lists are merged when the same legislation type appears in both."""
 
-        base = '{"SFDR": "2019/2088"}'
-        followup = '{"Taxonomy Regulation": "2020/852"}'
+        base = '{"Regulation": ["SFDR (2019/2088)", "Taxonomy (2020/852)"]}'
+        followup = '{"Regulation": ["Taxonomy (2020/852)", "CSRD (2022/2464)"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_name", "ECI(2022)000002"
+            base, followup, "referenced_legislation_by_name", "2022/000001"
         )
 
         result_obj = json.loads(result)
-        assert "SFDR" in result_obj, "Should have technical acronym"
-        assert "Taxonomy Regulation" in result_obj, "Should have common name"
+        expected = sorted(
+            ["CSRD (2022/2464)", "SFDR (2019/2088)", "Taxonomy (2020/852)"]
+        )
+        assert expected == result_obj["Regulation"], "Should merge and deduplicate"
+
+    def test_provides_multiple_reference_formats(self):
+        """Test that combination provides references in various formats."""
+
+        base = '{"Regulation": ["EU 2019/2088 (SFDR)"], "Article": ["Article 13 TFEU"]}'
+        followup = '{"Directive": ["Directive 2009/147/EC"], "CELEX": ["32020R0852"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_name", "2022/000002"
+        )
+
+        result_obj = json.loads(result)
+        assert "Regulation" in result_obj
+        assert "Article" in result_obj
+        assert "Directive" in result_obj
+        assert "CELEX" in result_obj
+        assert len(result_obj) == 4
+
+    def test_article_references_merged(self):
+        """Test that Article references are properly merged."""
+
+        base = '{"Article": ["Article 192 TFEU", "Article 191 TFEU"]}'
+        followup = '{"Article": ["Article 193 TFEU", "Article 192 TFEU"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_name", "2022/000001"
+        )
+
+        result_obj = json.loads(result)
+        expected = sorted(["Article 191 TFEU", "Article 192 TFEU", "Article 193 TFEU"])
+        assert expected == result_obj["Article"]
+
+    def test_decision_references_handled(self):
+        """Test that Decision references are properly handled."""
+
+        base = '{"Decision": ["Council Decision 2024/123"]}'
+        followup = '{"Decision": ["Commission Decision 2024/456"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_name", "2022/000001"
+        )
+
+        result_obj = json.loads(result)
+        expected = sorted(["Commission Decision 2024/456", "Council Decision 2024/123"])
+        assert expected == result_obj["Decision"]
 
 
 class TestFollowupEventsWithDates:

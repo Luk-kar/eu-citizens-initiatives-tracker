@@ -282,7 +282,12 @@ def merge_json_objects(
     base_value: str, followup_value: str, field_name: str, registration_number: str
 ) -> str:
     """
-    Merge JSON object structures, with followup values overriding base values.
+    Merge JSON object structures, with smart merging for list values.
+
+    For duplicate keys:
+    - If both values are lists: merge and deduplicate the lists
+    - Otherwise: followup values override base values
+
     Use for fields containing JSON objects (dictionaries).
 
     Args:
@@ -321,9 +326,43 @@ def merge_json_objects(
                 f"{registration_number} - {field_name}: Could not parse followup JSON object"
             )
 
-    # Merge: start with base, override with followup
+    # Merge: start with base
     merged = base_obj.copy()
-    merged.update(followup_obj)
+
+    # Merge in followup with smart list handling
+    for key, followup_val in followup_obj.items():
+        if key in merged:
+            base_val = merged[key]
+
+            # If both are lists, merge them
+            if isinstance(base_val, list) and isinstance(followup_val, list):
+                # Combine lists and deduplicate while preserving order
+                combined = base_val + followup_val
+                # Remove duplicates while preserving order
+                seen = set()
+                deduped = []
+                for item in combined:
+                    # For complex items, convert to string for comparison
+                    item_key = (
+                        json.dumps(item, sort_keys=True)
+                        if isinstance(item, (dict, list))
+                        else item
+                    )
+                    if item_key not in seen:
+                        seen.add(item_key)
+                        deduped.append(item)
+                # Sort if all items are strings, otherwise preserve order
+                merged[key] = (
+                    sorted(deduped)
+                    if all(isinstance(x, str) for x in deduped)
+                    else deduped
+                )
+            else:
+                # For non-list values, followup takes precedence
+                merged[key] = followup_val
+        else:
+            # New key from followup
+            merged[key] = followup_val
 
     if merged:
         logger.debug(
