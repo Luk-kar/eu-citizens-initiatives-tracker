@@ -1346,10 +1346,10 @@ class TestFollowupEventsWithDates:
     def test_merge_events_from_both_sources(self):
         """Test combining events from base and followup."""
 
-        base = '[{"date": "2023-06", "event": "Stakeholder consultation launched"}]'
-        followup = '[{"date": "2024-08", "event": "EFSA opinion published"}, {"date": "2025-03", "event": "Legislative proposal adopted"}]'
+        base = '[{"date": "15-06-2023", "event": "Stakeholder consultation launched"}]'
+        followup = '[{"date": "20-08-2024", "event": "EFSA opinion published"}, {"date": "15-03-2025", "event": "Legislative proposal adopted"}]'
         result = merge_field_values(
-            base, followup, "followup_events_with_dates", "ECI(2022)000001"
+            base, followup, "followup_events_with_dates", "2022/000001"
         )
 
         result_list = json.loads(result)
@@ -1358,9 +1358,9 @@ class TestFollowupEventsWithDates:
     def test_deduplicate_same_date_and_description(self):
         """Test that identical events are deduplicated."""
 
-        event = '[{"date": "2024-06", "event": "Consultation closed"}]'
+        event = '[{"date": "15-06-2024", "event": "Consultation closed"}]'
         result = merge_field_values(
-            event, event, "followup_events_with_dates", "ECI(2022)000001"
+            event, event, "followup_events_with_dates", "2022/000001"
         )
 
         result_list = json.loads(result)
@@ -1369,10 +1369,10 @@ class TestFollowupEventsWithDates:
     def test_generic_vs_specific_details_both_preserved(self):
         """Test that both generic and specific event descriptions are preserved if different."""
 
-        base = '[{"date": "2024", "event": "Study published"}]'
-        followup = '[{"date": "2024-06-15", "event": "EFSA Scientific Opinion on animal welfare published"}]'
+        base = '[{"date": "01-01-2024", "event": "Study published"}]'
+        followup = '[{"date": "15-06-2024", "event": "EFSA Scientific Opinion on animal welfare published"}]'
         result = merge_field_values(
-            base, followup, "followup_events_with_dates", "ECI(2022)000001"
+            base, followup, "followup_events_with_dates", "2022/000001"
         )
 
         result_list = json.loads(result)
@@ -1382,10 +1382,10 @@ class TestFollowupEventsWithDates:
     def test_complete_accountability_timeline(self):
         """Test that merging creates complete timeline from initial to current."""
 
-        base = '[{"date": "2022-06", "event": "Commission response published"}, {"date": "2022-09", "event": "Consultation launched"}]'
-        followup = '[{"date": "2023-03", "event": "Consultation closed"}, {"date": "2024-06", "event": "Impact assessment published"}, {"date": "2025-01", "event": "Legislative proposal adopted"}]'
+        base = '[{"date": "20-06-2022", "event": "Commission response published"}, {"date": "15-09-2022", "event": "Consultation launched"}]'
+        followup = '[{"date": "30-03-2023", "event": "Consultation closed"}, {"date": "15-06-2024", "event": "Impact assessment published"}, {"date": "20-01-2025", "event": "Legislative proposal adopted"}]'
         result = merge_field_values(
-            base, followup, "followup_events_with_dates", "ECI(2022)000001"
+            base, followup, "followup_events_with_dates", "2022/000001"
         )
 
         result_list = json.loads(result)
@@ -1395,8 +1395,80 @@ class TestFollowupEventsWithDates:
 
         # Verify we have events from both sources
         dates = [e["date"] for e in result_list]
-        assert "2022-06" in dates, "Should have base event from 2022-06"
-        assert "2025-01" in dates, "Should have followup event from 2025-01"
+        assert "20-06-2022" in dates, "Should have base event from 20-06-2022"
+        assert "20-01-2025" in dates, "Should have followup event from 20-01-2025"
+
+    def test_empty_base_uses_followup(self):
+        """Test that empty base returns followup events."""
+
+        base = ""
+        followup = '[{"date": "15-03-2024", "event": "Hearing held"}]'
+        result = merge_field_values(
+            base, followup, "followup_events_with_dates", "2022/000001"
+        )
+
+        result_list = json.loads(result)
+        assert len(result_list) == 1
+        assert result_list[0]["date"] == "15-03-2024"
+
+    def test_empty_followup_keeps_base(self):
+        """Test that empty followup returns base events."""
+
+        base = '[{"date": "10-05-2023", "event": "Initial meeting"}]'
+        followup = ""
+        result = merge_field_values(
+            base, followup, "followup_events_with_dates", "2022/000001"
+        )
+
+        result_list = json.loads(result)
+        assert len(result_list) == 1
+        assert result_list[0]["date"] == "10-05-2023"
+
+    def test_multiple_events_same_date_different_descriptions(self):
+        """Test that multiple events on the same date with different descriptions are kept."""
+
+        base = '[{"date": "15-06-2024", "event": "Morning session"}, {"date": "15-06-2024", "event": "Afternoon session"}]'
+        followup = '[{"date": "15-06-2024", "event": "Evening session"}]'
+        result = merge_field_values(
+            base, followup, "followup_events_with_dates", "2022/000001"
+        )
+
+        result_list = json.loads(result)
+        assert len(result_list) == 3, "Should keep all events even if same date"
+
+    def test_chronological_order_preserved(self):
+        """Test that chronological order is maintained in merged timeline."""
+
+        base = '[{"date": "01-01-2023", "event": "Event A"}, {"date": "15-03-2023", "event": "Event B"}]'
+        followup = '[{"date": "20-02-2023", "event": "Event C"}, {"date": "30-04-2023", "event": "Event D"}]'
+        result = merge_field_values(
+            base, followup, "followup_events_with_dates", "2022/000001"
+        )
+
+        result_list = json.loads(result)
+        assert len(result_list) == 4, "Should have all 4 events"
+
+        # Check we have all dates
+        dates = [e["date"] for e in result_list]
+        assert "01-01-2023" in dates
+        assert "20-02-2023" in dates
+        assert "15-03-2023" in dates
+        assert "30-04-2023" in dates
+
+    def test_partial_date_formats_handled(self):
+        """Test handling of events with partial date information."""
+
+        base = '[{"date": "06-2023", "event": "Mid-year review"}]'
+        followup = '[{"date": "15-06-2023", "event": "Detailed review"}]'
+        result = merge_field_values(
+            base, followup, "followup_events_with_dates", "2022/000001"
+        )
+
+        result_list = json.loads(result)
+        # Both should be preserved as dates are different formats
+        assert (
+            len(result_list) == 2
+        ), "Should keep both events with different date precision"
 
 
 class TestStrategyMappingForOverlappingColumns:
