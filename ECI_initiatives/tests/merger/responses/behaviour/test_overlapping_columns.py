@@ -53,7 +53,7 @@ class TestFollowupDedicatedWebsite:
         base = "https://food.ec.europa.eu/animals/animal-welfare/end-cage-age_en"
         followup = "https://food.ec.europa.eu/animals/animal-welfare/end-cage-age_en"
         result = merge_field_values(
-            base, followup, "followup_dedicated_website", "ECI(2022)000001"
+            base, followup, "followup_dedicated_website", "2022/000001"
         )
         assert result == base, "Should keep base when both identical"
 
@@ -66,7 +66,7 @@ class TestFollowupDedicatedWebsite:
         # Should raise error when values differ (data integrity issue)
         with pytest.raises(ImmutableFieldConflictError) as exc_info:
             merge_field_values(
-                base, followup, "followup_dedicated_website", "ECI(2022)000001"
+                base, followup, "followup_dedicated_website", "2022/000001"
             )
 
         # Verify error message contains useful information
@@ -74,9 +74,7 @@ class TestFollowupDedicatedWebsite:
         assert (
             "followup_dedicated_website" in error_msg
         ), "Error should mention field name"
-        assert (
-            "ECI(2022)000001" in error_msg
-        ), "Error should contain registration number"
+        assert "2022/000001" in error_msg, "Error should contain registration number"
         assert base in error_msg, "Error should contain base value"
         assert followup in error_msg, "Error should contain followup value"
 
@@ -90,7 +88,7 @@ class TestCommissionAnswerTextMerging:
         base = "The Commission will present a legislative proposal by end of 2023 to phase out caged farming."
         followup = "The Commission adopted Regulation 2025/123 on 15 March 2025 phasing out caged farming by 2027."
         result = merge_field_values(
-            base, followup, "commission_answer_text", "ECI(2022)000001"
+            base, followup, "commission_answer_text", "2022/000001"
         )
 
         assert "**Original Response:**" in result, "Should have original label"
@@ -102,9 +100,7 @@ class TestCommissionAnswerTextMerging:
         """Test that identical values are not duplicated."""
 
         text = "The Commission will conduct a study."
-        result = merge_field_values(
-            text, text, "commission_answer_text", "ECI(2022)000001"
-        )
+        result = merge_field_values(text, text, "commission_answer_text", "2022/000001")
         assert result == text, "Should not duplicate identical text"
         assert result.count(text) == 1, "Text should appear only once"
 
@@ -114,7 +110,7 @@ class TestCommissionAnswerTextMerging:
         base = "Original Commission response text."
         followup = ""
         result = merge_field_values(
-            base, followup, "commission_answer_text", "ECI(2022)000001"
+            base, followup, "commission_answer_text", "2022/000001"
         )
         assert result == base, "Should return base when followup empty"
         assert "**Original" not in result, "Should not add labels when only one value"
@@ -125,7 +121,7 @@ class TestCommissionAnswerTextMerging:
         base = ""
         followup = "Updated Commission response from followup website."
         result = merge_field_values(
-            base, followup, "commission_answer_text", "ECI(2022)000002"
+            base, followup, "commission_answer_text", "2022/000002"
         )
         assert result == followup, "Should return followup when base empty"
 
@@ -143,7 +139,7 @@ class TestCommissionAnswerTextMerging:
         - Three stakeholder consultations held"""
 
         result = merge_field_values(
-            base, followup, "commission_answer_text", "ECI(2022)000001"
+            base, followup, "commission_answer_text", "2022/000001"
         )
 
         assert base in result, "Should contain full base text"
@@ -162,7 +158,7 @@ class TestOfficialCommunicationDocumentUrls:
         base = '{"Communication": "https://ec.europa.eu/doc1.pdf", "Press Release": "https://ec.europa.eu/press1"}'
         followup = '{"Q&A": "https://ec.europa.eu/qa.pdf", "Factsheet": "https://ec.europa.eu/factsheet.pdf"}'
         result = merge_field_values(
-            base, followup, "official_communication_document_urls", "ECI(2022)000001"
+            base, followup, "official_communication_document_urls", "2022/000001"
         )
 
         result_obj = json.loads(result)
@@ -178,7 +174,7 @@ class TestOfficialCommunicationDocumentUrls:
         base = '{"Communication": "https://ec.europa.eu/old.pdf"}'
         followup = '{"Communication": "https://ec.europa.eu/new.pdf"}'
         result = merge_field_values(
-            base, followup, "official_communication_document_urls", "ECI(2022)000001"
+            base, followup, "official_communication_document_urls", "2022/000001"
         )
 
         result_obj = json.loads(result)
@@ -192,7 +188,7 @@ class TestOfficialCommunicationDocumentUrls:
         base = '{"Communication": "https://ec.europa.eu/doc.pdf"}'
         followup = ""
         result = merge_field_values(
-            base, followup, "official_communication_document_urls", "ECI(2022)000001"
+            base, followup, "official_communication_document_urls", "2022/000001"
         )
         assert result == base, "Should keep base when followup empty"
 
@@ -202,7 +198,7 @@ class TestOfficialCommunicationDocumentUrls:
         base = ""
         followup = '{"Press Release": "https://ec.europa.eu/press.pdf"}'
         result = merge_field_values(
-            base, followup, "official_communication_document_urls", "ECI(2022)000002"
+            base, followup, "official_communication_document_urls", "2022/000002"
         )
         assert result == followup, "Should use followup when base empty"
 
@@ -210,7 +206,7 @@ class TestOfficialCommunicationDocumentUrls:
         """Test that both empty returns empty string."""
 
         result = merge_field_values(
-            "", "", "official_communication_document_urls", "ECI(2022)000001"
+            "", "", "official_communication_document_urls", "2022/000001"
         )
         assert result == "", "Should return empty when both empty"
 
@@ -224,7 +220,7 @@ class TestFinalOutcomeStatusValidation:
         base = "Being Studied"
         followup = "Law Proposed"
         result = merge_field_values(
-            base, followup, "final_outcome_status", "ECI(2022)000001"
+            base, followup, "final_outcome_status", "2022/000001"
         )
         assert result == followup, "Should prioritize followup as more current"
 
@@ -234,7 +230,7 @@ class TestFinalOutcomeStatusValidation:
         base = "Being Studied"
         followup = ""
         result = merge_field_values(
-            base, followup, "final_outcome_status", "ECI(2022)000002"
+            base, followup, "final_outcome_status", "2022/000002"
         )
         assert result == base, "Should use base when followup empty"
 
@@ -243,13 +239,13 @@ class TestFinalOutcomeStatusValidation:
 
         # Being Studied -> Law Proposed (logical)
         result_1 = merge_field_values(
-            "Being Studied", "Law Proposed", "final_outcome_status", "ECI(2022)000001"
+            "Being Studied", "Law Proposed", "final_outcome_status", "2022/000001"
         )
         assert result_1 == "Law Proposed", "Should accept logical progression"
 
         # Law Proposed -> Law Approved (logical)
         result_2 = merge_field_values(
-            "Law Proposed", "Law Approved", "final_outcome_status", "ECI(2022)000002"
+            "Law Proposed", "Law Approved", "final_outcome_status", "2022/000002"
         )
         assert result_2 == "Law Approved", "Should accept logical progression"
 
@@ -258,13 +254,13 @@ class TestFinalOutcomeStatusValidation:
 
         # Being Studied -> Law Rejected (valid)
         result_1 = merge_field_values(
-            "Being Studied", "Law Rejected", "final_outcome_status", "ECI(2022)000001"
+            "Being Studied", "Law Rejected", "final_outcome_status", "2022/000001"
         )
         assert result_1 == "Law Rejected", "Should accept rejection from Being Studied"
 
         # Law Proposed -> Law Rejected (valid)
         result_2 = merge_field_values(
-            "Law Proposed", "Law Rejected", "final_outcome_status", "ECI(2022)000002"
+            "Law Proposed", "Law Rejected", "final_outcome_status", "2022/000002"
         )
         assert result_2 == "Law Rejected", "Should accept rejection from Law Proposed"
 
@@ -272,7 +268,7 @@ class TestFinalOutcomeStatusValidation:
         """Test that identical status is handled correctly."""
 
         result = merge_field_values(
-            "Law Approved", "Law Approved", "final_outcome_status", "ECI(2022)000001"
+            "Law Approved", "Law Approved", "final_outcome_status", "2022/000001"
         )
         assert result == "Law Approved", "Should keep status when unchanged"
 
@@ -282,7 +278,7 @@ class TestFinalOutcomeStatusValidation:
         base = "Custom Status 1"
         followup = "Custom Status 2"
         result = merge_field_values(
-            base, followup, "final_outcome_status", "ECI(2022)000001"
+            base, followup, "final_outcome_status", "2022/000001"
         )
         assert result == followup, "Should use followup even for unknown statuses"
 
@@ -296,7 +292,7 @@ class TestLawImplementationDate:
         base = ""
         followup = "2025-08-01"
         result = merge_field_values(
-            base, followup, "law_implementation_date", "ECI(2022)000001"
+            base, followup, "law_implementation_date", "2022/000001"
         )
         assert result == followup, "Should use followup date when base empty"
 
@@ -306,7 +302,7 @@ class TestLawImplementationDate:
         base = "2024-12-31"
         followup = "2025-08-01"
         result = merge_field_values(
-            base, followup, "law_implementation_date", "ECI(2022)000001"
+            base, followup, "law_implementation_date", "2022/000001"
         )
         assert result == followup, "Should update to followup date"
 
@@ -316,16 +312,14 @@ class TestLawImplementationDate:
         base = "2024-06-15"
         followup = ""
         result = merge_field_values(
-            base, followup, "law_implementation_date", "ECI(2022)000002"
+            base, followup, "law_implementation_date", "2022/000002"
         )
         assert result == base, "Should keep base when followup empty"
 
     def test_both_empty_returns_empty(self):
         """Test that both empty returns empty."""
 
-        result = merge_field_values(
-            "", "", "law_implementation_date", "ECI(2022)000001"
-        )
+        result = merge_field_values("", "", "law_implementation_date", "2022/000001")
         assert result == "", "Should return empty when both empty"
 
 
@@ -338,7 +332,7 @@ class TestCommissionPromisedNewLaw:
         base = "False"
         followup = "True"
         result = merge_field_values(
-            base, followup, "commission_promised_new_law", "ECI(2022)000001"
+            base, followup, "commission_promised_new_law", "2022/000001"
         )
         assert result == "True", "Should update to True when followup is True"
 
@@ -348,7 +342,7 @@ class TestCommissionPromisedNewLaw:
         base = "True"
         followup = "False"
         result = merge_field_values(
-            base, followup, "commission_promised_new_law", "ECI(2022)000001"
+            base, followup, "commission_promised_new_law", "2022/000001"
         )
         assert result == "True", "Should keep True (one-way commitment)"
 
@@ -356,7 +350,7 @@ class TestCommissionPromisedNewLaw:
         """Test that False + False = False."""
 
         result = merge_field_values(
-            "False", "False", "commission_promised_new_law", "ECI(2022)000002"
+            "False", "False", "commission_promised_new_law", "2022/000002"
         )
         assert (
             result == "False"
@@ -366,7 +360,7 @@ class TestCommissionPromisedNewLaw:
         """Test that True + True = True."""
 
         result = merge_field_values(
-            "True", "True", "commission_promised_new_law", "ECI(2022)000001"
+            "True", "True", "commission_promised_new_law", "2022/000001"
         )
         assert result == "True", "Should return True"
 
@@ -376,23 +370,21 @@ class TestCommissionPromisedNewLaw:
         # Lowercase
         assert (
             merge_field_values(
-                "false", "true", "commission_promised_new_law", "ECI(2022)000001"
+                "false", "true", "commission_promised_new_law", "2022/000001"
             )
             == "True"
         )
 
         # Numeric
         assert (
-            merge_field_values(
-                "0", "1", "commission_promised_new_law", "ECI(2022)000001"
-            )
+            merge_field_values("0", "1", "commission_promised_new_law", "2022/000001")
             == "True"
         )
 
         # Yes format
         assert (
             merge_field_values(
-                "no", "yes", "commission_promised_new_law", "ECI(2022)000001"
+                "no", "yes", "commission_promised_new_law", "2022/000001"
             )
             == "True"
         )
@@ -407,7 +399,7 @@ class TestCommissionRejectedInitiative:
         base = "True"
         followup = "False"
         result = merge_field_values(
-            base, followup, "commission_rejected_initiative", "ECI(2022)000001"
+            base, followup, "commission_rejected_initiative", "2022/000001"
         )
         assert result == "True", "Should keep True from base (authoritative)"
 
@@ -417,7 +409,7 @@ class TestCommissionRejectedInitiative:
         base = "False"
         followup = "True"
         result = merge_field_values(
-            base, followup, "commission_rejected_initiative", "ECI(2022)000001"
+            base, followup, "commission_rejected_initiative", "2022/000001"
         )
         assert result == "True", "Should update to True from followup"
 
@@ -425,7 +417,7 @@ class TestCommissionRejectedInitiative:
         """Test that False + False = False."""
 
         result = merge_field_values(
-            "False", "False", "commission_rejected_initiative", "ECI(2022)000002"
+            "False", "False", "commission_rejected_initiative", "2022/000002"
         )
         assert result == "False", "Should return False when both False"
 
@@ -433,7 +425,7 @@ class TestCommissionRejectedInitiative:
         """Test that True + True = True."""
 
         result = merge_field_values(
-            "True", "True", "commission_rejected_initiative", "ECI(2017)000004"
+            "True", "True", "commission_rejected_initiative", "2017/000004"
         )
         assert result == "True", "Should return True when both True"
 
@@ -447,7 +439,7 @@ class TestCommissionDeadlines:
         base = "Legislative proposal by end of 2023; Final decision by March 2026"
         followup = "Consultation deadline August 2025; Final decision March 2026"
         result = merge_field_values(
-            base, followup, "commission_deadlines", "ECI(2022)000001"
+            base, followup, "commission_deadlines", "2022/000001"
         )
 
         assert "**Original Response:**" in result, "Should have original label"
@@ -460,7 +452,7 @@ class TestCommissionDeadlines:
         """Test when only base has deadlines."""
 
         base = "Legislative proposal by Q4 2024"
-        result = merge_field_values(base, "", "commission_deadlines", "ECI(2022)000001")
+        result = merge_field_values(base, "", "commission_deadlines", "2022/000001")
         assert result == base, "Should return base when followup empty"
 
 
@@ -473,7 +465,7 @@ class TestCommissionRejectionReason:
         base = "The Commission does not have competence in this area under EU Treaties."
         followup = "Detailed analysis confirms lack of EU competence as per Articles 4 and 5 TEU."
         result = merge_field_values(
-            base, followup, "commission_rejection_reason", "ECI(2017)000004"
+            base, followup, "commission_rejection_reason", "2017/000004"
         )
 
         assert "**Original Response:**" in result
@@ -485,7 +477,7 @@ class TestCommissionRejectionReason:
 
         base = "Insufficient legal basis under EU law."
         result = merge_field_values(
-            base, "", "commission_rejection_reason", "ECI(2012)000001"
+            base, "", "commission_rejection_reason", "2012/000001"
         )
         assert result == base
 
@@ -498,7 +490,7 @@ class TestLawsActionsMerging:
 
         base = '[{"type": "promise", "date": "2022-06", "description": "Propose legislation"}]'
         followup = '[{"type": "adopted", "date": "2025-07", "description": "Regulation 2025/123", "celex": "32025R0123"}]'
-        result = merge_field_values(base, followup, "laws_actions", "ECI(2022)000001")
+        result = merge_field_values(base, followup, "laws_actions", "2022/000001")
 
         result_list = json.loads(result)
         assert len(result_list) == 2, "Should have both actions"
@@ -515,7 +507,7 @@ class TestLawsActionsMerging:
         action = (
             '[{"type": "adopted", "date": "2025-01", "description": "Same regulation"}]'
         )
-        result = merge_field_values(action, action, "laws_actions", "ECI(2022)000001")
+        result = merge_field_values(action, action, "laws_actions", "2022/000001")
 
         result_list = json.loads(result)
         assert len(result_list) == 1, "Should not duplicate identical action"
@@ -524,13 +516,13 @@ class TestLawsActionsMerging:
         """Test that null/empty base uses followup."""
 
         followup = '[{"type": "adopted", "date": "2025-01"}]'
-        result = merge_field_values("", followup, "laws_actions", "ECI(2022)000002")
+        result = merge_field_values("", followup, "laws_actions", "2022/000002")
         assert result == followup, "Should use followup when base empty"
 
     def test_empty_lists_return_empty(self):
         """Test that empty lists return empty string."""
 
-        result = merge_field_values("[]", "[]", "laws_actions", "ECI(2022)000001")
+        result = merge_field_values("[]", "[]", "laws_actions", "2022/000001")
         assert result == "", "Should return empty for empty arrays"
 
 
@@ -542,9 +534,7 @@ class TestPoliciesActionsMerging:
 
         base = '[{"type": "consultation", "date": "2023-05"}, {"type": "study", "date": "2023-08"}]'
         followup = '[{"type": "consultation", "date": "2023-05"}, {"type": "workshop", "date": "2024-02"}]'
-        result = merge_field_values(
-            base, followup, "policies_actions", "ECI(2022)000001"
-        )
+        result = merge_field_values(base, followup, "policies_actions", "2022/000001")
 
         result_list = json.loads(result)
         assert (
@@ -561,9 +551,7 @@ class TestPoliciesActionsMerging:
 
         base = '[{"type": "research", "date": "2023"}]'
         followup = '[{"type": "research", "date": "2023-06-15", "name": "EFSA Scientific Opinion"}]'
-        result = merge_field_values(
-            base, followup, "policies_actions", "ECI(2022)000001"
-        )
+        result = merge_field_values(base, followup, "policies_actions", "2022/000001")
 
         result_list = json.loads(result)
         # Both should be preserved as they're not exactly identical
@@ -577,19 +565,16 @@ class TestBooleanOrFields:
         """Test logical OR for has_roadmap."""
 
         assert (
-            merge_field_values("True", "False", "has_roadmap", "ECI(2022)000001")
-            == "True"
+            merge_field_values("True", "False", "has_roadmap", "2022/000001") == "True"
         )
         assert (
-            merge_field_values("False", "True", "has_roadmap", "ECI(2022)000001")
-            == "True"
+            merge_field_values("False", "True", "has_roadmap", "2022/000001") == "True"
         )
         assert (
-            merge_field_values("True", "True", "has_roadmap", "ECI(2022)000001")
-            == "True"
+            merge_field_values("True", "True", "has_roadmap", "2022/000001") == "True"
         )
         assert (
-            merge_field_values("False", "False", "has_roadmap", "ECI(2022)000001")
+            merge_field_values("False", "False", "has_roadmap", "2022/000001")
             == "False"
         )
 
@@ -597,19 +582,16 @@ class TestBooleanOrFields:
         """Test logical OR for has_workshop."""
 
         assert (
-            merge_field_values("True", "False", "has_workshop", "ECI(2022)000001")
-            == "True"
+            merge_field_values("True", "False", "has_workshop", "2022/000001") == "True"
         )
         assert (
-            merge_field_values("False", "True", "has_workshop", "ECI(2022)000001")
-            == "True"
+            merge_field_values("False", "True", "has_workshop", "2022/000001") == "True"
         )
         assert (
-            merge_field_values("True", "True", "has_workshop", "ECI(2022)000001")
-            == "True"
+            merge_field_values("True", "True", "has_workshop", "2022/000001") == "True"
         )
         assert (
-            merge_field_values("False", "False", "has_workshop", "ECI(2022)000002")
+            merge_field_values("False", "False", "has_workshop", "2022/000002")
             == "False"
         )
 
@@ -618,25 +600,25 @@ class TestBooleanOrFields:
 
         assert (
             merge_field_values(
-                "True", "False", "has_partnership_programs", "ECI(2022)000001"
+                "True", "False", "has_partnership_programs", "2022/000001"
             )
             == "True"
         )
         assert (
             merge_field_values(
-                "False", "True", "has_partnership_programs", "ECI(2022)000001"
+                "False", "True", "has_partnership_programs", "2022/000001"
             )
             == "True"
         )
         assert (
             merge_field_values(
-                "True", "True", "has_partnership_programs", "ECI(2022)000001"
+                "True", "True", "has_partnership_programs", "2022/000001"
             )
             == "True"
         )
         assert (
             merge_field_values(
-                "False", "False", "has_partnership_programs", "ECI(2022)000002"
+                "False", "False", "has_partnership_programs", "2022/000002"
             )
             == "False"
         )
@@ -651,7 +633,7 @@ class TestCourtCasesReferenced:
         base = '["T-646/21", "C-123/22"]'
         followup = '["T-646/21", "C-456/23"]'
         result = merge_field_values(
-            base, followup, "court_cases_referenced", "ECI(2017)000004"
+            base, followup, "court_cases_referenced", "2017/000004"
         )
 
         result_list = json.loads(result)
@@ -663,7 +645,7 @@ class TestCourtCasesReferenced:
     def test_empty_court_cases(self):
         """Test when no court cases referenced."""
 
-        result = merge_field_values("", "", "court_cases_referenced", "ECI(2022)000001")
+        result = merge_field_values("", "", "court_cases_referenced", "2022/000001")
         assert result == "", "Should return empty when no court cases"
 
 
@@ -676,7 +658,7 @@ class TestFollowupLatestDate:
         base = "2024-02-09"
         followup = "2025-08-01"
         result = merge_field_values(
-            base, followup, "followup_latest_date", "ECI(2022)000001"
+            base, followup, "followup_latest_date", "2022/000001"
         )
         assert result == followup, "Should return later date from followup"
 
@@ -686,7 +668,7 @@ class TestFollowupLatestDate:
         base = "2025-12-31"
         followup = "2024-01-01"
         result = merge_field_values(
-            base, followup, "followup_latest_date", "ECI(2022)000001"
+            base, followup, "followup_latest_date", "2022/000001"
         )
         assert result == base, "Should return base as it's the maximum"
 
@@ -694,7 +676,7 @@ class TestFollowupLatestDate:
         """Test when only base has date."""
 
         base = "2024-06-15"
-        result = merge_field_values(base, "", "followup_latest_date", "ECI(2022)000001")
+        result = merge_field_values(base, "", "followup_latest_date", "2022/000001")
         assert result == base, "Should return base when followup empty"
 
     def test_only_followup_date_present(self):
@@ -703,7 +685,7 @@ class TestFollowupLatestDate:
         base = ""
         followup = "2025-03-20"
         result = merge_field_values(
-            base, followup, "followup_latest_date", "ECI(2022)000002"
+            base, followup, "followup_latest_date", "2022/000002"
         )
         assert result == followup, "Should return followup when base empty"
 
@@ -711,9 +693,7 @@ class TestFollowupLatestDate:
         """Test when dates are identical."""
 
         date = "2024-12-11"
-        result = merge_field_values(
-            date, date, "followup_latest_date", "ECI(2022)000001"
-        )
+        result = merge_field_values(date, date, "followup_latest_date", "2022/000001")
         assert result == date, "Should return date when both identical"
 
 
@@ -726,7 +706,7 @@ class TestFollowupMostFutureDate:
         base = "2026-03-31"
         followup = "2027-08-31"
         result = merge_field_values(
-            base, followup, "followup_most_future_date", "ECI(2022)000001"
+            base, followup, "followup_most_future_date", "2022/000001"
         )
         assert result == followup, "Should return furthest future date"
 
@@ -736,7 +716,7 @@ class TestFollowupMostFutureDate:
         base = "2027-12-31"
         followup = "2026-01-01"
         result = merge_field_values(
-            base, followup, "followup_most_future_date", "ECI(2022)000001"
+            base, followup, "followup_most_future_date", "2022/000001"
         )
         assert result == base, "Should return base as it's further in future"
 
@@ -745,7 +725,7 @@ class TestFollowupMostFutureDate:
 
         base = "2026-06-30"
         result = merge_field_values(
-            base, "", "followup_most_future_date", "ECI(2022)000001"
+            base, "", "followup_most_future_date", "2022/000001"
         )
         assert result == base, "Should return base when followup empty"
 
@@ -779,7 +759,7 @@ class TestReferencedLegislationById:
         )
         followup = '{"Regulation": ["32025R0456"], "Article": ["Art. 13 TFEU"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+            base, followup, "referenced_legislation_by_id", "2022/000001"
         )
 
         result_obj = json.loads(result)
@@ -808,7 +788,7 @@ class TestReferencedLegislationById:
         base = '{"Regulation": ["OLD_CELEX", "SHARED_CELEX"]}'
         followup = '{"Regulation": ["NEW_CELEX", "SHARED_CELEX"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+            base, followup, "referenced_legislation_by_id", "2022/000001"
         )
 
         result_obj = json.loads(result)
@@ -823,7 +803,7 @@ class TestReferencedLegislationById:
         base = ""
         followup = '{"Press Release": "https://ec.europa.eu/press1"}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_id", "ECI(2022)000002"
+            base, followup, "referenced_legislation_by_id", "2022/000002"
         )
         assert result == followup, "Should use followup when base empty"
 
@@ -833,7 +813,7 @@ class TestReferencedLegislationById:
         base = '{"Communication": "https://ec.europa.eu/doc1.pdf"}'
         followup = ""
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+            base, followup, "referenced_legislation_by_id", "2022/000001"
         )
         assert result == base, "Should keep base when followup empty"
 
@@ -841,7 +821,7 @@ class TestReferencedLegislationById:
         """Test that when both are empty, empty string is returned."""
 
         result = merge_field_values(
-            "", "", "referenced_legislation_by_id", "ECI(2022)000001"
+            "", "", "referenced_legislation_by_id", "2022/000001"
         )
         assert result == "", "Should return empty when both empty"
 
@@ -856,7 +836,7 @@ class TestReferencedLegislationById:
         base = '{"Regulation": ["REG1", "REG2"], "Directive": ["DIR1", "DIR2"]}'
         followup = '{"Regulation": ["REG2", "REG3"], "Directive": ["DIR2", "DIR3"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+            base, followup, "referenced_legislation_by_id", "2022/000001"
         )
 
         result_obj = json.loads(result)
@@ -869,7 +849,7 @@ class TestReferencedLegislationById:
         base = '{"Article": ["Art. 192 TFEU"]}'
         followup = '{"Article": ["Art. 193 TFEU"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+            base, followup, "referenced_legislation_by_id", "2022/000001"
         )
 
         result_obj = json.loads(result)
@@ -888,7 +868,7 @@ class TestReferencedLegislationById:
         base = '{"TypeA": ["A1", "A2"], "TypeB": ["B1"]}'
         followup = '{"TypeB": ["B2", "B3"], "TypeC": ["C1"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+            base, followup, "referenced_legislation_by_id", "2022/000001"
         )
 
         result_obj = json.loads(result)
@@ -904,7 +884,7 @@ class TestReferencedLegislationById:
         base = '{"Regulation": ["REG1"], "Directive": []}'
         followup = '{"Regulation": [], "Article": ["ART1"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+            base, followup, "referenced_legislation_by_id", "2022/000001"
         )
 
         result_obj = json.loads(result)
@@ -919,7 +899,7 @@ class TestReferencedLegislationById:
         base = '{"Mixed": ["B", "A", "C"]}'
         followup = '{"Mixed": ["D", "A"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_id", "ECI(2022)000001"
+            base, followup, "referenced_legislation_by_id", "2022/000001"
         )
 
         result_obj = json.loads(result)
