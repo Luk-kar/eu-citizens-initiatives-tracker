@@ -103,7 +103,7 @@ def merge_by_concatenation(
         logger.info(
             f"{registration_number} - {field_name}: Concatenating base and followup values"
         )
-        return f"**Original Commission Commitments:**\n{base_clean}\n\n**Current Commission Commitments:**\n{followup_clean}"
+        return f"**Original Response:**\n{base_clean}\n\n**Current Followup:**\n{followup_clean}"
     elif followup_clean:
         logger.debug(f"{registration_number} - {field_name}: Using followup value only")
         return followup_clean
@@ -157,7 +157,7 @@ def merge_dates_by_latest(
             )
 
         latest = max(base_date, followup_date)
-        result = latest.isoformat()
+        result = latest.date().isoformat()
         logger.debug(
             f"{registration_number} - {field_name}: Selected latest date: {result}"
         )

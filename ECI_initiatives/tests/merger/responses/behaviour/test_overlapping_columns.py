@@ -27,6 +27,7 @@ This module tests merging of 20 overlapping columns with various strategies:
 
 import pytest
 import json
+
 from ECI_initiatives.csv_merger.responses.strategies import (
     merge_field_values,
     merge_by_concatenation,
@@ -40,6 +41,7 @@ from ECI_initiatives.csv_merger.responses.strategies import (
     merge_law_implementation_date,
     get_merge_strategy_for_field,
 )
+from ECI_initiatives.csv_merger.responses.exceptions import ImmutableFieldConflictError
 
 
 class TestFollowupDedicatedWebsite:
@@ -56,14 +58,27 @@ class TestFollowupDedicatedWebsite:
         assert result == base, "Should keep base when both identical"
 
     def test_different_values_keeps_base(self):
-        """Test that base is kept even if followup differs (shouldn't happen)."""
+        """Test that conflicting values raise ImmutableFieldConflictError."""
 
         base = "https://food.ec.europa.eu/animals/animal-welfare/end-cage-age_en"
         followup = "https://different-url.eu"
-        result = merge_field_values(
-            base, followup, "followup_dedicated_website", "ECI(2022)000001"
-        )
-        assert result == base, "Should keep base even if followup differs"
+
+        # Should raise error when values differ (data integrity issue)
+        with pytest.raises(ImmutableFieldConflictError) as exc_info:
+            merge_field_values(
+                base, followup, "followup_dedicated_website", "ECI(2022)000001"
+            )
+
+        # Verify error message contains useful information
+        error_msg = str(exc_info.value)
+        assert (
+            "followup_dedicated_website" in error_msg
+        ), "Error should mention field name"
+        assert (
+            "ECI(2022)000001" in error_msg
+        ), "Error should contain registration number"
+        assert base in error_msg, "Error should contain base value"
+        assert followup in error_msg, "Error should contain followup value"
 
 
 class TestCommissionAnswerTextMerging:
@@ -78,12 +93,8 @@ class TestCommissionAnswerTextMerging:
             base, followup, "commission_answer_text", "ECI(2022)000001"
         )
 
-        assert (
-            "**Original Commission Commitments:**" in result
-        ), "Should have original label"
-        assert (
-            "**Current Commission Commitments:**" in result
-        ), "Should have current label"
+        assert "**Original Response:**" in result, "Should have original label"
+        assert "**Current Followup:**" in result, "Should have current label"
         assert base in result, "Should contain original base text"
         assert followup in result, "Should contain followup text"
 
@@ -348,8 +359,8 @@ class TestCommissionPromisedNewLaw:
             "False", "False", "commission_promised_new_law", "ECI(2022)000002"
         )
         assert (
-            result == "True"
-        ), "Should return True as per OR logic"  # Note: This matches merge_promised_new_law which does OR
+            result == "False"
+        ), "Should return False as per OR logic"  # Note: This matches merge_promised_new_law which does OR
 
     def test_both_true_stays_true(self):
         """Test that True + True = True."""
@@ -439,12 +450,8 @@ class TestCommissionDeadlines:
             base, followup, "commission_deadlines", "ECI(2022)000001"
         )
 
-        assert (
-            "**Original Commission Deadlines:**" in result
-        ), "Should have original label"
-        assert (
-            "**Current Commission Deadlines:**" in result
-        ), "Should have current label"
+        assert "**Original Response:**" in result, "Should have original label"
+        assert "**Current Followup:**" in result, "Should have current label"
         assert (
             base in result and followup in result
         ), "Should contain both deadline texts"
@@ -469,8 +476,8 @@ class TestCommissionRejectionReason:
             base, followup, "commission_rejection_reason", "ECI(2017)000004"
         )
 
-        assert "**Original Commission Rejection Reason:**" in result
-        assert "**Current Commission Rejection Reason:**" in result
+        assert "**Original Response:**" in result
+        assert "**Current Followup:**" in result
         assert base in result and followup in result
 
     def test_only_base_reason(self):
