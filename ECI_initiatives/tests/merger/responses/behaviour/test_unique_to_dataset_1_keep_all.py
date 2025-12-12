@@ -2,9 +2,15 @@
 Behavioural tests for unique Response Data column merging.
 
 This module tests merging of 14 columns unique to Response Data that should always
-keep base values (immutable historical and structural metadata):
-- response_url
-- initiative_url
+keep base values (immutable historical and structural metadata).
+
+IMPORTANT: These columns do NOT exist in the Follow-up dataset, so followup values
+are ALWAYS null/empty in real-world merging scenarios.
+
+Unique to Response Data:
+- response_url (mandatory)
+- initiative_url (mandatory)
+- has_followup_section (mandatory)
 - submission_text
 - commission_submission_date
 - submission_news_url
@@ -16,7 +22,6 @@ keep base values (immutable historical and structural metadata):
 - plenary_debate_video_urls
 - official_communication_adoption_date
 - commission_factsheet_url
-- has_followup_section
 """
 
 import pytest
@@ -33,382 +38,250 @@ from ECI_initiatives.csv_merger.responses.exceptions import (
 
 
 class TestUniqueDataset1ColumnsMerging:
-    """Tests for unique Response Data column merge strategies."""
+    """
+    Tests for unique Response Data column merge strategies.
 
-    def test_response_url_keeps_base(self):
-        """Test that response_url always keeps base value when followup is identical."""
+    These fields only exist in Response Data, not in Follow-up Data.
+    In real merging, followup is ALWAYS null/empty for these fields.
+    """
 
-        # Test case 1: Valid URL in both (identical)
-        base_1 = (
+    # ========== MANDATORY FIELDS (must be non-empty in Response Data) ==========
+
+    def test_response_url_keeps_base_with_null_followup(self):
+        """Test response_url keeps base when followup is null (real-world scenario)."""
+
+        base = (
             "https://citizens-initiative.europa.eu/initiatives/details/2022/000001_en"
         )
-        followup_1 = base_1  # Must be identical for mandatory field
-        result_1 = merge_field_values(base_1, followup_1, "response_url", "2022/000001")
-        assert result_1 == base_1, "Should keep base URL when both are identical"
+        followup = None  # Followup dataset doesn't have this column
 
-        # Test case 2: Another example
-        base_2 = (
-            "https://citizens-initiative.europa.eu/initiatives/details/2019/000006_en"
+        # This should raise MandatoryFieldMissingError because followup is null
+        with pytest.raises(MandatoryFieldMissingError) as exc_info:
+            merge_field_values(base, followup, "response_url", "2022/000001")
+
+        assert "response_url" in str(exc_info.value)
+        assert "followup" in str(exc_info.value).lower()
+
+    def test_initiative_url_keeps_base_with_null_followup(self):
+        """Test initiative_url keeps base when followup is null (real-world scenario)."""
+
+        base = "https://citizens-initiative.europa.eu/initiatives/details/2022/000001"
+        followup = None  # Followup dataset doesn't have this column
+
+        # This should raise MandatoryFieldMissingError
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values(base, followup, "initiative_url", "2022/000001")
+
+    def test_has_followup_section_keeps_base_with_null_followup(self):
+        """Test has_followup_section keeps base when followup is null (real-world scenario)."""
+
+        # Test with True
+        base = "True"
+        followup = None  # Followup dataset doesn't have this column
+
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values(base, followup, "has_followup_section", "2022/000001")
+
+    def test_mandatory_fields_reject_empty_base(self):
+        """Test that mandatory fields reject empty base values."""
+
+        mandatory_fields = ["response_url", "initiative_url", "has_followup_section"]
+
+        for field in mandatory_fields:
+            with pytest.raises(MandatoryFieldMissingError) as exc_info:
+                merge_field_values("", None, field, "2022/000001")
+
+            error_msg = str(exc_info.value)
+            assert field in error_msg
+            assert "base" in error_msg.lower()
+
+    # ========== NON-MANDATORY FIELDS (can be empty in Response Data) ==========
+
+    def test_submission_text_keeps_base_with_null_followup(self):
+        """Test submission_text keeps base when followup is null (real-world scenario)."""
+
+        base = """On 29 September 2021, the organisers submitted the European Citizens'
+        Initiative (ECI) 'End the Cage Age' to the European Commission."""
+        followup = None  # Followup dataset doesn't have this column
+
+        result = merge_field_values(base, followup, "submission_text", "2022/000001")
+        assert result == base
+
+    def test_commission_submission_date_keeps_base_with_null_followup(self):
+        """Test commission_submission_date keeps base when followup is null."""
+
+        base = "2021-09-29"
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "commission_submission_date", "2022/000001"
         )
-        followup_2 = base_2
-        result_2 = merge_field_values(base_2, followup_2, "response_url", "2019/000006")
-        assert result_2 == base_2, "Should keep base URL when both match"
+        assert result == base
 
-    def test_response_url_conflict_raises_error(self):
-        """Test that different response_url raises ImmutableFieldConflictError."""
+    def test_submission_news_url_keeps_base_with_null_followup(self):
+        """Test submission_news_url keeps base when followup is null."""
 
+        base = "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_4747"
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "submission_news_url", "2022/000001"
+        )
+        assert result == base
+
+    def test_commission_meeting_date_keeps_base_with_null_followup(self):
+        """Test commission_meeting_date keeps base when followup is null."""
+
+        base = "2021-10-14"
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "commission_meeting_date", "2022/000001"
+        )
+        assert result == base
+
+    def test_commission_officials_met_keeps_base_with_null_followup(self):
+        """Test commission_officials_met keeps base when followup is null."""
+
+        base = "Stella Kyriakides, Commissioner for Health and Food Safety; Sandra Gallina, Deputy Director-General, DG SANTE"
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "commission_officials_met", "2022/000001"
+        )
+        assert result == base
+
+    def test_parliament_hearing_date_keeps_base_with_null_followup(self):
+        """Test parliament_hearing_date keeps base when followup is null."""
+
+        base = "2021-11-15"
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "parliament_hearing_date", "2022/000001"
+        )
+        assert result == base
+
+    def test_parliament_hearing_video_urls_keeps_base_with_null_followup(self):
+        """Test parliament_hearing_video_urls keeps base when followup is null."""
+
+        base = '["https://multimedia.europarl.europa.eu/video1", "https://multimedia.europarl.europa.eu/video2"]'
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "parliament_hearing_video_urls", "2022/000001"
+        )
+        assert result == base
+
+    def test_plenary_debate_date_keeps_base_with_null_followup(self):
+        """Test plenary_debate_date keeps base when followup is null."""
+
+        # When plenary debate happened
+        base = "2022-03-09"
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "plenary_debate_date", "2022/000001"
+        )
+        assert result == base
+
+    def test_plenary_debate_date_empty_base_with_null_followup(self):
+        """Test plenary_debate_date when no debate held (empty in both)."""
+
+        # No plenary debate held for this ECI
+        base = ""
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "plenary_debate_date", "2022/000002"
+        )
+        assert result == ""
+
+    def test_plenary_debate_video_urls_keeps_base_with_null_followup(self):
+        """Test plenary_debate_video_urls keeps base when followup is null."""
+
+        base = '["https://multimedia.europarl.europa.eu/plenary/debate"]'
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "plenary_debate_video_urls", "2022/000001"
+        )
+        assert result == base
+
+    def test_official_communication_adoption_date_keeps_base_with_null_followup(self):
+        """Test official_communication_adoption_date keeps base when followup is null."""
+
+        base = "2022-06-22"
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "official_communication_adoption_date", "2022/000001"
+        )
+        assert result == base
+
+    def test_commission_factsheet_url_keeps_base_with_null_followup(self):
+        """Test commission_factsheet_url keeps base when followup is null."""
+
+        base = (
+            "https://ec.europa.eu/info/sites/default/files/factsheet_end_cage_age.pdf"
+        )
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "commission_factsheet_url", "2022/000001"
+        )
+        assert result == base
+
+    # ========== EDGE CASES: Empty base values ==========
+
+    def test_non_mandatory_fields_with_empty_base_and_null_followup(self):
+        """Test non-mandatory fields can be empty in both datasets."""
+
+        non_mandatory_fields = [
+            "submission_text",
+            "commission_submission_date",
+            "submission_news_url",
+            "commission_meeting_date",
+            "commission_officials_met",
+            "parliament_hearing_date",
+            "parliament_hearing_video_urls",
+            "plenary_debate_date",
+            "plenary_debate_video_urls",
+            "official_communication_adoption_date",
+            "commission_factsheet_url",
+        ]
+
+        for field in non_mandatory_fields:
+            result = merge_field_values("", None, field, "2022/000001")
+            assert result == "", f"{field} should return empty when both are empty"
+
+    # ========== HYPOTHETICAL ERROR CASES (shouldn't happen in real data) ==========
+
+    def test_conflict_error_if_followup_has_different_value(self):
+        """
+        Test that if followup somehow has a different value, error is raised.
+
+        NOTE: This shouldn't happen in real data since these columns don't exist
+        in follow-up dataset, but tests the immutable field validation logic.
+        """
+
+        # response_url conflict (hypothetical - would be caught by mandatory validation first)
         base = (
             "https://citizens-initiative.europa.eu/initiatives/details/2022/000001_en"
         )
         followup = "https://different-url.eu"
 
-        with pytest.raises(ImmutableFieldConflictError) as exc_info:
+        with pytest.raises(ImmutableFieldConflictError):
             merge_field_values(base, followup, "response_url", "2022/000001")
 
-        error_msg = str(exc_info.value)
-        assert "response_url" in error_msg
-        assert "Immutable" in error_msg
-
-    def test_initiative_url_keeps_base(self):
-        """Test that initiative_url always keeps base value when followup is identical."""
-
-        base = "https://citizens-initiative.europa.eu/initiatives/details/2022/000001"
-        followup = base  # Must be identical for mandatory field
-        result = merge_field_values(base, followup, "initiative_url", "2022/000001")
-        assert result == base, "Should keep canonical base initiative URL"
-
-    def test_initiative_url_conflict_raises_error(self):
-        """Test that different initiative_url raises ImmutableFieldConflictError."""
-
-        base = "https://citizens-initiative.europa.eu/initiatives/details/2022/000001"
-        followup = "https://different-url.eu"
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(base, followup, "initiative_url", "2022/000001")
-
-    def test_submission_text_keeps_base(self):
-        """Test that submission_text (historical narrative) always keeps base value."""
-
-        # Test case 1: Long submission text, empty followup
-        base_1 = """On 29 September 2021, the organisers submitted the European Citizens'
-        Initiative (ECI) 'End the Cage Age' to the European Commission. A delegation of organisers
-        met with Commission representatives on 14 October 2021. The European Parliament held a
-        public hearing on 15 November 2021."""
-        followup_1 = ""
-        result_1 = merge_field_values(
-            base_1, followup_1, "submission_text", "2022/000001"
-        )
-        assert result_1 == base_1, "Should keep original historical submission text"
-
-        # Test case 2: Both have same value
-        base_2 = "Brief submission narrative."
-        followup_2 = base_2
-        result_2 = merge_field_values(
-            base_2, followup_2, "submission_text", "2022/000002"
-        )
-        assert result_2 == base_2, "Should keep base submission text"
-
-    def test_submission_text_conflict_raises_error(self):
-        """Test that different submission_text raises ImmutableFieldConflictError."""
-
-        base = "Original submission text"
-        followup = "Updated submission information"
+        # submission_text conflict
+        base = "Original text"
+        followup = "Different text"
 
         with pytest.raises(ImmutableFieldConflictError):
             merge_field_values(base, followup, "submission_text", "2022/000001")
 
-    def test_commission_submission_date_keeps_base(self):
-        """Test that commission_submission_date (fixed historical date) keeps base value."""
-
-        # Test case 1: ISO date format, empty followup
-        base_1 = "2021-09-29"
-        followup_1 = ""
-        result_1 = merge_field_values(
-            base_1, followup_1, "commission_submission_date", "2022/000001"
-        )
-        assert result_1 == base_1, "Should keep original submission date"
-
-        # Test case 2: Both have same date
-        base_2 = "2019-12-15"
-        followup_2 = "2019-12-15"
-        result_2 = merge_field_values(
-            base_2, followup_2, "commission_submission_date", "2019/000006"
-        )
-        assert result_2 == base_2, "Should keep base date when both match"
-
-    def test_commission_submission_date_conflict_raises_error(self):
-        """Test that different dates raise ImmutableFieldConflictError."""
-
-        base = "2021-09-29"
-        followup = "2021-09-30"
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(
-                base, followup, "commission_submission_date", "2022/000001"
-            )
-
-    def test_submission_news_url_keeps_base(self):
-        """Test that submission_news_url (press release link) keeps base value."""
-
-        base = "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_4747"
-        followup = ""
-        result = merge_field_values(
-            base, followup, "submission_news_url", "2022/000001"
-        )
-        assert result == base, "Should keep original press release URL"
-
-    def test_submission_news_url_conflict_raises_error(self):
-        """Test that different URLs raise ImmutableFieldConflictError."""
-
-        base = "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_4747"
-        followup = "https://different-press-release.eu"
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(base, followup, "submission_news_url", "2022/000001")
-
-    def test_commission_meeting_date_keeps_base(self):
-        """Test that commission_meeting_date (procedural milestone) keeps base value."""
-
-        base = "2021-10-14"
-        followup = ""
-        result = merge_field_values(
-            base, followup, "commission_meeting_date", "2022/000001"
-        )
-        assert result == base, "Should keep original meeting date"
-
-    def test_commission_meeting_date_conflict_raises_error(self):
-        """Test that different dates raise ImmutableFieldConflictError."""
-
-        base = "2021-10-14"
-        followup = "2021-10-15"
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(base, followup, "commission_meeting_date", "2022/000001")
-
-    def test_commission_officials_met_keeps_base(self):
-        """Test that commission_officials_met (historical record) keeps base value."""
-
-        base = "Stella Kyriakides, Commissioner for Health and Food Safety; Sandra Gallina, Deputy Director-General, DG SANTE"
-        followup = ""
-        result = merge_field_values(
-            base, followup, "commission_officials_met", "2022/000001"
-        )
-        assert result == base, "Should keep original officials list"
-
-    def test_commission_officials_met_conflict_raises_error(self):
-        """Test that different officials raise ImmutableFieldConflictError."""
-
-        base = "Stella Kyriakides, Commissioner for Health and Food Safety"
-        followup = "Different officials"
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(
-                base, followup, "commission_officials_met", "2022/000001"
-            )
-
-    def test_parliament_hearing_date_keeps_base(self):
-        """Test that parliament_hearing_date (mandatory procedural date) keeps base value."""
-
-        base = "2021-11-15"
-        followup = ""
-        result = merge_field_values(
-            base, followup, "parliament_hearing_date", "2022/000001"
-        )
-        assert result == base, "Should keep original Parliament hearing date"
-
-    def test_parliament_hearing_date_conflict_raises_error(self):
-        """Test that different dates raise ImmutableFieldConflictError."""
-
-        base = "2021-11-15"
-        followup = "2021-11-16"
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(base, followup, "parliament_hearing_date", "2022/000001")
-
-    def test_parliament_hearing_video_urls_keeps_base(self):
-        """Test that parliament_hearing_video_urls (archival links) keeps base value."""
-
-        # Test case 1: JSON list of URLs, identical followup
-        base_1 = '["https://multimedia.europarl.europa.eu/video1", "https://multimedia.europarl.europa.eu/video2"]'
-        followup_1 = base_1  # Must be identical (immutable)
-        result_1 = merge_field_values(
-            base_1, followup_1, "parliament_hearing_video_urls", "2022/000001"
-        )
-        assert result_1 == base_1, "Should keep original video URLs"
-
-        # Test case 2: Empty list in both (no hearing videos)
-        base_2 = "[]"
-        followup_2 = "[]"
-        result_2 = merge_field_values(
-            base_2, followup_2, "parliament_hearing_video_urls", "2022/000002"
-        )
-        assert result_2 == base_2, "Should keep empty array when both are empty"
-
-    def test_parliament_hearing_video_urls_conflict_raises_error(self):
-        """Test that different video URLs raise ImmutableFieldConflictError."""
-
-        base = '["https://multimedia.europarl.europa.eu/video1"]'
-        followup = '["https://different-video.eu"]'
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(
-                base, followup, "parliament_hearing_video_urls", "2022/000001"
-            )
-
-    def test_plenary_debate_date_keeps_base(self):
-        """Test that plenary_debate_date (optional procedural milestone) keeps base value."""
-
-        # Test case 1: Date present, empty followup
-        base_1 = "2022-03-09"
-        followup_1 = ""
-        result_1 = merge_field_values(
-            base_1, followup_1, "plenary_debate_date", "2022/000001"
-        )
-        assert result_1 == base_1, "Should keep original plenary debate date"
-
-        # Test case 2: Empty (no plenary debate held)
-        base_2 = ""
-        followup_2 = ""
-        result_2 = merge_field_values(
-            base_2, followup_2, "plenary_debate_date", "2022/000002"
-        )
-        assert result_2 == base_2, "Should keep empty base when followup also empty"
-
-    def test_plenary_debate_date_conflict_raises_error(self):
-        """Test that conflicting dates raise ImmutableFieldConflictError."""
-
-        # Empty base with non-empty followup
-        base = ""
-        followup = "2022-05-15"
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(base, followup, "plenary_debate_date", "2022/000002")
-
-        # Different dates
-        base2 = "2022-03-09"
-        followup2 = "2022-03-10"
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(base2, followup2, "plenary_debate_date", "2022/000001")
-
-    def test_plenary_debate_video_urls_keeps_base(self):
-        """Test that plenary_debate_video_urls (archival multimedia) keeps base value."""
-
-        base = '["https://multimedia.europarl.europa.eu/plenary/debate"]'
-        followup = ""
-        result = merge_field_values(
-            base, followup, "plenary_debate_video_urls", "2022/000001"
-        )
-        assert result == base, "Should keep original plenary debate video URLs"
-
-    def test_plenary_debate_video_urls_conflict_raises_error(self):
-        """Test that different video URLs raise ImmutableFieldConflictError."""
-
-        base = '["https://multimedia.europarl.europa.eu/plenary/debate"]'
-        followup = '["https://different-debate-video.eu"]'
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(
-                base, followup, "plenary_debate_video_urls", "2022/000001"
-            )
-
-    def test_official_communication_adoption_date_keeps_base(self):
-        """Test that official_communication_adoption_date (legal timestamp) keeps base value."""
-
-        # Test case 1: Official adoption date, empty followup
-        base_1 = "2022-06-22"
-        followup_1 = ""
-        result_1 = merge_field_values(
-            base_1,
-            followup_1,
-            "official_communication_adoption_date",
-            "2022/000001",
-        )
-        assert result_1 == base_1, "Should keep definitive legal adoption date"
-
-        # Test case 2: Both have same date
-        base_2 = "2019-12-15T10:30:00"
-        followup_2 = "2019-12-15T10:30:00"
-        result_2 = merge_field_values(
-            base_2,
-            followup_2,
-            "official_communication_adoption_date",
-            "2019/000006",
-        )
-        assert result_2 == base_2, "Should keep base date format"
-
-    def test_official_communication_adoption_date_conflict_raises_error(self):
-        """Test that different dates raise ImmutableFieldConflictError."""
-
-        base = "2022-06-22"
-        followup = "2022-06-23"
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(
-                base, followup, "official_communication_adoption_date", "2022/000001"
-            )
-
-    def test_commission_factsheet_url_keeps_base(self):
-        """Test that commission_factsheet_url (structural metadata) keeps base value."""
-
-        base = (
-            "https://ec.europa.eu/info/sites/default/files/factsheet_end_cage_age.pdf"
-        )
-        followup = ""
-        result = merge_field_values(
-            base, followup, "commission_factsheet_url", "2022/000001"
-        )
-        assert result == base, "Should keep original Commission factsheet URL"
-
-    def test_commission_factsheet_url_conflict_raises_error(self):
-        """Test that different URLs raise ImmutableFieldConflictError."""
-
-        base = (
-            "https://ec.europa.eu/info/sites/default/files/factsheet_end_cage_age.pdf"
-        )
-        followup = "https://different-factsheet.eu"
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(
-                base, followup, "commission_factsheet_url", "2022/000001"
-            )
-
-    def test_has_followup_section_keeps_base_when_identical(self):
-        """Test that has_followup_section keeps base value when both datasets have same value."""
-
-        # Both True
-        result = merge_field_values(
-            "True", "True", "has_followup_section", "2022/000001"
-        )
-        assert result == "True"
-
-        # Both False
-        result = merge_field_values(
-            "False", "False", "has_followup_section", "2022/000002"
-        )
-        assert result == "False"
-
-    def test_has_followup_section_conflict_raises_error(self):
-        """Test that different has_followup_section values raise ImmutableFieldConflictError."""
-
-        # True → False: conflict
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values("True", "False", "has_followup_section", "2022/000001")
-
-        # False → True: conflict
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values("False", "True", "has_followup_section", "2022/000002")
-
-    def test_has_followup_section_empty_raises_mandatory_error(self):
-        """Test that missing has_followup_section raises MandatoryFieldMissingError."""
-
-        # Empty followup (mandatory field must be present)
-        with pytest.raises(MandatoryFieldMissingError):
-            merge_field_values("True", "", "has_followup_section", "2022/000001")
-
-        # Empty base (mandatory field must be present)
-        with pytest.raises(MandatoryFieldMissingError):
-            merge_field_values("", "True", "has_followup_section", "2022/000002")
+    # ========== STRATEGY MAPPING ==========
 
     def test_all_unique_fields_use_keep_base_strategy(self):
         """Test that all 14 unique Response Data fields are mapped to merge_keep_base_only."""
@@ -436,77 +309,91 @@ class TestUniqueDataset1ColumnsMerging:
                 strategy == merge_keep_base_only
             ), f"{field} should use merge_keep_base_only strategy"
 
-    def test_null_and_empty_handling_for_unique_fields(self):
-        """Test that unique fields handle null/empty values correctly (no conflict)."""
+    # ========== BATCH TESTS ==========
 
-        # Test cases where followup is empty/whitespace (no conflict)
-        # Using NON-MANDATORY fields only, as mandatory fields have stricter validation
+    def test_multiple_non_mandatory_fields_batch(self):
+        """Batch test: multiple non-mandatory fields with null followup keep base values."""
+
         test_cases = [
-            ("commission_submission_date", "2022-01-15", ""),
-            ("submission_text", "Original text", ""),
-            ("submission_text", "Original text", "   "),
-            ("submission_news_url", "https://news.eu", ""),
-            ("commission_officials_met", "John Doe", ""),
-            ("commission_meeting_date", "2021-10-14", ""),
-            ("parliament_hearing_date", "2021-11-15", ""),
-            ("plenary_debate_date", "2022-03-09", ""),
-            ("commission_factsheet_url", "https://factsheet.eu", ""),
+            ("commission_submission_date", "2022-01-15"),
+            ("submission_text", "Historical narrative text"),
+            ("submission_news_url", "https://ec.europa.eu/news/example"),
+            ("commission_meeting_date", "2021-10-14"),
+            ("parliament_hearing_date", "2021-11-15"),
+            ("plenary_debate_date", "2022-03-09"),
+            ("commission_factsheet_url", "https://ec.europa.eu/factsheet.pdf"),
         ]
 
-        for field, base, followup in test_cases:
-            result = merge_field_values(base, followup, field, "2022/000001")
+        for field, base_value in test_cases:
+            result = merge_field_values(base_value, None, field, "2022/000001")
             assert (
-                result == base
-            ), f"{field} should keep base '{base}' when followup is '{followup}'"
+                result == base_value
+            ), f"{field} should keep base when followup is null"
 
-    def test_edge_case_empty_base_with_value_followup_raises_error(self):
-        """Test edge case where base is empty but followup has value - raises error."""
+    def test_json_fields_with_null_followup(self):
+        """Test that JSON list fields handle null followup correctly."""
 
-        # Empty base with non-empty followup = conflict for immutable fields
-        with pytest.raises(ImmutableFieldConflictError) as exc_info:
-            merge_field_values(
-                "", "Some followup text", "submission_text", "2022/000001"
-            )
+        # parliament_hearing_video_urls
+        result = merge_field_values(
+            '["https://video1.eu", "https://video2.eu"]',
+            None,
+            "parliament_hearing_video_urls",
+            "2022/000001",
+        )
+        assert result == '["https://video1.eu", "https://video2.eu"]'
 
-        error_msg = str(exc_info.value)
-        assert "submission_text" in error_msg
-        assert "Immutable" in error_msg
+        # plenary_debate_video_urls
+        result = merge_field_values(
+            '["https://debate-video.eu"]',
+            None,
+            "plenary_debate_video_urls",
+            "2022/000001",
+        )
+        assert result == '["https://debate-video.eu"]'
 
-        # Another example
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(
-                "", "https://news-url.eu", "submission_news_url", "2022/000001"
-            )
+        # Empty JSON arrays
+        result = merge_field_values(
+            "[]", None, "parliament_hearing_video_urls", "2022/000002"
+        )
+        assert result == "[]"
 
-    def test_edge_case_both_empty_returns_empty(self):
-        """Test that when both base and followup are empty, empty is returned."""
+    def test_realistic_eci_example(self):
+        """
+        Test realistic ECI data: End the Cage Age initiative.
 
-        # Both empty - no conflict, should return empty
-        result_1 = merge_field_values("", "", "submission_text", "2022/000001")
-        assert result_1 == "", "Should return empty when both empty"
+        Demonstrates real-world values for fields unique to Response Data.
+        """
 
-        result_2 = merge_field_values("", "", "submission_news_url", "2022/000001")
-        assert result_2 == "", "Should return empty when both empty"
+        registration_number = "2022/000001"
 
-        # Empty followup with empty base - OK
-        result_3 = merge_field_values("", "", "commission_meeting_date", "2022/000001")
-        assert result_3 == "", "Should return empty when both empty"
-
-    def test_mandatory_unique_fields_empty_base_raises_error(self):
-        """Test that mandatory unique Response Data fields raise error when base is empty."""
-
-        # response_url is mandatory, so empty base should raise error
-        with pytest.raises(MandatoryFieldMissingError) as exc_info:
-            merge_field_values(
-                "", "https://followup-url.eu", "response_url", "2022/000001"
-            )
-
-        error_msg = str(exc_info.value)
-        assert "response_url" in error_msg
-        assert "base" in error_msg.lower()
-
-        # initiative_url is also mandatory
+        # response_url - mandatory
         with pytest.raises(MandatoryFieldMissingError):
             merge_field_values(
-                "", "https://initiative-url.eu", "initiative_url", "2022/000001"
+                "https://citizens-initiative.europa.eu/initiatives/details/2022/000001_en",
+                None,
+                "response_url",
+                registration_number,
             )
+
+        # submission_text - long narrative
+        submission_text = """On 29 September 2021, the organisers submitted the European Citizens' 
+        Initiative (ECI) 'End the Cage Age' to the European Commission. A delegation of organisers 
+        met with Commission representatives on 14 October 2021. The European Parliament held a 
+        public hearing on 15 November 2021."""
+
+        result = merge_field_values(
+            submission_text, None, "submission_text", registration_number
+        )
+        assert result == submission_text
+
+        # parliament_hearing_date
+        result = merge_field_values(
+            "2021-11-15", None, "parliament_hearing_date", registration_number
+        )
+        assert result == "2021-11-15"
+
+        # plenary_debate_date
+        result = merge_field_values(
+            "2022-03-09", None, "plenary_debate_date", registration_number
+        )
+        assert result == "2022-03-09"
