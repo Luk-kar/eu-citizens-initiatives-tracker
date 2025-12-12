@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Callable
 from datetime import datetime
 
-from .exceptions import ImmutableFieldConflictError
+from .exceptions import ImmutableFieldConflictError, MandatoryFieldMissingError
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -673,6 +673,15 @@ def get_merge_strategy_for_field(field_name: str) -> Callable:
 # Main Merge Function
 # ============================================================================
 
+MANDATORY_FIELDS = [
+    "registration_number",
+    "initiative_title",
+    "response_url",
+    "initiative_url",
+    "has_followup_section",
+    "followup_dedicated_website",
+]
+
 
 def merge_field_values(
     base_value: str, followup_value: str, field_name: str, registration_number: str
@@ -690,6 +699,11 @@ def merge_field_values(
     Returns:
         The merged value for this field
     """
+    # First, validate mandatory fields
+    validate_mandatory_field(
+        base_value, followup_value, field_name, registration_number
+    )
+
     # Get the appropriate strategy for this field
     strategy_func = get_merge_strategy_for_field(field_name)
 
@@ -710,80 +724,62 @@ def merge_field_values(
         return base_value
 
 
-# ============================================================================
-# Field Categories (for documentation/reference)
-# ============================================================================
+def validate_mandatory_field(
+    base_value: str, followup_value: str, field_name: str, registration_number: str
+) -> None:
+    """
+    Validate that mandatory fields have non-empty values in both datasets.
 
-# Immutable fields (keep base only):
-IMMUTABLE_FIELDS = [
-    "registration_number",
-    "initiative_title",
-    "initiative_url",
-    "response_url",
-    "submission_text",
-    "commission_submission_date",
-    "submission_news_url",
-    "commission_meeting_date",
-    "commission_officials_met",
-    "parliament_hearing_date",
-    "parliament_hearing_video_urls",
-    "plenary_debate_date",
-    "plenary_debate_video_urls",
-    "official_communication_adoption_date",
-    "commission_factsheet_url",
-    "has_followup_section",
-    "followup_dedicated_website",
-]
+    Args:
+        base_value: Value from base CSV
+        followup_value: Value from followup CSV
+        field_name: Field name
+        registration_number: Registration number for error reporting
 
-# Followup-preferred fields (followup data is more recent):
-FOLLOWUP_PREFERRED_FIELDS = [
-    "final_outcome_status",
-    "law_implementation_date",
-]
+    Raises:
+        MandatoryFieldMissingError: When a mandatory field is empty/None
+    """
+    # Only validate if this is a mandatory field
+    if field_name not in MANDATORY_FIELDS:
+        return
 
-# Boolean OR fields:
-BOOLEAN_OR_FIELDS = [
-    "has_roadmap",
-    "has_workshop",
-    "has_partnership_programs",
-]
+    # Clean values
+    base_clean = base_value.strip() if base_value else ""
+    followup_clean = followup_value.strip() if followup_value else ""
 
-# Special boolean logic fields:
-SPECIAL_BOOLEAN_FIELDS = [
-    "commission_promised_new_law",  # One-way True
-    "commission_rejected_initiative",  # Dataset 1 priority
-]
+    # Check if base is empty or null
+    base_is_empty = not base_clean or base_clean in ["None", "null", ""]
 
-# Concatenation fields (merge with labels):
-CONCATENATION_FIELDS = [
-    "commission_answer_text",
-    "commission_deadlines",
-    "commission_rejection_reason",
-]
+    # Check if followup is empty or null
+    followup_is_null = followup_clean in ["None", "null", ""]
 
-# JSON list fields (merge/append):
-JSON_LIST_FIELDS = [
-    "laws_actions",
-    "policies_actions",
-    "court_cases_referenced",
-    "followup_events_with_dates",
-]
+    # Case 1: Both are empty/null - most critical
+    if base_is_empty and (not followup_clean or followup_is_null):
+        logger.error(
+            f"{registration_number} - {field_name}: Mandatory field is empty in both datasets"
+        )
+        raise MandatoryFieldMissingError(
+            f"Mandatory fields '{field_name}' are empty in both base and followup datasets for {registration_number}. "
+            f"Base: '{base_value}', Followup: '{followup_value}'. "
+            f"At least one dataset must have a non-empty value for mandatory fields."
+        )
 
-# JSON object fields (union):
-JSON_OBJECT_FIELDS = [
-    "official_communication_document_urls",
-    "referenced_legislation_by_id",
-    "referenced_legislation_by_name",
-]
+    # Case 2: Only base is empty
+    if base_is_empty:
+        logger.error(
+            f"{registration_number} - {field_name}: Mandatory field is empty in base dataset"
+        )
+        raise MandatoryFieldMissingError(
+            f"Mandatory field '{field_name}' is empty in base dataset for {registration_number}. "
+            f"Value: '{base_value}'. All mandatory fields must have non-empty values in base dataset."
+        )
 
-# Date fields:
-DATE_FIELDS = [
-    "commission_submission_date",
-    "commission_meeting_date",
-    "parliament_hearing_date",
-    "plenary_debate_date",
-    "official_communication_adoption_date",
-    "law_implementation_date",
-    "followup_latest_date",
-    "followup_most_future_date",
-]
+    # Case 3: Followup has explicit null
+    if followup_is_null:
+        logger.error(
+            f"{registration_number} - {field_name}: Mandatory field has explicit null in followup dataset"
+        )
+        raise MandatoryFieldMissingError(
+            f"Mandatory field '{field_name}' has explicit null value in followup dataset for {registration_number}. "
+            f"Value: '{followup_value}'. Use empty string instead of 'null' or 'None'."
+        )

@@ -55,3 +55,9 @@ class ImmutableFieldConflictError(MergerError):
     """Raised when an immutable field has different values in base and followup datasets."""
 
     pass
+
+
+class MandatoryFieldMissingError(MergerError):
+    """Raised when a mandatory field has empty or None value in either dataset."""
+
+    pass

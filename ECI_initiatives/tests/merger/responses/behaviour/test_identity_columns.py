@@ -6,15 +6,18 @@ This module tests merging of:
 - initiative_title (human-readable identifier)
 
 Both fields are immutable and should always keep Dataset 1 values.
+Both fields are also mandatory and must have non-empty values in BOTH datasets.
 """
 
 import pytest
 from ECI_initiatives.csv_merger.responses.strategies import (
     merge_field_values,
     merge_keep_base_only,
+    validate_mandatory_field,
 )
 from ECI_initiatives.csv_merger.responses.exceptions import (
     ImmutableFieldConflictError,
+    MandatoryFieldMissingError,
 )
 
 
@@ -32,39 +35,8 @@ class TestIdentityColumnsMerging:
         )
         assert result_1 == base_1, "Should keep base value when both identical"
 
-        # Test case 2: Base present, followup empty
-        base_3 = "2022/000001"
-        followup_3 = ""
-        result_3 = merge_field_values(
-            base_3, followup_3, "registration_number", "2022/000001"
-        )
-        assert result_3 == base_3, "Should keep base value when followup is empty"
-
-        # Test case 3: Base present, followup None
-        base_4 = "2022/000001"
-        followup_4 = None
-        result_4 = merge_field_values(
-            base_4, followup_4, "registration_number", "2022/000001"
-        )
-        assert result_4 == base_4, "Should keep base value when followup is None"
-
-        # Test case 4: Base present, followup whitespace
-        base_5 = "2022/000001"
-        followup_5 = "   "
-        result_5 = merge_field_values(
-            base_5, followup_5, "registration_number", "2022/000001"
-        )
-        assert result_5 == base_5, "Should keep base value when followup is whitespace"
-
-        # Test case 5: Base present, followup "null" string
-        base_6 = "2022/000001"
-        followup_6 = "null"
-        result_6 = merge_field_values(
-            base_6, followup_6, "registration_number", "2022/000001"
-        )
-        assert (
-            result_6 == base_6
-        ), "Should keep base value when followup is 'null' string"
+        # Test case 2: Both present with different valid values (will raise ImmutableFieldConflictError)
+        # This is tested in test_registration_number_raises_error_on_conflict
 
     def test_registration_number_raises_error_on_conflict(self):
         """Test that conflicting registration numbers raise ImmutableFieldConflictError."""
@@ -94,29 +66,25 @@ class TestIdentityColumnsMerging:
         )
         assert result_1 == base_1, "Should keep base value when both identical"
 
-        # Test case 2: Base present, followup empty
-        base_3 = "Save Bees and Farmers"
-        followup_3 = ""
+        # Test case 2: Different initiative titles with special characters
+        base_2 = "Stop Vivisection – Let's choose progress without animal testing"
+        followup_2 = "Stop Vivisection – Let's choose progress without animal testing"
+        result_2 = merge_field_values(
+            base_2, followup_2, "initiative_title", "2012/000007"
+        )
+        assert result_2 == base_2, "Should keep base value with special characters"
+
+        # Test case 3: Initiative title with proper noun containing non-English characters
+        base_3 = "Support the François Mitterrand European Education Program"
+        followup_3 = "Support the François Mitterrand European Education Program"
         result_3 = merge_field_values(
-            base_3, followup_3, "initiative_title", "2019/000006"
+            base_3, followup_3, "initiative_title", "2013/000001"
         )
-        assert result_3 == base_3, "Should keep base value when followup is empty"
+        assert (
+            result_3 == base_3
+        ), "Should keep base value with non-English characters in proper noun"
 
-        # Test case 3: Base with special characters
-        base_4 = "Stop Vivisection – Let's choose progress without animal testing"
-        followup_4 = ""
-        result_4 = merge_field_values(
-            base_4, followup_4, "initiative_title", "2012/000007"
-        )
-        assert result_4 == base_4, "Should keep base value with special characters"
-
-        # Test case 4: Base with multilingual elements
-        base_5 = "Wir sind mit dem Grundeinkommen dabei - in der ganzen EU!"
-        followup_5 = ""
-        result_5 = merge_field_values(
-            base_5, followup_5, "initiative_title", "2013/000001"
-        )
-        assert result_5 == base_5, "Should keep base value with non-English characters"
+        # NOTE: Empty followup is no longer allowed for mandatory fields
 
     def test_initiative_title_raises_error_on_conflict(self):
         """Test that conflicting initiative titles raise ImmutableFieldConflictError."""
@@ -132,20 +100,15 @@ class TestIdentityColumnsMerging:
         assert "initiative_title" in error_msg
         assert "2017/000004" in error_msg
 
-    def test_identity_columns_accept_null_followup(self):
-        """Test that identity columns accept various null representations in followup."""
+    def test_identity_columns_require_both_values(self):
+        """Test that identity columns require non-empty values in both base and followup."""
 
-        # Test with various null-like values for registration_number
-        test_cases = [
-            ("2022/000001", "", "2022/000001"),  # Empty string
-            ("2022/000001", None, "2022/000001"),  # None
-            ("2022/000001", "null", "2022/000001"),  # String "null"
-            ("2022/000001", "   ", "2022/000001"),  # Whitespace
-        ]
-
-        for base, followup, expected in test_cases:
-            result = merge_field_values(base, followup, "registration_number", base)
-            assert result == expected, f"Failed for base={base}, followup={followup}"
+        # NEW BEHAVIOR: Both base and followup must have values for mandatory fields
+        # Test with identical values - should work
+        result = merge_field_values(
+            "2022/000001", "2022/000001", "registration_number", "2022/000001"
+        )
+        assert result == "2022/000001", "Should work when both have identical values"
 
     def test_direct_strategy_function_call(self):
         """Test calling merge_keep_base_only strategy function directly."""
@@ -156,17 +119,14 @@ class TestIdentityColumnsMerging:
         )
         assert result_1 == "2022/000001", "Should return base value when identical"
 
-        # Test case 2: Initiative title - empty followup
+        # Test case 2: Initiative title - identical values
         result_2 = merge_keep_base_only(
-            "Original Title", "", "initiative_title", "2022/000001"
+            "Original Title", "Original Title", "initiative_title", "2022/000001"
         )
-        assert (
-            result_2 == "Original Title"
-        ), "Should return base value when followup empty"
+        assert result_2 == "Original Title", "Should return base value when identical"
 
-        # Test case 3: Empty base (edge case - shouldn't happen for identity columns)
-        result_3 = merge_keep_base_only("", "", "registration_number", "2022/000001")
-        assert result_3 == "", "Should return empty base even when both empty"
+        # NOTE: merge_keep_base_only itself doesn't validate mandatory fields
+        # That validation happens in merge_field_values before calling the strategy
 
     def test_direct_strategy_function_raises_error(self):
         """Test that merge_keep_base_only raises error for conflicts."""
@@ -202,3 +162,203 @@ class TestIdentityColumnsMerging:
             "Immutable" in error_msg or "immutable" in error_msg
         ), "Should explain immutability"
         assert len(error_msg) > 50, "Error message should be descriptive"
+
+
+class TestMandatoryFieldValidation:
+    """Tests for mandatory field validation on identity columns."""
+
+    def test_registration_number_both_empty_raises_error(self):
+        """Test that both base and followup being empty raises MandatoryFieldMissingError."""
+
+        with pytest.raises(MandatoryFieldMissingError) as exc_info:
+            merge_field_values("", "", "registration_number", "UNKNOWN")
+
+        error_msg = str(exc_info.value)
+        assert "both" in error_msg.lower(), "Should mention both datasets"
+        assert "registration_number" in error_msg
+        assert "Mandatory" in error_msg or "mandatory" in error_msg
+
+    def test_registration_number_empty_base_raises_error(self):
+        """Test that empty base with valid followup raises MandatoryFieldMissingError."""
+
+        with pytest.raises(MandatoryFieldMissingError) as exc_info:
+            merge_field_values("", "2022/000001", "registration_number", "2022/000001")
+
+        error_msg = str(exc_info.value)
+        assert "base" in error_msg.lower()
+        assert "registration_number" in error_msg
+
+    def test_registration_number_empty_followup_raises_error(self):
+        """Test that empty followup with valid base raises MandatoryFieldMissingError."""
+
+        # NEW BEHAVIOR: Empty followup also raises error for mandatory fields
+        with pytest.raises(MandatoryFieldMissingError) as exc_info:
+            merge_field_values("2022/000001", "", "registration_number", "2022/000001")
+
+        error_msg = str(exc_info.value)
+        assert "followup" in error_msg.lower()
+        assert "registration_number" in error_msg
+
+    def test_registration_number_none_base_raises_error(self):
+        """Test that None in base raises MandatoryFieldMissingError."""
+
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values(
+                None, "2022/000001", "registration_number", "2022/000001"
+            )
+
+    def test_registration_number_null_string_base_raises_error(self):
+        """Test that 'null' string in base raises MandatoryFieldMissingError."""
+
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values(
+                "null", "2022/000001", "registration_number", "2022/000001"
+            )
+
+    def test_registration_number_explicit_null_followup_raises_error(self):
+        """Test that explicit 'null' or 'None' in followup raises MandatoryFieldMissingError."""
+
+        # Explicit 'null' string not allowed
+        with pytest.raises(MandatoryFieldMissingError) as exc_info:
+            merge_field_values(
+                "2022/000001", "null", "registration_number", "2022/000001"
+            )
+
+        error_msg = str(exc_info.value)
+        assert "followup" in error_msg.lower()
+        assert "null" in error_msg.lower()
+
+        # Explicit 'None' string not allowed
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values(
+                "2022/000001", "None", "registration_number", "2022/000001"
+            )
+
+    def test_registration_number_whitespace_base_raises_error(self):
+        """Test that whitespace-only base raises MandatoryFieldMissingError."""
+
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values(
+                "   ", "2022/000001", "registration_number", "2022/000001"
+            )
+
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values(
+                "\t\n  ", "2022/000001", "registration_number", "2022/000001"
+            )
+
+    def test_registration_number_whitespace_followup_raises_error(self):
+        """Test that whitespace-only followup raises MandatoryFieldMissingError."""
+
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values(
+                "2022/000001", "   ", "registration_number", "2022/000001"
+            )
+
+    def test_initiative_title_both_empty_raises_error(self):
+        """Test that empty initiative_title in both datasets raises error."""
+
+        with pytest.raises(MandatoryFieldMissingError) as exc_info:
+            merge_field_values("", "", "initiative_title", "2022/000001")
+
+        error_msg = str(exc_info.value)
+        assert "both" in error_msg.lower()
+        assert "initiative_title" in error_msg
+
+    def test_initiative_title_empty_base_raises_error(self):
+        """Test that empty base with valid followup raises error."""
+
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values("", "Some Title", "initiative_title", "2022/000001")
+
+    def test_initiative_title_empty_followup_raises_error(self):
+        """Test that empty followup with valid base raises error."""
+
+        # NEW BEHAVIOR: Empty followup also raises error
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values("Valid Title", "", "initiative_title", "2022/000001")
+
+    def test_initiative_title_explicit_null_followup_raises_error(self):
+        """Test that explicit null in followup raises error."""
+
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values("Valid Title", "null", "initiative_title", "2022/000001")
+
+    def test_valid_values_in_both_passes(self):
+        """Test that valid values in both base and followup pass validation."""
+
+        # Both must have valid values for mandatory fields
+        result_1 = merge_field_values(
+            "2022/000001", "2022/000001", "registration_number", "2022/000001"
+        )
+        assert result_1 == "2022/000001"
+
+        result_2 = merge_field_values(
+            "Title", "Title", "initiative_title", "2022/000001"
+        )
+        assert result_2 == "Title"
+
+    def test_validate_mandatory_field_direct_call(self):
+        """Test calling validate_mandatory_field function directly."""
+
+        # Both empty should raise
+        with pytest.raises(MandatoryFieldMissingError):
+            validate_mandatory_field("", "", "registration_number", "2022/000001")
+
+        # Empty base should raise
+        with pytest.raises(MandatoryFieldMissingError):
+            validate_mandatory_field("", "value", "registration_number", "2022/000001")
+
+        # Empty followup should raise (NEW BEHAVIOR)
+        with pytest.raises(MandatoryFieldMissingError):
+            validate_mandatory_field(
+                "2022/000001", "", "registration_number", "2022/000001"
+            )
+
+        # Explicit null in followup should raise
+        with pytest.raises(MandatoryFieldMissingError):
+            validate_mandatory_field(
+                "2022/000001", "null", "registration_number", "2022/000001"
+            )
+
+        # Both valid should pass
+        validate_mandatory_field(
+            "2022/000001", "2022/000001", "registration_number", "2022/000001"
+        )
+
+    def test_mandatory_validation_happens_before_immutable_check(self):
+        """Test that mandatory validation occurs before immutability check."""
+
+        # If base is empty, should raise MandatoryFieldMissingError (not ImmutableFieldConflictError)
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values("", "2022/000002", "registration_number", "2022/000001")
+
+    def test_error_messages_are_descriptive(self):
+        """Test that mandatory field error messages provide clear context."""
+
+        # Test both empty error message
+        with pytest.raises(MandatoryFieldMissingError) as exc_info:
+            validate_mandatory_field("", "", "registration_number", "2022/000001")
+
+        error_msg = str(exc_info.value)
+        assert "registration_number" in error_msg
+        assert "2022/000001" in error_msg
+        assert "both" in error_msg.lower()
+        assert len(error_msg) > 50, "Error should be descriptive"
+
+        # Test base empty error message
+        with pytest.raises(MandatoryFieldMissingError) as exc_info:
+            validate_mandatory_field("", "value", "initiative_title", "2022/000001")
+
+        error_msg = str(exc_info.value)
+        assert "initiative_title" in error_msg
+        assert "base" in error_msg.lower()
+
+        # Test followup empty error message
+        with pytest.raises(MandatoryFieldMissingError) as exc_info:
+            validate_mandatory_field(
+                "2022/000001", "", "registration_number", "2022/000001"
+            )
+
+        error_msg = str(exc_info.value)
+        assert "followup" in error_msg.lower()
