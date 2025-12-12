@@ -7,6 +7,8 @@ import logging
 from typing import Dict, Callable
 from datetime import datetime
 
+from .exceptions import ImmutableFieldConflictError
+
 # Setup logger
 logger = logging.getLogger(__name__)
 
@@ -410,15 +412,38 @@ def merge_keep_base_only(
     Always keep base value, ignore followup value.
     Use for immutable fields that should never be updated.
 
+    Raises ImmutableFieldConflictError if followup has a different non-null value,
+    indicating a data integrity issue.
+
     Args:
         base_value: Value from base CSV
-        followup_value: Value from followup CSV (ignored)
+        followup_value: Value from followup CSV (should be None, empty, or same as base)
         field_name: Field name
         registration_number: Registration number
 
     Returns:
         Base value
+
+    Raises:
+        ImmutableFieldConflictError: When followup has a different non-null value
     """
+    # Check if followup value is non-empty and different from base
+    followup_clean = followup_value.strip() if followup_value else ""
+    base_clean = base_value.strip() if base_value else ""
+
+    # Followup should be empty, None, 'null', or identical to base
+    if followup_clean and followup_clean not in ["", "None", "null"]:
+        if followup_clean != base_clean:
+            logger.error(
+                f"{registration_number} - {field_name}: Immutable field conflict detected. "
+                f"Base: '{base_value}', Followup: '{followup_value}'"
+            )
+            raise ImmutableFieldConflictError(
+                f"Immutable field '{field_name}' has conflicting values for {registration_number}. "
+                f"Base: '{base_value}', Followup: '{followup_value}'. "
+                f"Immutable fields should never differ between datasets."
+            )
+
     logger.debug(
         f"{registration_number} - {field_name}: Keeping base value (immutable field)"
     )
@@ -674,6 +699,9 @@ def merge_field_values(
             base_value, followup_value, field_name, registration_number
         )
         return result
+    except ImmutableFieldConflictError:
+        # Re-raise immutable field conflicts - these are data integrity errors
+        raise
     except Exception as e:
         logger.error(
             f"{registration_number} - {field_name}: Error during merge: {e}. "

@@ -49,3 +49,9 @@ class MissingColumnsError(MergerError):
     """Raised when followup CSV is missing columns that exist in base CSV."""
 
     pass
+
+
+class ImmutableFieldConflictError(MergerError):
+    """Raised when an immutable field has different values in base and followup datasets."""
+
+    pass
