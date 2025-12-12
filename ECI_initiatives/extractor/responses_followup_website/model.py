@@ -5,8 +5,6 @@ from typing import Optional
 
 @dataclass
 class ECIFollowupWebsiteRecord:
-    registration_number: str
-    initiative_title: str
 
     # Basic Initiative Metadata
     registration_number: str
