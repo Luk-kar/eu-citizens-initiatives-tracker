@@ -1,7 +1,7 @@
 """
-Behavioural tests for unique Dataset 1 column merging.
+Behavioural tests for unique Response Data column merging.
 
-This module tests merging of 14 columns unique to Dataset 1 that should always
+This module tests merging of 14 columns unique to Response Data that should always
 keep base values (immutable historical and structural metadata):
 - response_url
 - initiative_url
@@ -33,7 +33,7 @@ from ECI_initiatives.csv_merger.responses.exceptions import (
 
 
 class TestUniqueDataset1ColumnsMerging:
-    """Tests for unique Dataset 1 column merge strategies."""
+    """Tests for unique Response Data column merge strategies."""
 
     def test_response_url_keeps_base(self):
         """Test that response_url always keeps base value when followup is identical."""
@@ -411,7 +411,7 @@ class TestUniqueDataset1ColumnsMerging:
             merge_field_values("", "True", "has_followup_section", "2022/000002")
 
     def test_all_unique_fields_use_keep_base_strategy(self):
-        """Test that all 14 unique Dataset 1 fields are mapped to merge_keep_base_only."""
+        """Test that all 14 unique Response Data fields are mapped to merge_keep_base_only."""
 
         unique_fields = [
             "response_url",
@@ -493,7 +493,7 @@ class TestUniqueDataset1ColumnsMerging:
         assert result_3 == "", "Should return empty when both empty"
 
     def test_mandatory_unique_fields_empty_base_raises_error(self):
-        """Test that mandatory unique Dataset 1 fields raise error when base is empty."""
+        """Test that mandatory unique Response Data fields raise error when base is empty."""
 
         # response_url is mandatory, so empty base should raise error
         with pytest.raises(MandatoryFieldMissingError) as exc_info:

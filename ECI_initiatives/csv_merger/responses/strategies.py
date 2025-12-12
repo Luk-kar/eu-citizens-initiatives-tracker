@@ -516,9 +516,9 @@ def merge_promised_new_law(
 ) -> str:
     """
     Special logic for commission_promised_new_law:
-    - If Dataset 1 is False and Dataset 2 is True, set True
+    - If Response Data is False and Followup Data is True, set True
     - If both False, then False
-    - If Dataset 1 is True and Dataset 2 is False, keep True
+    - If Response Data is True and Followup Data is False, keep True
 
     A Commission promise is one-way - once made, it doesn't become unmade.
     """
@@ -545,15 +545,15 @@ def merge_rejected_initiative(
 ) -> str:
     """
     Special logic for commission_rejected_initiative:
-    - If Dataset 1 is True, keep it (Dataset 1 overwrites Dataset 2)
-    - If Dataset 1 is False and Dataset 2 is True, keep Dataset 2
+    - If Response Data is True, keep it (Response Data overwrites Followup Data)
+    - If Response Data is False and Followup Data is True, keep Followup Data
 
-    Rejection is permanent - Dataset 1 is authoritative source.
+    Rejection is permanent - Response Data is authoritative source.
     """
     base_bool = str(base_value).strip().lower() in ["true", "1", "yes"]
     followup_bool = str(followup_value).strip().lower() in ["true", "1", "yes"]
 
-    # Dataset 1 takes priority
+    # Response Data takes priority
     if base_bool:
         logger.debug(
             f"{registration_number} - {field_name}: Keeping True from base (authoritative)"
@@ -573,7 +573,7 @@ def merge_outcome_status_with_validation(
     base_value: str, followup_value: str, field_name: str, registration_number: str
 ) -> str:
     """
-    Prioritize Dataset 2 (followup) when available, with validation.
+    Prioritize Followup Data (followup) when available, with validation.
     Flag illogical transitions for manual review.
     """
     base_clean = base_value.strip() if base_value else ""
@@ -628,7 +628,7 @@ def merge_law_implementation_date(
     base_value: str, followup_value: str, field_name: str, registration_number: str
 ) -> str:
     """
-    Keep Dataset 1 if Dataset 2 is null; update with Dataset 2 when exists.
+    Keep Response Data if Followup Data is null; update with Followup Data when exists.
     """
     followup_clean = followup_value.strip() if followup_value else ""
     base_clean = base_value.strip() if base_value else ""
@@ -666,7 +666,7 @@ def get_merge_strategy_for_field(field_name: str) -> Callable:
         # Identity columns (immutable)
         "registration_number": merge_keep_base_only,
         "initiative_title": merge_keep_base_only,
-        # Unique to Dataset 1 - keep all (immutable)
+        # Unique to Response Data - keep all (immutable)
         "response_url": merge_keep_base_only,
         "initiative_url": merge_keep_base_only,
         "submission_text": merge_keep_base_only,
@@ -684,12 +684,12 @@ def get_merge_strategy_for_field(field_name: str) -> Callable:
         # Overlapping columns with specific strategies
         "followup_dedicated_website": merge_keep_base_only,  # Identical in both
         "commission_answer_text": merge_by_concatenation,  # Merge with labels
-        "official_communication_document_urls": merge_json_objects,  # Union with Dataset 1 key priority
-        "final_outcome_status": merge_outcome_status_with_validation,  # Prioritize Dataset 2 with validation
-        "law_implementation_date": merge_law_implementation_date,  # Update with Dataset 2 when exists
+        "official_communication_document_urls": merge_json_objects,  # Union with Response Data key priority
+        "final_outcome_status": merge_outcome_status_with_validation,  # Prioritize Followup Data with validation
+        "law_implementation_date": merge_law_implementation_date,  # Update with Followup Data when exists
         "commission_promised_new_law": merge_promised_new_law,  # One-way True logic
         "commission_deadlines": merge_by_concatenation,  # Merge with labels
-        "commission_rejected_initiative": merge_rejected_initiative,  # Dataset 1 priority, one-way True
+        "commission_rejected_initiative": merge_rejected_initiative,  # Response Data priority, one-way True
         "commission_rejection_reason": merge_by_concatenation,  # Combine with labels
         "laws_actions": merge_json_lists,  # Append unique actions
         "policies_actions": merge_json_lists,  # Append with deduplication

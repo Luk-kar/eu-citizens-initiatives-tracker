@@ -10,7 +10,7 @@ This module tests merging of 20 overlapping columns with various strategies:
 5. law_implementation_date - update with followup when exists
 6. commission_promised_new_law - one-way True logic
 7. commission_deadlines - concatenation with labels
-8. commission_rejected_initiative - Dataset 1 priority, one-way True
+8. commission_rejected_initiative - Response Data priority, one-way True
 9. commission_rejection_reason - concatenation with labels
 10. laws_actions - JSON list merge
 11. policies_actions - JSON list merge
@@ -391,7 +391,7 @@ class TestCommissionPromisedNewLaw:
 
 
 class TestCommissionRejectedInitiative:
-    """Tests for commission_rejected_initiative Dataset 1 priority logic."""
+    """Tests for commission_rejected_initiative Response Data priority logic."""
 
     def test_base_true_overrides_followup(self):
         """Test that True in base takes priority (rejection is permanent)."""

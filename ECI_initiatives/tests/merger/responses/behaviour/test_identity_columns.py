@@ -5,7 +5,7 @@ This module tests merging of:
 - registration_number (primary key)
 - initiative_title (human-readable identifier)
 
-Both fields are immutable and should always keep Dataset 1 values.
+Both fields are immutable and should always keep Response Data values.
 Both fields are also mandatory and must have non-empty values in BOTH datasets.
 """
 
