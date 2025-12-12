@@ -1144,83 +1144,200 @@ class TestReferencedLegislationByName:
     """
     Tests for referenced_legislation_by_name JSON object merging.
 
-    Similar structure to referenced_legislation_by_id but typically has more descriptive keys.
-    Valid keys are still: "Regulation", "Directive", "Decision", "CELEX", "Article"
-    Uses same merge strategy: combine keys, merge lists for duplicates.
+    This field stores human-readable legislation names as a JSON object where:
+    - Keys are legislation categories: "regulations", "directives", "charters" (lowercase plural)
+    - Values are lists of human-readable legislation names
+
+    Examples from actual data:
+    - "directives": ["Drinking Water Directive", "Water Framework Directive"]
+    - "regulations": ["General Food Law Regulation", "Nature Restoration Law"]
+    - "charters": ["Charter of Fundamental Rights"]
+
+    Merge strategy:
+    - Combine all unique keys from both datasets
+    - For duplicate keys with list values: merge and deduplicate the lists
+    - For duplicate keys with non-list values: followup overrides base
     """
 
-    def test_merge_unique_legislation_names(self):
-        """Test combining unique legislation references."""
+    def test_merge_unique_legislation_categories(self):
+        """Test combining unique legislation categories from both datasets."""
 
-        base = '{"Directive": ["Birds Directive (2009/147/EC)", "Habitats Directive (92/43/EEC)"]}'
-        followup = '{"Regulation": ["IAS Regulation (1143/2014)", "Nature Restoration (2024/1991)"]}'
+        base = (
+            '{"directives": ["Drinking Water Directive", "Water Framework Directive"]}'
+        )
+        followup = (
+            '{"regulations": ["General Food Law Regulation", "Nature Restoration Law"]}'
+        )
         result = merge_field_values(
             base, followup, "referenced_legislation_by_name", "2022/000001"
         )
 
         result_obj = json.loads(result)
-        assert len(result_obj) == 2, "Should have 2 legislation types"
-        assert "Directive" in result_obj
-        assert "Regulation" in result_obj
-        assert len(result_obj["Directive"]) == 2
-        assert len(result_obj["Regulation"]) == 2
+        assert len(result_obj) == 2, "Should have 2 categories"
+        assert "directives" in result_obj
+        assert "regulations" in result_obj
+        assert len(result_obj["directives"]) == 2
+        assert len(result_obj["regulations"]) == 2
 
-    def test_merge_lists_for_same_legislation_type(self):
-        """Test that lists are merged when the same legislation type appears in both."""
+    def test_merge_lists_for_same_category(self):
+        """Test that lists are merged when the same category appears in both."""
 
-        base = '{"Regulation": ["SFDR (2019/2088)", "Taxonomy (2020/852)"]}'
-        followup = '{"Regulation": ["Taxonomy (2020/852)", "CSRD (2022/2464)"]}'
+        base = '{"regulations": ["REACH Regulation", "Cosmetic Products Regulation"]}'
+        followup = '{"regulations": ["EU Cosmetics Regulation", "REACH Regulation"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_name", "2022/000001"
+            base, followup, "referenced_legislation_by_name", "2021/000006"
         )
 
         result_obj = json.loads(result)
         expected = sorted(
-            ["CSRD (2022/2464)", "SFDR (2019/2088)", "Taxonomy (2020/852)"]
+            [
+                "Cosmetic Products Regulation",
+                "EU Cosmetics Regulation",
+                "REACH Regulation",
+            ]
         )
-        assert expected == result_obj["Regulation"], "Should merge and deduplicate"
+        assert expected == result_obj["regulations"], "Should merge and deduplicate"
 
-    def test_provides_multiple_reference_formats(self):
-        """Test that combination provides references in various formats."""
+    def test_directives_merged_correctly(self):
+        """Test that directive names are properly merged."""
 
-        base = '{"Regulation": ["EU 2019/2088 (SFDR)"], "Article": ["Article 13 TFEU"]}'
-        followup = '{"Directive": ["Directive 2009/147/EC"], "CELEX": ["32020R0852"]}'
+        base = '{"directives": ["SEA", "Sustainable Use Directive"]}'
+        followup = '{"directives": ["SEA", "AVMSD Directive"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_name", "2022/000002"
+            base, followup, "referenced_legislation_by_name", "2019/000016"
         )
 
         result_obj = json.loads(result)
-        assert "Regulation" in result_obj
-        assert "Article" in result_obj
-        assert "Directive" in result_obj
-        assert "CELEX" in result_obj
-        assert len(result_obj) == 4
+        expected = sorted(["AVMSD Directive", "SEA", "Sustainable Use Directive"])
+        assert expected == result_obj["directives"]
 
-    def test_article_references_merged(self):
-        """Test that Article references are properly merged."""
+    def test_charters_category_handled(self):
+        """Test that charters category is properly handled."""
 
-        base = '{"Article": ["Article 192 TFEU", "Article 191 TFEU"]}'
-        followup = '{"Article": ["Article 193 TFEU", "Article 192 TFEU"]}'
+        base = '{"charters": ["Charter of Fundamental Rights"]}'
+        followup = '{"regulations": ["ECI Regulation"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_name", "2022/000001"
+            base, followup, "referenced_legislation_by_name", "2019/000007"
         )
 
         result_obj = json.loads(result)
-        expected = sorted(["Article 191 TFEU", "Article 192 TFEU", "Article 193 TFEU"])
-        assert expected == result_obj["Article"]
+        assert "charters" in result_obj
+        assert "regulations" in result_obj
+        assert ["Charter of Fundamental Rights"] == result_obj["charters"]
+        assert ["ECI Regulation"] == result_obj["regulations"]
 
-    def test_decision_references_handled(self):
-        """Test that Decision references are properly handled."""
+    def test_all_three_categories_merged(self):
+        """Test merging when all three categories are present."""
 
-        base = '{"Decision": ["Council Decision 2024/123"]}'
-        followup = '{"Decision": ["Commission Decision 2024/456"]}'
+        base = '{"directives": ["AVMSD Directive"], "regulations": ["Common Provisions Regulation"], "charters": ["Charter of Fundamental Rights"]}'
+        followup = '{"directives": ["Audiovisual Media Services Directive"], "regulations": ["ECI Regulation"]}'
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_name", "2022/000001"
+            base, followup, "referenced_legislation_by_name", "2017/000004"
         )
 
         result_obj = json.loads(result)
-        expected = sorted(["Commission Decision 2024/456", "Council Decision 2024/123"])
-        assert expected == result_obj["Decision"]
+        assert len(result_obj) == 3, "Should have all 3 categories"
+
+        # Directives merged
+        assert (
+            sorted(["AVMSD Directive", "Audiovisual Media Services Directive"])
+            == result_obj["directives"]
+        )
+
+        # Regulations merged
+        assert (
+            sorted(["Common Provisions Regulation", "ECI Regulation"])
+            == result_obj["regulations"]
+        )
+
+        # Charters from base only
+        assert ["Charter of Fundamental Rights"] == result_obj["charters"]
+
+    def test_multiple_directives_from_same_initiative(self):
+        """Test merging multiple directives like in 2012/000003."""
+
+        base = '{"directives": ["Drinking Water Directive", "Floods Directive"]}'
+        followup = '{"directives": ["Water Framework Directive", "Floods Directive"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_name", "2012/000003"
+        )
+
+        result_obj = json.loads(result)
+        expected = sorted(
+            [
+                "Drinking Water Directive",
+                "Floods Directive",
+                "Water Framework Directive",
+            ]
+        )
+        assert expected == result_obj["directives"]
+
+    def test_empty_base_uses_followup(self):
+        """Test that when base is empty, followup is used as-is."""
+
+        base = ""
+        followup = '{"regulations": ["Nature Restoration Law", "Sustainable Use of Plant Protection Products Regulation"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_name", "2019/000016"
+        )
+
+        result_obj = json.loads(result)
+        assert "regulations" in result_obj
+        assert len(result_obj["regulations"]) == 2
+
+    def test_empty_followup_keeps_base(self):
+        """Test that when followup is empty, base is kept."""
+
+        base = '{"directives": ["SEA"]}'
+        followup = ""
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_name", "2020/000001"
+        )
+
+        result_obj = json.loads(result)
+        assert ["SEA"] == result_obj["directives"]
+
+    def test_similar_but_different_names_not_deduplicated(self):
+        """
+        Test that similar but different legislation names are kept separate.
+
+        Example: "AVMSD Directive" vs "Audiovisual Media Services Directive"
+        These are related but have different names, so both should be kept.
+        """
+        base = '{"directives": ["AVMSD Directive"]}'
+        followup = '{"directives": ["Audiovisual Media Services Directive"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_name", "2017/000004"
+        )
+
+        result_obj = json.loads(result)
+        expected = sorted(["AVMSD Directive", "Audiovisual Media Services Directive"])
+        assert (
+            expected == result_obj["directives"]
+        ), "Different names should both be kept"
+
+    def test_cosmetics_variations_handled(self):
+        """
+        Test handling of similar regulation names with slight variations.
+
+        Example: "Cosmetic Products Regulation" vs "EU Cosmetics Regulation"
+        """
+        base = '{"regulations": ["Cosmetic Products Regulation", "REACH Regulation"]}'
+        followup = '{"regulations": ["EU Cosmetics Regulation"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_name", "2021/000006"
+        )
+
+        result_obj = json.loads(result)
+        # All three should be kept as they have different names
+        expected = sorted(
+            [
+                "Cosmetic Products Regulation",
+                "EU Cosmetics Regulation",
+                "REACH Regulation",
+            ]
+        )
+        assert expected == result_obj["regulations"]
 
 
 class TestFollowupEventsWithDates:
