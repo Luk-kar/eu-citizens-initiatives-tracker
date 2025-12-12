@@ -4,7 +4,7 @@ Field merging strategies for combining base and followup CSV data.
 
 import json
 import logging
-from typing import Dict, Callable
+from typing import Dict, Callable, List
 from datetime import datetime
 
 from .exceptions import ImmutableFieldConflictError, MandatoryFieldMissingError
@@ -712,13 +712,24 @@ def get_merge_strategy_for_field(field_name: str) -> Callable:
 # Main Merge Function
 # ============================================================================
 
-MANDATORY_FIELDS = [
+MANDATORY_BOTH_FIELDS = [
     "registration_number",
     "initiative_title",
+    "registration_number",
+    "followup_dedicated_website",
+    "commission_answer_text",
+    "commission_promised_new_law",
+    "commission_rejected_initiative",
+    "has_roadmap",
+    "has_workshop",
+    "has_partnership_programs",
+    "followup_events_with_dates",
+]
+
+MANDATORY_BASE_FIELD = [
     "response_url",
     "initiative_url",
-    "has_followup_section",
-    "followup_dedicated_website",
+    "submission_text",
 ]
 
 
@@ -739,8 +750,13 @@ def merge_field_values(
         The merged value for this field
     """
     # First, validate mandatory fields
-    validate_mandatory_field(
+    validate_mandatory_many_fields(
         base_value, followup_value, field_name, registration_number
+    )
+
+    # Second validate base mandatory field
+    validate_mandatory_field(
+        base_value, field_name, registration_number, MANDATORY_BASE_FIELD
     )
 
     # Get the appropriate strategy for this field
@@ -763,7 +779,7 @@ def merge_field_values(
         return base_value
 
 
-def validate_mandatory_field(
+def validate_mandatory_many_fields(
     base_value: str, followup_value: str, field_name: str, registration_number: str
 ) -> None:
     """
@@ -779,7 +795,7 @@ def validate_mandatory_field(
         MandatoryFieldMissingError: When a mandatory field is empty/None
     """
     # Only validate if this is a mandatory field
-    if field_name not in MANDATORY_FIELDS:
+    if field_name not in MANDATORY_BOTH_FIELDS:
         return
 
     # Clean values
@@ -821,4 +837,32 @@ def validate_mandatory_field(
         raise MandatoryFieldMissingError(
             f"Mandatory field '{field_name}' has explicit null value in followup dataset for {registration_number}. "
             f"Value: '{followup_value}'. Use empty string instead of 'null' or 'None'."
+        )
+
+
+def validate_mandatory_field(
+    base_value: str,
+    field_name: str,
+    registration_number: str,
+    mandatory_fields: List[str],
+) -> None:
+    """
+    Validate that mandatory fields have non-empty values.
+
+    This validates fields that only exist in the selected dataset
+    and are required to be non-empty.
+    """
+    if field_name not in mandatory_fields:
+        return
+
+    value_clean = base_value.strip() if base_value else ""
+    field_is_empty = not value_clean or value_clean in ["None", "null", ""]
+
+    if field_is_empty:
+        logger.error(
+            f"{registration_number} - {field_name}: Mandatory base field is empty"
+        )
+        raise MandatoryFieldMissingError(
+            f"Mandatory base field '{field_name}' is empty for {registration_number}. "
+            f"Value: '{base_value}'. This field is required in the Response Data dataset."
         )

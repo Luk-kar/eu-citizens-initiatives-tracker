@@ -13,7 +13,7 @@ import pytest
 from ECI_initiatives.csv_merger.responses.strategies import (
     merge_field_values,
     merge_keep_base_only,
-    validate_mandatory_field,
+    validate_mandatory_many_fields,
 )
 from ECI_initiatives.csv_merger.responses.exceptions import (
     ImmutableFieldConflictError,
@@ -303,26 +303,28 @@ class TestMandatoryFieldValidation:
 
         # Both empty should raise
         with pytest.raises(MandatoryFieldMissingError):
-            validate_mandatory_field("", "", "registration_number", "2022/000001")
+            validate_mandatory_many_fields("", "", "registration_number", "2022/000001")
 
         # Empty base should raise
         with pytest.raises(MandatoryFieldMissingError):
-            validate_mandatory_field("", "value", "registration_number", "2022/000001")
+            validate_mandatory_many_fields(
+                "", "value", "registration_number", "2022/000001"
+            )
 
         # Empty followup should raise (NEW BEHAVIOR)
         with pytest.raises(MandatoryFieldMissingError):
-            validate_mandatory_field(
+            validate_mandatory_many_fields(
                 "2022/000001", "", "registration_number", "2022/000001"
             )
 
         # Explicit null in followup should raise
         with pytest.raises(MandatoryFieldMissingError):
-            validate_mandatory_field(
+            validate_mandatory_many_fields(
                 "2022/000001", "null", "registration_number", "2022/000001"
             )
 
         # Both valid should pass
-        validate_mandatory_field(
+        validate_mandatory_many_fields(
             "2022/000001", "2022/000001", "registration_number", "2022/000001"
         )
 
@@ -338,7 +340,7 @@ class TestMandatoryFieldValidation:
 
         # Test both empty error message
         with pytest.raises(MandatoryFieldMissingError) as exc_info:
-            validate_mandatory_field("", "", "registration_number", "2022/000001")
+            validate_mandatory_many_fields("", "", "registration_number", "2022/000001")
 
         error_msg = str(exc_info.value)
         assert "registration_number" in error_msg
@@ -348,7 +350,9 @@ class TestMandatoryFieldValidation:
 
         # Test base empty error message
         with pytest.raises(MandatoryFieldMissingError) as exc_info:
-            validate_mandatory_field("", "value", "initiative_title", "2022/000001")
+            validate_mandatory_many_fields(
+                "", "value", "initiative_title", "2022/000001"
+            )
 
         error_msg = str(exc_info.value)
         assert "initiative_title" in error_msg
@@ -356,7 +360,7 @@ class TestMandatoryFieldValidation:
 
         # Test followup empty error message
         with pytest.raises(MandatoryFieldMissingError) as exc_info:
-            validate_mandatory_field(
+            validate_mandatory_many_fields(
                 "2022/000001", "", "registration_number", "2022/000001"
             )
 

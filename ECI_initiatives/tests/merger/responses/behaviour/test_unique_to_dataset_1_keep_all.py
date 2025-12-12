@@ -7,21 +7,25 @@ keep base values (immutable historical and structural metadata).
 IMPORTANT: These columns do NOT exist in the Follow-up dataset, so followup values
 are ALWAYS null/empty in real-world merging scenarios.
 
-Unique to Response Data:
-- response_url (mandatory)
-- initiative_url (mandatory)
-- has_followup_section (mandatory)
-- submission_text
-- commission_submission_date
-- submission_news_url
-- commission_meeting_date
-- commission_officials_met
-- parliament_hearing_date
-- parliament_hearing_video_urls
-- plenary_debate_date
-- plenary_debate_video_urls
-- official_communication_adoption_date
-- commission_factsheet_url
+Based on ECICommissionResponseRecord data model:
+
+REQUIRED (non-Optional) fields unique to Response Data:
+- response_url: str (mandatory)
+- initiative_url: str (mandatory)
+- submission_text: str (mandatory)
+
+OPTIONAL (Optional[...]) fields unique to Response Data:
+- commission_submission_date: Optional[str]
+- submission_news_url: Optional[str]
+- commission_meeting_date: Optional[str]
+- commission_officials_met: Optional[str]
+- parliament_hearing_date: Optional[str]
+- parliament_hearing_video_urls: Optional[str]
+- plenary_debate_date: Optional[str]
+- plenary_debate_video_urls: Optional[str]
+- official_communication_adoption_date: Optional[str]
+- commission_factsheet_url: Optional[str]
+- has_followup_section: Optional[bool]
 """
 
 import pytest
@@ -45,17 +49,18 @@ class TestUniqueDataset1ColumnsMerging:
     In real merging, followup is ALWAYS null/empty for these fields.
     """
 
-    # ========== MANDATORY FIELDS (must be non-empty in Response Data) ==========
+    # ========== REQUIRED (NON-OPTIONAL) FIELDS ==========
+    # These fields are NOT Optional in the data model and must have values
 
     def test_response_url_keeps_base_with_null_followup(self):
-        """Test response_url keeps base when followup is null (real-world scenario)."""
+        """Test response_url (required field) keeps base when followup is null."""
 
         base = (
             "https://citizens-initiative.europa.eu/initiatives/details/2022/000001_en"
         )
         followup = None  # Followup dataset doesn't have this column
 
-        # This should raise MandatoryFieldMissingError because followup is null
+        # Required field with null followup raises MandatoryFieldMissingError
         with pytest.raises(MandatoryFieldMissingError) as exc_info:
             merge_field_values(base, followup, "response_url", "2022/000001")
 
@@ -63,31 +68,32 @@ class TestUniqueDataset1ColumnsMerging:
         assert "followup" in str(exc_info.value).lower()
 
     def test_initiative_url_keeps_base_with_null_followup(self):
-        """Test initiative_url keeps base when followup is null (real-world scenario)."""
+        """Test initiative_url (required field) keeps base when followup is null."""
 
         base = "https://citizens-initiative.europa.eu/initiatives/details/2022/000001"
         followup = None  # Followup dataset doesn't have this column
 
-        # This should raise MandatoryFieldMissingError
+        # Required field with null followup raises MandatoryFieldMissingError
         with pytest.raises(MandatoryFieldMissingError):
             merge_field_values(base, followup, "initiative_url", "2022/000001")
 
-    def test_has_followup_section_keeps_base_with_null_followup(self):
-        """Test has_followup_section keeps base when followup is null (real-world scenario)."""
+    def test_submission_text_keeps_base_with_null_followup(self):
+        """Test submission_text (required field) keeps base when followup is null."""
 
-        # Test with True
-        base = "True"
+        base = """On 29 September 2021, the organisers submitted the European Citizens'
+        Initiative (ECI) 'End the Cage Age' to the European Commission."""
         followup = None  # Followup dataset doesn't have this column
 
+        # Required field with null followup raises MandatoryFieldMissingError
         with pytest.raises(MandatoryFieldMissingError):
-            merge_field_values(base, followup, "has_followup_section", "2022/000001")
+            merge_field_values(base, followup, "submission_text", "2022/000001")
 
-    def test_mandatory_fields_reject_empty_base(self):
-        """Test that mandatory fields reject empty base values."""
+    def test_required_fields_reject_empty_base(self):
+        """Test that required fields reject empty base values."""
 
-        mandatory_fields = ["response_url", "initiative_url", "has_followup_section"]
+        required_fields = ["response_url", "initiative_url", "submission_text"]
 
-        for field in mandatory_fields:
+        for field in required_fields:
             with pytest.raises(MandatoryFieldMissingError) as exc_info:
                 merge_field_values("", None, field, "2022/000001")
 
@@ -95,20 +101,10 @@ class TestUniqueDataset1ColumnsMerging:
             assert field in error_msg
             assert "base" in error_msg.lower()
 
-    # ========== NON-MANDATORY FIELDS (can be empty in Response Data) ==========
-
-    def test_submission_text_keeps_base_with_null_followup(self):
-        """Test submission_text keeps base when followup is null (real-world scenario)."""
-
-        base = """On 29 September 2021, the organisers submitted the European Citizens'
-        Initiative (ECI) 'End the Cage Age' to the European Commission."""
-        followup = None  # Followup dataset doesn't have this column
-
-        result = merge_field_values(base, followup, "submission_text", "2022/000001")
-        assert result == base
+    # ========== OPTIONAL FIELDS (can be None/empty) ==========
 
     def test_commission_submission_date_keeps_base_with_null_followup(self):
-        """Test commission_submission_date keeps base when followup is null."""
+        """Test commission_submission_date (Optional) keeps base when followup is null."""
 
         base = "2021-09-29"
         followup = None
@@ -118,8 +114,19 @@ class TestUniqueDataset1ColumnsMerging:
         )
         assert result == base
 
+    def test_commission_submission_date_can_be_empty(self):
+        """Test commission_submission_date (Optional) can be empty in base."""
+
+        base = ""
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "commission_submission_date", "2022/000001"
+        )
+        assert result == ""
+
     def test_submission_news_url_keeps_base_with_null_followup(self):
-        """Test submission_news_url keeps base when followup is null."""
+        """Test submission_news_url (Optional) keeps base when followup is null."""
 
         base = "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_4747"
         followup = None
@@ -129,8 +136,19 @@ class TestUniqueDataset1ColumnsMerging:
         )
         assert result == base
 
+    def test_submission_news_url_can_be_empty(self):
+        """Test submission_news_url (Optional) can be empty in base."""
+
+        base = ""
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "submission_news_url", "2022/000001"
+        )
+        assert result == ""
+
     def test_commission_meeting_date_keeps_base_with_null_followup(self):
-        """Test commission_meeting_date keeps base when followup is null."""
+        """Test commission_meeting_date (Optional) keeps base when followup is null."""
 
         base = "2021-10-14"
         followup = None
@@ -141,7 +159,7 @@ class TestUniqueDataset1ColumnsMerging:
         assert result == base
 
     def test_commission_officials_met_keeps_base_with_null_followup(self):
-        """Test commission_officials_met keeps base when followup is null."""
+        """Test commission_officials_met (Optional) keeps base when followup is null."""
 
         base = "Stella Kyriakides, Commissioner for Health and Food Safety; Sandra Gallina, Deputy Director-General, DG SANTE"
         followup = None
@@ -152,7 +170,7 @@ class TestUniqueDataset1ColumnsMerging:
         assert result == base
 
     def test_parliament_hearing_date_keeps_base_with_null_followup(self):
-        """Test parliament_hearing_date keeps base when followup is null."""
+        """Test parliament_hearing_date (Optional) keeps base when followup is null."""
 
         base = "2021-11-15"
         followup = None
@@ -163,7 +181,7 @@ class TestUniqueDataset1ColumnsMerging:
         assert result == base
 
     def test_parliament_hearing_video_urls_keeps_base_with_null_followup(self):
-        """Test parliament_hearing_video_urls keeps base when followup is null."""
+        """Test parliament_hearing_video_urls (Optional JSON) keeps base when followup is null."""
 
         base = '["https://multimedia.europarl.europa.eu/video1", "https://multimedia.europarl.europa.eu/video2"]'
         followup = None
@@ -174,7 +192,7 @@ class TestUniqueDataset1ColumnsMerging:
         assert result == base
 
     def test_plenary_debate_date_keeps_base_with_null_followup(self):
-        """Test plenary_debate_date keeps base when followup is null."""
+        """Test plenary_debate_date (Optional) keeps base when followup is null."""
 
         # When plenary debate happened
         base = "2022-03-09"
@@ -185,8 +203,8 @@ class TestUniqueDataset1ColumnsMerging:
         )
         assert result == base
 
-    def test_plenary_debate_date_empty_base_with_null_followup(self):
-        """Test plenary_debate_date when no debate held (empty in both)."""
+    def test_plenary_debate_date_can_be_empty(self):
+        """Test plenary_debate_date (Optional) can be empty when no debate held."""
 
         # No plenary debate held for this ECI
         base = ""
@@ -198,7 +216,7 @@ class TestUniqueDataset1ColumnsMerging:
         assert result == ""
 
     def test_plenary_debate_video_urls_keeps_base_with_null_followup(self):
-        """Test plenary_debate_video_urls keeps base when followup is null."""
+        """Test plenary_debate_video_urls (Optional JSON) keeps base when followup is null."""
 
         base = '["https://multimedia.europarl.europa.eu/plenary/debate"]'
         followup = None
@@ -209,7 +227,7 @@ class TestUniqueDataset1ColumnsMerging:
         assert result == base
 
     def test_official_communication_adoption_date_keeps_base_with_null_followup(self):
-        """Test official_communication_adoption_date keeps base when followup is null."""
+        """Test official_communication_adoption_date (Optional) keeps base when followup is null."""
 
         base = "2022-06-22"
         followup = None
@@ -220,7 +238,7 @@ class TestUniqueDataset1ColumnsMerging:
         assert result == base
 
     def test_commission_factsheet_url_keeps_base_with_null_followup(self):
-        """Test commission_factsheet_url keeps base when followup is null."""
+        """Test commission_factsheet_url (Optional) keeps base when followup is null."""
 
         base = (
             "https://ec.europa.eu/info/sites/default/files/factsheet_end_cage_age.pdf"
@@ -232,13 +250,44 @@ class TestUniqueDataset1ColumnsMerging:
         )
         assert result == base
 
-    # ========== EDGE CASES: Empty base values ==========
+    def test_has_followup_section_keeps_base_with_null_followup(self):
+        """Test has_followup_section (Optional[bool]) keeps base when followup is null."""
 
-    def test_non_mandatory_fields_with_empty_base_and_null_followup(self):
-        """Test non-mandatory fields can be empty in both datasets."""
+        # Test with True
+        base = "True"
+        followup = None
 
-        non_mandatory_fields = [
-            "submission_text",
+        result = merge_field_values(
+            base, followup, "has_followup_section", "2022/000001"
+        )
+        assert result == "True"
+
+        # Test with False
+        base = "False"
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "has_followup_section", "2022/000002"
+        )
+        assert result == "False"
+
+    def test_has_followup_section_can_be_empty(self):
+        """Test has_followup_section (Optional[bool]) can be empty."""
+
+        base = ""
+        followup = None
+
+        result = merge_field_values(
+            base, followup, "has_followup_section", "2022/000003"
+        )
+        assert result == ""
+
+    # ========== BATCH TESTS ==========
+
+    def test_all_optional_fields_can_be_empty(self):
+        """Test that all optional fields accept empty base values with null followup."""
+
+        optional_fields = [
             "commission_submission_date",
             "submission_news_url",
             "commission_meeting_date",
@@ -249,37 +298,58 @@ class TestUniqueDataset1ColumnsMerging:
             "plenary_debate_video_urls",
             "official_communication_adoption_date",
             "commission_factsheet_url",
+            "has_followup_section",
         ]
 
-        for field in non_mandatory_fields:
+        for field in optional_fields:
             result = merge_field_values("", None, field, "2022/000001")
-            assert result == "", f"{field} should return empty when both are empty"
+            assert result == "", f"Optional field {field} should accept empty base"
 
-    # ========== HYPOTHETICAL ERROR CASES (shouldn't happen in real data) ==========
+    def test_multiple_optional_fields_with_values_batch(self):
+        """Batch test: multiple optional fields with null followup keep base values."""
 
-    def test_conflict_error_if_followup_has_different_value(self):
-        """
-        Test that if followup somehow has a different value, error is raised.
+        test_cases = [
+            ("commission_submission_date", "2022-01-15"),
+            ("submission_news_url", "https://ec.europa.eu/news/example"),
+            ("commission_meeting_date", "2021-10-14"),
+            ("parliament_hearing_date", "2021-11-15"),
+            ("plenary_debate_date", "2022-03-09"),
+            ("commission_factsheet_url", "https://ec.europa.eu/factsheet.pdf"),
+            ("has_followup_section", "True"),
+        ]
 
-        NOTE: This shouldn't happen in real data since these columns don't exist
-        in follow-up dataset, but tests the immutable field validation logic.
-        """
+        for field, base_value in test_cases:
+            result = merge_field_values(base_value, None, field, "2022/000001")
+            assert (
+                result == base_value
+            ), f"{field} should keep base when followup is null"
 
-        # response_url conflict (hypothetical - would be caught by mandatory validation first)
-        base = (
-            "https://citizens-initiative.europa.eu/initiatives/details/2022/000001_en"
+    def test_json_optional_fields_with_null_followup(self):
+        """Test that optional JSON fields handle null followup correctly."""
+
+        # parliament_hearing_video_urls (Optional[str] - JSON)
+        result = merge_field_values(
+            '["https://video1.eu", "https://video2.eu"]',
+            None,
+            "parliament_hearing_video_urls",
+            "2022/000001",
         )
-        followup = "https://different-url.eu"
+        assert result == '["https://video1.eu", "https://video2.eu"]'
 
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(base, followup, "response_url", "2022/000001")
+        # plenary_debate_video_urls (Optional[str] - JSON)
+        result = merge_field_values(
+            '["https://debate-video.eu"]',
+            None,
+            "plenary_debate_video_urls",
+            "2022/000001",
+        )
+        assert result == '["https://debate-video.eu"]'
 
-        # submission_text conflict
-        base = "Original text"
-        followup = "Different text"
-
-        with pytest.raises(ImmutableFieldConflictError):
-            merge_field_values(base, followup, "submission_text", "2022/000001")
+        # Empty JSON arrays (valid for Optional fields)
+        result = merge_field_values(
+            "[]", None, "parliament_hearing_video_urls", "2022/000002"
+        )
+        assert result == "[]"
 
     # ========== STRATEGY MAPPING ==========
 
@@ -287,9 +357,11 @@ class TestUniqueDataset1ColumnsMerging:
         """Test that all 14 unique Response Data fields are mapped to merge_keep_base_only."""
 
         unique_fields = [
+            # Required
             "response_url",
             "initiative_url",
             "submission_text",
+            # Optional
             "commission_submission_date",
             "submission_news_url",
             "commission_meeting_date",
@@ -309,64 +381,21 @@ class TestUniqueDataset1ColumnsMerging:
                 strategy == merge_keep_base_only
             ), f"{field} should use merge_keep_base_only strategy"
 
-    # ========== BATCH TESTS ==========
+    # ========== REALISTIC ECI EXAMPLE ==========
 
-    def test_multiple_non_mandatory_fields_batch(self):
-        """Batch test: multiple non-mandatory fields with null followup keep base values."""
-
-        test_cases = [
-            ("commission_submission_date", "2022-01-15"),
-            ("submission_text", "Historical narrative text"),
-            ("submission_news_url", "https://ec.europa.eu/news/example"),
-            ("commission_meeting_date", "2021-10-14"),
-            ("parliament_hearing_date", "2021-11-15"),
-            ("plenary_debate_date", "2022-03-09"),
-            ("commission_factsheet_url", "https://ec.europa.eu/factsheet.pdf"),
-        ]
-
-        for field, base_value in test_cases:
-            result = merge_field_values(base_value, None, field, "2022/000001")
-            assert (
-                result == base_value
-            ), f"{field} should keep base when followup is null"
-
-    def test_json_fields_with_null_followup(self):
-        """Test that JSON list fields handle null followup correctly."""
-
-        # parliament_hearing_video_urls
-        result = merge_field_values(
-            '["https://video1.eu", "https://video2.eu"]',
-            None,
-            "parliament_hearing_video_urls",
-            "2022/000001",
-        )
-        assert result == '["https://video1.eu", "https://video2.eu"]'
-
-        # plenary_debate_video_urls
-        result = merge_field_values(
-            '["https://debate-video.eu"]',
-            None,
-            "plenary_debate_video_urls",
-            "2022/000001",
-        )
-        assert result == '["https://debate-video.eu"]'
-
-        # Empty JSON arrays
-        result = merge_field_values(
-            "[]", None, "parliament_hearing_video_urls", "2022/000002"
-        )
-        assert result == "[]"
-
-    def test_realistic_eci_example(self):
+    def test_realistic_eci_example_end_the_cage_age(self):
         """
-        Test realistic ECI data: End the Cage Age initiative.
+        Test realistic ECI data: End the Cage Age initiative (2022/000001).
 
         Demonstrates real-world values for fields unique to Response Data.
+        Mix of required and optional fields.
         """
 
         registration_number = "2022/000001"
 
-        # response_url - mandatory
+        # === REQUIRED FIELDS ===
+
+        # response_url - required, raises error with null followup
         with pytest.raises(MandatoryFieldMissingError):
             merge_field_values(
                 "https://citizens-initiative.europa.eu/initiatives/details/2022/000001_en",
@@ -375,16 +404,50 @@ class TestUniqueDataset1ColumnsMerging:
                 registration_number,
             )
 
-        # submission_text - long narrative
+        # initiative_url - required, raises error with null followup
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values(
+                "https://citizens-initiative.europa.eu/initiatives/details/2022/000001",
+                None,
+                "initiative_url",
+                registration_number,
+            )
+
+        # submission_text - required, raises error with null followup
         submission_text = """On 29 September 2021, the organisers submitted the European Citizens' 
         Initiative (ECI) 'End the Cage Age' to the European Commission. A delegation of organisers 
         met with Commission representatives on 14 October 2021. The European Parliament held a 
         public hearing on 15 November 2021."""
 
+        with pytest.raises(MandatoryFieldMissingError):
+            merge_field_values(
+                submission_text, None, "submission_text", registration_number
+            )
+
+        # === OPTIONAL FIELDS (keep base with null followup) ===
+
+        # commission_submission_date
         result = merge_field_values(
-            submission_text, None, "submission_text", registration_number
+            "2021-09-29", None, "commission_submission_date", registration_number
         )
-        assert result == submission_text
+        assert result == "2021-09-29"
+
+        # submission_news_url
+        result = merge_field_values(
+            "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_4747",
+            None,
+            "submission_news_url",
+            registration_number,
+        )
+        assert (
+            result == "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_4747"
+        )
+
+        # commission_meeting_date
+        result = merge_field_values(
+            "2021-10-14", None, "commission_meeting_date", registration_number
+        )
+        assert result == "2021-10-14"
 
         # parliament_hearing_date
         result = merge_field_values(
@@ -397,3 +460,62 @@ class TestUniqueDataset1ColumnsMerging:
             "2022-03-09", None, "plenary_debate_date", registration_number
         )
         assert result == "2022-03-09"
+
+        # has_followup_section
+        result = merge_field_values(
+            "True", None, "has_followup_section", registration_number
+        )
+        assert result == "True"
+
+    def test_realistic_eci_example_with_missing_optional_fields(self):
+        """
+        Test realistic ECI with some optional fields empty.
+
+        Not all ECIs have plenary debates or factsheet URLs.
+        """
+
+        registration_number = "2019/000006"
+
+        # Optional fields can be empty
+        result = merge_field_values(
+            "", None, "plenary_debate_date", registration_number
+        )
+        assert result == ""
+
+        result = merge_field_values(
+            "", None, "plenary_debate_video_urls", registration_number
+        )
+        assert result == ""
+
+        result = merge_field_values(
+            "", None, "commission_factsheet_url", registration_number
+        )
+        assert result == ""
+
+    # ========== HYPOTHETICAL ERROR CASES ==========
+
+    def test_conflict_error_if_followup_has_different_value(self):
+        """
+        Test that if followup somehow has a different value, error is raised.
+
+        NOTE: This shouldn't happen in real data since these columns don't exist
+        in follow-up dataset, but tests the immutable field validation logic.
+        """
+
+        # Required field conflict (would be caught by mandatory validation first)
+        base = (
+            "https://citizens-initiative.europa.eu/initiatives/details/2022/000001_en"
+        )
+        followup = "https://different-url.eu"
+
+        with pytest.raises(ImmutableFieldConflictError):
+            merge_field_values(base, followup, "response_url", "2022/000001")
+
+        # Optional field conflict
+        base = "2021-09-29"
+        followup = "2021-09-30"
+
+        with pytest.raises(ImmutableFieldConflictError):
+            merge_field_values(
+                base, followup, "commission_submission_date", "2022/000001"
+            )
