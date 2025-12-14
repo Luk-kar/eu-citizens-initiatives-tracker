@@ -313,39 +313,47 @@ def merge_json_objects(
     Returns:
         Merged JSON string
     """
+    if (
+        registration_number == "2022/000002"
+        and field_name == "referenced_legislation_by_name"
+    ):
+        print(f"base_value:\n{base_value}")
+        print(f"followup_value:\n{followup_value}")
+
     base_clean = base_value.strip() if base_value else ""
     followup_clean = followup_value.strip() if followup_value else ""
 
+    def safe_parse_json_object(value: str, source: str) -> dict:
+        """Parse JSON or Python-repr object string."""
+        if not value or value in ["", "{}", "null", "None", "NaN", "nan"]:
+            return {}
+
+        try:
+            # Try parsing as JSON first
+            parsed = json.loads(value)
+            if isinstance(parsed, dict):
+                return parsed
+            return {}
+        except json.JSONDecodeError:
+            # Try converting Python repr to JSON by replacing single quotes
+            try:
+                json_compatible = value.replace("'", '"')
+                parsed = json.loads(json_compatible)
+                if isinstance(parsed, dict):
+                    logger.info(
+                        f"{registration_number} - {field_name}: {source} had Python syntax, converted to JSON"
+                    )
+                    return parsed
+                return {}
+            except (json.JSONDecodeError, Exception) as e:
+                logger.warning(
+                    f"{registration_number} - {field_name}: Could not parse {source} JSON object: {e}"
+                )
+                return {}
+
     # Parse JSON objects
-    base_obj = {}
-    followup_obj = {}
-
-    if base_clean and base_clean not in ["", "{}", "null", "None", "NaN", "nan"]:
-        try:
-            base_obj = json.loads(base_clean)
-            if not isinstance(base_obj, dict):
-                base_obj = {}
-        except json.JSONDecodeError:
-            logger.warning(
-                f"{registration_number} - {field_name}: Could not parse base JSON object"
-            )
-
-    if followup_clean and followup_clean not in [
-        "",
-        "{}",
-        "null",
-        "None",
-        "NaN",
-        "nan",
-    ]:
-        try:
-            followup_obj = json.loads(followup_clean)
-            if not isinstance(followup_obj, dict):
-                followup_obj = {}
-        except json.JSONDecodeError:
-            logger.warning(
-                f"{registration_number} - {field_name}: Could not parse followup JSON object"
-            )
+    base_obj = safe_parse_json_object(base_clean, "base")
+    followup_obj = safe_parse_json_object(followup_clean, "followup")
 
     # Merge: start with base
     merged = base_obj.copy()
@@ -389,6 +397,12 @@ def merge_json_objects(
         logger.debug(
             f"{registration_number} - {field_name}: Merged {len(base_obj)} + {len(followup_obj)} -> {len(merged)} keys"
         )
+
+    if (
+        registration_number == "2022/000002"
+        and field_name == "referenced_legislation_by_name"
+    ):
+        print(f"merged:\n{merged}")
 
     return json.dumps(merged) if merged else ""
 
