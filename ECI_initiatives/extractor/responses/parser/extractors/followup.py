@@ -5,6 +5,7 @@ court case references from post-response sections.
 """
 
 import calendar
+import copy
 from datetime import date, datetime
 import re
 import json
@@ -726,6 +727,30 @@ class FollowUpActivityExtractor(BaseExtractor):
             return True
         return False
 
+    def _format_links_as_markdown(self, element: Tag) -> str:
+        """
+        Convert anchor tags to Markdown format [text](url) before extracting text.
+
+        Args:
+            element: BeautifulSoup element
+
+        Returns:
+            Text with links formatted as Markdown
+        """
+        # Create a copy to avoid modifying the original
+        element_copy = copy.copy(element)
+
+        # Find all anchor tags
+        for link in element_copy.find_all("a", href=True):
+            link_text = link.get_text(strip=True)
+            link_url = link.get("href", "")
+
+            # Replace the link tag with Markdown format
+            markdown_link = f"[{link_text}]({link_url})"
+            link.replace_with(markdown_link)
+
+        return element_copy.get_text(separator=" ", strip=True)
+
     def _process_text_element(
         self, element
     ) -> Optional[Dict[str, Union[List[str], str]]]:
@@ -738,8 +763,8 @@ class FollowUpActivityExtractor(BaseExtractor):
         Returns:
             Dictionary with 'dates' and 'action' keys, or None if should be skipped
         """
-
-        action_text = element.get_text(separator=" ", strip=True)
+        # Extract text while preserving links in Markdown format
+        action_text = self._format_links_as_markdown(element)
         action_text_normalized = re.sub(r"\s+", " ", action_text)
 
         # Skip very short content
