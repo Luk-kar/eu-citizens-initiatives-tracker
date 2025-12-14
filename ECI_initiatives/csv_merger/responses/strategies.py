@@ -455,6 +455,7 @@ def merge_document_urls_list(
 
     Removes duplicates based on URL field while preserving order.
     If both lists have the same URL, the first occurrence (from base) is kept.
+    Only includes items that have both "text" and "url" fields.
 
     Use for fields containing lists of document link objects.
 
@@ -508,7 +509,7 @@ def merge_document_urls_list(
 
     # Add base items first
     for item in base_list:
-        if isinstance(item, dict) and "url" in item:
+        if isinstance(item, dict) and "url" in item and "text" in item:
             url = item["url"]
             if url not in seen_urls:
                 seen_urls.add(url)
@@ -517,12 +518,12 @@ def merge_document_urls_list(
             # Handle malformed items
             logger.warning(
                 f"{registration_number} - {field_name}: "
-                f"Skipping malformed base item: {item}"
+                f"Skipping malformed base item (missing 'text' or 'url'): {item}"
             )
 
     # Add followup items only if URL not already seen
     for item in followup_list:
-        if isinstance(item, dict) and "url" in item:
+        if isinstance(item, dict) and "url" in item and "text" in item:
             url = item["url"]
             if url not in seen_urls:
                 seen_urls.add(url)
@@ -531,7 +532,7 @@ def merge_document_urls_list(
             # Handle malformed items
             logger.warning(
                 f"{registration_number} - {field_name}: "
-                f"Skipping malformed followup item: {item}"
+                f"Skipping malformed followup item (missing 'text' or 'url'): {item}"
             )
 
     if merged:
