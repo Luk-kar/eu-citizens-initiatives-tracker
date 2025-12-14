@@ -733,7 +733,7 @@ MANDATORY_FOLLOWUP_FIELD = [
     "followup_events_with_dates",
 ]
 
-# Construct mandatory fields that must be present in BOTH datasets at runtime
+# Construct mandatory fields that must be present in BOTH datasets
 MANDATORY_BOTH_FIELDS = list(set(MANDATORY_FOLLOWUP_FIELD))
 
 
