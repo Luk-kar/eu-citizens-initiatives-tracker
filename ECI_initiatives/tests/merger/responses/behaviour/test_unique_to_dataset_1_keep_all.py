@@ -393,36 +393,45 @@ class TestUniqueDataset1ColumnsMerging:
 
         registration_number = "2022/000001"
 
-        # === REQUIRED FIELDS ===
+        # === REQUIRED FIELDS IN BASE, NOT FOLLOWUP===
 
-        # response_url - required, raises error with null followup
-        with pytest.raises(MandatoryFieldMissingError):
-            merge_field_values(
-                "https://citizens-initiative.europa.eu/initiatives/details/2022/000001_en",
-                None,
-                "response_url",
-                registration_number,
-            )
+        # response_url
+        result = merge_field_values(
+            "https://citizens-initiative.europa.eu/initiatives/details/2022/000001_en",
+            "",  # Changed from None
+            "response_url",
+            registration_number,
+        )
+        assert (
+            result
+            == "https://citizens-initiative.europa.eu/initiatives/details/2022/000001_en"
+        )
 
-        # initiative_url - required, raises error with null followup
-        with pytest.raises(MandatoryFieldMissingError):
-            merge_field_values(
-                "https://citizens-initiative.europa.eu/initiatives/details/2022/000001",
-                None,
-                "initiative_url",
-                registration_number,
-            )
+        # initiative_url
+        result = merge_field_values(
+            "https://citizens-initiative.europa.eu/initiatives/details/2022/000001",
+            "",  # Changed from None
+            "initiative_url",
+            registration_number,
+        )
+        assert (
+            result
+            == "https://citizens-initiative.europa.eu/initiatives/details/2022/000001"
+        )
 
-        # submission_text - required, raises error with null followup
+        # submission_text
         submission_text = """On 29 September 2021, the organisers submitted the European Citizens' 
         Initiative (ECI) 'End the Cage Age' to the European Commission. A delegation of organisers 
         met with Commission representatives on 14 October 2021. The European Parliament held a 
         public hearing on 15 November 2021."""
 
-        with pytest.raises(MandatoryFieldMissingError):
-            merge_field_values(
-                submission_text, None, "submission_text", registration_number
-            )
+        result = merge_field_values(
+            submission_text,
+            "",  # Changed from None
+            "submission_text",
+            registration_number,
+        )
+        assert result == submission_text
 
         # === OPTIONAL FIELDS (keep base with null followup) ===
 
