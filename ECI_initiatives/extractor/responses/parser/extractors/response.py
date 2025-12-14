@@ -7,7 +7,7 @@ answer text from successful ECI pages.
 import calendar
 import re
 import json
-from typing import Optional
+from typing import Optional, List, Dict
 
 from bs4 import BeautifulSoup
 
@@ -81,8 +81,8 @@ class CommissionResponseExtractor(BaseExtractor):
 
     def extract_official_communication_document_urls(
         self, soup: BeautifulSoup
-    ) -> Optional[str]:
-        """Extract link to full PDF of Commission Communication as JSON"""
+    ) -> Optional[List[Dict[str, str]]]:
+        """Extract link to full PDF of Commission Communication as list of dicts"""
 
         try:
             all_links = []
@@ -147,7 +147,7 @@ class CommissionResponseExtractor(BaseExtractor):
 
             # Remove duplicates by URL and apply exclusion patterns
             seen_urls = set()
-            filtered_links_dict = {}
+            links_list = []
 
             for text, url in links_dict.items():
                 # Skip if URL already seen
@@ -162,13 +162,13 @@ class CommissionResponseExtractor(BaseExtractor):
                         break
 
                 if not should_exclude:
-                    filtered_links_dict[text] = url
+                    links_list.append({"text": text, "url": url})
                     seen_urls.add(url)
 
-            if not filtered_links_dict:
+            if not links_list:
                 return None
 
-            return filtered_links_dict
+            return links_list
 
         except Exception as e:
             raise ValueError(

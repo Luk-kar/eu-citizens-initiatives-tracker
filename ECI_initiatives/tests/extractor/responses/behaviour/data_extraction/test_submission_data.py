@@ -1167,9 +1167,12 @@ class TestProceduralTimelineExtraction:
                 soup_1
             )
         )
-        expected_1 = {
-            "press release": "http://europa.eu/rapid/press-release_IP-14-277_en.htm"
-        }
+        expected_1 = [
+            {
+                "text": "press release",
+                "url": "http://europa.eu/rapid/press-release_IP-14-277_en.htm",
+            }
+        ]
 
         assert result_1 == expected_1
 
@@ -1191,10 +1194,16 @@ class TestProceduralTimelineExtraction:
                 soup_2
             )
         )
-        expected_2 = {
-            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_3297",
-            "Questions & Answers.": "https://ec.europa.eu/commission/presscorner/detail/en/qanda_21_3298",
-        }
+        expected_2 = [
+            {
+                "text": "press release",
+                "url": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_3297",
+            },
+            {
+                "text": "Questions & Answers.",
+                "url": "https://ec.europa.eu/commission/presscorner/detail/en/qanda_21_3298",
+            },
+        ]
 
         assert result_2 == expected_2
 
@@ -1215,9 +1224,12 @@ class TestProceduralTimelineExtraction:
                 soup_3
             )
         )
-        expected_3 = {
-            "Commission's news": "https://ec.europa.eu/commission/presscorner/detail/en/mex_25_2018"
-        }
+        expected_3 = [
+            {
+                "text": "Commission's news",
+                "url": "https://ec.europa.eu/commission/presscorner/detail/en/mex_25_2018",
+            }
+        ]
 
         assert result_3 == expected_3
 
@@ -1241,9 +1253,12 @@ class TestProceduralTimelineExtraction:
                 soup_4
             )
         )
-        expected_4 = {
-            "press release": "http://europa.eu/rapid/press-release_IP-17-5191_en.htm"
-        }
+        expected_4 = [
+            {
+                "text": "press release",
+                "url": "http://europa.eu/rapid/press-release_IP-17-5191_en.htm",
+            }
+        ]
 
         assert result_4 == expected_4
 
@@ -1266,9 +1281,12 @@ class TestProceduralTimelineExtraction:
                 soup_5
             )
         )
-        expected_5 = {
-            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_81"
-        }
+        expected_5 = [
+            {
+                "text": "press release",
+                "url": "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_81",
+            }
+        ]
 
         assert result_5 == expected_5
 
@@ -1290,10 +1308,16 @@ class TestProceduralTimelineExtraction:
                 soup_6
             )
         )
-        expected_6 = {
-            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_23_6251",
-            "questions and answers": "https://ec.europa.eu/commission/presscorner/detail/en/QANDA_23_6254",
-        }
+        expected_6 = [
+            {
+                "text": "press release",
+                "url": "https://ec.europa.eu/commission/presscorner/detail/en/ip_23_6251",
+            },
+            {
+                "text": "questions and answers",
+                "url": "https://ec.europa.eu/commission/presscorner/detail/en/QANDA_23_6254",
+            },
+        ]
 
         assert result_6 == expected_6
 
@@ -1372,10 +1396,16 @@ class TestProceduralTimelineExtraction:
                 soup_10
             )
         )
-        expected_10 = {
-            "Communication": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN",
-            "Annex": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN:ANNEX",
-        }
+        expected_10 = [
+            {
+                "text": "Communication",
+                "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN",
+            },
+            {
+                "text": "Annex",
+                "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2023:234:FIN:ANNEX",
+            },
+        ]
 
         assert result_10 == expected_10
 
@@ -1397,9 +1427,12 @@ class TestProceduralTimelineExtraction:
                 soup_11
             )
         )
-        expected_11 = {
-            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_24_5432"
-        }
+        expected_11 = [
+            {
+                "text": "press release",
+                "url": "https://ec.europa.eu/commission/presscorner/detail/en/ip_24_5432",
+            }
+        ]
 
         assert result_11 == expected_11
 
@@ -1421,8 +1454,11 @@ class TestProceduralTimelineExtraction:
                 soup_12
             )
         )
-        expected_12 = {
-            "press release": "https://ec.europa.eu/commission/presscorner/detail/en/ip_24_1234"
-        }
+        expected_12 = [
+            {
+                "text": "press release",
+                "url": "https://ec.europa.eu/commission/presscorner/detail/en/ip_24_1234",
+            }
+        ]
 
         assert result_12 == expected_12

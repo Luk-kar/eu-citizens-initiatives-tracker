@@ -258,10 +258,11 @@ class TestCommissionResponseContent:
         result = extractor.extract_official_communication_document_urls()
 
         assert result is not None
-        assert isinstance(result, dict)
-        assert "Communication" in result
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["text"] == "Communication"
         assert (
-            result["Communication"]
+            result[0]["url"]
             == "https://ec.europa.eu/transparency/documents-register/detail?ref=C(2021)4747"
         )
 
@@ -289,8 +290,11 @@ class TestCommissionResponseContent:
 
         assert result is not None
         assert len(result) == 2
-        assert "Communication" in result
-        assert "Annex" in result
+
+        # Check that both documents are present
+        texts = [item["text"] for item in result]
+        assert "Communication" in texts
+        assert "Annex" in texts
 
     def test_extract_official_communication_document_urls_presscorner(self):
         """Test extraction of presscorner press release URLs."""
@@ -311,9 +315,15 @@ class TestCommissionResponseContent:
         result = extractor.extract_official_communication_document_urls()
 
         assert result is not None
-        assert "Press release" in result
+        texts = [item["text"] for item in result]
+        assert "Press release" in texts
+
+        # Verify URL
+        press_release_item = next(
+            item for item in result if item["text"] == "Press release"
+        )
         assert (
-            result["Press release"]
+            press_release_item["url"]
             == "https://ec.europa.eu/commission/presscorner/detail/en/ip_21_3297"
         )
 
@@ -342,30 +352,32 @@ class TestCommissionResponseContent:
 
         assert result is not None
         assert len(result) == 2
-        assert "a Communication" in result
-        assert "press release" in result
 
-    def test_extract_official_communication_document_urls_excludes_initiative_page(
-        self,
-    ):
-        """Test that initiative overview pages are filtered out."""
-        html = """
-        <div>
-            <p>
-                Read
-                <a href="https://citizens-initiative.europa.eu/initiatives/details/2022/000002_en">
-                    a Communication
-                </a>
-                for more details.
-            </p>
-        </div>
-        """
-        extractor = FollowupWebsiteExtractor(html)
+        texts = [item["text"] for item in result]
+        assert "a Communication" in texts
+        assert "press release" in texts
 
-        result = extractor.extract_official_communication_document_urls()
+        def test_extract_official_communication_document_urls_excludes_initiative_page(
+            self,
+        ):
+            """Test that initiative overview pages are filtered out."""
+            html = """
+            <div>
+                <p>
+                    Read
+                    <a href="https://citizens-initiative.europa.eu/initiatives/details/2022/000002_en">
+                        a Communication
+                    </a>
+                    for more details.
+                </p>
+            </div>
+            """
+            extractor = FollowupWebsiteExtractor(html)
 
-        # Should be filtered out by exclusion pattern
-        assert result is None or "a Communication" not in result
+            result = extractor.extract_official_communication_document_urls()
+
+            # Should be filtered out by exclusion pattern
+            assert result is None or "a Communication" not in result
 
     def test_extract_official_communication_document_urls_duplicate_removal(self):
         """Test that duplicate URLs are removed."""
@@ -392,10 +404,10 @@ class TestCommissionResponseContent:
         assert result is not None
 
         # Should have only one entry for the URL (first text wins)
-        assert len(result.keys()) == 1
-        assert "Communication" in result, (
+        assert len(result) == 1
+        assert result[0]["text"] == "Communication", (
             f"Key 'same document' not found in result. "
-            f"Available keys: {list(result.keys())}, "
+            f"Available keys: {[item['text'] for item in result]}, "
             f"Full result: {result}"
         )
 
@@ -441,7 +453,8 @@ class TestCommissionResponseContent:
         result = extractor.extract_official_communication_document_urls()
 
         assert result is not None
-        assert "Annexes" in result
+        texts = [item["text"] for item in result]
+        assert "Annexes" in texts
 
     def test_extract_official_communication_document_urls_no_matches(self):
         """Test returns None when no Communication links found."""
@@ -503,7 +516,8 @@ class TestCommissionResponseContent:
         result = extractor.extract_official_communication_document_urls()
 
         assert result is not None
-        assert "In its communication" in result
-        assert "Questions and Answers" in result
-        assert "organisers' website" not in result  # Should not match
+        texts = [item["text"] for item in result]
+        assert "In its communication" in texts
+        assert "Questions and Answers" in texts
+        assert "organisers' website" not in texts  # Should not match
         assert len(result) == 2

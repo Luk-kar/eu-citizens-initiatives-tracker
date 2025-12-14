@@ -167,7 +167,9 @@ class FollowupWebsiteExtractor:
 
         return " ".join(" ".join(text_parts).split())
 
-    def extract_official_communication_document_urls(self) -> Optional[Dict[str, str]]:
+    def extract_official_communication_document_urls(
+        self,
+    ) -> Optional[List[Dict[str, str]]]:
         """
         Extract links to official Commission Communication documents.
 
@@ -175,15 +177,15 @@ class FollowupWebsiteExtractor:
         or links pointing to EC transparency register or presscorner.
 
         Returns:
-            Dictionary of {link_text: url} or None if no documents found.
+            List of dictionaries with 'text' and 'url' keys, or None if no documents found.
         """
         try:
             all_links = self._collect_communication_links()
             if not all_links:
                 return None
 
-            links_dict = self._build_links_dictionary(all_links)
-            filtered_links = self._filter_excluded_urls(links_dict)
+            links_list = self._build_links_list(all_links)
+            filtered_links = self._filter_excluded_urls(links_list)
 
             return filtered_links if filtered_links else None
 
@@ -223,15 +225,19 @@ class FollowupWebsiteExtractor:
 
         return False
 
-    def _build_links_dictionary(self, links: List) -> Dict[str, str]:
-        """Build dictionary from link elements."""
-        return {
-            link.get_text(strip=True): link.get("href", "")
-            for link in links
-            if link.get_text(strip=True) and link.get("href", "")
-        }
+    def _build_links_list(self, links: List) -> List[Dict[str, str]]:
+        """Build list of link objects from link elements."""
+        links_list = []
+        for link in links:
+            text = link.get_text(strip=True)
+            url = link.get("href", "")
+            if text and url:
+                links_list.append({"text": text, "url": url})
+        return links_list
 
-    def _filter_excluded_urls(self, links_dict: Dict[str, str]) -> Dict[str, str]:
+    def _filter_excluded_urls(
+        self, links_list: List[Dict[str, str]]
+    ) -> List[Dict[str, str]]:
         """Remove duplicate and excluded URLs."""
         exclude_patterns = [
             r"https?://ec\.citizens-initiative\.europa\.eu/public/initiatives/successful/details/"
@@ -241,14 +247,16 @@ class FollowupWebsiteExtractor:
         ]
 
         seen_urls = set()
-        filtered_links = {}
+        filtered_links = []
 
-        for text, url in links_dict.items():
+        for link_obj in links_list:
+            url = link_obj["url"]
+
             if url in seen_urls:
                 continue
 
             if not any(re.match(pattern, url) for pattern in exclude_patterns):
-                filtered_links[text] = url
+                filtered_links.append(link_obj)
                 seen_urls.add(url)
 
         return filtered_links
