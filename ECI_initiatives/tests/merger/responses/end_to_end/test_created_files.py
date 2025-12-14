@@ -32,7 +32,55 @@ class TestMergerCreatedFiles:
     End-to-end tests for the responses and followup CSV merger pipeline.
     """
 
-    def create_timestamped_session_dir(self, base_dir: Path) -> Path:
+    def _setup_test_environment(self, tmp_path: Path) -> tuple[Path, Path]:
+        """
+        Setup test project structure.
+
+        Returns:
+            Tuple of (project_root, data_root)
+        """
+        project_root = tmp_path / "ECI_initiatives"
+        data_root = project_root / "data"
+        data_root.mkdir(parents=True, exist_ok=True)
+        return project_root, data_root
+
+    def _patch_merger_file_resolution(
+        self, project_root: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Patch __file__ resolution in ResponsesAndFollowupMerger.
+
+        WHY: The merger's __init__ uses Path(__file__).resolve() to automatically
+        discover the data directory by navigating from its own file location:
+          merger.py -> responses/ -> csv_merger/ -> ECI_initiatives/ -> data/
+        In tests, we're using a temporary directory (tmp_path), not the real repo.
+        We must trick the merger into thinking it's running from our fake test
+        structure by patching the module's __file__ attribute to point to our
+        temporary processor_file. This makes the path resolution work correctly
+        with our test data_root instead of trying to find the real installation.
+        """
+        processor_module = ResponsesAndFollowupMerger.__module__
+        processor_file = project_root / "csv_merger" / "responses" / "merger.py"
+        processor_file.parent.mkdir(parents=True, exist_ok=True)
+        processor_file.write_text("# dummy file to satisfy Path(__file__) resolution")
+
+        module_obj = importlib.import_module(processor_module)
+        monkeypatch.setattr(module_obj, "__file__", str(processor_file))
+
+    def _setup_and_patch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> tuple[Path, Path]:
+        """
+        Setup test environment and patch merger file resolution.
+
+        Returns:
+            Tuple of (project_root, data_root)
+        """
+        project_root, data_root = self._setup_test_environment(tmp_path)
+        self._patch_merger_file_resolution(project_root, monkeypatch)
+        return project_root, data_root
+
+    def _create_timestamped_session_dir(self, base_dir: Path) -> Path:
         """
         Create a timestamped session directory under base_dir/data (like root).
         """
@@ -41,7 +89,7 @@ class TestMergerCreatedFiles:
         session_dir.mkdir(parents=True, exist_ok=True)
         return session_dir
 
-    def write_dummy_responses_csv(self, session_dir: Path) -> Path:
+    def _write_dummy_responses_csv(self, session_dir: Path) -> Path:
         """
         Write a minimal responses CSV (base dataset) in session_dir with real ECI data.
 
@@ -106,13 +154,12 @@ class TestMergerCreatedFiles:
 
         return csv_path
 
-    def write_dummy_followup_csv(self, session_dir: Path) -> Path:
+    def _write_dummy_followup_csv(self, session_dir: Path) -> Path:
         """
         Write a minimal followup CSV in session_dir with real ECI data.
 
         The filename emulates: eci_responses_followup_website_YYYY-MM-DD_HH-MM-SS.csv
         """
-
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         csv_path = session_dir / f"eci_responses_followup_website_{timestamp}.csv"
 
@@ -174,26 +221,13 @@ class TestMergerCreatedFiles:
         - Verify that a merged CSV and log file are created
         - Verify that merged CSV has correct number of rows
         """
-
-        # Emulate project root and data root (tmp/ECI_initiatives/data)
-        project_root = tmp_path / "ECI_initiatives"
-        data_root = project_root / "data"
-        data_root.mkdir(parents=True, exist_ok=True)
+        # Setup test environment and patch file resolution
+        project_root, data_root = self._setup_and_patch(tmp_path, monkeypatch)
 
         # Create timestamped session and populate with CSVs
-        session_dir = self.create_timestamped_session_dir(data_root)
-        self.write_dummy_responses_csv(session_dir)
-        self.write_dummy_followup_csv(session_dir)
-
-        # Patch __file__ resolution in ResponsesAndFollowupMerger
-        # so that it uses our temporary project_root instead of the real repo path
-        processor_module = ResponsesAndFollowupMerger.__module__
-        processor_file = project_root / "csv_merger" / "responses" / "merger.py"
-        processor_file.parent.mkdir(parents=True, exist_ok=True)
-        processor_file.write_text("# dummy file to satisfy Path(__file__) resolution")
-
-        module_obj = importlib.import_module(processor_module)
-        monkeypatch.setattr(module_obj, "__file__", str(processor_file))
+        session_dir = self._create_timestamped_session_dir(data_root)
+        self._write_dummy_responses_csv(session_dir)
+        self._write_dummy_followup_csv(session_dir)
 
         # Run merger
         merger = ResponsesAndFollowupMerger(base_data_dir=data_root)
@@ -220,7 +254,7 @@ class TestMergerCreatedFiles:
         reg_numbers = {row["registration_number"] for row in rows}
         assert reg_numbers == {"2018/000004", "2022/000002"}
 
-        # Verify mandatory fields are present and non-empty in at least one row
+        # Verify mandatory fields are present and non-empty in all rows
         mandatory_fields = [
             "registration_number",
             "initiative_title",
@@ -231,7 +265,7 @@ class TestMergerCreatedFiles:
         for field in mandatory_fields:
             assert all(
                 row.get(field, "").strip() for row in rows
-            ), f"Mandatory field {field} should have data in at least one row"
+            ), f"Mandatory field '{field}' must have data in all rows"
 
     def test_merger_raises_when_no_responses_csv(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -240,31 +274,12 @@ class TestMergerCreatedFiles:
         Verify that ResponsesAndFollowupMerger raises MissingInputFileError
         when no eci_responses_*.csv exists in the latest data directory.
         """
-        project_root = tmp_path / "ECI_initiatives"
-        data_root = project_root / "data"
-        data_root.mkdir(parents=True, exist_ok=True)
+        project_root, data_root = self._setup_and_patch(tmp_path, monkeypatch)
 
         # Create timestamped session WITHOUT the responses CSV
-        session_dir = self.create_timestamped_session_dir(data_root)
+        session_dir = self._create_timestamped_session_dir(data_root)
         # Only create followup CSV
-        self.write_dummy_followup_csv(session_dir)
-
-        # Patch __file__ resolution in ResponsesAndFollowupMerger
-        # NOTE: The merger's __init__ uses Path(__file__).resolve() to automatically
-        # discover the data directory by navigating from its own file location:
-        #   merger.py -> responses/ -> csv_merger/ -> ECI_initiatives/ -> data/
-        # In tests, we're using a temporary directory (tmp_path), not the real repo.
-        # We must trick the merger into thinking it's running from our fake test
-        # structure by patching the module's __file__ attribute to point to our
-        # temporary processor_file. This makes the path resolution work correctly
-        # with our test data_root instead of trying to find the real installation.
-        processor_module = ResponsesAndFollowupMerger.__module__
-        processor_file = project_root / "csv_merger" / "responses" / "merger.py"
-        processor_file.parent.mkdir(parents=True, exist_ok=True)
-        processor_file.write_text("# dummy file")
-
-        module_obj = importlib.import_module(processor_module)
-        monkeypatch.setattr(module_obj, "__file__", str(processor_file))
+        self._write_dummy_followup_csv(session_dir)
 
         # Should raise MissingInputFileError during initialization
         with pytest.raises(MissingInputFileError) as exc_info:
@@ -279,24 +294,11 @@ class TestMergerCreatedFiles:
         Verify that ResponsesAndFollowupMerger raises MissingInputFileError
         when no eci_responses_followup_website_*.csv exists in the latest data directory.
         """
-
-        project_root = tmp_path / "ECI_initiatives"
-        data_root = project_root / "data"
-        data_root.mkdir(parents=True, exist_ok=True)
+        project_root, data_root = self._setup_and_patch(tmp_path, monkeypatch)
 
         # Create timestamped session with responses CSV but WITHOUT followup CSV
-        session_dir = self.create_timestamped_session_dir(data_root)
-        self.write_dummy_responses_csv(session_dir)
-
-        # Patch __file__ resolution
-        # NOTE: Look at # Patch __file__ resolution in ResponsesAndFollowupMerger
-        processor_module = ResponsesAndFollowupMerger.__module__
-        processor_file = project_root / "csv_merger" / "responses" / "merger.py"
-        processor_file.parent.mkdir(parents=True, exist_ok=True)
-        processor_file.write_text("# dummy file")
-
-        module_obj = importlib.import_module(processor_module)
-        monkeypatch.setattr(module_obj, "__file__", str(processor_file))
+        session_dir = self._create_timestamped_session_dir(data_root)
+        self._write_dummy_responses_csv(session_dir)
 
         # Should raise MissingInputFileError during initialization
         with pytest.raises(MissingInputFileError) as exc_info:
@@ -311,11 +313,9 @@ class TestMergerCreatedFiles:
         Verify that ResponsesAndFollowupMerger raises EmptyDataError
         when the responses CSV has only headers but no data rows.
         """
-        project_root = tmp_path / "ECI_initiatives"
-        data_root = project_root / "data"
-        data_root.mkdir(parents=True, exist_ok=True)
+        project_root, data_root = self._setup_and_patch(tmp_path, monkeypatch)
 
-        session_dir = self.create_timestamped_session_dir(data_root)
+        session_dir = self._create_timestamped_session_dir(data_root)
 
         # Write empty responses CSV (header only)
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -324,17 +324,7 @@ class TestMergerCreatedFiles:
             writer = csv.writer(f)
             writer.writerow(["registration_number", "initiative_title"])
 
-        self.write_dummy_followup_csv(session_dir)
-
-        # Patch __file__ resolution
-        # NOTE: Look at # Patch __file__ resolution in ResponsesAndFollowupMerger
-        processor_module = ResponsesAndFollowupMerger.__module__
-        processor_file = project_root / "csv_merger" / "responses" / "merger.py"
-        processor_file.parent.mkdir(parents=True, exist_ok=True)
-        processor_file.write_text("# dummy file")
-
-        module_obj = importlib.import_module(processor_module)
-        monkeypatch.setattr(module_obj, "__file__", str(processor_file))
+        self._write_dummy_followup_csv(session_dir)
 
         # Should raise EmptyDataError during validation
         with pytest.raises(EmptyDataError) as exc_info:
@@ -349,11 +339,9 @@ class TestMergerCreatedFiles:
         Verify that ResponsesAndFollowupMerger raises FollowupRowCountExceedsBaseError
         when followup CSV has more rows than base CSV.
         """
-        project_root = tmp_path / "ECI_initiatives"
-        data_root = project_root / "data"
-        data_root.mkdir(parents=True, exist_ok=True)
+        project_root, data_root = self._setup_and_patch(tmp_path, monkeypatch)
 
-        session_dir = self.create_timestamped_session_dir(data_root)
+        session_dir = self._create_timestamped_session_dir(data_root)
 
         # Write base CSV with 1 row
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -430,16 +418,6 @@ class TestMergerCreatedFiles:
                         "followup_events_with_dates": "[]",
                     }
                 )
-
-        # Patch __file__ resolution
-        # NOTE: Look at # Patch __file__ resolution in ResponsesAndFollowupMerger
-        processor_module = ResponsesAndFollowupMerger.__module__
-        processor_file = project_root / "csv_merger" / "responses" / "merger.py"
-        processor_file.parent.mkdir(parents=True, exist_ok=True)
-        processor_file.write_text("# dummy file")
-
-        module_obj = importlib.import_module(processor_module)
-        monkeypatch.setattr(module_obj, "__file__", str(processor_file))
 
         # Should raise FollowupRowCountExceedsBaseError during validation
         with pytest.raises(FollowupRowCountExceedsBaseError) as exc_info:
