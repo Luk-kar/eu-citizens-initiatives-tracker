@@ -712,10 +712,17 @@ def get_merge_strategy_for_field(field_name: str) -> Callable:
 # Main Merge Function
 # ============================================================================
 
-MANDATORY_BOTH_FIELDS = [
+# Mandatory fields that must be present in base dataset only
+MANDATORY_BASE_FIELD = [
+    "response_url",
+    "initiative_url",
+    "submission_text",
+]
+
+# Mandatory fields that must be present in followup dataset only
+MANDATORY_FOLLOWUP_FIELD = [
     "registration_number",
     "initiative_title",
-    "registration_number",
     "followup_dedicated_website",
     "commission_answer_text",
     "commission_promised_new_law",
@@ -726,11 +733,8 @@ MANDATORY_BOTH_FIELDS = [
     "followup_events_with_dates",
 ]
 
-MANDATORY_BASE_FIELD = [
-    "response_url",
-    "initiative_url",
-    "submission_text",
-]
+# Construct mandatory fields that must be present in BOTH datasets at runtime
+MANDATORY_BOTH_FIELDS = list(set(MANDATORY_FOLLOWUP_FIELD))
 
 
 def merge_field_values(
