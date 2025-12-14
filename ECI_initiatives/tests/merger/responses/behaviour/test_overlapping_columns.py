@@ -41,7 +41,10 @@ from ECI_initiatives.csv_merger.responses.strategies import (
     merge_law_implementation_date,
     get_merge_strategy_for_field,
 )
-from ECI_initiatives.csv_merger.responses.exceptions import ImmutableFieldConflictError
+from ECI_initiatives.csv_merger.responses.exceptions import (
+    ImmutableFieldConflictError,
+    MandatoryFieldMissingError,
+)
 
 
 class TestFollowupDedicatedWebsite:
@@ -104,26 +107,32 @@ class TestCommissionAnswerTextMerging:
         assert result == text, "Should not duplicate identical text"
         assert result.count(text) == 1, "Text should appear only once"
 
-    def test_only_base_value_present(self):
-        """Test when only base has value."""
+    def test_empty_followup_raises_mandatory_error(self):
+        """Test when only base has value - should raise error for mandatory field."""
 
         base = "Original Commission response text."
         followup = ""
-        result = merge_field_values(
-            base, followup, "commission_answer_text", "2022/000001"
-        )
-        assert result == base, "Should return base when followup empty"
-        assert "**Original" not in result, "Should not add labels when only one value"
 
-    def test_only_followup_value_present(self):
-        """Test when only followup has value."""
+        with pytest.raises(
+            MandatoryFieldMissingError,
+            match=(
+                "Mandatory field 'commission_answer_text' "
+                "has explicit null value in followup dataset"
+            ),
+        ):
+            merge_field_values(base, followup, "commission_answer_text", "2022/000001")
+
+    def test_empty_base_raises_mandatory_error(self):
+        """Test when only followup has value - should raise error for mandatory field."""
 
         base = ""
         followup = "Updated Commission response from followup website."
-        result = merge_field_values(
-            base, followup, "commission_answer_text", "2022/000002"
-        )
-        assert result == followup, "Should return followup when base empty"
+
+        with pytest.raises(
+            MandatoryFieldMissingError,
+            match="Mandatory field 'commission_answer_text' is empty in base dataset",
+        ):
+            merge_field_values(base, followup, "commission_answer_text", "2022/000002")
 
     def test_multiline_text_concatenation(self):
         """Test concatenation of multiline text blocks."""
@@ -1378,31 +1387,36 @@ class TestFollowupEventsWithDates:
         assert "20-06-2022" in dates, "Should have base event from 20-06-2022"
         assert "20-01-2025" in dates, "Should have followup event from 20-01-2025"
 
-    def test_empty_base_uses_followup(self):
-        """Test that empty base returns followup events."""
+    def test_empty_base_raises_mandatory_error(self):
+        """Test that empty base raises error for mandatory field."""
 
         base = ""
         followup = '[{"date": "15-03-2024", "event": "Hearing held"}]'
-        result = merge_field_values(
-            base, followup, "followup_events_with_dates", "2022/000001"
-        )
 
-        result_list = json.loads(result)
-        assert len(result_list) == 1
-        assert result_list[0]["date"] == "15-03-2024"
+        with pytest.raises(
+            MandatoryFieldMissingError,
+            match="Mandatory field 'followup_events_with_dates' is empty in base dataset",
+        ):
+            merge_field_values(
+                base, followup, "followup_events_with_dates", "2022/000001"
+            )
 
-    def test_empty_followup_keeps_base(self):
-        """Test that empty followup returns base events."""
+    def test_empty_followup_raises_mandatory_error(self):
+        """Test that empty followup raises error for mandatory field."""
 
         base = '[{"date": "10-05-2023", "event": "Initial meeting"}]'
         followup = ""
-        result = merge_field_values(
-            base, followup, "followup_events_with_dates", "2022/000001"
-        )
 
-        result_list = json.loads(result)
-        assert len(result_list) == 1
-        assert result_list[0]["date"] == "10-05-2023"
+        with pytest.raises(
+            MandatoryFieldMissingError,
+            match=(
+                "Mandatory field 'followup_events_with_dates' "
+                "has explicit null value in followup dataset"
+            ),
+        ):
+            merge_field_values(
+                base, followup, "followup_events_with_dates", "2022/000001"
+            )
 
     def test_multiple_events_same_date_different_descriptions(self):
         """Test that multiple events on the same date with different descriptions are kept."""
