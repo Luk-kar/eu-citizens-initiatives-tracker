@@ -43,6 +43,7 @@ class TestMergerCreatedFiles:
         project_root = tmp_path / "ECI_initiatives"
         data_root = project_root / "data"
         data_root.mkdir(parents=True, exist_ok=True)
+
         return project_root, data_root
 
     @pytest.fixture
@@ -82,6 +83,7 @@ class TestMergerCreatedFiles:
         session_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         session_dir = data_root / session_name
         session_dir.mkdir(parents=True, exist_ok=True)
+
         return session_dir
 
     @pytest.fixture
@@ -313,6 +315,7 @@ class TestMergerCreatedFiles:
         # Write empty responses CSV (header only)
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         responses_csv = session_dir / f"eci_responses_{timestamp}.csv"
+
         with responses_csv.open("w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["registration_number", "initiative_title"])
@@ -330,6 +333,7 @@ class TestMergerCreatedFiles:
         Verify that ResponsesAndFollowupMerger raises FollowupRowCountExceedsBaseError
         when followup CSV has more rows than base CSV.
         """
+
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
         # Write base CSV with 1 row
