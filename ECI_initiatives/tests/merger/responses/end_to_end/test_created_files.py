@@ -50,7 +50,7 @@ class TestMergerCreatedFiles:
         """
         Patch __file__ resolution in ResponsesAndFollowupMerger.
 
-        WHY: The merger's __init__ uses Path(__file__).resolve() to automatically
+        NOTE WHY: The merger's __init__ uses Path(__file__).resolve() to automatically
         discover the data directory by navigating from its own file location:
           merger.py -> responses/ -> csv_merger/ -> ECI_initiatives/ -> data/
         In tests, we're using a temporary directory (tmp_path), not the real repo.
@@ -151,6 +151,23 @@ class TestMergerCreatedFiles:
                     "followup_events_with_dates": '[{"dates": "2023-08-31", "action": "The Commission launched a review..."}]',
                 }
             )
+            writer.writerow(
+                {
+                    "registration_number": "2012/000003",
+                    "initiative_title": "Water and sanitation are a human right!",
+                    "response_url": "https://citizens-initiative.europa.eu/initiatives/details/2012/000003_en",
+                    "initiative_url": "https://citizens-initiative.europa.eu/initiatives/details/2012/000003",
+                    "submission_text": "Right2Water was the first European Citizens Initiative having gathered the required...",
+                    "followup_dedicated_website": "https://ec.europa.eu/environment/water/water-drink/",
+                    "commission_answer_text": "The Commission committed to taking actions to reinforce implementation of EU water...",
+                    "commission_promised_new_law": "True",
+                    "commission_rejected_initiative": "False",
+                    "has_roadmap": "True",
+                    "has_workshop": "True",
+                    "has_partnership_programs": "True",
+                    "followup_events_with_dates": '[{"date": "2015-10-28", "action": "Amendment to Drinking Water Directive..."}]',
+                }
+            )
 
         return csv_path
 
@@ -248,11 +265,11 @@ class TestMergerCreatedFiles:
             reader = csv.DictReader(f)
             rows = list(reader)
 
-        assert len(rows) == 2, "Merged CSV should contain 2 data rows (same as base)"
+        assert len(rows) == 3, "Merged CSV should contain 3 data rows (same as base)"
 
         # Verify registration numbers are preserved
         reg_numbers = {row["registration_number"] for row in rows}
-        assert reg_numbers == {"2018/000004", "2022/000002"}
+        assert reg_numbers == {"2018/000004", "2022/000002", "2012/000003"}
 
         # Verify mandatory fields are present and non-empty in all rows
         mandatory_fields = [
