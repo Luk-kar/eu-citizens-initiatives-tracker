@@ -237,6 +237,7 @@ def merge_json_lists(
     Returns:
         Merged JSON string
     """
+
     base_clean = base_value.strip() if base_value else ""
     followup_clean = followup_value.strip() if followup_value else ""
 
@@ -244,25 +245,37 @@ def merge_json_lists(
     base_list = []
     followup_list = []
 
-    if base_clean and base_clean not in ["", "[]", "null", "None"]:
-        try:
-            base_list = json.loads(base_clean)
-            if not isinstance(base_list, list):
-                base_list = []
-        except json.JSONDecodeError:
-            logger.warning(
-                f"{registration_number} - {field_name}: Could not parse base JSON list"
-            )
+    def safe_parse_json_list(value: str, source: str) -> list:
+        """Parse JSON or Python-repr list string."""
+        if not value or value in ["", "[]", "null", "None", "NaN", "nan"]:
+            return []
 
-    if followup_clean and followup_clean not in ["", "[]", "null", "None"]:
         try:
-            followup_list = json.loads(followup_clean)
-            if not isinstance(followup_list, list):
-                followup_list = []
+            # Try parsing as JSON first
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                return parsed
+            return []
         except json.JSONDecodeError:
-            logger.warning(
-                f"{registration_number} - {field_name}: Could not parse followup JSON list"
-            )
+            # Try converting Python repr to JSON by replacing single quotes
+            try:
+                # Replace single quotes with double quotes for JSON compatibility
+                json_compatible = value.replace("'", '"')
+                parsed = json.loads(json_compatible)
+                if isinstance(parsed, list):
+                    logger.warning(
+                        f"{registration_number} - {field_name}: {source} had Python syntax, converted to JSON"
+                    )
+                    return parsed
+                return []
+            except (json.JSONDecodeError, Exception) as e:
+                logger.warning(
+                    f"{registration_number} - {field_name}: Could not parse {source} JSON list: {e}"
+                )
+                return []
+
+    base_list = safe_parse_json_list(base_clean, "base")
+    followup_list = safe_parse_json_list(followup_clean, "followup")
 
     # Combine and deduplicate
     merged = base_list.copy()
@@ -272,7 +285,8 @@ def merge_json_lists(
 
     if merged:
         logger.debug(
-            f"{registration_number} - {field_name}: Merged {len(base_list)} + {len(followup_list)} -> {len(merged)} items"
+            f"{registration_number} - {field_name}: Merged {len(base_list)} + "
+            f"{len(followup_list)} -> {len(merged)} items"
         )
 
     return json.dumps(merged) if merged else ""
@@ -306,7 +320,7 @@ def merge_json_objects(
     base_obj = {}
     followup_obj = {}
 
-    if base_clean and base_clean not in ["", "{}", "null", "None"]:
+    if base_clean and base_clean not in ["", "{}", "null", "None", "NaN", "nan"]:
         try:
             base_obj = json.loads(base_clean)
             if not isinstance(base_obj, dict):
@@ -316,7 +330,14 @@ def merge_json_objects(
                 f"{registration_number} - {field_name}: Could not parse base JSON object"
             )
 
-    if followup_clean and followup_clean not in ["", "{}", "null", "None"]:
+    if followup_clean and followup_clean not in [
+        "",
+        "{}",
+        "null",
+        "None",
+        "NaN",
+        "nan",
+    ]:
         try:
             followup_obj = json.loads(followup_clean)
             if not isinstance(followup_obj, dict):
