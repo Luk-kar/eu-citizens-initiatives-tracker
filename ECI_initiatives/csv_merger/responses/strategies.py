@@ -447,24 +447,102 @@ def merge_boolean_and(
     return str(result)
 
 
-def merge_urls_list(
+def merge_document_urls_list(
     base_value: str, followup_value: str, field_name: str, registration_number: str
 ) -> str:
     """
-    Merge URL lists, removing duplicates while preserving order.
-    Use for fields containing multiple URLs.
+    Merge document URL lists (list of {"text": "...", "url": "..."} objects).
+
+    Removes duplicates based on URL field while preserving order.
+    If both lists have the same URL, the first occurrence (from base) is kept.
+
+    Use for fields containing lists of document link objects.
 
     Args:
-        base_value: URL list from base CSV
-        followup_value: URL list from followup CSV
+        base_value: JSON string from base CSV
+        followup_value: JSON string from followup CSV
         field_name: Field name
         registration_number: Registration number
 
     Returns:
-        Merged URL list
+        Merged JSON string with deduplicated URLs
     """
-    # Similar to merge_json_lists but specialized for URLs
-    return merge_json_lists(base_value, followup_value, field_name, registration_number)
+    base_clean = base_value.strip() if base_value else ""
+    followup_clean = followup_value.strip() if followup_value else ""
+
+    def safe_parse_json_list(value: str, source: str) -> list:
+        """Parse JSON list of objects."""
+        if not value or value in ("", "{}", "null", "None", "NaN", "nan"):
+            return []
+
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                return parsed
+            return []
+        except json.JSONDecodeError:
+            # Try parsing as Python repr
+            try:
+                json_compatible = value.replace("'", '"')
+                parsed = json.loads(json_compatible)
+                if isinstance(parsed, list):
+                    logger.warning(
+                        f"{registration_number} - {field_name}: "
+                        f"{source} had Python syntax, converted to JSON"
+                    )
+                    return parsed
+                return []
+            except (json.JSONDecodeError, Exception) as e:
+                logger.warning(
+                    f"{registration_number} - {field_name}: "
+                    f"Could not parse {source} JSON list: {e}"
+                )
+                return []
+
+    base_list = safe_parse_json_list(base_clean, "base")
+    followup_list = safe_parse_json_list(followup_clean, "followup")
+
+    # Track seen URLs to remove duplicates
+    seen_urls = set()
+    merged = []
+
+    # Add base items first
+    for item in base_list:
+        if isinstance(item, dict) and "url" in item:
+            url = item["url"]
+            if url not in seen_urls:
+                seen_urls.add(url)
+                merged.append(item)
+        else:
+            # Handle malformed items
+            logger.warning(
+                f"{registration_number} - {field_name}: "
+                f"Skipping malformed base item: {item}"
+            )
+
+    # Add followup items only if URL not already seen
+    for item in followup_list:
+        if isinstance(item, dict) and "url" in item:
+            url = item["url"]
+            if url not in seen_urls:
+                seen_urls.add(url)
+                merged.append(item)
+        else:
+            # Handle malformed items
+            logger.warning(
+                f"{registration_number} - {field_name}: "
+                f"Skipping malformed followup item: {item}"
+            )
+
+    if merged:
+        logger.debug(
+            f"{registration_number} - {field_name}: "
+            f"Merged {len(base_list)} + {len(followup_list)} = {len(merged)} URLs "
+            f"({len(base_list) + len(followup_list) - len(merged)} duplicates removed)"
+        )
+        return json.dumps(merged)
+
+    return ""
 
 
 def merge_keep_base_only(
@@ -707,7 +785,7 @@ def get_merge_strategy_for_field(field_name: str) -> Callable:
         # Overlapping columns with specific strategies
         "followup_dedicated_website": merge_keep_base_only,  # Identical in both
         "commission_answer_text": merge_by_concatenation,  # Merge with labels
-        "official_communication_document_urls": merge_json_objects,  # Union with Response Data key priority
+        "official_communication_document_urls": merge_document_urls_list,  # Append unique links
         "final_outcome_status": merge_outcome_status_with_validation,  # Prioritize Followup Data with validation
         "law_implementation_date": merge_law_implementation_date,  # Update with Followup Data when exists
         "commission_promised_new_law": merge_promised_new_law,  # One-way True logic

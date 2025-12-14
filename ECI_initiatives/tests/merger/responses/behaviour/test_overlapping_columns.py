@@ -159,42 +159,50 @@ class TestCommissionAnswerTextMerging:
 
 
 class TestOfficialCommunicationDocumentUrls:
-    """Tests for official_communication_document_urls JSON object merging."""
+    """Tests for official_communication_document_urls JSON list merging."""
 
     def test_merge_unique_urls_from_both_sources(self):
         """Test combining unique URLs from both datasets."""
 
-        base = '{"Communication": "https://ec.europa.eu/doc1.pdf", "Press Release": "https://ec.europa.eu/press1"}'
-        followup = '{"Q&A": "https://ec.europa.eu/qa.pdf", "Factsheet": "https://ec.europa.eu/factsheet.pdf"}'
+        base = '[{"text": "Communication", "url": "https://ec.europa.eu/doc1.pdf"}, {"text": "Press Release", "url": "https://ec.europa.eu/press1"}]'
+        followup = '[{"text": "Q&A", "url": "https://ec.europa.eu/qa.pdf"}, {"text": "Factsheet", "url": "https://ec.europa.eu/factsheet.pdf"}]'
         result = merge_field_values(
             base, followup, "official_communication_document_urls", "2022/000001"
         )
 
-        result_obj = json.loads(result)
-        assert "Communication" in result_obj, "Should have Communication from base"
-        assert "Press Release" in result_obj, "Should have Press Release from base"
-        assert "Q&A" in result_obj, "Should have Q&A from followup"
-        assert "Factsheet" in result_obj, "Should have Factsheet from followup"
-        assert len(result_obj) == 4, "Should have all 4 unique keys"
+        result_list = json.loads(result)
+        assert isinstance(result_list, list), "Should return a list"
+        assert len(result_list) == 4, "Should have all 4 unique items"
 
-    def test_followup_overrides_base_for_same_key(self):
-        """Test that followup value overrides base for duplicate keys."""
+        # Check all texts are present
+        texts = [item["text"] for item in result_list]
+        assert "Communication" in texts, "Should have Communication from base"
+        assert "Press Release" in texts, "Should have Press Release from base"
+        assert "Q&A" in texts, "Should have Q&A from followup"
+        assert "Factsheet" in texts, "Should have Factsheet from followup"
 
-        base = '{"Communication": "https://ec.europa.eu/old.pdf"}'
-        followup = '{"Communication": "https://ec.europa.eu/new.pdf"}'
+    def test_followup_duplicate_url_ignored(self):
+        """Test that followup item with duplicate URL is ignored (base takes priority)."""
+
+        base = '[{"text": "Communication", "url": "https://ec.europa.eu/doc.pdf"}]'
+        followup = (
+            '[{"text": "Updated Communication", "url": "https://ec.europa.eu/doc.pdf"}]'
+        )
         result = merge_field_values(
             base, followup, "official_communication_document_urls", "2022/000001"
         )
 
-        result_obj = json.loads(result)
+        result_list = json.loads(result)
         assert (
-            result_obj["Communication"] == "https://ec.europa.eu/new.pdf"
-        ), "Followup should override base"
+            len(result_list) == 1
+        ), "Should have only one item (duplicate URL removed)"
+        assert result_list[0]["text"] == "Communication", "Base text should be kept"
+        assert result_list[0]["url"] == "https://ec.europa.eu/doc.pdf"
 
     def test_empty_followup_keeps_base(self):
-        """Test that empty followup returns base object."""
+        """Test that empty followup returns base list."""
 
-        base = '{"Communication": "https://ec.europa.eu/doc.pdf"}'
+        base = '[{"text": "Communication", "url": "https://ec.europa.eu/doc.pdf"}]'
         followup = ""
         result = merge_field_values(
             base, followup, "official_communication_document_urls", "2022/000001"
@@ -202,10 +210,12 @@ class TestOfficialCommunicationDocumentUrls:
         assert result == base, "Should keep base when followup empty"
 
     def test_empty_base_uses_followup(self):
-        """Test that empty base returns followup object."""
+        """Test that empty base returns followup list."""
 
         base = ""
-        followup = '{"Press Release": "https://ec.europa.eu/press.pdf"}'
+        followup = (
+            '[{"text": "Press Release", "url": "https://ec.europa.eu/press.pdf"}]'
+        )
         result = merge_field_values(
             base, followup, "official_communication_document_urls", "2022/000002"
         )
@@ -218,6 +228,66 @@ class TestOfficialCommunicationDocumentUrls:
             "", "", "official_communication_document_urls", "2022/000001"
         )
         assert result == "", "Should return empty when both empty"
+
+    def test_multiple_duplicates_removed(self):
+        """Test that multiple duplicate URLs are properly removed."""
+
+        base = '[{"text": "Communication", "url": "https://ec.europa.eu/doc1.pdf"}, {"text": "Annex", "url": "https://ec.europa.eu/doc2.pdf"}]'
+        followup = '[{"text": "Communication Updated", "url": "https://ec.europa.eu/doc1.pdf"}, {"text": "Press Release", "url": "https://ec.europa.eu/press.pdf"}]'
+        result = merge_field_values(
+            base, followup, "official_communication_document_urls", "2022/000001"
+        )
+
+        result_list = json.loads(result)
+        assert len(result_list) == 3, "Should have 3 items (1 duplicate removed)"
+
+        # Verify which items are present
+        urls = [item["url"] for item in result_list]
+        assert "https://ec.europa.eu/doc1.pdf" in urls
+        assert "https://ec.europa.eu/doc2.pdf" in urls
+        assert "https://ec.europa.eu/press.pdf" in urls
+
+        # Verify base text is kept for duplicate URL
+        doc1_item = next(
+            item
+            for item in result_list
+            if item["url"] == "https://ec.europa.eu/doc1.pdf"
+        )
+        assert (
+            doc1_item["text"] == "Communication"
+        ), "Should keep base text for duplicate URL"
+
+    def test_order_preservation(self):
+        """Test that order is preserved (base items first, then followup)."""
+
+        base = '[{"text": "Communication", "url": "https://ec.europa.eu/doc1.pdf"}]'
+        followup = (
+            '[{"text": "Press Release", "url": "https://ec.europa.eu/press.pdf"}]'
+        )
+        result = merge_field_values(
+            base, followup, "official_communication_document_urls", "2022/000001"
+        )
+
+        result_list = json.loads(result)
+        assert result_list[0]["text"] == "Communication", "Base item should be first"
+        assert (
+            result_list[1]["text"] == "Press Release"
+        ), "Followup item should be second"
+
+    def test_malformed_items_skipped(self):
+        """Test that malformed items (missing url field) are skipped with warning."""
+
+        base = '[{"text": "Communication", "url": "https://ec.europa.eu/doc.pdf"}, {"text": "Invalid"}]'
+        followup = '[{"url": "https://ec.europa.eu/press.pdf"}]'
+        result = merge_field_values(
+            base, followup, "official_communication_document_urls", "2022/000001"
+        )
+
+        result_list = json.loads(result)
+        # Should only have the valid item from base (malformed items skipped)
+        assert len(result_list) == 1, "Should skip malformed items"
+        assert result_list[0]["text"] == "Communication"
+        assert result_list[0]["url"] == "https://ec.europa.eu/doc.pdf"
 
 
 class TestFinalOutcomeStatusValidation:
@@ -1474,7 +1544,7 @@ class TestStrategyMappingForOverlappingColumns:
         overlapping_fields = {
             "followup_dedicated_website": "merge_keep_base_only",
             "commission_answer_text": "merge_by_concatenation",
-            "official_communication_document_urls": "merge_json_objects",
+            "official_communication_document_urls": "merge_document_urls_list",
             "final_outcome_status": "merge_outcome_status_with_validation",
             "law_implementation_date": "merge_law_implementation_date",
             "commission_promised_new_law": "merge_promised_new_law",
