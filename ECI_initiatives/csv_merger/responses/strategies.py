@@ -313,12 +313,6 @@ def merge_json_objects(
     Returns:
         Merged JSON string
     """
-    if (
-        registration_number == "2022/000002"
-        and field_name == "referenced_legislation_by_name"
-    ):
-        print(f"base_value:\n{base_value}")
-        print(f"followup_value:\n{followup_value}")
 
     base_clean = base_value.strip() if base_value else ""
     followup_clean = followup_value.strip() if followup_value else ""
@@ -397,12 +391,6 @@ def merge_json_objects(
         logger.debug(
             f"{registration_number} - {field_name}: Merged {len(base_obj)} + {len(followup_obj)} -> {len(merged)} keys"
         )
-
-    if (
-        registration_number == "2022/000002"
-        and field_name == "referenced_legislation_by_name"
-    ):
-        print(f"merged:\n{merged}")
 
     return json.dumps(merged) if merged else ""
 
