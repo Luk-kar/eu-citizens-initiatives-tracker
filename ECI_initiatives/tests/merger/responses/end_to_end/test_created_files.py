@@ -112,6 +112,7 @@ class TestMergerCreatedFiles:
 
         The filename emulates: eci_responses_followup_website_YYYY-MM-DD_HH-MM-SS.csv
         """
+
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         csv_path = session_dir / f"eci_responses_followup_website_{timestamp}.csv"
 
@@ -173,6 +174,7 @@ class TestMergerCreatedFiles:
         - Verify that a merged CSV and log file are created
         - Verify that merged CSV has correct number of rows
         """
+
         # Emulate project root and data root (tmp/ECI_initiatives/data)
         project_root = tmp_path / "ECI_initiatives"
         data_root = project_root / "data"
@@ -227,7 +229,7 @@ class TestMergerCreatedFiles:
             "submission_text",
         ]
         for field in mandatory_fields:
-            assert any(
+            assert all(
                 row.get(field, "").strip() for row in rows
             ), f"Mandatory field {field} should have data in at least one row"
 
@@ -247,7 +249,15 @@ class TestMergerCreatedFiles:
         # Only create followup CSV
         self.write_dummy_followup_csv(session_dir)
 
-        # Patch __file__ resolution
+        # Patch __file__ resolution in ResponsesAndFollowupMerger
+        # NOTE: The merger's __init__ uses Path(__file__).resolve() to automatically
+        # discover the data directory by navigating from its own file location:
+        #   merger.py -> responses/ -> csv_merger/ -> ECI_initiatives/ -> data/
+        # In tests, we're using a temporary directory (tmp_path), not the real repo.
+        # We must trick the merger into thinking it's running from our fake test
+        # structure by patching the module's __file__ attribute to point to our
+        # temporary processor_file. This makes the path resolution work correctly
+        # with our test data_root instead of trying to find the real installation.
         processor_module = ResponsesAndFollowupMerger.__module__
         processor_file = project_root / "csv_merger" / "responses" / "merger.py"
         processor_file.parent.mkdir(parents=True, exist_ok=True)
@@ -269,6 +279,7 @@ class TestMergerCreatedFiles:
         Verify that ResponsesAndFollowupMerger raises MissingInputFileError
         when no eci_responses_followup_website_*.csv exists in the latest data directory.
         """
+
         project_root = tmp_path / "ECI_initiatives"
         data_root = project_root / "data"
         data_root.mkdir(parents=True, exist_ok=True)
@@ -278,6 +289,7 @@ class TestMergerCreatedFiles:
         self.write_dummy_responses_csv(session_dir)
 
         # Patch __file__ resolution
+        # NOTE: Look at # Patch __file__ resolution in ResponsesAndFollowupMerger
         processor_module = ResponsesAndFollowupMerger.__module__
         processor_file = project_root / "csv_merger" / "responses" / "merger.py"
         processor_file.parent.mkdir(parents=True, exist_ok=True)
@@ -315,6 +327,7 @@ class TestMergerCreatedFiles:
         self.write_dummy_followup_csv(session_dir)
 
         # Patch __file__ resolution
+        # NOTE: Look at # Patch __file__ resolution in ResponsesAndFollowupMerger
         processor_module = ResponsesAndFollowupMerger.__module__
         processor_file = project_root / "csv_merger" / "responses" / "merger.py"
         processor_file.parent.mkdir(parents=True, exist_ok=True)
@@ -419,6 +432,7 @@ class TestMergerCreatedFiles:
                 )
 
         # Patch __file__ resolution
+        # NOTE: Look at # Patch __file__ resolution in ResponsesAndFollowupMerger
         processor_module = ResponsesAndFollowupMerger.__module__
         processor_file = project_root / "csv_merger" / "responses" / "merger.py"
         processor_file.parent.mkdir(parents=True, exist_ok=True)
