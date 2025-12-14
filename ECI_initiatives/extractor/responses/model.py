@@ -42,9 +42,9 @@ class ECICommissionResponseRecord:
     law_implementation_date: Optional[str]
 
     # SECTION 2: Commission's Initial Response (What they promised)
-    commission_promised_new_law: Optional[bool]
+    commission_promised_new_law: bool
     commission_deadlines: Optional[str]  # JSON dict
-    commission_rejected_initiative: Optional[bool]
+    commission_rejected_initiative: bool
     commission_rejection_reason: Optional[str]
 
     # SECTION 3: Actions Taken (What actually happened)
@@ -52,9 +52,9 @@ class ECICommissionResponseRecord:
     policies_actions: Optional[str]  # JSON string
 
     # Follow-up Activities Section
-    has_followup_section: Optional[bool]
-    has_roadmap: Optional[bool]
-    has_workshop: Optional[bool]
+    has_followup_section: bool
+    has_roadmap: bool
+    has_workshop: bool
     has_partnership_programs: bool
     court_cases_referenced: Optional[str]  # JSON dict
     followup_latest_date: Optional[str]

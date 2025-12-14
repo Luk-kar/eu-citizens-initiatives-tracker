@@ -43,10 +43,9 @@ class TestMergerCreatedFiles:
 
     def write_dummy_responses_csv(self, session_dir: Path) -> Path:
         """
-        Write a minimal responses CSV (base dataset) in session_dir.
+        Write a minimal responses CSV (base dataset) in session_dir with real ECI data.
 
         The filename emulates actual responses output: eci_responses_YYYY-MM-DD_HH-MM-SS.csv
-        and contains the mandatory columns needed by ResponsesAndFollowupMerger.
         """
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         csv_path = session_dir / f"eci_responses_{timestamp}.csv"
@@ -73,35 +72,35 @@ class TestMergerCreatedFiles:
             writer.writerow(
                 {
                     "registration_number": "2018/000004",
-                    "initiative_title": "Test 2018 initiative",
-                    "response_url": "https://example.com/2018000004",
-                    "initiative_url": "https://example.com/initiative/2018000004",
-                    "submission_text": "Test submission text for 2018 initiative",
-                    "followup_dedicated_website": "https://example.com/followup/2018000004",
-                    "commission_answer_text": "Original Commission response",
-                    "commission_promised_new_law": "False",
+                    "initiative_title": "End the Cage Age",
+                    "response_url": "https://citizens-initiative.europa.eu/initiatives/details/2018/000004_en",
+                    "initiative_url": "https://citizens-initiative.europa.eu/initiatives/details/2018/000004",
+                    "submission_text": "The End the Cage Age initiative was submitted to the Commission on 2 October 2020...",
+                    "followup_dedicated_website": "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-end-cage-age_en",
+                    "commission_answer_text": "In its response to the ECI, the Commission communicated its intention to table...",
+                    "commission_promised_new_law": "True",
                     "commission_rejected_initiative": "False",
                     "has_roadmap": "False",
                     "has_workshop": "False",
                     "has_partnership_programs": "False",
-                    "followup_events_with_dates": "[]",
+                    "followup_events_with_dates": '[{"date": "2021-10-15", "action": "EFSA scientific opinions published"}]',
                 }
             )
             writer.writerow(
                 {
                     "registration_number": "2022/000002",
-                    "initiative_title": "Test 2022 initiative",
-                    "response_url": "https://example.com/2022000002",
-                    "initiative_url": "https://example.com/initiative/2022000002",
-                    "submission_text": "Test submission text for 2022 initiative",
-                    "followup_dedicated_website": "https://example.com/followup/2022000002",
-                    "commission_answer_text": "Original Commission response",
-                    "commission_promised_new_law": "True",
+                    "initiative_title": "Fur Free Europe",
+                    "response_url": "https://citizens-initiative.europa.eu/initiatives/details/2022/000002_en",
+                    "initiative_url": "https://citizens-initiative.europa.eu/initiatives/details/2022/000002",
+                    "submission_text": "The Fur Free Europe initiative was submitted to the European Commission on 14 June 2023...",
+                    "followup_dedicated_website": "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-fur-free-europe_en",
+                    "commission_answer_text": "The Commission published the response to this initiative on 7 December 2023...",
+                    "commission_promised_new_law": "False",
                     "commission_rejected_initiative": "False",
-                    "has_roadmap": "True",
+                    "has_roadmap": "False",
                     "has_workshop": "False",
-                    "has_partnership_programs": "True",
-                    "followup_events_with_dates": '[{"date": "2023-01-15", "event": "Initial meeting"}]',
+                    "has_partnership_programs": "False",
+                    "followup_events_with_dates": '[{"dates": "2023-08-31", "action": "The Commission launched a review..."}]',
                 }
             )
 
@@ -109,7 +108,7 @@ class TestMergerCreatedFiles:
 
     def write_dummy_followup_csv(self, session_dir: Path) -> Path:
         """
-        Write a minimal followup CSV in session_dir.
+        Write a minimal followup CSV in session_dir with real ECI data.
 
         The filename emulates: eci_responses_followup_website_YYYY-MM-DD_HH-MM-SS.csv
         """
@@ -135,29 +134,29 @@ class TestMergerCreatedFiles:
             writer.writerow(
                 {
                     "registration_number": "2018/000004",
-                    "initiative_title": "Test 2018 initiative",
-                    "followup_dedicated_website": "https://example.com/followup/2018000004",
-                    "commission_answer_text": "Updated Commission response from followup",
-                    "commission_promised_new_law": "False",
+                    "initiative_title": "End the Cage Age",
+                    "followup_dedicated_website": "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-end-cage-age_en",
+                    "commission_answer_text": "On 30 June 2021, the Commission decided to positively respond to the ECI...",
+                    "commission_promised_new_law": "True",
                     "commission_rejected_initiative": "False",
-                    "has_roadmap": "True",
-                    "has_workshop": "True",
+                    "has_roadmap": "False",
+                    "has_workshop": "False",
                     "has_partnership_programs": "False",
-                    "followup_events_with_dates": '[{"date": "2024-05-20", "event": "Follow-up consultation"}]',
+                    "followup_events_with_dates": '[{"dates": "2025-06-18", "action": "Further to the call for evidence..."}]',
                 }
             )
             writer.writerow(
                 {
                     "registration_number": "2022/000002",
-                    "initiative_title": "Test 2022 initiative",
-                    "followup_dedicated_website": "https://example.com/followup/2022000002",
-                    "commission_answer_text": "Updated Commission response",
-                    "commission_promised_new_law": "True",
+                    "initiative_title": "Fur Free Europe",
+                    "followup_dedicated_website": "https://food.ec.europa.eu/animals/animal-welfare/eci/eci-fur-free-europe_en",
+                    "commission_answer_text": "The Commission published the response to this initiative on 7 December 2023...",
+                    "commission_promised_new_law": "False",
                     "commission_rejected_initiative": "False",
-                    "has_roadmap": "True",
-                    "has_workshop": "True",
-                    "has_partnership_programs": "True",
-                    "followup_events_with_dates": '[{"date": "2025-08-15", "event": "Final review"}]',
+                    "has_roadmap": "False",
+                    "has_workshop": "False",
+                    "has_partnership_programs": "False",
+                    "followup_events_with_dates": '[{"dates": "2025-07-04", "action": "On 4 July 2025, the Commission launched..."}]',
                 }
             )
 
