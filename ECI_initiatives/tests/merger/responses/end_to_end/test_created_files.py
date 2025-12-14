@@ -52,7 +52,7 @@ class TestMergerCreatedFiles:
         """
         Setup and patch merger file resolution, return data_root.
 
-        WHY: The merger's __init__ uses Path(__file__).resolve() to automatically
+        NOTE WHY: The merger's __init__ uses Path(__file__).resolve() to automatically
         discover the data directory by navigating from its own file location:
           merger.py -> responses/ -> csv_merger/ -> ECI_initiatives/ -> data/
         In tests, we're using a temporary directory (tmp_path), not the real repo.
