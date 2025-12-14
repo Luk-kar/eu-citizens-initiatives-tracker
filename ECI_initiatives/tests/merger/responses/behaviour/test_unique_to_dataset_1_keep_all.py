@@ -5,16 +5,16 @@ This module tests merging of 14 columns unique to Response Data that should alwa
 keep base values (immutable historical and structural metadata).
 
 IMPORTANT: These columns do NOT exist in the Follow-up dataset, so followup values
-are ALWAYS null/empty in real-world merging scenarios.
+are always empty in real-world merging scenarios and are ignored by the strategy.
 
-Based on ECICommissionResponseRecord data model:
+Based on the ECICommissionResponseRecord data model and merge validation rules:
 
-REQUIRED (non-Optional) fields unique to Response Data:
-- response_url: str (mandatory)
-- initiative_url: str (mandatory)
-- submission_text: str (mandatory)
+REQUIRED fields unique to Response Data (mandatory in base dataset):
+- response_url: str
+- initiative_url: str
+- submission_text: str
 
-OPTIONAL (Optional[...]) fields unique to Response Data:
+OPTIONAL fields unique to Response Data (base may be empty):
 - commission_submission_date: Optional[str]
 - submission_news_url: Optional[str]
 - commission_meeting_date: Optional[str]
