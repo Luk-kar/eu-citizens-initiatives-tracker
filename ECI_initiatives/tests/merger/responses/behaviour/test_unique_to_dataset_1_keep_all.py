@@ -49,8 +49,8 @@ class TestUniqueDataset1ColumnsMerging:
     In real merging, followup is ALWAYS null/empty for these fields.
     """
 
-    # ========== REQUIRED (NON-OPTIONAL) FIELDS ==========
-    # These fields are NOT Optional in the data model and must have values
+    # ========== REQUIRED FIELDS (mandatory in base dataset) ==========
+    # These fields are in MANDATORY_BASE_FIELD and must have non-empty base values
 
     def test_response_url_keeps_base_with_null_followup(self):
         """Test response_url (required field) keeps base when followup is null."""
@@ -58,35 +58,29 @@ class TestUniqueDataset1ColumnsMerging:
         base = (
             "https://citizens-initiative.europa.eu/initiatives/details/2022/000001_en"
         )
-        followup = None  # Followup dataset doesn't have this column
+        followup = ""
 
-        # Required field with null followup raises MandatoryFieldMissingError
-        with pytest.raises(MandatoryFieldMissingError) as exc_info:
-            merge_field_values(base, followup, "response_url", "2022/000001")
-
-        assert "response_url" in str(exc_info.value)
-        assert "followup" in str(exc_info.value).lower()
+        result = merge_field_values(base, followup, "response_url", "2022/000001")
+        assert result == base
 
     def test_initiative_url_keeps_base_with_null_followup(self):
         """Test initiative_url (required field) keeps base when followup is null."""
 
         base = "https://citizens-initiative.europa.eu/initiatives/details/2022/000001"
-        followup = None  # Followup dataset doesn't have this column
+        followup = ""
 
-        # Required field with null followup raises MandatoryFieldMissingError
-        with pytest.raises(MandatoryFieldMissingError):
-            merge_field_values(base, followup, "initiative_url", "2022/000001")
+        result = merge_field_values(base, followup, "initiative_url", "2022/000001")
+        assert result == base
 
     def test_submission_text_keeps_base_with_null_followup(self):
         """Test submission_text (required field) keeps base when followup is null."""
 
         base = """On 29 September 2021, the organisers submitted the European Citizens'
         Initiative (ECI) 'End the Cage Age' to the European Commission."""
-        followup = None  # Followup dataset doesn't have this column
+        followup = ""
 
-        # Required field with null followup raises MandatoryFieldMissingError
-        with pytest.raises(MandatoryFieldMissingError):
-            merge_field_values(base, followup, "submission_text", "2022/000001")
+        result = merge_field_values(base, followup, "submission_text", "2022/000001")
+        assert result == base
 
     def test_required_fields_reject_empty_base(self):
         """Test that required fields reject empty base values."""
@@ -95,13 +89,14 @@ class TestUniqueDataset1ColumnsMerging:
 
         for field in required_fields:
             with pytest.raises(MandatoryFieldMissingError) as exc_info:
-                merge_field_values("", None, field, "2022/000001")
+                merge_field_values("", "", field, "2022/000001")
 
             error_msg = str(exc_info.value)
             assert field in error_msg
             assert "base" in error_msg.lower()
 
-    # ========== OPTIONAL FIELDS (can be None/empty) ==========
+    # ========== OPTIONAL FIELDS (can be empty in base) ==========
+    # These fields are NOT in MANDATORY_BASE_FIELD or MANDATORY_BOTH_FIELDS
 
     def test_commission_submission_date_keeps_base_with_null_followup(self):
         """Test commission_submission_date (Optional) keeps base when followup is null."""
