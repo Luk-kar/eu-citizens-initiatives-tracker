@@ -122,7 +122,7 @@ class TestActionsDataStructure:
                 validate_action_fields_in_list(
                     laws,
                     record.registration_number,
-                    field_names=["document_url", "url", "link", "legislation_url"],
+                    field_names=["document_urls", "url", "link", "legislation_url"],
                     source_name="laws_actions",
                     validator_func=self._is_valid_url,
                     value_transformer=truncate_url,
@@ -135,7 +135,7 @@ class TestActionsDataStructure:
                 validate_action_fields_in_list(
                     policies,
                     record.registration_number,
-                    field_names=["document_url", "url", "link", "policy_url"],
+                    field_names=["document_urls", "url", "link", "policy_url"],
                     source_name="policies_actions",
                     validator_func=self._is_valid_url,
                     value_transformer=truncate_url,
@@ -203,20 +203,34 @@ def validate_action_fields_in_list(
             if field_name in action and action[field_name]:
                 field_value = action[field_name]
 
-                if not validator_func(field_value):
-                    # Transform value for error reporting if transformer provided
-                    error_value = (
-                        value_transformer(field_value)
-                        if value_transformer
-                        else field_value
-                    )
-
-                    errors.append(
-                        (
-                            registration_number,
-                            f"{source_name}[{i}].{field_name}",
-                            error_value,
+                # Handle lists: validate each item individually
+                if isinstance(field_value, list):
+                    for j, item in enumerate(field_value):
+                        if not validator_func(item):
+                            error_value = (
+                                value_transformer(item) if value_transformer else item
+                            )
+                            errors.append(
+                                (
+                                    registration_number,
+                                    f"{source_name}[{i}].{field_name}[{j}]",
+                                    error_value,
+                                )
+                            )
+                # Handle single values
+                else:
+                    if not validator_func(field_value):
+                        error_value = (
+                            value_transformer(field_value)
+                            if value_transformer
+                            else field_value
                         )
-                    )
+                        errors.append(
+                            (
+                                registration_number,
+                                f"{source_name}[{i}].{field_name}",
+                                error_value,
+                            )
+                        )
 
     return errors

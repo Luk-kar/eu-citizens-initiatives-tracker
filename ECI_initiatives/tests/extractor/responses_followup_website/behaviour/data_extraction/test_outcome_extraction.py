@@ -1603,8 +1603,8 @@ class TestOutcomeExtraction:
 
         assert result_9 is not None
         action = result_9[0]
-        assert "document_url" in action, "Should extract document URL"
-        assert "eur-lex.europa.eu" in action["document_url"]
+        assert "document_urls" in action, "Should extract document URL"
+        assert "eur-lex.europa.eu" in action["document_urls"][0]
 
         # Test case 10: Empty response section
         html_empty = """

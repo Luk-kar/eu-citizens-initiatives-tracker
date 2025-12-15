@@ -141,19 +141,24 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 parliament_hearing_video_urls=json.dumps(
-                    self.parliament_activity.extract_parliament_hearing_video_urls(soup)
+                    self.parliament_activity.extract_parliament_hearing_video_urls(
+                        soup
+                    ),
+                    ensure_ascii=False,
                 ),
                 plenary_debate_date=self.parliament_activity.extract_plenary_debate_date(
                     soup
                 ),
                 plenary_debate_video_urls=json.dumps(
-                    self.parliament_activity.extract_plenary_debate_video_urls(soup)
+                    self.parliament_activity.extract_plenary_debate_video_urls(soup),
+                    ensure_ascii=False,
                 ),
                 official_communication_adoption_date=official_communication_adoption_date,
                 official_communication_document_urls=json.dumps(
                     self.commission_response.extract_official_communication_document_urls(
                         soup
-                    )
+                    ),
+                    ensure_ascii=False,
                 ),
                 # Commission Response Content
                 commission_answer_text=self.commission_response.extract_commission_answer_text(
@@ -172,7 +177,8 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 commission_deadlines=json.dumps(
-                    self.legislative_outcome.extract_commissions_deadlines(soup)
+                    self.legislative_outcome.extract_commissions_deadlines(soup),
+                    ensure_ascii=False,
                 ),
                 commission_rejected_initiative=self.legislative_outcome.extract_proposal_rejected(
                     soup
@@ -182,17 +188,20 @@ class ECIResponseHTMLParser:
                 ),
                 # Actions Taken (What actually happened)
                 laws_actions=json.dumps(
-                    self.legislative_outcome.extract_legislative_action(soup)
+                    self.legislative_outcome.extract_legislative_action(soup),
+                    ensure_ascii=False,
                 ),
                 policies_actions=json.dumps(
-                    self.legislative_outcome.extract_non_legislative_action(soup)
+                    self.legislative_outcome.extract_non_legislative_action(soup),
+                    ensure_ascii=False,
                 ),
                 # Follow-up Activities Section
                 has_followup_section=self.followup_activity.extract_has_followup_section(
                     soup
                 ),
                 followup_events_with_dates=json.dumps(
-                    self.followup_activity.extract_followup_events_with_dates(soup)
+                    self.followup_activity.extract_followup_events_with_dates(soup),
+                    ensure_ascii=False,
                 ),
                 has_roadmap=self.followup_activity.extract_has_roadmap(soup),
                 has_workshop=self.followup_activity.extract_has_workshop(soup),
@@ -200,7 +209,8 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 court_cases_referenced=json.dumps(
-                    self.followup_activity.extract_court_cases_referenced(soup)
+                    self.followup_activity.extract_court_cases_referenced(soup),
+                    ensure_ascii=False,
                 ),
                 followup_latest_date=followup_latest_date,
                 followup_most_future_date=followup_most_future_date,
@@ -213,12 +223,14 @@ class ECIResponseHTMLParser:
                 ),
                 # Legislation References
                 referenced_legislation_by_id=json.dumps(
-                    self.structural_analysis.extract_referenced_legislation_by_id(soup)
+                    self.structural_analysis.extract_referenced_legislation_by_id(soup),
+                    ensure_ascii=False,
                 ),
                 referenced_legislation_by_name=json.dumps(
                     self.structural_analysis.extract_referenced_legislation_by_name(
                         soup
-                    )
+                    ),
+                    ensure_ascii=False,
                 ),
             )
 

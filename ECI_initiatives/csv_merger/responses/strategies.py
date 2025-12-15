@@ -351,7 +351,7 @@ def merge_json_lists(
             f"{len(followup_list)} -> {len(merged)} items"
         )
 
-    return json.dumps(merged) if merged else ""
+    return json.dumps(merged, ensure_ascii=False) if merged else ""
 
 
 def merge_json_objects(
@@ -430,7 +430,7 @@ def merge_json_objects(
             f"{registration_number} - {field_name}: Merged {len(base_obj)} + {len(followup_obj)} -> {len(merged)} keys"
         )
 
-    return json.dumps(merged) if merged else ""
+    return json.dumps(merged, ensure_ascii=False) if merged else ""
 
 
 def merge_boolean_or(
@@ -554,7 +554,7 @@ def merge_document_urls_list(
             f"Merged {len(base_list)} + {len(followup_list)} = {len(merged)} URLs "
             f"({len(base_list) + len(followup_list) - len(merged)} duplicates removed)"
         )
-        return json.dumps(merged)
+        return json.dumps(merged, ensure_ascii=False)
 
     return ""
 

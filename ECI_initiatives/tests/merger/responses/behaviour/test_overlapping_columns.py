@@ -157,6 +157,29 @@ class TestCommissionAnswerTextMerging:
             followup
         ), "Base should come before followup"
 
+    def test_special_characters_properly_decoded(self):
+        """Test that special characters are decoded as UTF-8, not escaped."""
+        base = "The Commission will propose – by end of 2023 – a new regulation."
+        followup = "The Commission's \u201clandmark\u201d regulation uses bullet points: ● Item 1"
+
+        result = merge_field_values(
+            base, followup, "commission_answer_text", "2022000001"
+        )
+
+        # Should contain actual UTF-8 characters, not escape sequences
+        assert "–" in result, "Should have actual en dash, not \\u2013"
+        assert "'" in result, "Should have actual right single quote, not \\u2019"
+        assert "\u201c" in result, "Should have actual left double quote, not \\u201c"
+        assert "\u201d" in result, "Should have actual right double quote, not \\u201d"
+        assert "●" in result, "Should have actual bullet, not \\u25cf"
+
+        # Should NOT contain escape sequences (literal backslash-u patterns)
+        assert "\\u2013" not in result, "Should not have escaped en dash"
+        assert "\\u2019" not in result, "Should not have escaped quote"
+        assert "\\u201c" not in result, "Should not have escaped double quote"
+        assert "\\u201d" not in result, "Should not have escaped double quote"
+        assert "\\u25cf" not in result, "Should not have escaped bullet"
+
 
 class TestOfficialCommunicationDocumentUrls:
     """Tests for official_communication_document_urls JSON list merging."""
@@ -288,6 +311,25 @@ class TestOfficialCommunicationDocumentUrls:
         assert len(result_list) == 1, "Should skip malformed items"
         assert result_list[0]["text"] == "Communication"
         assert result_list[0]["url"] == "https://ec.europa.eu/doc.pdf"
+
+    def test_document_urls_with_special_characters_in_text(self):
+        """Test that special characters in document text fields are decoded."""
+
+        base = '[{"text": "Communication – main document", "url": "https://ec.europa.eu/doc1.pdf"}]'
+        followup = '[{"text": "Q&A – Commissioner\'s statement", "url": "https://ec.europa.eu/qa.pdf"}]'
+
+        result = merge_field_values(
+            base, followup, "official_communication_document_urls", "2022000001"
+        )
+        result_list = json.loads(result)
+
+        assert len(result_list) == 2, "Should have both documents"
+
+        # Check decoded characters
+        assert "–" in result, "Should have en dash decoded"
+        assert "'" in result, "Should have apostrophe decoded"
+        assert "\\u2013" not in result, "Should not have escaped en dash"
+        assert "\\u2019" not in result, "Should not have escaped apostrophe"
 
 
 class TestFinalOutcomeStatusValidation:
@@ -534,6 +576,22 @@ class TestCommissionDeadlines:
         result = merge_field_values(base, "", "commission_deadlines", "2022/000001")
         assert result == base, "Should return base when followup empty"
 
+    def test_deadlines_with_special_punctuation(self):
+        """Test that deadlines with special punctuation are decoded."""
+        base = "Legislative proposal – by end of 2023; Final decision – March 2026"
+        followup = (
+            "Consultation deadline – August 2025; Commission's decision – Q1 2026"
+        )
+
+        result = merge_field_values(
+            base, followup, "commission_deadlines", "2022000001"
+        )
+
+        assert "–" in result, "Should have en dash decoded"
+        assert "'" in result, "Should have apostrophe decoded"
+        assert "\\u2013" not in result, "Should not have escaped en dash"
+        assert "\\u2019" not in result, "Should not have escaped apostrophe"
+
 
 class TestCommissionRejectionReason:
     """Tests for commission_rejection_reason concatenation."""
@@ -559,6 +617,26 @@ class TestCommissionRejectionReason:
             base, "", "commission_rejection_reason", "2012/000001"
         )
         assert result == base
+
+    def test_rejection_reason_with_curly_quotes(self):
+        """Test that rejection reasons with curly quotes are decoded."""
+        base = 'The Commission\'s position: "No legal competence under Treaties"'
+        followup = 'Detailed analysis: "Lacks subsidiarity" – see Article 5 TEU'
+
+        result = merge_field_values(
+            base, followup, "commission_rejection_reason", "2017000004"
+        )
+
+        assert "'" in result, "Should have right single quote"
+        assert '"' in result, "Should have left double quote"
+        assert '"' in result, "Should have right double quote"
+        assert "–" in result, "Should have en dash"
+
+        # Should not be escaped
+        assert "\\u2019" not in result
+        assert "\\u201c" not in result
+        assert "\\u201d" not in result
+        assert "\\u2013" not in result
 
 
 class TestLawsActionsMerging:
@@ -604,6 +682,27 @@ class TestLawsActionsMerging:
         result = merge_field_values("[]", "[]", "laws_actions", "2022/000001")
         assert result == "", "Should return empty for empty arrays"
 
+    def test_laws_actions_special_characters_decoded(self):
+        """Test that special characters in laws_actions are properly decoded."""
+        base = '[{"type": "Legislative Proposal", "description": "Animal welfare – new framework"}]'
+        followup = '[{"type": "Adopted", "description": "Commission\'s \\"historic\\" regulation adopted"}]'
+
+        result = merge_field_values(base, followup, "laws_actions", "2022000001")
+        result_list = json.loads(result)
+
+        # Check that JSON can be parsed (not double-encoded)
+        assert isinstance(result_list, list), "Should be valid JSON list"
+        assert len(result_list) == 2, "Should have both actions"
+
+        # Verify actual UTF-8 characters in the result string
+        assert "–" in result, "Should have actual en dash in JSON"
+        assert "'" in result, "Should have actual right single quote"
+        assert '"' in result, "Should have actual quotes"
+
+        # Should NOT contain escape sequences
+        assert "\\u2013" not in result, "Should not have escaped characters"
+        assert "\\u2019" not in result, "Should not have escaped characters"
+
 
 class TestPoliciesActionsMerging:
     """Tests for policies_actions JSON list merging."""
@@ -626,7 +725,7 @@ class TestPoliciesActionsMerging:
         ), "Should have only one consultation after deduplication"
 
     def test_granular_followup_details_preserved(self):
-        """Test that followup's granular details are added."""
+        """Test that followup\'s granular details are added."""
 
         base = '[{"type": "research", "date": "2023"}]'
         followup = '[{"type": "research", "date": "2023-06-15", "name": "EFSA Scientific Opinion"}]'
@@ -635,6 +734,27 @@ class TestPoliciesActionsMerging:
         result_list = json.loads(result)
         # Both should be preserved as they're not exactly identical
         assert len(result_list) >= 1, "Should preserve actions"
+
+    def test_policies_actions_unicode_characters(self):
+        """Test that Unicode characters in policy descriptions are decoded."""
+        base = '[{"type": "consultation", "description": "Public consultation – stakeholder input"}]'
+        followup = '[{"type": "study", "description": "EFSA\'s scientific study č evaluation"}]'
+
+        result = merge_field_values(base, followup, "policies_actions", "2022000001")
+        result_list = json.loads(result)
+
+        assert isinstance(result_list, list), "Should be valid JSON"
+        assert len(result_list) == 2, "Should have both actions"
+
+        # Verify special characters are decoded
+        assert "–" in result, "Should have en dash"
+        assert "'" in result, "Should have right single quote"
+        assert "č" in result, "Should have c with caron"
+
+        # Should not be escaped
+        assert "\\u2013" not in result
+        assert "\\u2019" not in result
+        assert "\\u010d" not in result
 
 
 class TestBooleanOrFields:
@@ -985,6 +1105,23 @@ class TestReferencedLegislationById:
         # Should be sorted since all are strings
         assert ["A", "B", "C", "D"] == result_obj["Mixed"]
 
+    def test_legislation_ids_with_special_characters(self):
+        """Test that legislation IDs with special characters are decoded."""
+        base = '{"Regulation": ["2019/2088 – SFDR", "2020/852"]}'
+        followup = '{"Article": ["Art. 13 – TFEU", "Art. 192"]}'
+
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022000001"
+        )
+        result_obj = json.loads(result)
+
+        assert "Regulation" in result_obj
+        assert "Article" in result_obj
+
+        # Verify en dash is decoded
+        assert "–" in result, "Should have en dash decoded"
+        assert "\\u2013" not in result, "Should not have escaped en dash"
+
 
 class TestReferencedLegislationById:
     """
@@ -1197,6 +1334,28 @@ class TestReferencedLegislationById:
         assert (
             expected == result_obj["CELEX"]
         ), "CELEX numbers should be merged and sorted"
+
+    def test_legislation_names_with_quotes_and_dashes(self):
+        """Test that legislation names with quotes and dashes are decoded."""
+        base = '{"directives": ["Water Framework Directive – WFD"]}'
+        followup = '{"regulations": ["Commission\'s \\"flagship\\" regulation"]}'
+
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_name", "2022000001"
+        )
+        result_obj = json.loads(result)
+
+        assert len(result_obj) == 2, "Should have both categories"
+
+        # Verify special characters decoded
+        assert "–" in result
+        assert "'" in result
+        assert '"' in result
+
+        # Should not be escaped
+        assert "\\u2013" not in result
+        assert "\\u2019" not in result
+        assert "\\u201c" not in result
 
 
 class TestReferencedLegislationByName:
@@ -1533,6 +1692,27 @@ class TestFollowupEventsWithDates:
         assert (
             len(result_list) == 2
         ), "Should keep both events with different date precision"
+
+    def test_followup_events_special_characters_decoded(self):
+        """Test that special characters in event descriptions are decoded."""
+        base = '[{"date": "2023-06-15", "event": "Consultation – first phase"}]'
+        followup = '[{"date": "2024-08-20", "event": "EFSA\'s opinion – published"}]'
+
+        result = merge_field_values(
+            base, followup, "followup_events_with_dates", "2022000001"
+        )
+        result_list = json.loads(result)
+
+        assert isinstance(result_list, list), "Should parse as valid JSON"
+        assert len(result_list) == 2, "Should have both events"
+
+        # Verify UTF-8 characters
+        assert "–" in result, "Should have en dash"
+        assert "'" in result, "Should have right single quote"
+
+        # Verify not escaped
+        assert "\\u2013" not in result
+        assert "\\u2019" not in result
 
 
 class TestStrategyMappingForOverlappingColumns:

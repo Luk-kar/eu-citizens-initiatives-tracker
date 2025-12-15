@@ -801,13 +801,13 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         action_type = self._extract_action_type(text)
         description = normalize_whitespace(text)
 
-        # Get document URLs if any
-        doc_url = None
-        link = element.find("a", href=True)
-        if link:
+        # Get ALL document URLs
+        doc_urls = []
+        links = element.find_all("a", href=True)
+        for link in links:
             href = link.get("href", "")
             if "eur-lex" in href or "europa.eu" in href:
-                doc_url = href
+                doc_urls.append(href)
 
         action = {
             "type": action_type,
@@ -818,8 +818,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         if found_date:
             action["date"] = found_date
 
-        if doc_url:
-            action["document_url"] = doc_url
+        if doc_urls:
+            action["document_urls"] = doc_urls
 
         return action
 
