@@ -13,6 +13,42 @@ from .exceptions import ImmutableFieldConflictError, MandatoryFieldMissingError
 logger = logging.getLogger(__name__)
 
 # ============================================================================
+# JSON Parsing Utility Functions
+# ============================================================================
+
+
+def safe_parse_json_list(value: str, source: str) -> list:
+    """Parse JSON or Python-repr list string."""
+
+    if not value or value in ["", "[]", "null", "None", "NaN", "nan"]:
+        return []
+
+    try:
+        # Try parsing as JSON first
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            return parsed
+        return []
+    except json.JSONDecodeError:
+        # Try converting Python repr to JSON by replacing single quotes
+        try:
+            # Replace single quotes with double quotes for JSON compatibility
+            json_compatible = value.replace("'", '"')
+            parsed = json.loads(json_compatible)
+            if isinstance(parsed, list):
+                logger.warning(
+                    f"{registration_number} - {field_name}: {source} had Python syntax, converted to JSON"
+                )
+                return parsed
+            return []
+        except (json.JSONDecodeError, Exception) as e:
+            logger.warning(
+                f"{registration_number} - {field_name}: Could not parse {source} JSON list: {e}"
+            )
+            return []
+
+
+# ============================================================================
 # Field-Specific Merge Strategies
 # ============================================================================
 
@@ -245,35 +281,6 @@ def merge_json_lists(
     base_list = []
     followup_list = []
 
-    def safe_parse_json_list(value: str, source: str) -> list:
-        """Parse JSON or Python-repr list string."""
-        if not value or value in ["", "[]", "null", "None", "NaN", "nan"]:
-            return []
-
-        try:
-            # Try parsing as JSON first
-            parsed = json.loads(value)
-            if isinstance(parsed, list):
-                return parsed
-            return []
-        except json.JSONDecodeError:
-            # Try converting Python repr to JSON by replacing single quotes
-            try:
-                # Replace single quotes with double quotes for JSON compatibility
-                json_compatible = value.replace("'", '"')
-                parsed = json.loads(json_compatible)
-                if isinstance(parsed, list):
-                    logger.warning(
-                        f"{registration_number} - {field_name}: {source} had Python syntax, converted to JSON"
-                    )
-                    return parsed
-                return []
-            except (json.JSONDecodeError, Exception) as e:
-                logger.warning(
-                    f"{registration_number} - {field_name}: Could not parse {source} JSON list: {e}"
-                )
-                return []
-
     base_list = safe_parse_json_list(base_clean, "base")
     followup_list = safe_parse_json_list(followup_clean, "followup")
 
@@ -470,35 +477,6 @@ def merge_document_urls_list(
     """
     base_clean = base_value.strip() if base_value else ""
     followup_clean = followup_value.strip() if followup_value else ""
-
-    def safe_parse_json_list(value: str, source: str) -> list:
-        """Parse JSON list of objects."""
-        if not value or value in ("", "{}", "null", "None", "NaN", "nan"):
-            return []
-
-        try:
-            parsed = json.loads(value)
-            if isinstance(parsed, list):
-                return parsed
-            return []
-        except json.JSONDecodeError:
-            # Try parsing as Python repr
-            try:
-                json_compatible = value.replace("'", '"')
-                parsed = json.loads(json_compatible)
-                if isinstance(parsed, list):
-                    logger.warning(
-                        f"{registration_number} - {field_name}: "
-                        f"{source} had Python syntax, converted to JSON"
-                    )
-                    return parsed
-                return []
-            except (json.JSONDecodeError, Exception) as e:
-                logger.warning(
-                    f"{registration_number} - {field_name}: "
-                    f"Could not parse {source} JSON list: {e}"
-                )
-                return []
 
     base_list = safe_parse_json_list(base_clean, "base")
     followup_list = safe_parse_json_list(followup_clean, "followup")
