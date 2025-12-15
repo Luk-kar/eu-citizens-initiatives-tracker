@@ -2,6 +2,7 @@
 Field merging strategies for combining base and followup CSV data.
 """
 
+import ast
 import json
 import logging
 from typing import Dict, Callable, List
@@ -28,16 +29,11 @@ def _safe_parse_json_container(
     source: str,
     field_name: str,
     registration_number: str,
-    parse_as: Type[T],  # list or dict type object
+    parse_as: Type[T],
 ) -> T:
-    """Parse JSON or Python-repr container string.
-
-    Args:
-        parse_as: The type to parse as (list or dict)
-    """
+    """Parse JSON or Python-repr container string."""
     empty_values = {"", "{}", "null", "None", "NaN", "nan"}
 
-    # Determine default and container label based on type
     if parse_as is list:
         default = []
         container_label = "list"
@@ -54,26 +50,25 @@ def _safe_parse_json_container(
     if not value_stripped or value_stripped in empty_values:
         return default
 
-    # 1) Try strict JSON
+    # 1) Try strict JSON first
     try:
         parsed = json.loads(value_stripped)
         return parsed if isinstance(parsed, parse_as) else default
     except json.JSONDecodeError:
         pass
 
-    # 2) Fallback: attempt to coerce Python repr-ish strings to JSON
+    # 2) Try Python literal evaluation (safer for Python repr)
     try:
-        json_compatible = value_stripped.replace("'", '"')
-        parsed = json.loads(json_compatible)
+        parsed = ast.literal_eval(value_stripped)
         if isinstance(parsed, parse_as):
             logger.info(
-                f"{registration_number} - {field_name}: {source} had Python syntax, converted to JSON"
+                f"{registration_number} - {field_name}: {source} had Python syntax, parsed with ast.literal_eval"
             )
             return parsed
         return default
-    except Exception as e:
+    except (ValueError, SyntaxError) as e:
         logger.warning(
-            f"{registration_number} - {field_name}: Could not parse {source} JSON {container_label}: {e}"
+            f"{registration_number} - {field_name}: Could not parse {source} {container_label}: {e}"
         )
         return default
 
