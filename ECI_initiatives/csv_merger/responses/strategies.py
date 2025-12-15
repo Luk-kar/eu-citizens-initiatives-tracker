@@ -29,7 +29,6 @@ def _safe_parse_json_container(
     source: str,
     field_name: str,
     registration_number: str,
-    expected_type: Type[T],
     container_label: str,  # e.g. "list" / "object"
 ) -> T:
     empty_values = {"", "{}", "null", "None", "NaN", "nan"}
@@ -38,8 +37,11 @@ def _safe_parse_json_container(
 
     if container_label == "list":
         default = []
+        expected_type = list
+
     elif container_label == "object":
         default = {}
+        expected_type = dict
     else:
         raise ValueError(f"Wrong container_label type:\n{container_label}")
 
@@ -83,7 +85,6 @@ def safe_parse_json_list(
         source=source,
         field_name=field_name,
         registration_number=registration_number,
-        expected_type=list,
         container_label="list",
     )
 
@@ -97,7 +98,6 @@ def safe_parse_json_object(
         source=source,
         field_name=field_name,
         registration_number=registration_number,
-        expected_type=dict,
         container_label="object",
     )
 
