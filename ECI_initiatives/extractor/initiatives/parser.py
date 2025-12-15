@@ -25,7 +25,7 @@ class ECIHTMLParser:
     def __init__(self, logger: logging.Logger):
         """
         Initialize parser with shared logger
-        
+
         Args:
             logger: Shared logger instance from InitiativesExtractorLogger
         """
@@ -35,10 +35,10 @@ class ECIHTMLParser:
         """Parse a single ECI HTML file and extract initiative data"""
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            soup = BeautifulSoup(content, 'html.parser')
+            soup = BeautifulSoup(content, "html.parser")
 
             reg_number = self._extract_registration_number(file_path.name)
             timeline_data = self._extract_timeline_data(soup)
@@ -47,8 +47,8 @@ class ECIHTMLParser:
 
             # Extract organiser data and split into separate fields
             organiser_data = self.extract_organisers_data(soup)
-            organizer_representative, organizer_entity, organizer_others = self._split_organiser_data(
-                organiser_data, file_path, title, url
+            organizer_representative, organizer_entity, organizer_others = (
+                self._split_organiser_data(organiser_data, file_path, title, url)
             )
 
             initiative_data = ECIInitiativeDetailsRecord(
@@ -58,31 +58,38 @@ class ECIHTMLParser:
                 annex=self._extract_annex(soup),
                 current_status=self._extract_current_status(soup),
                 url=self._construct_url(reg_number),
-
-                timeline_registered=timeline_data.get('timeline_registered'),
-                timeline_collection_start_date=timeline_data.get('timeline_collection_start_date'),
-                timeline_collection_closed=timeline_data.get('timeline_collection_closed'),
-                timeline_verification_start=timeline_data.get('timeline_verification_start'),
-                timeline_verification_end=timeline_data.get('timeline_verification_end'),
-                timeline_response_commission_date=timeline_data.get('timeline_response_commission_date'),
-                timeline=timeline_data.get('timeline'),
-
+                timeline_registered=timeline_data.get("timeline_registered"),
+                timeline_collection_start_date=timeline_data.get(
+                    "timeline_collection_start_date"
+                ),
+                timeline_collection_closed=timeline_data.get(
+                    "timeline_collection_closed"
+                ),
+                timeline_verification_start=timeline_data.get(
+                    "timeline_verification_start"
+                ),
+                timeline_verification_end=timeline_data.get(
+                    "timeline_verification_end"
+                ),
+                timeline_response_commission_date=timeline_data.get(
+                    "timeline_response_commission_date"
+                ),
+                timeline=timeline_data.get("timeline"),
                 organizer_representative=organizer_representative,
                 organizer_entity=organizer_entity,
                 organizer_others=organizer_others,
-
                 signatures_collected=self._extract_signatures_collected(soup),
-                signatures_collected_by_country=self._extract_signatures_by_country(soup, file_path, title, url),
+                signatures_collected_by_country=self._extract_signatures_by_country(
+                    soup, file_path, title, url
+                ),
                 signatures_threshold_met=self._extract_signatures_threshold_met(soup),
-
                 funding_total=self._extract_funding_total(soup),
-                funding_by=self._extract_funding_by(soup, file_path, title, url), 
-
+                funding_by=self._extract_funding_by(soup, file_path, title, url),
                 response_commission_url=self._extract_response_commission_url(soup),
                 final_outcome=self._extract_final_outcome(soup),
                 languages_available=self._extract_languages_available(soup),
                 created_timestamp=datetime.now().isoformat(),
-                last_updated=self._extract_last_updated(soup)
+                last_updated=self._extract_last_updated(soup),
             )
 
             self.logger.info(f"Successfully parsed {file_path.name}")
@@ -96,93 +103,105 @@ class ECIHTMLParser:
     def _find_signatures_table(self, soup: BeautifulSoup) -> Optional[BeautifulSoup]:
         """Common inner function to find the signatures table with zebra styling"""
         # Look for table with specific classes
-        signatures_table = soup.find('table', class_='ecl-table ecl-table--zebra ecl-u-type-paragraph')
+        signatures_table = soup.find(
+            "table", class_="ecl-table ecl-table--zebra ecl-u-type-paragraph"
+        )
 
         # Fallback to basic ecl-table if not found
         if not signatures_table:
-            signatures_table = soup.find('table', class_='ecl-table')
+            signatures_table = soup.find("table", class_="ecl-table")
 
         return signatures_table
 
-    def _get_signature_table_rows(self, soup: BeautifulSoup, skip_total: bool = True) -> List[Tuple]:
+    def _get_signature_table_rows(
+        self, soup: BeautifulSoup, skip_total: bool = True
+    ) -> List[Tuple]:
         """
         Extract rows from the signature collection table.
-        
+
         Each row contains: country name, number of signatures, required threshold, and percentage achieved.
-        
+
         Args:
             soup: BeautifulSoup parsed HTML document
             skip_total: If True, exclude the "Total number of signatories" summary row
-            
+
         Returns:
             List of tuples, each containing (country_name, signatures_count, threshold_required, percentage_achieved)
         """
-        
+
         # Find the signatures table in the HTML
         signatures_table = self._find_signatures_table(soup)
         if not signatures_table:
             return []
-        
+
         # Store extracted data from each country row
         country_data = []
-        
+
         # Find all table rows in the signatures table
-        table_rows = signatures_table.find_all('tr', class_='ecl-table__row')
+        table_rows = signatures_table.find_all("tr", class_="ecl-table__row")
 
         for row in table_rows:
 
-            cells = row.find_all('td', class_='ecl-table__cell')
-            
+            cells = row.find_all("td", class_="ecl-table__cell")
+
             # Validate that row has exactly 4 columns (country, signatures, threshold, percentage)
             if len(cells) != 4:
                 continue
-            
+
             # Extract the country name from the first column
             country_name = cells[0].get_text().strip()
-            
+
             # Skip the total summary row if requested
-            if skip_total and 'total number of signatories' in country_name.lower():
+            if skip_total and "total number of signatories" in country_name.lower():
                 continue
-            
+
             # Skip rows with empty country names
             if not country_name:
                 continue
-            
+
             # Extract signature collection data from the remaining columns
             signatures_count = cells[1].get_text().strip()
             threshold_required = cells[2].get_text().strip()
             percentage_achieved = cells[3].get_text().strip()
-            
+
             # Add this country's data to our results
-            country_data.append((country_name, signatures_count, threshold_required, percentage_achieved))
-        
+            country_data.append(
+                (
+                    country_name,
+                    signatures_count,
+                    threshold_required,
+                    percentage_achieved,
+                )
+            )
+
         return country_data
 
     def _extract_response_commission_url(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract the Commission's answer and follow-up page URL.
-        
+
         Finds the <a> tag containing text "Commission's answer and follow-up"
         and returns its href attribute.
-        
+
         Returns:
             URL to the initiative's follow-up page, or None if not found
         """
-        
-        # Find the link with text containing "Commission's answer and follow-up"
-        link = soup.find('a', string=re.compile(r"Commission['\u2019]s answer and follow-up", re.I))
-        
-        if link and link.get('href'):
-            return link.get('href')
-        
-        return None
 
+        # Find the link with text containing "Commission's answer and follow-up"
+        link = soup.find(
+            "a", string=re.compile(r"Commission['\u2019]s answer and follow-up", re.I)
+        )
+
+        if link and link.get("href"):
+            return link.get("href")
+
+        return None
 
     def extract_organisers_data(self, soup: BeautifulSoup) -> Optional[Dict]:
         """Extract organiser data from the HTML including representatives, substitutes, members, etc."""
 
         # Find the Organisers section
-        organisers_h2 = soup.find('h2', string=re.compile(r'\s*Organisers\s*$', re.I))
+        organisers_h2 = soup.find("h2", string=re.compile(r"\s*Organisers\s*$", re.I))
         if not organisers_h2:
             return None
 
@@ -190,16 +209,18 @@ class ECIHTMLParser:
 
         # Helper function to extract text from next element after a heading
         def get_text_after_heading(heading_text: str) -> List[str]:
-            heading = soup.find('h3', string=re.compile(rf'\s*{heading_text}\s*$', re.I))
+            heading = soup.find(
+                "h3", string=re.compile(rf"\s*{heading_text}\s*$", re.I)
+            )
             if not heading:
                 return []
 
             next_element = heading.find_next_sibling()
-            if not next_element or next_element.name != 'ul':
+            if not next_element or next_element.name != "ul":
                 return []
 
             items = []
-            for li in next_element.find_all('li'):
+            for li in next_element.find_all("li"):
                 text = li.get_text(strip=True)
                 if text:
                     items.append(text)
@@ -207,94 +228,93 @@ class ECIHTMLParser:
 
         # Extract Legal Entity information
         # Look for the exact heading "Legal entity created for the purpose of managing the initiative"
-        legal_entity_heading = soup.find('h3', string=re.compile(r'^\s*Legal entity created for the purpose of managing the initiative\s*$', re.I))
+        legal_entity_heading = soup.find(
+            "h3",
+            string=re.compile(
+                r"^\s*Legal entity created for the purpose of managing the initiative\s*$",
+                re.I,
+            ),
+        )
 
-        result['legal_entity'] = {
-            'name': None,
-            'country_of_residence': None
-        }
+        result["legal_entity"] = {"name": None, "country_of_residence": None}
 
         if legal_entity_heading:
 
             # Find the next sibling which should be a <ul> element
             next_element = legal_entity_heading.find_next_sibling()
 
-            if next_element and next_element.name == 'ul':
+            if next_element and next_element.name == "ul":
 
                 # Find the <li> element within the <ul>
-                li_element = next_element.find('li')
+                li_element = next_element.find("li")
 
                 if li_element:
                     # Get the full text content
-                    full_text = li_element.get_text(separator=' ', strip=True)
+                    full_text = li_element.get_text(separator=" ", strip=True)
 
                     # Split on "Country of the seat:" to separate name and country
-                    if 'Country of the seat:' in full_text:
+                    if "Country of the seat:" in full_text:
 
-                        parts = full_text.split('Country of the seat:', 1)
+                        parts = full_text.split("Country of the seat:", 1)
 
                         if len(parts) == 2:
-                            result['legal_entity']['name'] = parts[0].strip()
-                            result['legal_entity']['country_of_residence'] = parts[1].strip()
+                            result["legal_entity"]["name"] = parts[0].strip()
+                            result["legal_entity"]["country_of_residence"] = parts[
+                                1
+                            ].strip()
                     else:
                         # Fallback: use the entire text as name if no country pattern found
-                        result['legal_entity']['name'] = full_text
+                        result["legal_entity"]["name"] = full_text
 
         # Extract Representative information
-        representatives = get_text_after_heading('Representative')
+        representatives = get_text_after_heading("Representative")
 
-        result['representative'] = {
-            'number_of_people': len(representatives),
-            'countries_of_residence': {}
+        result["representative"] = {
+            "number_of_people": len(representatives),
+            "countries_of_residence": {},
         }
 
         for rep in representatives:
 
             # Extract country information from the representative text
             # Pattern: "Name - email Country of residence: CountryName"
-            country_match = re.search(r'Country of residence[:\s]+([A-Za-z\s]+)', rep)
+            country_match = re.search(r"Country of residence[:\s]+([A-Za-z\s]+)", rep)
 
             if country_match:
 
                 country = country_match.group(1).strip()
 
-                if country in result['representative']['countries_of_residence']:
-                    
-                    result['representative']['countries_of_residence'][country] += 1
+                if country in result["representative"]["countries_of_residence"]:
+
+                    result["representative"]["countries_of_residence"][country] += 1
                 else:
-                    result['representative']['countries_of_residence'][country] = 1
+                    result["representative"]["countries_of_residence"][country] = 1
 
         # Extract Substitute information
-        substitutes = get_text_after_heading('Substitute')
-        result['substitute'] = {
-            'number_of_people': len(substitutes)
-        }
+        substitutes = get_text_after_heading("Substitute")
+        result["substitute"] = {"number_of_people": len(substitutes)}
 
         # Extract Members information
-        members = get_text_after_heading('Members')
-        result['members'] = {
-            'number_of_people': len(members)
-        }
+        members = get_text_after_heading("Members")
+        result["members"] = {"number_of_people": len(members)}
 
         # Extract Others information
-        others = get_text_after_heading('Others')
-        result['others'] = {
-            'number_of_people': len(others)
-        }
+        others = get_text_after_heading("Others")
+        result["others"] = {"number_of_people": len(others)}
 
         # Extract DPO information (Data Protection Officer)
-        dpo = get_text_after_heading('DPO')
+        dpo = get_text_after_heading("DPO")
         if not dpo:
             # Also try alternative headings
-            dpo = get_text_after_heading('Data Protection Officer')
+            dpo = get_text_after_heading("Data Protection Officer")
 
-        result['dpo'] = {
-            'number_of_people': len(dpo)
-        }
+        result["dpo"] = {"number_of_people": len(dpo)}
 
         return result
 
-    def _split_organiser_data(self, organisers_data: Optional[Dict], file_path: Path, title: str, url: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    def _split_organiser_data(
+        self, organisers_data: Optional[Dict], file_path: Path, title: str, url: str
+    ) -> tuple[Optional[str], Optional[str], Optional[str]]:
         """Split organiser data into three separate JSON fields"""
 
         if not organisers_data:
@@ -303,34 +323,32 @@ class ECIHTMLParser:
         try:
             # Extract representative data
             organizer_representative = None
-            if 'representative' in organisers_data:
+            if "representative" in organisers_data:
                 organizer_representative = json.dumps(
-                    organisers_data['representative'], 
-                    ensure_ascii=False, 
-                    separators=(',', ':')
+                    organisers_data["representative"],
+                    ensure_ascii=False,
+                    separators=(",", ":"),
                 )
 
             # Extract legal entity data
             organizer_entity = None
-            if 'legal_entity' in organisers_data:
+            if "legal_entity" in organisers_data:
                 organizer_entity = json.dumps(
-                    organisers_data['legal_entity'], 
-                    ensure_ascii=False, 
-                    separators=(',', ':')
+                    organisers_data["legal_entity"],
+                    ensure_ascii=False,
+                    separators=(",", ":"),
                 )
 
             # Extract others data (substitute, members, others, dpo)
             organizer_others = None
             others_data = {}
-            for key in ['substitute', 'members', 'others', 'dpo']:
+            for key in ["substitute", "members", "others", "dpo"]:
                 if key in organisers_data:
                     others_data[key] = organisers_data[key]
 
             if others_data:
                 organizer_others = json.dumps(
-                    others_data, 
-                    ensure_ascii=False, 
-                    separators=(',', ':')
+                    others_data, ensure_ascii=False, separators=(",", ":")
                 )
 
             return organizer_representative, organizer_entity, organizer_others
@@ -346,26 +364,26 @@ class ECIHTMLParser:
     def _extract_registration_number(self, filename: str) -> str:
         """Extract registration number from filename pattern YYYY_NNNNNN_en.html"""
 
-        pattern = r'(\d{4})_(\d{6})_en\.html'
+        pattern = r"(\d{4})_(\d{6})_en\.html"
         match = re.match(pattern, filename)
 
         if match:
 
             year, number = match.groups()
             return f"{year}/{number}"
-            
+
         return ""
 
     def _extract_title(self, soup: BeautifulSoup) -> str:
         """Extract initiative title"""
 
         # Try meta tag first
-        meta_title = soup.find('meta', {'name': 'dcterms.title'})
-        if meta_title and meta_title.get('content'):
-            return meta_title['content'].strip()
+        meta_title = soup.find("meta", {"name": "dcterms.title"})
+        if meta_title and meta_title.get("content"):
+            return meta_title["content"].strip()
 
         # Fall back to h1 tag
-        h1_title = soup.find('h1', class_='ecl-page-header-core__title')
+        h1_title = soup.find("h1", class_="ecl-page-header-core__title")
         if h1_title:
             return h1_title.get_text().strip()
 
@@ -375,12 +393,12 @@ class ECIHTMLParser:
         """Extract initiative objectives (max 1,100 characters)"""
 
         # Find objectives section
-        objectives_section = soup.find('h2', string=re.compile(r'Objectives?', re.I))
+        objectives_section = soup.find("h2", string=re.compile(r"Objectives?", re.I))
         if objectives_section:
             objective_text = ""
             next_element = objectives_section.find_next_sibling()
-            while next_element and next_element.name != 'h2':
-                if next_element.name == 'p':
+            while next_element and next_element.name != "h2":
+                if next_element.name == "p":
                     objective_text += next_element.get_text().strip() + " "
                 next_element = next_element.find_next_sibling()
 
@@ -392,16 +410,16 @@ class ECIHTMLParser:
         """Extract current initiative current_status"""
 
         # Find the currently active timeline item
-        current_status_element = soup.find(class_='ecl-timeline__item--current')
-        
+        current_status_element = soup.find(class_="ecl-timeline__item--current")
+
         if current_status_element:
             # Extract the status title from the timeline item
-            status_title = current_status_element.find(class_='ecl-timeline__title')
-            
+            status_title = current_status_element.find(class_="ecl-timeline__title")
+
             if status_title:
                 # Return the raw status text without any mapping
                 return status_title.get_text().strip()
-        
+
         # No current status found in timeline
         return ""
 
@@ -409,18 +427,18 @@ class ECIHTMLParser:
         """Construct English URL from registration number"""
 
         if reg_number:
-            year, number = reg_number.split('/')
+            year, number = reg_number.split("/")
             return f"https://citizens-initiative.europa.eu/initiatives/details/{year}/{number}_en"
         return ""
 
     def _extract_signatures_collected(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract the total number of signatures collected for the initiative.
-    
+
         This function attempts to find the total signature count using two methods:
         1. Primary: Searches for the "Total number of signatories" row in the signatures table
         2. Fallback: Looks for a standalone counter element on the page
-        
+
         Note:
             The returned string preserves commas for readability but removes spaces.
             This matches the format displayed on the ECI website.
@@ -432,31 +450,38 @@ class ECIHTMLParser:
         if signatures_table:
 
             # Find all table rows
-            rows = signatures_table.find_all('tr', class_='ecl-table__row')
+            rows = signatures_table.find_all("tr", class_="ecl-table__row")
 
             for row in rows:
 
-                first_cell = row.find('td', class_='ecl-table__cell')
-                if first_cell and 'total number of signatories' in first_cell.get_text().lower():
+                first_cell = row.find("td", class_="ecl-table__cell")
+                if (
+                    first_cell
+                    and "total number of signatories" in first_cell.get_text().lower()
+                ):
 
-                    cells = row.find_all('td', class_='ecl-table__cell')
+                    cells = row.find_all("td", class_="ecl-table__cell")
 
                     if len(cells) >= 2:
 
                         # Second cell contains the number
                         signatures_text = cells[1].get_text().strip()
-                        if signatures_text and re.match(r'^[\d,\s]+$', signatures_text):
-                            return signatures_text.replace(' ', '')  # Keep commas for readability
+                        if signatures_text and re.match(r"^[\d,\s]+$", signatures_text):
+                            return signatures_text.replace(
+                                " ", ""
+                            )  # Keep commas for readability
 
         # Fallback to original counter method
-        signatures_element = soup.find(class_='ecl-counter__value')
+        signatures_element = soup.find(class_="ecl-counter__value")
 
         if signatures_element:
             signatures_text = signatures_element.get_text().strip()
-            numbers = re.findall(r'\d+', signatures_text.replace(',', '').replace(' ', ''))
+            numbers = re.findall(
+                r"\d+", signatures_text.replace(",", "").replace(" ", "")
+            )
 
             if numbers:
-                return ''.join(numbers)
+                return "".join(numbers)
 
         return None
 
@@ -478,7 +503,7 @@ class ECIHTMLParser:
             for country, statements, threshold, percentage in rows_data:
 
                 # Extract numeric percentage value
-                percentage_match = re.search(r'([\d.]+)%', percentage)
+                percentage_match = re.search(r"([\d.]+)%", percentage)
 
                 if percentage_match:
 
@@ -497,84 +522,85 @@ class ECIHTMLParser:
     def _extract_final_outcome(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Extract the final outcome of the initiative based on the timeline progress.
-        
+
         Determines if an initiative has reached a final state and categorizes the outcome.
-        
+
         Possible outcomes:
         - "Unsuccessful Collection": Failed to collect required signatures
         - "Withdrawn": Initiative was withdrawn by organizers
         - "Commission Response": Initiative received official Commission answer
         - None: Initiative is still in progress (not in final state)
-            
+
         Raises:
             ValueError: If the Initiative progress timeline is not found in the HTML
         """
-        
+
         # Find the timeline container (Initiative progress)
-        timeline = soup.find('ol', class_='ecl-timeline')
-        
+        timeline = soup.find("ol", class_="ecl-timeline")
+
         if not timeline:
             raise ValueError(
                 "Initiative progress timeline not found. "
                 "Expected element: <ol class='ecl-timeline'>"
             )
-        
+
         # Extract all timeline items
-        timeline_items = timeline.find_all('li', class_='ecl-timeline__item')
-        
+        timeline_items = timeline.find_all("li", class_="ecl-timeline__item")
+
         if not timeline_items:
             raise ValueError(
                 "No timeline items found in Initiative progress. "
                 "Expected elements: <li class='ecl-timeline__item'>"
             )
-        
+
         # Find the current (final) status from the timeline
         current_status = None
         for item in timeline_items:
 
             # Check if this is the current/active item
-            if 'ecl-timeline__item--current' in item.get('class', []):
+            if "ecl-timeline__item--current" in item.get("class", []):
 
-                title_element = item.find('div', class_='ecl-timeline__title')
+                title_element = item.find("div", class_="ecl-timeline__title")
 
                 if title_element:
                     current_status = title_element.get_text().strip()
                     break
-        
+
         if not current_status:
             # No current status marked - initiative may be in progress
             return None
-        
+
         # Map timeline status to final outcome categories
         status_lower = current_status.lower()
-        
+
         # Check for "Answered initiative" - maps to Commission Response
-        if 'answered' in status_lower and 'initiative' in status_lower:
+        if "answered" in status_lower and "initiative" in status_lower:
             return "Commission Response"
-        
+
         # Check for "Withdrawn" status
-        if 'withdrawn' in status_lower:
+        if "withdrawn" in status_lower:
             return "Withdrawn"
-        
+
         # Check for "Unsuccessful collection" status
-        if 'unsuccessful' in status_lower and 'collection' in status_lower:
+        if "unsuccessful" in status_lower and "collection" in status_lower:
             return "Unsuccessful Collection"
-        
+
         # Ongoing statuses (not final outcomes)
         ongoing_statuses = [
-            'collection ongoing',
-            'collection start date',
-            'registered',
-            'registration',
-            'verification',
-            'valid initiative',
-            'open'
+            "collection start date",
+            "collection ongoing",
+            "collection closed",
+            "registered",
+            "registration",
+            "verification",
+            "valid initiative",
+            "open",
         ]
-        
+
         # If current status is in ongoing list, return None (not final)
         if any(ongoing in status_lower for ongoing in ongoing_statuses):
             return None
-        
+
         # Unknown status - fail fast
         raise ValueError(
             f"Unknown timeline status encountered: '{current_status}'. "
@@ -583,28 +609,27 @@ class ECIHTMLParser:
 
         return None
 
-
     def _extract_languages_available(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract available languages"""
 
-        language_links = soup.find_all(class_='ecl-site-header__language-link')
+        language_links = soup.find_all(class_="ecl-site-header__language-link")
         if language_links:
             languages = []
             for link in language_links:
-                href = link.get('href', '')
-                if '_' in href:
-                    lang_code = href.split('_')[-1]
+                href = link.get("href", "")
+                if "_" in href:
+                    lang_code = href.split("_")[-1]
                     if len(lang_code) == 2:
                         languages.append(lang_code)
-            return ','.join(sorted(set(languages))) if languages else None
+            return ",".join(sorted(set(languages))) if languages else None
         return None
 
     def _extract_last_updated(self, soup: BeautifulSoup) -> str:
         """Extract last updated timestamp"""
 
-        meta_modified = soup.find('meta', {'name': 'dcterms.modified'})
-        if meta_modified and meta_modified.get('content'):
-            return meta_modified['content']
+        meta_modified = soup.find("meta", {"name": "dcterms.modified"})
+        if meta_modified and meta_modified.get("content"):
+            return meta_modified["content"]
         return datetime.now().isoformat()
 
     def _extract_timeline_data(self, soup: BeautifulSoup) -> Dict[str, Optional[str]]:
@@ -613,40 +638,37 @@ class ECIHTMLParser:
         timeline_data = {}
 
         # Find the timeline container
-        timeline = soup.find('ol', class_='ecl-timeline')
+        timeline = soup.find("ol", class_="ecl-timeline")
         if not timeline:
             return timeline_data
 
         # Extract all timeline items
-        timeline_items = timeline.find_all('li', class_='ecl-timeline__item')
+        timeline_items = timeline.find_all("li", class_="ecl-timeline__item")
 
         # Track timeline order for verification end logic AND for full timeline JSON
         timeline_sequence = []
         timeline_json_data = []
-        
+
         for item in timeline_items:
             # Extract title
-            title_element = item.find('div', class_='ecl-timeline__title')
+            title_element = item.find("div", class_="ecl-timeline__title")
             if not title_element:
                 continue
 
             title = title_element.get_text().strip()
             # Remove red asterisk marker if present
-            title = re.sub(r'<span[^>]*>.*?</span>', '', title)
-            title = title.replace('*', '').strip()
+            title = re.sub(r"<span[^>]*>.*?</span>", "", title)
+            title = title.replace("*", "").strip()
 
             # Extract content (date) if available
-            content_element = item.find('div', class_='ecl-timeline__content')
+            content_element = item.find("div", class_="ecl-timeline__content")
             content = content_element.get_text().strip() if content_element else None
 
             # Store sequence for verification end processing
             timeline_sequence.append((title, content))
-            
+
             # NEW: Store for full timeline JSON
-            timeline_json_data.append({
-                "step": title,
-                "date": content
-            })
+            timeline_json_data.append({"step": title, "date": content})
 
             # Normalize title to match our field names
             normalized_title = self._normalize_timeline_title(title)
@@ -656,53 +678,61 @@ class ECIHTMLParser:
 
         # Post-process timeline_verification_end based on sequence
         timeline_data = self._process_verification_end(timeline_sequence, timeline_data)
-        
+
         # Add full timeline as JSON string
         if timeline_json_data:
-            timeline_data['timeline'] = json.dumps(timeline_json_data, ensure_ascii=False, separators=(',', ':'))
+            timeline_data["timeline"] = json.dumps(
+                timeline_json_data, ensure_ascii=False, separators=(",", ":")
+            )
 
         return timeline_data
 
-
-    def _process_verification_end(self, timeline_sequence: List[Tuple[str, Optional[str]]], 
-                                timeline_data: Dict[str, Optional[str]]) -> Dict[str, Optional[str]]:
+    def _process_verification_end(
+        self,
+        timeline_sequence: List[Tuple[str, Optional[str]]],
+        timeline_data: Dict[str, Optional[str]],
+    ) -> Dict[str, Optional[str]]:
         """
         Determine timeline_verification_end based on sequence rules:
         - Accept 'Valid initiative'
-        - Accept any step containing 'initiative' that comes after 'Verification' 
+        - Accept any step containing 'initiative' that comes after 'Verification'
         and is last OR comes before 'Answered initiative'
         """
-        
+
         # Find indices in timeline
         verification_idx = None
         answered_idx = None
         verification_end_candidate = None
-        
+
         for idx, (title, date) in enumerate(timeline_sequence):
             title_lower = title.lower()
-            
+
             # Track Verification position
-            if title == 'Verification':
+            if title == "Verification":
                 verification_idx = idx
-            
+
             # Track Answered initiative position
-            if title == 'Answered initiative':
+            if title == "Answered initiative":
                 answered_idx = idx
-            
+
             # Check for any title containing 'initiative' after verification
-            if verification_idx is not None and 'initiative' in title_lower:
+            if verification_idx is not None and "initiative" in title_lower:
 
                 # Only consider if it's after Verification
                 if idx > verification_idx:
 
                     # Check if it's before Answered or is the last item
-                    if answered_idx is None or idx < answered_idx or idx == len(timeline_sequence) - 1:
+                    if (
+                        answered_idx is None
+                        or idx < answered_idx
+                        or idx == len(timeline_sequence) - 1
+                    ):
                         verification_end_candidate = (title, date)
-        
+
         # Set timeline_verification_end if we found a valid candidate
         if verification_end_candidate:
-            timeline_data['timeline_verification_end'] = verification_end_candidate[1]
-        
+            timeline_data["timeline_verification_end"] = verification_end_candidate[1]
+
         return timeline_data
 
     def _normalize_timeline_title(self, title: str) -> Optional[str]:
@@ -710,18 +740,20 @@ class ECIHTMLParser:
 
         # Add more mappings as needed
         title_mapping = {
-            'Registered': 'timeline_registered',
-            'Collection start date': 'timeline_collection_start_date',
-            'Collection closed': 'timeline_collection_closed',
-            'Verification': 'timeline_verification_start',
-            'Answered initiative': 'timeline_response_commission_date',
-            'Collection ongoing': 'timeline_collection_start_date',  # Map ongoing to start date
-            'Registration': 'timeline_registered',
+            "Registered": "timeline_registered",
+            "Collection start date": "timeline_collection_start_date",
+            "Collection closed": "timeline_collection_closed",
+            "Verification": "timeline_verification_start",
+            "Answered initiative": "timeline_response_commission_date",
+            "Collection ongoing": "timeline_collection_start_date",  # Map ongoing to start date
+            "Registration": "timeline_registered",
         }
 
         return title_mapping.get(title)
 
-    def _extract_signatures_by_country(self, soup: BeautifulSoup, file_path: Path, title: str, url: str) -> Optional[str]:
+    def _extract_signatures_by_country(
+        self, soup: BeautifulSoup, file_path: Path, title: str, url: str
+    ) -> Optional[str]:
         """Extract country-level signature data as JSON using common function"""
 
         try:
@@ -754,12 +786,14 @@ class ECIHTMLParser:
                 country_data[country_text] = {
                     "statements_of_support": statements_of_support,
                     "threshold": threshold,
-                    "percentage": percentage
+                    "percentage": percentage,
                 }
 
             # Return JSON string if we have data
             if country_data:
-                return json.dumps(country_data, ensure_ascii=False, separators=(',', ':'))
+                return json.dumps(
+                    country_data, ensure_ascii=False, separators=(",", ":")
+                )
 
         except Exception as e:
             self.logger.error(
@@ -774,38 +808,43 @@ class ECIHTMLParser:
         """Extract total funding amount from paragraph"""
 
         # Look for paragraph containing total funding text
-        funding_paragraph = soup.find('p', string=re.compile(r'Total amount of support and funding:', re.I))
+        funding_paragraph = soup.find(
+            "p", string=re.compile(r"Total amount of support and funding:", re.I)
+        )
         if not funding_paragraph:
             # Try alternative search in paragraph content
-            paragraphs = soup.find_all('p', class_='ecl-u-type-paragraph')
+            paragraphs = soup.find_all("p", class_="ecl-u-type-paragraph")
             for p in paragraphs:
-                if 'total amount of support and funding' in p.get_text().lower():
+                if "total amount of support and funding" in p.get_text().lower():
                     funding_paragraph = p
                     break
 
         if funding_paragraph:
             text = funding_paragraph.get_text()
             # Extract amount using regex - matches €followed by numbers, commas, dots
-            amount_match = re.search(r'€([\d,]+\.?\d*)', text)
+            amount_match = re.search(r"€([\d,]+\.?\d*)", text)
             if amount_match:
                 return amount_match.group(1)  # Return just the number part without €
 
         return None
 
-    def _extract_funding_by(self, soup: BeautifulSoup, file_path: Path, title: str, url: str) -> Optional[str]:
+    def _extract_funding_by(
+        self, soup: BeautifulSoup, file_path: Path, title: str, url: str
+    ) -> Optional[str]:
         """Extract funding sponsors data as JSON"""
 
         # Find funding table - look for table with sponsor headers
-        funding_tables = soup.find_all('table', class_='ecl-table')
+        funding_tables = soup.find_all("table", class_="ecl-table")
         funding_table = None
 
         for table in funding_tables:
-            headers = table.find_all('th', class_='ecl-table__header')
+            headers = table.find_all("th", class_="ecl-table__header")
             header_texts = [h.get_text().strip().lower() for h in headers]
 
             # Check if this is the funding table by looking for expected headers
-            if ('name of sponsor' in ' '.join(header_texts) and 
-                'amount in eur' in ' '.join(header_texts)):
+            if "name of sponsor" in " ".join(
+                header_texts
+            ) and "amount in eur" in " ".join(header_texts):
                 funding_table = table
                 break
 
@@ -815,10 +854,10 @@ class ECIHTMLParser:
         sponsors_data = []
 
         # Extract table rows (skip header)
-        rows = funding_table.find_all('tr', class_='ecl-table__row')
+        rows = funding_table.find_all("tr", class_="ecl-table__row")
 
         for row in rows:
-            cells = row.find_all('td', class_='ecl-table__cell')
+            cells = row.find_all("td", class_="ecl-table__cell")
 
             if len(cells) != 3:  # Should have 3 cells: Name, Date, Amount
                 continue
@@ -844,14 +883,16 @@ class ECIHTMLParser:
                 )
 
             # Clean sponsor name (remove superscript references)
-            clean_sponsor_name = re.sub(r'<sup>.*?</sup>', '', sponsor_name)
-            clean_sponsor_name = re.sub(r'\s*\[\d+\]\s*', '', clean_sponsor_name).strip()
+            clean_sponsor_name = re.sub(r"<sup>.*?</sup>", "", sponsor_name)
+            clean_sponsor_name = re.sub(
+                r"\s*\[\d+\]\s*", "", clean_sponsor_name
+            ).strip()
 
             # Add sponsor data (even if some fields are missing)
             sponsor_entry = {
                 "name_of_sponsor": clean_sponsor_name,
                 "date": date,
-                "amount_in_eur": amount
+                "amount_in_eur": amount,
             }
 
             sponsors_data.append(sponsor_entry)
@@ -859,7 +900,9 @@ class ECIHTMLParser:
         # Return JSON string if we have data
         if sponsors_data:
             try:
-                return json.dumps(sponsors_data, ensure_ascii=False, separators=(',', ':'))
+                return json.dumps(
+                    sponsors_data, ensure_ascii=False, separators=(",", ":")
+                )
             except Exception as e:
                 self.logger.error(
                     f"Error serializing funding data to JSON - "
@@ -874,7 +917,7 @@ class ECIHTMLParser:
         """Return full Annex text (concatenated paragraphs) or None."""
 
         # Find the Annex h2 header (case insensitive)
-        annex_h2 = soup.find('h2', string=re.compile(r'^\s*Annex\s*$', re.I))
+        annex_h2 = soup.find("h2", string=re.compile(r"^\s*Annex\s*$", re.I))
 
         if not annex_h2:
             return None
@@ -882,15 +925,15 @@ class ECIHTMLParser:
         texts: List[str] = []
         node = annex_h2.find_next_sibling()
 
-        while node and not (node.name == 'h2'):
+        while node and not (node.name == "h2"):
             # grab paragraph–level text, skip empty / whitespace nodes
-            if node.name in {'p', 'ul', 'ol'}:
-                txt = node.get_text(' ', strip=True)
+            if node.name in {"p", "ul", "ol"}:
+                txt = node.get_text(" ", strip=True)
 
                 if txt:
                     texts.append(txt)
 
             node = node.find_next_sibling()
 
-        joined = ' '.join(texts).strip()
+        joined = " ".join(texts).strip()
         return joined or None

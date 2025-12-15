@@ -62,7 +62,7 @@ class FollowupWebsiteDownloader:
             self._initialize_driver()
 
             # Download each followup website page
-            self.logger.info("Starting download pass...")
+            self.logger.info("Starting download followups...")
 
             for url_data in followup_urls:
                 url = url_data["url"]

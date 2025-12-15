@@ -1,0 +1,12 @@
+Metric,Value
+Total ECIs Registered,121.0
+Successful ECIs,16.0
+Commission Responses,11.0
+Success Rate (%),13.22
+Response Rate of Successful (%),68.75
+Avg Signatures (Successful),1279965.0
+Avg Funding EUR (Successful),533396.0
+Avg Collection Duration Days,428.0
+Avg Time to Response Days,1044.0
+Withdrawn Rate (%),22.31
+Unsuccessful Rate (%),58.68
