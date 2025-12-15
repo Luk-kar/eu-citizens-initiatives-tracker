@@ -84,10 +84,10 @@ def safe_parse_json_list(
     """Parse JSON or Python-repr list string."""
     return _safe_parse_json_container(
         value,
-        source=source,
-        field_name=field_name,
-        registration_number=registration_number,
-        parse_as=list,
+        source,
+        field_name,
+        registration_number,
+        list,
     )
 
 
@@ -97,10 +97,10 @@ def safe_parse_json_object(
     """Parse JSON or Python-repr dict string."""
     return _safe_parse_json_container(
         value,
-        source=source,
-        field_name=field_name,
-        registration_number=registration_number,
-        parse_as=dict,
+        source,
+        field_name,
+        registration_number,
+        dict,
     )
 
 
