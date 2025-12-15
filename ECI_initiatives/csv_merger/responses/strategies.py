@@ -17,68 +17,83 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 
+import json
+from typing import Any, Callable, Iterable, Type, TypeVar
+
+T = TypeVar("T")
+
+
+def _safe_parse_json_container(
+    value: str,
+    *,
+    source: str,
+    field_name: str,
+    registration_number: str,
+    expected_type: Type[T],
+    default: T,
+    container_label: str,  # e.g. "list" / "object"
+) -> T:
+    empty_values = {"", "{}", "null", "None", "NaN", "nan"}
+
+    if value is None:
+        return default
+
+    value_stripped = value.strip()
+    if not value_stripped or value_stripped in empty_values:
+        return default
+
+    # 1) Try strict JSON
+    try:
+        parsed: Any = json.loads(value_stripped)
+        return parsed if isinstance(parsed, expected_type) else default
+    except json.JSONDecodeError:
+        pass
+
+    # 2) Fallback: attempt to coerce Python repr-ish strings to JSON
+    try:
+        json_compatible = value_stripped.replace("'", '"')
+        parsed = json.loads(json_compatible)
+        if isinstance(parsed, expected_type):
+            logger.info(
+                f"{registration_number} - {field_name}: {source} had Python syntax, converted to JSON"
+            )
+            return parsed
+        return default
+    except Exception as e:
+        logger.warning(
+            f"{registration_number} - {field_name}: Could not parse {source} JSON {container_label}: {e}"
+        )
+        return default
+
+
 def safe_parse_json_list(
     value: str, source: str, field_name: str, registration_number: str
 ) -> list:
     """Parse JSON or Python-repr list string."""
-
-    if not value or value in ["", "[]", "null", "None", "NaN", "nan"]:
-        return []
-
-    try:
-        # Try parsing as JSON first
-        parsed = json.loads(value)
-        if isinstance(parsed, list):
-            return parsed
-        return []
-    except json.JSONDecodeError:
-        # Try converting Python repr to JSON by replacing single quotes
-        try:
-            # Replace single quotes with double quotes for JSON compatibility
-            json_compatible = value.replace("'", '"')
-            parsed = json.loads(json_compatible)
-            if isinstance(parsed, list):
-                logger.warning(
-                    f"{registration_number} - {field_name}: {source} had Python syntax, converted to JSON"
-                )
-                return parsed
-            return []
-        except (json.JSONDecodeError, Exception) as e:
-            logger.warning(
-                f"{registration_number} - {field_name}: Could not parse {source} JSON list: {e}"
-            )
-            return []
+    return _safe_parse_json_container(
+        value,
+        source=source,
+        field_name=field_name,
+        registration_number=registration_number,
+        expected_type=list,
+        default=[],
+        container_label="list",
+    )
 
 
 def safe_parse_json_object(
     value: str, source: str, field_name: str, registration_number: str
 ) -> dict:
     """Parse JSON or Python-repr object string."""
-    if not value or value in ["", "{}", "null", "None", "NaN", "nan"]:
-        return {}
-
-    try:
-        # Try parsing as JSON first
-        parsed = json.loads(value)
-        if isinstance(parsed, dict):
-            return parsed
-        return {}
-    except json.JSONDecodeError:
-        # Try converting Python repr to JSON by replacing single quotes
-        try:
-            json_compatible = value.replace("'", '"')
-            parsed = json.loads(json_compatible)
-            if isinstance(parsed, dict):
-                logger.info(
-                    f"{registration_number} - {field_name}: {source} had Python syntax, converted to JSON"
-                )
-                return parsed
-            return {}
-        except (json.JSONDecodeError, Exception) as e:
-            logger.warning(
-                f"{registration_number} - {field_name}: Could not parse {source} JSON object: {e}"
-            )
-            return {}
+    return _safe_parse_json_container(
+        value,
+        source=source,
+        field_name=field_name,
+        registration_number=registration_number,
+        expected_type=dict,
+        default={},
+        container_label="object",
+    )
 
 
 # ============================================================================
