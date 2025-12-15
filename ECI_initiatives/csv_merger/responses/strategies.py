@@ -20,30 +20,32 @@ logger = logging.getLogger(__name__)
 import json
 from typing import Any, Callable, Iterable, Type, TypeVar
 
-T = TypeVar("T")
+T = TypeVar("T", list, dict)
 
 
 def _safe_parse_json_container(
     value: str,
-    *,
     source: str,
     field_name: str,
     registration_number: str,
-    container_label: str,  # e.g. "list" / "dict"
+    parse_as: Type[T],  # list or dict type object
 ) -> T:
+    """Parse JSON or Python-repr container string.
+
+    Args:
+        parse_as: The type to parse as (list or dict)
+    """
     empty_values = {"", "{}", "null", "None", "NaN", "nan"}
 
-    default = None
-
-    if container_label == "list":
+    # Determine default and container label based on type
+    if parse_as is list:
         default = []
-        expected_type = list
-
-    elif container_label == "dict":
+        container_label = "list"
+    elif parse_as is dict:
         default = {}
-        expected_type = dict
+        container_label = "dict"
     else:
-        raise ValueError(f"Wrong container_label type:\n{container_label}")
+        raise ValueError(f"Unsupported parse_as type: {parse_as}")
 
     if value is None:
         return default
@@ -54,8 +56,8 @@ def _safe_parse_json_container(
 
     # 1) Try strict JSON
     try:
-        parsed: Any = json.loads(value_stripped)
-        return parsed if isinstance(parsed, expected_type) else default
+        parsed = json.loads(value_stripped)
+        return parsed if isinstance(parsed, parse_as) else default
     except json.JSONDecodeError:
         pass
 
@@ -63,7 +65,7 @@ def _safe_parse_json_container(
     try:
         json_compatible = value_stripped.replace("'", '"')
         parsed = json.loads(json_compatible)
-        if isinstance(parsed, expected_type):
+        if isinstance(parsed, parse_as):
             logger.info(
                 f"{registration_number} - {field_name}: {source} had Python syntax, converted to JSON"
             )
@@ -85,7 +87,7 @@ def safe_parse_json_list(
         source=source,
         field_name=field_name,
         registration_number=registration_number,
-        container_label="list",
+        parse_as=list,
     )
 
 
@@ -98,7 +100,7 @@ def safe_parse_json_object(
         source=source,
         field_name=field_name,
         registration_number=registration_number,
-        container_label="dict",
+        parse_as=dict,
     )
 
 
