@@ -48,6 +48,35 @@ def safe_parse_json_list(value: str, source: str) -> list:
             return []
 
 
+def safe_parse_json_object(value: str, source: str) -> dict:
+    """Parse JSON or Python-repr object string."""
+    if not value or value in ["", "{}", "null", "None", "NaN", "nan"]:
+        return {}
+
+    try:
+        # Try parsing as JSON first
+        parsed = json.loads(value)
+        if isinstance(parsed, dict):
+            return parsed
+        return {}
+    except json.JSONDecodeError:
+        # Try converting Python repr to JSON by replacing single quotes
+        try:
+            json_compatible = value.replace("'", '"')
+            parsed = json.loads(json_compatible)
+            if isinstance(parsed, dict):
+                logger.info(
+                    f"{registration_number} - {field_name}: {source} had Python syntax, converted to JSON"
+                )
+                return parsed
+            return {}
+        except (json.JSONDecodeError, Exception) as e:
+            logger.warning(
+                f"{registration_number} - {field_name}: Could not parse {source} JSON object: {e}"
+            )
+            return {}
+
+
 # ============================================================================
 # Field-Specific Merge Strategies
 # ============================================================================
@@ -323,34 +352,6 @@ def merge_json_objects(
 
     base_clean = base_value.strip() if base_value else ""
     followup_clean = followup_value.strip() if followup_value else ""
-
-    def safe_parse_json_object(value: str, source: str) -> dict:
-        """Parse JSON or Python-repr object string."""
-        if not value or value in ["", "{}", "null", "None", "NaN", "nan"]:
-            return {}
-
-        try:
-            # Try parsing as JSON first
-            parsed = json.loads(value)
-            if isinstance(parsed, dict):
-                return parsed
-            return {}
-        except json.JSONDecodeError:
-            # Try converting Python repr to JSON by replacing single quotes
-            try:
-                json_compatible = value.replace("'", '"')
-                parsed = json.loads(json_compatible)
-                if isinstance(parsed, dict):
-                    logger.info(
-                        f"{registration_number} - {field_name}: {source} had Python syntax, converted to JSON"
-                    )
-                    return parsed
-                return {}
-            except (json.JSONDecodeError, Exception) as e:
-                logger.warning(
-                    f"{registration_number} - {field_name}: Could not parse {source} JSON object: {e}"
-                )
-                return {}
 
     # Parse JSON objects
     base_obj = safe_parse_json_object(base_clean, "base")
