@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 
-def safe_parse_json_list(value: str, source: str) -> list:
+def safe_parse_json_list(
+    value: str, source: str, field_name: str, registration_number: str
+) -> list:
     """Parse JSON or Python-repr list string."""
 
     if not value or value in ["", "[]", "null", "None", "NaN", "nan"]:
@@ -48,7 +50,9 @@ def safe_parse_json_list(value: str, source: str) -> list:
             return []
 
 
-def safe_parse_json_object(value: str, source: str) -> dict:
+def safe_parse_json_object(
+    value: str, source: str, field_name: str, registration_number: str
+) -> dict:
     """Parse JSON or Python-repr object string."""
     if not value or value in ["", "{}", "null", "None", "NaN", "nan"]:
         return {}
@@ -310,8 +314,12 @@ def merge_json_lists(
     base_list = []
     followup_list = []
 
-    base_list = safe_parse_json_list(base_clean, "base")
-    followup_list = safe_parse_json_list(followup_clean, "followup")
+    base_list = safe_parse_json_list(
+        base_clean, "base", field_name, registration_number
+    )
+    followup_list = safe_parse_json_list(
+        followup_clean, "followup", field_name, registration_number
+    )
 
     # Combine and deduplicate
     merged = base_list.copy()
@@ -354,8 +362,12 @@ def merge_json_objects(
     followup_clean = followup_value.strip() if followup_value else ""
 
     # Parse JSON objects
-    base_obj = safe_parse_json_object(base_clean, "base")
-    followup_obj = safe_parse_json_object(followup_clean, "followup")
+    base_obj = safe_parse_json_object(
+        base_clean, "base", field_name, registration_number
+    )
+    followup_obj = safe_parse_json_object(
+        followup_clean, "followup", field_name, registration_number
+    )
 
     # Merge: start with base
     merged = base_obj.copy()
@@ -479,8 +491,12 @@ def merge_document_urls_list(
     base_clean = base_value.strip() if base_value else ""
     followup_clean = followup_value.strip() if followup_value else ""
 
-    base_list = safe_parse_json_list(base_clean, "base")
-    followup_list = safe_parse_json_list(followup_clean, "followup")
+    base_list = safe_parse_json_list(
+        base_clean, "base", field_name, registration_number
+    )
+    followup_list = safe_parse_json_list(
+        followup_clean, "followup", field_name, registration_number
+    )
 
     # Track seen URLs to remove duplicates
     seen_urls = set()
