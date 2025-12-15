@@ -29,7 +29,7 @@ def _safe_parse_json_container(
     source: str,
     field_name: str,
     registration_number: str,
-    container_label: str,  # e.g. "list" / "object"
+    container_label: str,  # e.g. "list" / "dict"
 ) -> T:
     empty_values = {"", "{}", "null", "None", "NaN", "nan"}
 
@@ -39,7 +39,7 @@ def _safe_parse_json_container(
         default = []
         expected_type = list
 
-    elif container_label == "object":
+    elif container_label == "dict":
         default = {}
         expected_type = dict
     else:
@@ -92,13 +92,13 @@ def safe_parse_json_list(
 def safe_parse_json_object(
     value: str, source: str, field_name: str, registration_number: str
 ) -> dict:
-    """Parse JSON or Python-repr object string."""
+    """Parse JSON or Python-repr dict string."""
     return _safe_parse_json_container(
         value,
         source=source,
         field_name=field_name,
         registration_number=registration_number,
-        container_label="object",
+        container_label="dict",
     )
 
 
