@@ -1335,13 +1335,47 @@ class TestReferencedLegislationById:
             expected == result_obj["CELEX"]
         ), "CELEX numbers should be merged and sorted"
 
+    def test_preserves_sorted_order_for_strings(self):
+        """
+        Test that string list items are sorted after merging.
+
+        When merging lists with string values, the result should be
+        sorted alphabetically for consistent output.
+        """
+        base = '{"Article": ["192", "13", "194"]}'
+        followup = '{"Article": ["193", "13"]}'
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022/000001"
+        )
+
+        result_obj = json.loads(result)
+        # Should be sorted and deduplicated
+        assert ["13", "192", "193", "194"] == result_obj["Article"]
+
+    def test_legislation_ids_with_special_characters(self):
+        """Test that legislation IDs with special characters are decoded properly."""
+        base = '{"Regulation": ["2019/2088 – SFDR", "2020/852"]}'
+        followup = '{"Article": ["13 – TFEU", "192"]}'
+
+        result = merge_field_values(
+            base, followup, "referenced_legislation_by_id", "2022/000001"
+        )
+        result_obj = json.loads(result)
+
+        assert "Regulation" in result_obj
+        assert "Article" in result_obj
+
+        # Verify en dash is decoded
+        assert "–" in result, "Should have en dash decoded"
+        assert "\\u2013" not in result, "Should not have escaped en dash"
+
     def test_legislation_names_with_quotes_and_dashes(self):
         """Test that legislation names with quotes and dashes are decoded."""
         base = '{"directives": ["Water Framework Directive – WFD"]}'
         followup = '{"regulations": ["Commission\'s \\"flagship\\" regulation"]}'
 
         result = merge_field_values(
-            base, followup, "referenced_legislation_by_name", "2022000001"
+            base, followup, "referenced_legislation_by_name", "2022/000001"
         )
         result_obj = json.loads(result)
 
