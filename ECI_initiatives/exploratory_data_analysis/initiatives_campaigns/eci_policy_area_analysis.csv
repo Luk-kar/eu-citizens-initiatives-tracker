@@ -1,10 +1,12 @@
-Policy Area,Total,Successful,Commission Response,Avg Signatures,Success Rate (%)
-Animal Welfare,9,3,2,773492.0,33.33
-Economy & Finance,9,2,0,733089.0,22.22
-Environment,50,9,8,432235.42424242425,18.0
-Health,8,1,1,673257.3333333334,12.5
-Rights & Democracy,26,1,0,211445.7,3.85
-Education & Culture,11,0,0,7944.0,0.0
-Other,5,0,0,10502.5,0.0
-Social Policy,2,0,0,,0.0
-Transport,1,0,0,40682.0,0.0
+Policy Area,Total,Successful,Commission Response,Avg Signatures,Median Signatures,Success Rate (%)
+Agriculture & Fisheries & Animal rights,14,7,6,805500,1087484,50.0
+Health,10,2,1,633378,261799,20.0
+Social Policy,14,2,2,691345,296365,14.29
+Democracy & Citizens’ rights,23,3,1,399285,25124,13.04
+Consumer protection,8,1,0,464857,8003,12.5
+Environment & Climate,23,1,1,138627,6123,4.35
+Digital & Communications,4,0,0,42704,42703,0.0
+Economy & Finance,10,0,0,170035,159303,0.0
+Education & Culture,9,0,0,1915,1485,0.0
+Joke ECI,1,0,0,254,254,0.0
+Transport,5,0,0,22214,22214,0.0

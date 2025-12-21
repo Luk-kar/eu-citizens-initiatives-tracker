@@ -1,12 +1,23 @@
 Metric,Value
-Total ECIs Registered,121.0
-Successful ECIs,16.0
-Commission Responses,11.0
+Total ECIs Registered,121
+Successful ECIs,16
+Commission Responses,11
 Success Rate (%),13.22
 Response Rate of Successful (%),68.75
-Avg Signatures (Successful),1279965.0
-Avg Funding EUR (Successful),533396.0
-Avg Collection Duration Days,428.0
-Avg Time to Response Days,1044.0
+Avg Signatures (Successful),1279965
+Median Signatures (Successful),1231877
+Max Signatures (Successful),1721626
+Avg Funding EUR (Successful),433384.26
+Median Funding EUR (Successful),200604
+Max Funding EUR (Successful),2160614.83
+Min Funding EUR (Successful),0
+Avg Collection Duration Days,428
+Median Collection Duration Days,365
+Max Collection Duration Days,731
+Min Collection Duration Days,158
+Avg Time to Response Days,1044
+Median Time to Response Days,1023
+Max Time to Response Days,2311
+Min Time to Response Days,321
 Withdrawn Rate (%),22.31
 Unsuccessful Rate (%),58.68
