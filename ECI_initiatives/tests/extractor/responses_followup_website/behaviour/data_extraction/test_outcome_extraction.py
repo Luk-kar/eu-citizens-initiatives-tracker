@@ -1507,7 +1507,7 @@ class TestOutcomeExtraction:
         assert action["status"] == "proposed"
 
         # Test case 6: Legislation entered into force
-        html_in_force = """
+        html_in_vacatio_legis = """
         <div>
             <div class="ecl">
                 <h2 id="response-of-the-commission">Response of the Commission</h2>
@@ -1522,12 +1522,14 @@ class TestOutcomeExtraction:
         </div>
         """
 
-        extractor_6 = FollowupWebsiteExtractor(html_in_force)
+        extractor_6 = FollowupWebsiteExtractor(html_in_vacatio_legis)
         result_6 = extractor_6.extract_laws_actions()
 
         assert result_6 is not None, "Should extract in-force legislation"
         action = result_6[0]
-        assert action["status"] == "in_force", "Status should be 'in_force'"
+        assert (
+            action["status"] == "in_vacatio_legis"
+        ), "Status should be 'in_vacatio_legis'"
         assert action["date"] == "2024-01-15", "Should extract force date"
 
         # Test case 7: Multiple actions

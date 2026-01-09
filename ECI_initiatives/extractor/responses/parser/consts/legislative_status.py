@@ -16,7 +16,7 @@ class LegislativeStatus:
         Represents a legislative status with associated metadata.
 
         Attributes:
-            name: Status identifier (e.g., 'in_force', 'adopted')
+            name: Status identifier (e.g., '"in_vacatio_legis"', 'adopted')
             priority: Priority level for matching (lower number = higher priority)
             keywords: List of (keyword, weight) tuples for date extraction context
             action_patterns: List of regex patterns to match this status in text
@@ -31,7 +31,7 @@ class LegislativeStatus:
 
     # Vacatio legis: Law is active but binding obligations delayed (implementation window)
     IN_VACATIO_LEGIS = Status(
-        name="in_force",
+        name="in_vacatio_legis",
         priority=1,
         keywords=[
             ("apply from", 3),
@@ -114,7 +114,7 @@ class LegislativeStatus:
 
     # Lookup dictionaries for convenience
     BY_NAME: Dict[str, Status] = {
-        "in_force": IN_VACATIO_LEGIS,
+        "in_vacatio_legis": IN_VACATIO_LEGIS,
         "withdrawn": WITHDRAWN,
         "adopted": ADOPTED,
         "proposed": PROPOSED,

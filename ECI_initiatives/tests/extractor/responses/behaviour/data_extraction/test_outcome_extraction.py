@@ -1650,13 +1650,13 @@ class TestCommissionResponseContent:
         # Check amendment
         amendment = next((a for a in result if a["type"] == "Amendment"), None)
         assert amendment is not None
-        assert amendment["status"] == "in_force"
+        assert amendment["status"] == "in_vacatio_legis"
         assert amendment["date"] == "2015-10-28"
 
         # Check directive revision
         directive = next((a for a in result if "Directive Revision" in a["type"]), None)
         assert directive is not None
-        assert directive["status"] == "in_force"
+        assert directive["status"] == "in_vacatio_legis"
         assert directive["date"] == "2021-01-12"
 
         # Check water reuse regulation
@@ -1664,7 +1664,7 @@ class TestCommissionResponseContent:
             (a for a in result if "reuse" in a["description"].lower()), None
         )
         assert water_reuse is not None
-        assert water_reuse["status"] == "in_force"
+        assert water_reuse["status"] == "in_vacatio_legis"
         assert water_reuse["date"] == "2023-06-26"
 
         # Check standards adoption
@@ -1720,8 +1720,10 @@ class TestCommissionResponseContent:
         assert proposal is None  # the proposal was adopted
 
         # Check in force
-        in_force = next((a for a in result if a["status"] == "in_force"), None)
-        assert in_force is not None
+        in_vacatio_legis = next(
+            (a for a in result if a["status"] == "in_vacatio_legis"), None
+        )
+        assert in_vacatio_legis is not None
 
         # Test 4: Withdrawn proposal (2019/000016)
         html_withdrawn = """
@@ -1752,7 +1754,7 @@ class TestCommissionResponseContent:
             (a for a in result if "nature" in a["description"].lower()), None
         )
         assert nature_law is not None
-        assert nature_law["status"] == "in_force"
+        assert nature_law["status"] == "in_vacatio_legis"
         assert nature_law["date"] == "2024-08-18"
 
         # Test 5: Rejected initiative - should return None (2012/000005)
