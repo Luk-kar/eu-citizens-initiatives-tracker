@@ -28,9 +28,7 @@ class LegislativeStatus:
         action_patterns: List[Dict[str, str]]
 
     # Define all statuses as class attributes
-
-    # Vacatio legis: Law is active but binding obligations delayed (implementation window)
-    IN_VACATIO_LEGIS = Status(
+    IN_FORCE = Status(
         name="in_force",
         priority=1,
         keywords=[
@@ -114,20 +112,14 @@ class LegislativeStatus:
 
     # Lookup dictionaries for convenience
     BY_NAME: Dict[str, Status] = {
-        "in_force": IN_VACATIO_LEGIS,
+        "in_force": IN_FORCE,
         "withdrawn": WITHDRAWN,
         "adopted": ADOPTED,
         "proposed": PROPOSED,
         "planned": PLANNED,
     }
 
-    ALL_STATUSES: List[Status] = [
-        IN_VACATIO_LEGIS,
-        WITHDRAWN,
-        ADOPTED,
-        PROPOSED,
-        PLANNED,
-    ]
+    ALL_STATUSES: List[Status] = [IN_FORCE, WITHDRAWN, ADOPTED, PROPOSED, PLANNED]
 
     @classmethod
     def get_status(cls, name: str) -> Optional[Status]:
