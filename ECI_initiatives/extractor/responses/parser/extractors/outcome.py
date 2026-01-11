@@ -748,10 +748,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         keywords = status_obj.keywords
 
         # Try to find date in context of status keyword
-        best_date = None
-        best_priority = 0
-
-        for keyword, priority in keywords:
+        for keyword in keywords:
 
             if keyword not in text_lower:
                 continue
@@ -766,9 +763,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
             clause_end = len(text_from_keyword)
 
             for delimiter in [". ", "; "]:
-
                 pos = text_from_keyword.find(delimiter)
-
                 if pos != -1 and pos < clause_end:
                     clause_end = pos
 
@@ -777,25 +772,17 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
             # Try to find a date in this clause
             for date_pattern in date_patterns:
-
                 match = re.search(date_pattern, clause, re.IGNORECASE)
-
                 if match:
-
                     date_str = match.group(1)
                     parsed = parse_date_string(date_str)
-
                     if parsed:
-
-                        # Update if this is higher priority
-                        if priority > best_priority:
-
-                            best_date = parsed
-                            best_priority = priority
-
+                        found_date = parsed
                         break
 
-        found_date = best_date
+            # If we found a date with this keyword, stop searching
+            if found_date:
+                break
 
         # Fallback: if no date found near status keyword, try the whole text
         if not found_date:
