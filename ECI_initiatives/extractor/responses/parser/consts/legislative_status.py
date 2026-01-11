@@ -29,20 +29,33 @@ class LegislativeStatus:
 
     # Define all statuses as class attributes
 
+    # Status for laws that are actually binding and enforceable
+    LAW_ACTIVE = Status(
+        name="law_active",
+        priority=1,  # HIGHEST priority - most advanced stage
+        keywords=[
+            ("applies from", 3),
+            ("apply from", 3),
+            ("rules apply from", 3),
+            ("became applicable", 3),
+        ],
+        action_patterns=[
+            # Match actual applicability phrases
+            r"(?<!will\s)(?:became applicable|applies from|apply from|rules apply from)",
+        ],
+    )
+
     # Vacatio legis: Law is active but binding obligations delayed (implementation window)
     IN_VACATIO_LEGIS = Status(
         name="in_vacatio_legis",
-        priority=1,
+        priority=2,  # Lower priority than LAW_ACTIVE
         keywords=[
-            ("apply from", 3),
-            ("applies from", 3),
-            ("rules apply from", 3),
             ("entered into force", 2),
             ("came into force", 2),
-            ("became applicable", 2),
         ],
         action_patterns=[
-            r"(?<!will\s)(?:entered into force|became applicable|applies from|came into force|apply from)",
+            # Match "entered/came into force" WITHOUT "became applicable/applies from" nearby
+            r"(?<!will\s)(?:entered into force|came into force)(?!.*(?:became applicable|applies from|apply from))",
         ],
     )
 
@@ -122,6 +135,7 @@ class LegislativeStatus:
     }
 
     ALL_STATUSES: List[Status] = [
+        LAW_ACTIVE,
         IN_VACATIO_LEGIS,
         WITHDRAWN,
         ADOPTED,

@@ -1647,27 +1647,31 @@ class TestCommissionResponseContent:
         assert result is not None
         assert len(result) == 4
 
-        # Check amendment
+        print(result)
+
+        # Check amendment - only "came into force", no applicability date
         amendment = next((a for a in result if a["type"] == "Amendment"), None)
         assert amendment is not None
         assert amendment["status"] == "in_vacatio_legis"
         assert amendment["date"] == "2015-10-28"
 
-        # Check directive revision
+        # Check directive revision - only "entered into force"
         directive = next((a for a in result if "Directive Revision" in a["type"]), None)
         assert directive is not None
         assert directive["status"] == "in_vacatio_legis"
         assert directive["date"] == "2021-01-12"
 
-        # Check water reuse regulation
+        # Check water reuse regulation - has "apply from" → law_active
         water_reuse = next(
             (a for a in result if "reuse" in a["description"].lower()), None
         )
         assert water_reuse is not None
-        assert water_reuse["status"] == "in_vacatio_legis"
-        assert water_reuse["date"] == "2023-06-26"
+        assert water_reuse["status"] == "law_active", f"law action:\n{water_reuse}"
+        assert (
+            water_reuse["date"] == "2023-06-26"
+        )  # Uses "apply from" date, not "entered into force"
 
-        # Check standards adoption
+        # Check standards adoption - future "will apply"
         standards = next((a for a in result if a["type"] == "Standards Adoption"), None)
         assert standards is not None
         assert standards["status"] == "planned"
@@ -1717,9 +1721,9 @@ class TestCommissionResponseContent:
 
         # Check proposal
         proposal = next((a for a in result if a["status"] == "proposed"), None)
-        assert proposal is None  # the proposal was adopted
+        assert proposal is None  # the proposal was later entered into force
 
-        # Check in force
+        # Check in vacatio legis - only "entered into force", no applicability
         in_vacatio_legis = next(
             (a for a in result if a["status"] == "in_vacatio_legis"), None
         )
@@ -1749,7 +1753,7 @@ class TestCommissionResponseContent:
         assert withdrawn is not None
         assert withdrawn["date"] == "2024-03-27"
 
-        # Check adopted nature restoration
+        # Check adopted nature restoration - only "entered into force"
         nature_law = next(
             (a for a in result if "nature" in a["description"].lower()), None
         )
@@ -1869,8 +1873,6 @@ class TestCommissionResponseContent:
         assert len(result) >= 1
 
         # Test 12: Date extraction from various formats
-        # TODO: <li>Directive adopted in May 2024.</li>
-        # As far it works until to 2022/000002
         html_date_formats = """
         <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
         <p>The Commission will address the concerns raised by this initiative.</p>
@@ -1893,6 +1895,79 @@ class TestCommissionResponseContent:
         dates = [a.get("date") for a in result if "date" in a]
         assert any("2023-01-12" in str(d) for d in dates)
         assert any("2024" in str(d) for d in dates)
+
+        # NEW Test 13: Law actually became applicable (law_active status)
+        html_law_active = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission will address the concerns raised by this initiative.</p>
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>The Regulation on animal welfare became applicable on 1 January 2024.</p>
+        <p>New rules on food labeling apply from 15 March 2025.</p>
+        """
+        soup = BeautifulSoup(html_law_active, "html.parser")
+        extractor = LegislativeOutcomeExtractor("2024/000004")
+        result = extractor.extract_legislative_action(soup)
+
+        assert result is not None
+        assert len(result) == 2
+
+        # Check first action with "became applicable"
+        animal_welfare = next(
+            (a for a in result if "animal welfare" in a["description"].lower()), None
+        )
+        assert animal_welfare is not None
+        assert animal_welfare["status"] == "law_active"
+        assert animal_welfare["date"] == "2024-01-01"
+
+        # Check second action with "apply from"
+        food_labeling = next(
+            (a for a in result if "food labeling" in a["description"].lower()), None
+        )
+        assert food_labeling is not None
+        assert food_labeling["status"] == "law_active"
+        assert food_labeling["date"] == "2025-03-15"
+
+        # NEW Test 14: Full lifecycle - entered force then became applicable
+        html_full_lifecycle = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission will address the concerns raised by this initiative.</p>
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>The Directive on packaging waste was published in the Official Journal and 
+        entered into force on 20 May 2023. The rules apply from 1 January 2025.</p>
+        """
+        soup = BeautifulSoup(html_full_lifecycle, "html.parser")
+        extractor = LegislativeOutcomeExtractor("2024/000005")
+        result = extractor.extract_legislative_action(soup)
+
+        assert result is not None
+        assert len(result) == 1
+
+        # Should use law_active (higher priority) and extract "apply from" date
+        packaging = result[0]
+        assert packaging["status"] == "law_active"
+        assert (
+            packaging["date"] == "2025-01-01"
+        )  # Uses applicability date, not entry into force
+
+        # NEW Test 15: Only "entered into force" without applicability
+        html_only_entered_force = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission will address the concerns raised by this initiative.</p>
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>Following adoption by the Council, the Directive on consumer rights entered 
+        into force on 8 July 2024.</p>
+        """
+        soup = BeautifulSoup(html_only_entered_force, "html.parser")
+        extractor = LegislativeOutcomeExtractor("2024/000006")
+        result = extractor.extract_legislative_action(soup)
+
+        assert result is not None
+        assert len(result) == 1
+
+        # Should be in_vacatio_legis (no applicability date mentioned)
+        consumer_rights = result[0]
+        assert consumer_rights["status"] == "in_vacatio_legis"
+        assert consumer_rights["date"] == "2024-07-08"
 
     def test_non_legislative_action(self):
         """Test extraction of non-legislative action JSON array."""

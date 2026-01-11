@@ -1506,7 +1506,7 @@ class TestOutcomeExtraction:
         assert "revision" in action["description"].lower()
         assert action["status"] == "proposed"
 
-        # Test case 6: Legislation entered into force
+        # Test case 6: Legislation entered into force (in vacatio legis)
         html_in_vacatio_legis = """
         <div>
             <div class="ecl">
@@ -1531,6 +1531,60 @@ class TestOutcomeExtraction:
             action["status"] == "in_vacatio_legis"
         ), "Status should be 'in_vacatio_legis'"
         assert action["date"] == "2024-01-15", "Should extract force date"
+
+        # Test case 6.5: Law became applicable (law_active) - HIGHEST priority status
+        html_law_active = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    A proposal for a regulation on minimum requirements for water reuse 
+                    was adopted by the Commission in May 2018. The Regulation entered 
+                    into force in June 2020. The new rules apply from 26 June 2023.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_6_5 = FollowupWebsiteExtractor(html_law_active)
+        result_6_5 = extractor_6_5.extract_laws_actions()
+
+        assert result_6_5 is not None, "Should extract law_active legislation"
+        action = result_6_5[0]
+        assert (
+            action["status"] == "law_active"
+        ), f"Status should be 'law_active', got {action['status']}"
+        assert (
+            action["date"] == "2023-06-26"
+        ), f"Should extract applicability date, got {action['date']}"
+        assert "water reuse" in action["description"].lower()
+
+        # Test case 6.6: Became applicable (alternative law_active phrase)
+        html_became_applicable = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>
+                    The Regulation on animal welfare became applicable on 1 January 2024,
+                    establishing new binding requirements for member states.
+                </p>
+            </div>
+            <p class="ecl-social-media-share__description">Share this page</p>
+        </div>
+        """
+
+        extractor_6_6 = FollowupWebsiteExtractor(html_became_applicable)
+        result_6_6 = extractor_6_6.extract_laws_actions()
+
+        assert result_6_6 is not None, "Should extract became applicable legislation"
+        action = result_6_6[0]
+        assert action["status"] == "law_active", "Status should be 'law_active'"
+        assert action["date"] == "2024-01-01", "Should extract applicability date"
 
         # Test case 7: Multiple actions
         html_multiple = """
@@ -2086,8 +2140,3 @@ class TestOutcomeExtraction:
             "report was published" in action["description"].lower()
             or "transparency" in action["description"].lower()
         )
-
-    def test_extract_policies_actions(self):
-        """Test extraction of non-legislative policy actions JSON."""
-        # TODO: Implement test
-        pass
