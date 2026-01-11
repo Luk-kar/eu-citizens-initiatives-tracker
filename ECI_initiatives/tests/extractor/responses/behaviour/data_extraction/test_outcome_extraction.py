@@ -1647,8 +1647,6 @@ class TestCommissionResponseContent:
         assert result is not None
         assert len(result) == 4
 
-        print(result)
-
         # Check amendment - only "came into force", no applicability date
         amendment = next((a for a in result if a["type"] == "Amendment"), None)
         assert amendment is not None
