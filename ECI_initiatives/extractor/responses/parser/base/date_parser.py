@@ -63,29 +63,12 @@ def convert_deadline_to_date(deadline: str) -> Optional[str]:
         deadline: Cleaned deadline text like "may 2018", "the end of 2023",
                     "end 2024", "2019", "early 2026", "Q1 2023",
                     "first half of 2023", "second quarter of 2024",
-                    "since 2023", or complete dates like "12 december 2025"
+                    "autumn 2023", "late 2025", "since 2023",
+                    or complete dates like "12 december 2025"
 
     Returns:
         Date string in YYYY-MM-DD format (last day of period, or first day for "since")
         or None if parsing fails
-
-    Examples:
-        - "12 December 2025" → "2025-12-12"
-        - "May 2018" → "2018-05-31"
-        - "the end of 2023" → "2023-12-31"
-        - "end of 2024" → "2024-12-31"
-        - "end 2024" → "2024-12-31"
-        - "2019" → "2019-12-31"
-        - "March 2026" → "2026-03-31"
-        - "early 2026" → "2026-03-31"
-        - "first half of 2023" → "2023-06-30"
-        - "second half of 2023" → "2023-12-31"
-        - "half of 2023" → "2023-06-30"
-        - "first quarter of 2024" → "2024-03-31"
-        - "Q1 2023" → "2023-03-31"
-        - "Q2 2023" → "2023-06-30"
-        - "middle of 2023" → "2023-06-30"
-        - "since 2023" → "2023-01-01"
     """
     deadline_lower = deadline.lower().strip()
 
@@ -103,6 +86,21 @@ def convert_deadline_to_date(deadline: str) -> Optional[str]:
     since_match = re.search(r"\bsince\s+(\d{4})\b", deadline_lower)
     if since_match:
         return f"{year}-01-01"
+
+    # Pattern: Seasons (Standard EU/Meteorological approximation to end of relevant quarter/season)
+    if "spring" in deadline_lower:
+        return f"{year}-06-20"  # End of Spring
+    if "summer" in deadline_lower:
+        return f"{year}-09-22"  # End of Summer
+    if "autumn" in deadline_lower or "fall" in deadline_lower:
+        return f"{year}-12-21"  # End of Autumn
+    if "winter" in deadline_lower:
+        # Winter 2023 usually means start of 2023 (Jan-Mar). Target end of Q1.
+        return f"{year}-03-31"
+
+    # Pattern: "late YYYY" - interpret as end of year
+    if re.search(r"\blate\s+(\d{4})\b", deadline_lower):
+        return f"{year}-12-31"
 
     # Pattern: Quarters - "Q1 YYYY", "Q2 YYYY", etc.
     quarter_q_match = re.search(r"\bq([1-4])\s+\d{4}\b", deadline_lower)
@@ -193,12 +191,14 @@ def convert_deadline_to_date(deadline: str) -> Optional[str]:
         return f"{year}-{month_num:02d}-{last_day:02d}"
 
     # Pattern: Just a year "YYYY" (e.g., "2019")
+    # Note: Only matches if string is EXACTLY "YYYY" (stripped) or very close.
+    # The regex logic in extractor usually handles complex sentences, so this is a fallback.
     year_only_match = re.match(r"^(\d{4})$", deadline_lower)
     if year_only_match:
         return f"{year}-12-31"
 
     # Pattern: Complete date with day (e.g., "12 December 2025", "1 August 2025")
-    # Try to parse as complete date first
+    # Try to parse as complete date first if nothing else matched
     complete_date = parse_date_string(deadline)
     if complete_date:
         return complete_date

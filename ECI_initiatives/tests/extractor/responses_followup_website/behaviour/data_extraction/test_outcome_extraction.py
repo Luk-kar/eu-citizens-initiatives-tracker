@@ -768,6 +768,39 @@ class TestOutcomeExtraction:
         # If capturing, adjust assertion accordingly
         assert result_7 is None, "Should not capture 'closed on' dates (past deadlines)"
 
+        # Test case 8: New Complex Deadlines (Seasons, Halves, Late)
+        # Using supported phrasings (by [date])
+        html_8 = """
+        <div>
+            <div class="ecl">
+                <h2 id="response-of-the-commission">Response of the Commission</h2>
+            </div>
+            <div class="ecl">
+                <p>The Commission committed to come forward with a legislative proposal by the second half of 2024.</p>
+                <p>It will then communicate by autumn 2025.</p>
+                <p>It will launch an impact assessment by late 2026.</p>
+            </div>
+        </div>
+        """
+
+        extractor_8 = FollowupWebsiteExtractor(html_8)
+        result_8 = extractor_8.extract_commissions_deadlines()
+
+        assert result_8 is not None, "Should extract complex deadlines"
+        assert len(result_8) == 3, "Should extract all 3 deadlines"
+
+        # "second half of 2024" -> 2024-12-31
+        assert "2024-12-31" in result_8
+        assert "legislative proposal" in result_8["2024-12-31"]
+
+        # "autumn 2025" -> 2025-12-21
+        assert "2025-12-21" in result_8
+        assert "will then communicate" in result_8["2025-12-21"]
+
+        # "late 2026" -> 2026-12-31
+        assert "2026-12-31" in result_8
+        assert "impact assessment" in result_8["2026-12-31"]
+
     def test_extract_commission_rejected_initiative(self):
         """Test detection of Commission rejection."""
 

@@ -2225,3 +2225,73 @@ class TestFollowupActivityExtraction:
         assert "2030-01-01" not in result_14[0]["dates"]  # "2030 Agenda" excluded
         assert "2050-01-01" not in result_14[0]["dates"]  # "Vision 2050" excluded
         assert result_14[0]["dates"] == []
+
+        # Test 15: Complex Deadline Expressions (Seasons, Halves, Late)
+        html_complex_deadlines = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <p>Work started in the second half of 2023.</p>
+                    <p>We have been monitoring since 2022.</p>
+                    <p>Publication in autumn 2024.</p>
+                    <p>Finalization in late 2025.</p>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_15 = FollowupWebsiteExtractor(html_complex_deadlines)
+        result_15 = extractor_15.extract_followup_events_with_dates()
+
+        assert len(result_15) == 4, "Should extract four complex deadline events"
+
+        # "second half of 2023" -> 2023-12-31
+        assert "2023-12-31" in result_15[0]["dates"]
+
+        # "since 2022" -> 2022-01-01
+        assert "2022-01-01" in result_15[1]["dates"]
+
+        # "autumn 2024" -> 2024-12-21
+        assert "2024-12-21" in result_15[2]["dates"]
+
+        # "late 2025" -> 2025-12-31
+        assert "2025-12-31" in result_15[3]["dates"]
+
+        # Test 16: Quarters Format Check
+        html_quarters = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <p>Q1 2024 milestone.</p>
+                    <p>Third quarter of 2025 milestone.</p>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_16 = FollowupWebsiteExtractor(html_quarters)
+        result_16 = extractor_16.extract_followup_events_with_dates()
+
+        assert len(result_16) == 2, "Should extract two quarter events"
+
+        # "Q1 2024" -> 2024-03-31
+        assert "2024-03-31" in result_16[0]["dates"]
+
+        # "third quarter of 2025" -> 2025-09-30
+        assert "2025-09-30" in result_16[1]["dates"]

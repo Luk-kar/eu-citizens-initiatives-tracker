@@ -1636,14 +1636,14 @@ class TestFollowUpActivities:
 
         assert len(result7) == 3
         # First paragraph
-        assert "2023-01-01" in result7[0]["dates"]
-        assert "roadmap" in result7[0]["action"]
+        assert "2023-12-31" in result7[0]["dates"], result7[0]
+        assert "roadmap" in result7[0]["action"], result7[0]
         # First list item with "early 2026" deadline
-        assert "2026-03-31" in result7[1]["dates"]  # early = end of Q1
-        assert "Finalisation" in result7[1]["action"]
+        assert "2026-03-31" in result7[1]["dates"], result7[1]  # early = end of Q1
+        assert "Finalisation" in result7[1]["action"], result7[1]
         # Second list item
-        assert "2023-01-01" in result7[2]["dates"]
-        assert "workshops" in result7[2]["action"]
+        assert "2023-01-01" in result7[2]["dates"], result7[2]
+        assert "workshops" in result7[2]["action"], result7[2]
 
         # TEST 8: Date deduplication (avoid extracting Month YYYY when DD Month YYYY exists)
         html8 = """
@@ -1967,3 +1967,47 @@ class TestFollowUpActivities:
         assert "2030-01-01" not in result28[0]["dates"]  # "2030 Agenda" excluded
         assert "2050-01-01" not in result28[0]["dates"]  # "Vision 2050" excluded
         assert result28[0]["dates"] == []
+
+        # TEST 29: Complex Deadline Expressions (Halves, Seasons, "Since")
+        html29 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>In the second half of 2023, the Commission started work.</p>
+        <p>This has been ongoing since 2022.</p>
+        <p>Results expected by autumn 2024.</p>
+        <p>A comprehensive review of the legislation is planned for late 2025.</p>
+        """
+        soup29 = BeautifulSoup(html29, "html.parser")
+        result29 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup29
+        )
+
+        assert len(result29) == 4
+        # "second half of 2023" -> 2023-12-31
+        assert "2023-12-31" in result29[0]["dates"]
+
+        # "since 2022" -> 2022-01-01
+        assert "2022-01-01" in result29[1]["dates"]
+
+        # "autumn 2024" -> 2024-12-21 (or similar end-of-season logic)
+        assert "2024-12-21" in result29[2]["dates"]
+
+        # "late 2025" -> 2025-12-31
+        assert "2025-12-31" in result29[3]["dates"]
+
+        # TEST 30: Quarters (Q1, First Quarter)
+        html30 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>The first implementation report is currently due for publication in Q1 2024.</p>
+        <p>A stakeholder meeting is scheduled to take place in the third quarter of 2025.</p>
+        """
+        soup30 = BeautifulSoup(html30, "html.parser")
+        result30 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup30
+        )
+
+        assert len(result30) == 2
+        # "Q1 2024" -> 2024-03-31
+        assert "2024-03-31" in result30[0]["dates"]
+
+        # "third quarter of 2025" -> 2025-09-30
+        assert "2025-09-30" in result30[1]["dates"]

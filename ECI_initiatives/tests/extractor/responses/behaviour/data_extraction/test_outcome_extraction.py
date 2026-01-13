@@ -1446,6 +1446,7 @@ class TestCommissionResponseContent:
         assert "by March 2026" in result["2026-03-31"]
 
         # Test 4: Report to be produced with standalone year
+        # Note: This relies on the extractor regex catching "in 2019" or similar context
         html_report_year = """
         <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
         <ul>
@@ -1610,6 +1611,31 @@ class TestCommissionResponseContent:
         assert "On the second aim" in result["2018-05-31"]
         assert "EFSA" in result["2018-05-31"]
         assert "for risk assessment." in result["2018-05-31"]
+
+        # Test 15: Complex Deadlines (Seasons, Halves, Late)
+        # using phrasing compatible with existing DEADLINE_PATTERNS (e.g. "by [date]")
+        html_complex_deadlines = """
+        <h2 id="Answer-of-the-European-Commission">Answer of the European Commission</h2>
+        <p>The Commission committed to come forward with a legislative proposal by the second half of 2024.</p>
+        <p>It will then communicate by autumn 2025.</p>
+        <p>It will launch an impact assessment by late 2026.</p>
+        """
+        soup = BeautifulSoup(html_complex_deadlines, "html.parser")
+        extractor = LegislativeOutcomeExtractor("2024/000001")
+        result = extractor.extract_commissions_deadlines(soup)
+
+        assert result is not None
+        # "second half of 2024" -> 2024-12-31
+        assert "2024-12-31" in result
+        assert "legislative proposal" in result["2024-12-31"]
+
+        # "autumn 2025" -> 2025-12-21
+        assert "2025-12-21" in result
+        assert "will then communicate" in result["2025-12-21"]
+
+        # "late 2026" -> 2026-12-31
+        assert "2026-12-31" in result
+        assert "impact assessment" in result["2026-12-31"]
 
     def test_legislative_action(self):
         """Test extraction of legislative action JSON array."""

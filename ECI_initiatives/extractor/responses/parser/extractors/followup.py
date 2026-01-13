@@ -890,18 +890,29 @@ class FollowUpActivityExtractor(BaseExtractor):
         month_names_abbr = "|".join(calendar.month_abbr[1:])
         month_names_pattern = f"(?:{month_names_full}|{month_names_abbr})"
 
+        # Helper patterns for complex deadlines
+        ordinals = r"(?:first|second|third|fourth|last)"
+        periods = r"(?:half|quarter)"
+        seasons = r"(?:spring|summer|autumn|fall|winter)"
+
         # Date patterns ordered by specificity (most specific first)
         date_patterns = [
             # 1. ISO format YYYY-MM-DD (e.g., "2025-09-10")
             (r"\b(\d{4})-(\d{1,2})-(\d{1,2})\b", "iso"),
             # 2. Numeric formats (e.g., "09/09/2014", "12.10.2015", "27-03-2021")
-            # Uses backreference \2 to ensure separators match
             (r"\b(\d{1,2})([./-])(\d{1,2})\2(\d{4})\b", "numeric"),
             # 3. DD Month YYYY (e.g., "28 October 2015", "15 Mar 2021")
             (rf"\b(\d{{1,2}})\s+({month_names_pattern})\s+(\d{{4}})\b", "dmy"),
-            # 4. Deadline expressions (e.g., "early 2026", "end of 2023", "end 2024")
+            # 4. Complex Deadline Expressions
+            # Matches: "early 2026", "end of 2023", "second half of 2024", "autumn 2023", "since 2022"
             (
-                rf"\b(?:early|end(?:\s+of)?)\s+(?:({month_names_pattern})\s+)?(\d{{4}})\b",
+                rf"\b(?:"
+                rf"(?:early|late|end(?:\s+of)?)|"  # early/end/late
+                rf"(?:{ordinals}\s+{periods}(?:\s+of)?)|"  # first half of...
+                rf"(?:{seasons})|"  # autumn...
+                rf"(?:since)|"  # since...
+                rf"(?:Q[1-4])"  # Q1...
+                rf")\s+(\d{{4}})\b",  # ... YEAR
                 "deadline",
             ),
             # 5. Month YYYY (e.g., "February 2018", "Mar 2024")
@@ -914,7 +925,6 @@ class FollowUpActivityExtractor(BaseExtractor):
             # - Ranges: "2021-2027"
             (r"(?<![\d\/\(\-])\b(20\d{2})\b(?![\d\/\-])", "y"),
         ]
-
         found_dates = []
         used_positions: set = set()
 
