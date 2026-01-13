@@ -2111,3 +2111,117 @@ class TestFollowupActivityExtraction:
         assert (
             "2025-06-20" in result_11[1]["dates"]
         ), "Should extract date from nested list item"
+
+        # Test 12: False Positive - URL containing full date
+        # Verify that URL stripping works.
+        html_url_date = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <p>Report at https://example.com/files/report-2023-05-12.pdf</p>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_12 = FollowupWebsiteExtractor(html_url_date)
+        result_12 = extractor_12.extract_followup_events_with_dates()
+
+        # Should NOT find 2023-05-12 because URL was stripped
+        assert len(result_12) == 1
+        assert "2023-05-12" not in result_12[0]["dates"]
+        assert result_12[0]["dates"] == []
+
+        # Test 13: False Positive - Range exclusion
+        # Verify that hyphenated ranges (2021-2027) are ignored.
+        html_range = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <p>The program runs for the period 2021-2027.</p>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_13 = FollowupWebsiteExtractor(html_range)
+        result_13 = extractor_13.extract_followup_events_with_dates()
+
+        # Should NOT find 2021 or 2027
+        assert len(result_13) == 1
+        assert "2021-01-01" not in result_13[0]["dates"]
+        assert "2027-01-01" not in result_13[0]["dates"]
+        assert result_13[0]["dates"] == []
+
+        # Test 13: False Positive - Range exclusion
+        # Verify that hyphenated ranges (2021-2027) are ignored.
+        html_range = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <p>The program runs for the period 2021-2027.</p>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_13 = FollowupWebsiteExtractor(html_range)
+        result_13 = extractor_13.extract_followup_events_with_dates()
+
+        # Should NOT find 2021 or 2027
+        assert len(result_13) == 1
+        assert "2021-01-01" not in result_13[0]["dates"]
+        assert "2027-01-01" not in result_13[0]["dates"]
+        assert result_13[0]["dates"] == []
+
+        # Test 14: False Positive - Named Agendas
+        # "2030 Agenda", "Vision 2050", etc. should be ignored.
+        html_agenda = """
+        <div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="response-of-the-commission">Response of the Commission</h2>
+                </div>
+            </div>
+            <div class="ecl-u-mb-2xl">
+                <div class="ecl">
+                    <h2 class="ecl-u-type-heading-2" id="next-steps">Next steps</h2>
+                </div>
+                <div class="ecl">
+                    <p>This action supports the 2030 Agenda and Vision 2050. Also relates to Industry 4.0 standards.</p>
+                </div>
+            </div>
+        </div>
+        """
+
+        extractor_14 = FollowupWebsiteExtractor(html_agenda)
+        result_14 = extractor_14.extract_followup_events_with_dates()
+
+        assert len(result_14) == 1
+        assert "2030-01-01" not in result_14[0]["dates"]  # "2030 Agenda" excluded
+        assert "2050-01-01" not in result_14[0]["dates"]  # "Vision 2050" excluded
+        assert result_14[0]["dates"] == []
