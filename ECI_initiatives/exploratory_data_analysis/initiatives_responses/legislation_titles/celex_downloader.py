@@ -199,7 +199,11 @@ WHERE
         match = re.match(pattern, celex_clean)
 
         if not match:
-            return "Unknown", celex_clean
+            # Validation passed but pattern doesn't match - unsupported format
+            raise InvalidCelexError(
+                f"Unsupported CELEX format: {celex_id}. "
+                f"Pattern does not match expected structure [Sector][Year][Type][Number]"
+            )
 
         sector, year, type_code, number = match.groups()
 
@@ -261,8 +265,10 @@ WHERE
             document_number = f"{type_code}-{int(number)}/{year}"
 
         else:
-            legislation_type = f"Sector {sector} Document"
-            document_number = celex_clean
+            raise InvalidCelexError(
+                f"Sector {sector} is valid but not yet implemented in parser: {celex_id}. "
+                f"Supported sectors: 3 (Legislation), 5 (Preparatory), 6 (Case-law), 9 (Parliamentary)"
+            )
 
         return legislation_type, document_number
 

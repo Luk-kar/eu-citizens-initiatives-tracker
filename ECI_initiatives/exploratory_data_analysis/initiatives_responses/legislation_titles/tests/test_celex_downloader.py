@@ -248,3 +248,66 @@ class TestCelexTitleDownloader:
         assert call_args[0][0] == downloader.SPARQL_ENDPOINT
         assert "query" in call_args[1]["params"]
         assert call_args[1]["params"]["format"] == "application/sparql-results+json"
+
+
+class TestCelexUnsupportedSectors:
+    """Test valid but unimplemented sectors raise appropriate errors."""
+
+    def test_parse_celex_sector_0_not_implemented(self):
+        """Test that Sector 0 (Consolidated acts) raises not implemented error."""
+        # Sector 0 format: 0YYYYXNNNN-YYYYMMDD (has date suffix, won't match pattern)
+        celex_id = "02010L0063"
+
+        # This will raise "Unsupported CELEX format" not "not yet implemented"
+        with pytest.raises(
+            InvalidCelexError, match="Sector 0 is valid but not yet implemented"
+        ):
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+
+    def test_parse_celex_sector_1_not_implemented(self):
+        """Test that Sector 1 (Treaties) raises not implemented error."""
+        # Valid format: 1YYYYXNNNN (X=treaty type, NNNN must be 4+ digits)
+        celex_id = "12012M0001"  # Changed to 4 digits
+
+        with pytest.raises(
+            InvalidCelexError, match="Sector 1 is valid but not yet implemented"
+        ):
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+
+    def test_parse_celex_sector_2_not_implemented(self):
+        """Test that Sector 2 (International agreements) raises not implemented error."""
+        # Valid format: 2YYYYXNNNN
+        celex_id = "22020A1234"  # Changed to 4 digits
+
+        with pytest.raises(
+            InvalidCelexError, match="Sector 2 is valid but not yet implemented"
+        ):
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+
+    def test_parse_celex_sector_4_not_implemented(self):
+        """Test that Sector 4 (Complementary legislation) raises not implemented error."""
+        # Valid format: 4YYYYXNNNN
+        celex_id = "42020R0001"  # Should work if properly formatted
+
+        with pytest.raises(
+            InvalidCelexError, match="Sector 4 is valid but not yet implemented"
+        ):
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+
+    def test_parse_celex_sector_7_not_implemented(self):
+        """Test that Sector 7 (National transposition) raises not implemented error."""
+        celex_id = "72020L1234"
+
+        with pytest.raises(
+            InvalidCelexError, match="Sector 7 is valid but not yet implemented"
+        ):
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+
+    def test_parse_celex_sector_8_not_implemented(self):
+        """Test that Sector 8 (National case-law) raises not implemented error."""
+        celex_id = "82020C1234"
+
+        with pytest.raises(
+            InvalidCelexError, match="Sector 8 is valid but not yet implemented"
+        ):
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
