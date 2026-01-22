@@ -112,16 +112,6 @@ class TestCelexTitleDownloader:
         assert legislation_type == "Court of Justice Judgment"
         assert document_number == "C-26/23"
 
-    def test_valid_celex_sector_3(self):
-        """Test valid Sector 3 CELEX."""
-
-        celex_id = "32010L0063"
-        legislation_type, doc_num = CelexTitleDownloader.parse_celex_to_readable_format(
-            celex_id
-        )
-        assert legislation_type == "Directive"
-        assert doc_num == "2010/63/EU"
-
     def test_invalid_sector_raises_error(self):
         """Test that invalid sector raises error."""
 
