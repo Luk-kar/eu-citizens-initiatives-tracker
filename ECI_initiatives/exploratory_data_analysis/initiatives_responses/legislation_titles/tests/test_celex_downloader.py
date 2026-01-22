@@ -14,6 +14,7 @@ class TestCelexTitleDownloader:
 
     def test_init(self, sample_celex_ids):
         """Test initialization with CELEX IDs."""
+
         downloader = CelexTitleDownloader(sample_celex_ids)
         assert downloader.celex_ids == sample_celex_ids
         assert downloader.df_titles is None
@@ -25,6 +26,7 @@ class TestCelexTitleDownloader:
 
     def test_create_batch_sparql_query_single_id(self):
         """Test SPARQL query generation with single CELEX ID."""
+
         celex_ids = ["32010L0063"]
         query = CelexTitleDownloader.create_batch_sparql_query(celex_ids)
 
@@ -38,6 +40,7 @@ class TestCelexTitleDownloader:
 
     def test_create_batch_sparql_query_multiple_ids(self, sample_celex_ids):
         """Test SPARQL query generation with multiple CELEX IDs."""
+
         query = CelexTitleDownloader.create_batch_sparql_query(sample_celex_ids)
 
         for celex_id in sample_celex_ids:
@@ -45,6 +48,7 @@ class TestCelexTitleDownloader:
 
     def test_parse_celex_to_readable_format_directive(self):
         """Test parsing CELEX to readable format for Directives."""
+
         celex_id = "celex:32010L0063"
         legislation_type, document_number = (
             CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
@@ -55,6 +59,7 @@ class TestCelexTitleDownloader:
 
     def test_parse_celex_to_readable_format_regulation(self):
         """Test parsing CELEX to readable format for Regulations."""
+
         celex_id = "32002R0178"
         legislation_type, document_number = (
             CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
@@ -65,6 +70,7 @@ class TestCelexTitleDownloader:
 
     def test_parse_celex_to_readable_format_decision(self):
         """Test parsing CELEX to readable format for Decisions."""
+
         celex_id = "32020D1234"
         legislation_type, document_number = (
             CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
@@ -75,6 +81,7 @@ class TestCelexTitleDownloader:
 
     def test_parse_celex_to_readable_format_commission_proposal(self):
         """Test parsing CELEX to readable format for Commission Proposals."""
+
         celex_id = "52018PC0179"
         legislation_type, document_number = (
             CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
@@ -85,6 +92,7 @@ class TestCelexTitleDownloader:
 
     def test_parse_celex_to_readable_format_commission_communication(self):
         """Test parsing CELEX to readable format for Commission Communications."""
+
         celex_id = "52020DC0015"
         legislation_type, document_number = (
             CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
@@ -95,6 +103,7 @@ class TestCelexTitleDownloader:
 
     def test_parse_celex_to_readable_format_court_judgment(self):
         """Test parsing CELEX to readable format for Court Judgments."""
+
         celex_id = "62023CJ0026"
         legislation_type, document_number = (
             CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
@@ -105,6 +114,7 @@ class TestCelexTitleDownloader:
 
     def test_valid_celex_sector_3(self):
         """Test valid Sector 3 CELEX."""
+
         celex_id = "32010L0063"
         legislation_type, doc_num = CelexTitleDownloader.parse_celex_to_readable_format(
             celex_id
@@ -114,6 +124,7 @@ class TestCelexTitleDownloader:
 
     def test_invalid_sector_raises_error(self):
         """Test that invalid sector raises error."""
+
         celex_id = "Z2020DC1234"
 
         with pytest.raises(InvalidCelexError, match="Invalid sector"):
@@ -121,6 +132,7 @@ class TestCelexTitleDownloader:
 
     def test_invalid_sector_9_type_raises_error(self):
         """Test that invalid Sector 9 document type raises error."""
+
         celex_id = "92020X1234"
 
         with pytest.raises(InvalidCelexError, match="Sector 9 must use"):
@@ -128,6 +140,7 @@ class TestCelexTitleDownloader:
 
     def test_valid_sector_9_celex(self):
         """Test valid Sector 9 CELEX (Parliamentary question)."""
+
         celex_id = "92020E1234"
         legislation_type, doc_num = CelexTitleDownloader.parse_celex_to_readable_format(
             celex_id
@@ -137,6 +150,7 @@ class TestCelexTitleDownloader:
 
     def test_celex_too_short_raises_error(self):
         """Test that too-short CELEX raises error."""
+
         celex_id = "320"
 
         with pytest.raises(InvalidCelexError, match="too short"):
@@ -144,6 +158,7 @@ class TestCelexTitleDownloader:
 
     def test_empty_celex_raises_error(self):
         """Test that empty CELEX raises error."""
+
         celex_id = ""
 
         with pytest.raises(InvalidCelexError, match="empty"):
@@ -172,6 +187,7 @@ class TestCelexTitleDownloader:
     @patch("celex_downloader.requests.get")
     def test_download_titles_http_error(self, mock_get):
         """Test download with HTTP error response."""
+
         mock_response = Mock()
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
@@ -186,6 +202,7 @@ class TestCelexTitleDownloader:
     @patch("celex_downloader.requests.get")
     def test_download_titles_invalid_json(self, mock_get):
         """Test download with invalid JSON response."""
+
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.side_effect = Exception("Invalid JSON")
@@ -200,6 +217,7 @@ class TestCelexTitleDownloader:
 
     def test_download_titles_empty_celex_ids(self):
         """Test download with empty CELEX ID list."""
+
         downloader = CelexTitleDownloader([])
         df, raw_json = downloader.download_titles()
 
@@ -209,6 +227,7 @@ class TestCelexTitleDownloader:
     @patch("celex_downloader.requests.get")
     def test_download_titles_stores_results(self, mock_get, mock_sparql_response):
         """Test that download stores results in instance variables."""
+
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = mock_sparql_response
@@ -225,6 +244,7 @@ class TestCelexTitleDownloader:
     @patch("celex_downloader.requests.get")
     def test_download_titles_request_parameters(self, mock_get, mock_sparql_response):
         """Test that correct parameters are sent to SPARQL endpoint."""
+
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = mock_sparql_response
