@@ -6,6 +6,7 @@ import pytest
 import pandas as pd
 from unittest.mock import Mock, patch
 from legislation_titles.celex_downloader import CelexTitleDownloader
+from legislation_titles.errors import InvalidCelexError
 
 
 class TestCelexTitleDownloader:
@@ -102,25 +103,51 @@ class TestCelexTitleDownloader:
         assert legislation_type == "Court of Justice Judgment"
         assert document_number == "C-26/23"
 
-    def test_parse_celex_to_readable_format_invalid(self):
-        """Test parsing invalid CELEX format."""
-        celex_id = "invalid-celex"
-        legislation_type, document_number = (
-            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+    def test_valid_celex_sector_3(self):
+        """Test valid Sector 3 CELEX."""
+        celex_id = "32010L0063"
+        legislation_type, doc_num = CelexTitleDownloader.parse_celex_to_readable_format(
+            celex_id
         )
+        assert legislation_type == "Directive"
+        assert doc_num == "2010/63/EU"
 
-        assert legislation_type == "Unknown"
-        assert document_number == "invalid-celex"
+    def test_invalid_sector_raises_error(self):
+        """Test that invalid sector raises error."""
+        celex_id = "Z2020DC1234"
 
-    def test_parse_celex_to_readable_format_unknown_sector(self):
-        """Test parsing CELEX with unknown sector."""
+        with pytest.raises(InvalidCelexError, match="Invalid sector"):
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+
+    def test_invalid_sector_9_type_raises_error(self):
+        """Test that invalid Sector 9 document type raises error."""
         celex_id = "92020X1234"
-        legislation_type, document_number = (
-            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
-        )
 
-        assert "Sector 9 Document" in legislation_type
-        assert document_number == "92020X1234"
+        with pytest.raises(InvalidCelexError, match="Sector 9 must use"):
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+
+    def test_valid_sector_9_celex(self):
+        """Test valid Sector 9 CELEX (Parliamentary question)."""
+        celex_id = "92020E1234"
+        legislation_type, doc_num = CelexTitleDownloader.parse_celex_to_readable_format(
+            celex_id
+        )
+        assert legislation_type == "European Parliament - Written Questions"
+        assert doc_num == "E-1234/2020"
+
+    def test_celex_too_short_raises_error(self):
+        """Test that too-short CELEX raises error."""
+        celex_id = "320"
+
+        with pytest.raises(InvalidCelexError, match="too short"):
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+
+    def test_empty_celex_raises_error(self):
+        """Test that empty CELEX raises error."""
+        celex_id = ""
+
+        with pytest.raises(InvalidCelexError, match="empty"):
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
 
     @patch("celex_downloader.requests.get")
     def test_download_titles_success(self, mock_get, mock_sparql_response):

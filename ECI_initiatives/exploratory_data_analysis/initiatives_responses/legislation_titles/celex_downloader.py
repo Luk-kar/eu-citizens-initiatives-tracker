@@ -9,6 +9,8 @@ import requests
 import pandas as pd
 from typing import List, Dict, Optional
 
+from legislation_titles.errors import InvalidCelexError
+
 
 class CelexTitleDownloader:
     """
@@ -97,6 +99,83 @@ WHERE
         return query
 
     @staticmethod
+    def validate_celex(celex_id):
+        """
+        Validate CELEX format according to EUR-Lex numbering specifications.
+
+        CELEX (Communitatis Europeae LEX) is the official identifier system for
+        EU legal documents. Format: [Sector][Year][Type][Number]
+
+        Args:
+            celex_id: CELEX identifier (with or without 'celex:' prefix)
+
+        Returns:
+            Tuple of (is_valid, error_message)
+            - is_valid: True if CELEX passes validation, False otherwise
+            - error_message: None if valid, descriptive error string if invalid
+
+        Validation Rules:
+            - Minimum length: 8 characters (e.g., "32020R01")
+            - Sector (position 0): Must be one of 0-9, C, or E
+            - Sector-specific constraints:
+                * Sector 9 (Parliamentary questions): Only 'E' (written), 'H' (question time),
+                or 'O' (oral) allowed at position 5
+
+        Valid Sectors:
+            0: Consolidated acts
+            1: Treaties
+            2: International agreements
+            3: Legislation (Regulations, Directives, Decisions)
+            4: Complementary legislation
+            5: Preparatory acts (COM documents, proposals)
+            6: Case-law (Court judgments, opinions)
+            7: National transposition measures
+            8: National case-law references
+            9: Parliamentary questions
+            C: Official Journal C series documents
+            E: EFTA documents
+
+        Examples:
+            >>> validate_celex("32010L0063")
+            (True, None)
+
+            >>> validate_celex("92020E1234")  # Valid parliamentary question
+            (True, None)
+
+            >>> validate_celex("92020X1234")  # Invalid - 'X' not allowed in Sector 9
+            (False, "Sector 9 must use 'E' document type")
+
+            >>> validate_celex("Z2020DC001")  # Invalid sector
+            (False, "Invalid sector: Z")
+
+        References:
+            High-level overview:
+            https://op.europa.eu/en/publication-detail/-/publication/4b2a89a1-8877-11f0-9af8-01aa75ed71a1/language-en
+
+            Intermediate user guide:
+            https://web.archive.org/web/20210922140227/https://eur-lex.europa.eu/content/help/faq/celex-number.html
+
+            Detailed technical specification:
+            http://www.justcite.com/kb/wp-content/uploads/2011/01/CELEX-Numbers.pdf
+        """
+
+        if not celex_id:
+            return False, "CELEX is empty"
+
+        if len(celex_id) < 8:
+            return False, f"CELEX too short: {celex_id}"
+
+        sector = celex_id[0]
+        if sector not in {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "E"}:
+            return False, f"Invalid sector: {sector}"
+
+        # Sector-specific validation
+        if sector == "9" and celex_id[5] != "E":
+            return False, f"Sector 9 must use 'E' document type"
+
+        return True, None
+
+    @staticmethod
     def parse_celex_to_readable_format(celex_id: str) -> tuple[str, str]:
         """
         Parse CELEX number to extract legislation type and human-readable document number.
@@ -109,7 +188,12 @@ WHERE
         Returns:
             Tuple of (legislation_type, document_number)
         """
+
         celex_clean = celex_id.replace("celex:", "")
+
+        is_valid, error = CelexTitleDownloader.validate_celex(celex_clean)
+        if not is_valid:
+            raise InvalidCelexError(error)
 
         pattern = r"^(\d)(\d{4})([A-Z]{1,2})(\d{4,})$"
         match = re.match(pattern, celex_clean)
@@ -163,6 +247,18 @@ WHERE
 
             legislation_type = type_mapping.get(type_code, f"Case Law ({type_code})")
             document_number = f"C-{int(number)}/{year[2:]}"
+
+        elif sector == "9":
+            # Parliamentary questions format: 9YYYYTNNNNN
+
+            type_mapping = {
+                "E": "European Parliament - Written Questions",
+                "H": "European Parliament - Questions Asked During Question Time",
+                "O": "European Parliament - Oral Questions",
+            }
+
+            legislation_type = type_mapping.get(type_code, "Parliamentary Question")
+            document_number = f"{type_code}-{int(number)}/{year}"
 
         else:
             legislation_type = f"Sector {sector} Document"
