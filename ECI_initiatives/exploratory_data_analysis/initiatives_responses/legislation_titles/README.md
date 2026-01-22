@@ -65,21 +65,23 @@ The project includes a comprehensive test suite using pytest.
 ### Running Tests
 
 ```bash
-# Run all tests
-pytest
+# Run all tests EXCEPT external API calls (default for development)
+pytest -v -m "not external_api"
 
-# Run with coverage report
-pytest --cov
+# Run only unit tests (fastest)
+pytest -v tests/test_celex_downloader.py tests/test_celex_translator.py
 
-# Run specific test file
-pytest tests/test_celex_translator.py
+# Run integration tests with mocks
+pytest -v tests/test_integration.py -m "not external_api"
 
-# Run with verbose output
-pytest -v
+# Run tests with coverage report
+pytest --cov=legislation_titles --cov-report=html
 
-# Run integration tests only
-pytest tests/test_integration.py
+# Run ALL tests including real EUR-Lex API calls (slow, requires internet)
+pytest -v -m external_api
 ```
+
+IMPORTANT!: Do not abuse the `external_api`, your IP could be whitelisted for a while!
 
 ### Test Structure
 

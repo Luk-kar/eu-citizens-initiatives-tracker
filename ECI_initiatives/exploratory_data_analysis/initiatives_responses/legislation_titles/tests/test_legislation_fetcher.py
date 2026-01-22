@@ -180,6 +180,7 @@ class TestLegislationTitleFetcher:
     @patch("builtins.open", new_callable=mock_open)
     def test_save_results_metadata_without_raw_json(self, mock_file):
         """Test saving with metadata but no raw_json field."""
+
         df = pd.DataFrame({"celex_id": ["32010L0063"]})
         metadata = {"celex_ids": ["32010L0063"]}
 

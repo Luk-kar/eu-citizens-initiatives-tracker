@@ -1,11 +1,81 @@
 """
 Integration tests for the complete legislation title fetching workflow.
+
+These tests verify end-to-end functionality but use mocked external dependencies
+by default. Real API tests are marked with @pytest.mark.external_api.
 """
 
 import pytest
 import pandas as pd
 from unittest.mock import patch, Mock
 from legislation_titles.legislation_fetcher import LegislationTitleFetcher
+
+
+@pytest.mark.external_api
+def test_real_eurlex_api_integration():
+    """
+    Integration test with REAL EUR-Lex SPARQL endpoint.
+
+    This test makes actual HTTP requests to:
+    https://publications.europa.eu/webapi/rdf/sparql
+
+    WARNING: This test:
+    - Requires internet connection
+    - Takes ~5-10 seconds to complete
+    - May fail due to EUR-Lex downtime or rate limiting
+    - Should NOT be run in CI/CD pipelines
+
+    Run with: pytest -v -m external_api
+    Skip with: pytest -v -m "not external_api"
+    """
+    import json
+
+    # Real CELEX IDs from actual ECI references (as JSON strings)
+    sample_references = [
+        json.dumps({"CELEX": ["32010L0063"], "Directive": ["2010/63/EU"]}),
+        json.dumps(
+            {
+                "CELEX": ["52020DC0015"],
+                "official_journal": {"legislation": ["2020, 381"]},
+            }
+        ),
+    ]
+
+    # Initialize fetcher with real references
+    fetcher = LegislationTitleFetcher(sample_references)
+
+    # Execute real API call
+    df_titles = fetcher.fetch_titles(verbose=True)
+
+    # Verify results
+    assert not df_titles.empty, "Should retrieve titles from EUR-Lex"
+    assert len(df_titles) >= 2, "Should fetch at least 2 titles"
+    assert "celex_id" in df_titles.columns
+    assert "title" in df_titles.columns
+    assert "legislation_type" in df_titles.columns
+
+    # Verify specific CELEX IDs were fetched
+    celex_ids = df_titles["celex_id"].tolist()
+    assert "32010L0063" in celex_ids
+    assert "52020DC0015" in celex_ids
+
+    # Verify titles are in English and non-empty
+    for title in df_titles["title"]:
+        assert isinstance(title, str)
+        assert len(title) > 10, f"Title too short: {title}"
+
+    # Verify legislation types were parsed correctly
+    types = df_titles["legislation_type"].tolist()
+    assert "Directive" in types or "Communication (Commission)" in types
+
+    # Verify raw JSON was stored
+    assert fetcher.downloader is not None
+    assert fetcher.downloader.raw_json is not None
+    assert "results" in fetcher.downloader.raw_json
+
+    print("\n✓ Successfully fetched real data from EUR-Lex")
+    print(f"✓ Retrieved {len(df_titles)} titles")
+    print(df_titles[["celex_id", "legislation_type", "title"]].to_string())
 
 
 class TestIntegration:
