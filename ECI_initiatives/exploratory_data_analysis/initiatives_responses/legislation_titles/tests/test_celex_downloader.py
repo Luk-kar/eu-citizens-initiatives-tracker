@@ -1,0 +1,213 @@
+"""
+Tests for CELEX Downloader Module.
+"""
+
+import pytest
+import pandas as pd
+from unittest.mock import Mock, patch
+from legislation_titles.celex_downloader import CelexTitleDownloader
+
+
+class TestCelexTitleDownloader:
+    """Test suite for CelexTitleDownloader class."""
+
+    def test_init(self, sample_celex_ids):
+        """Test initialization with CELEX IDs."""
+        downloader = CelexTitleDownloader(sample_celex_ids)
+        assert downloader.celex_ids == sample_celex_ids
+        assert downloader.df_titles is None
+        assert downloader.raw_json is None
+        assert (
+            downloader.SPARQL_ENDPOINT
+            == "https://publications.europa.eu/webapi/rdf/sparql"
+        )
+
+    def test_create_batch_sparql_query_single_id(self):
+        """Test SPARQL query generation with single CELEX ID."""
+        celex_ids = ["32010L0063"]
+        query = CelexTitleDownloader.create_batch_sparql_query(celex_ids)
+
+        assert "PREFIX cdm:" in query
+        assert "SELECT ?celex_id" in query
+        assert '"celex:32010L0063"^^xsd:string' in query
+        assert (
+            'FILTER(datatype(?ISO_639_1) = euvoc:ISO_639_1 && str(?ISO_639_1) = "en")'
+            in query
+        )
+
+    def test_create_batch_sparql_query_multiple_ids(self, sample_celex_ids):
+        """Test SPARQL query generation with multiple CELEX IDs."""
+        query = CelexTitleDownloader.create_batch_sparql_query(sample_celex_ids)
+
+        for celex_id in sample_celex_ids:
+            assert f'"celex:{celex_id}"^^xsd:string' in query
+
+    def test_parse_celex_to_readable_format_directive(self):
+        """Test parsing CELEX to readable format for Directives."""
+        celex_id = "celex:32010L0063"
+        legislation_type, document_number = (
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+        )
+
+        assert legislation_type == "Directive"
+        assert document_number == "2010/63/EU"
+
+    def test_parse_celex_to_readable_format_regulation(self):
+        """Test parsing CELEX to readable format for Regulations."""
+        celex_id = "32002R0178"
+        legislation_type, document_number = (
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+        )
+
+        assert legislation_type == "Regulation"
+        assert document_number == "178/2002"
+
+    def test_parse_celex_to_readable_format_decision(self):
+        """Test parsing CELEX to readable format for Decisions."""
+        celex_id = "32020D1234"
+        legislation_type, document_number = (
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+        )
+
+        assert legislation_type == "Decision"
+        assert document_number == "1234/2020"
+
+    def test_parse_celex_to_readable_format_commission_proposal(self):
+        """Test parsing CELEX to readable format for Commission Proposals."""
+        celex_id = "52018PC0179"
+        legislation_type, document_number = (
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+        )
+
+        assert legislation_type == "Proposal (Commission)"
+        assert document_number == "COM(2018) 179"
+
+    def test_parse_celex_to_readable_format_commission_communication(self):
+        """Test parsing CELEX to readable format for Commission Communications."""
+        celex_id = "52020DC0015"
+        legislation_type, document_number = (
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+        )
+
+        assert legislation_type == "Communication (Commission)"
+        assert document_number == "COM(2020) 15"
+
+    def test_parse_celex_to_readable_format_court_judgment(self):
+        """Test parsing CELEX to readable format for Court Judgments."""
+        celex_id = "62023CJ0026"
+        legislation_type, document_number = (
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+        )
+
+        assert legislation_type == "Court of Justice Judgment"
+        assert document_number == "C-26/23"
+
+    def test_parse_celex_to_readable_format_invalid(self):
+        """Test parsing invalid CELEX format."""
+        celex_id = "invalid-celex"
+        legislation_type, document_number = (
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+        )
+
+        assert legislation_type == "Unknown"
+        assert document_number == "invalid-celex"
+
+    def test_parse_celex_to_readable_format_unknown_sector(self):
+        """Test parsing CELEX with unknown sector."""
+        celex_id = "92020X1234"
+        legislation_type, document_number = (
+            CelexTitleDownloader.parse_celex_to_readable_format(celex_id)
+        )
+
+        assert "Sector 9 Document" in legislation_type
+        assert document_number == "92020X1234"
+
+    @patch("celex_downloader.requests.get")
+    def test_download_titles_success(self, mock_get, mock_sparql_response):
+        """Test successful title download."""
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_sparql_response
+        mock_get.return_value = mock_response
+
+        downloader = CelexTitleDownloader(["32010L0063", "32002R0178"])
+        df, raw_json = downloader.download_titles()
+
+        assert not df.empty
+        assert len(df) == 2
+        assert "celex_id" in df.columns
+        assert "title" in df.columns
+        assert "legislation_type" in df.columns
+        assert "document_number" in df.columns
+        assert raw_json == mock_sparql_response
+
+    @patch("celex_downloader.requests.get")
+    def test_download_titles_http_error(self, mock_get):
+        """Test download with HTTP error response."""
+        mock_response = Mock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+        mock_get.return_value = mock_response
+
+        downloader = CelexTitleDownloader(["32010L0063"])
+        df, raw_json = downloader.download_titles()
+
+        assert df.empty
+        assert raw_json is None
+
+    @patch("celex_downloader.requests.get")
+    def test_download_titles_invalid_json(self, mock_get):
+        """Test download with invalid JSON response."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.side_effect = Exception("Invalid JSON")
+        mock_response.text = "Invalid response"
+        mock_get.return_value = mock_response
+
+        downloader = CelexTitleDownloader(["32010L0063"])
+        df, raw_json = downloader.download_titles()
+
+        assert df.empty
+        assert raw_json is None
+
+    def test_download_titles_empty_celex_ids(self):
+        """Test download with empty CELEX ID list."""
+        downloader = CelexTitleDownloader([])
+        df, raw_json = downloader.download_titles()
+
+        assert df.empty
+        assert raw_json is None
+
+    @patch("celex_downloader.requests.get")
+    def test_download_titles_stores_results(self, mock_get, mock_sparql_response):
+        """Test that download stores results in instance variables."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_sparql_response
+        mock_get.return_value = mock_response
+
+        downloader = CelexTitleDownloader(["32010L0063"])
+        df, raw_json = downloader.download_titles()
+
+        assert downloader.df_titles is not None
+        assert downloader.raw_json is not None
+        pd.testing.assert_frame_equal(downloader.df_titles, df)
+        assert downloader.raw_json == raw_json
+
+    @patch("celex_downloader.requests.get")
+    def test_download_titles_request_parameters(self, mock_get, mock_sparql_response):
+        """Test that correct parameters are sent to SPARQL endpoint."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_sparql_response
+        mock_get.return_value = mock_response
+
+        downloader = CelexTitleDownloader(["32010L0063"])
+        downloader.download_titles()
+
+        mock_get.assert_called_once()
+        call_args = mock_get.call_args
+        assert call_args[0][0] == downloader.SPARQL_ENDPOINT
+        assert "query" in call_args[1]["params"]
+        assert call_args[1]["params"]["format"] == "application/sparql-results+json"
