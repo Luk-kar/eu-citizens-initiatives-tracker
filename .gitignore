@@ -12,3 +12,6 @@ calculated_cases_responses.csv
 court_cases_context_initiatives.csv
 court_cases_context_responses.csv
 court_cases_extracted.csv
+
+# Jupiter notebook
+.ipynb_checkpoints
