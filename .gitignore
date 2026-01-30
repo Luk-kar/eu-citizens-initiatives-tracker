@@ -6,3 +6,9 @@ ECI_initiatives/dev/missing_data_report_*
 # read_files_and_content.sh - output:
 /*.md
 !/README.md
+
+# Temp CSVs
+calculated_cases_responses.csv
+court_cases_context_initiatives.csv
+court_cases_context_responses.csv
+court_cases_extracted.csv

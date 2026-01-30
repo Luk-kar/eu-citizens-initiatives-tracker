@@ -1636,14 +1636,14 @@ class TestFollowUpActivities:
 
         assert len(result7) == 3
         # First paragraph
-        assert "2023-01-01" in result7[0]["dates"]
-        assert "roadmap" in result7[0]["action"]
+        assert "2023-12-31" in result7[0]["dates"], result7[0]
+        assert "roadmap" in result7[0]["action"], result7[0]
         # First list item with "early 2026" deadline
-        assert "2026-03-31" in result7[1]["dates"]  # early = end of Q1
-        assert "Finalisation" in result7[1]["action"]
+        assert "2026-03-31" in result7[1]["dates"], result7[1]  # early = end of Q1
+        assert "Finalisation" in result7[1]["action"], result7[1]
         # Second list item
-        assert "2023-01-01" in result7[2]["dates"]
-        assert "workshops" in result7[2]["action"]
+        assert "2023-01-01" in result7[2]["dates"], result7[2]
+        assert "workshops" in result7[2]["action"], result7[2]
 
         # TEST 8: Date deduplication (avoid extracting Month YYYY when DD Month YYYY exists)
         html8 = """
@@ -1824,3 +1824,190 @@ class TestFollowUpActivities:
             "2018-02-29" not in result19[0]["dates"]
         )  # 2018 is not a leap year, so Feb 28
         assert "2018-02-28" in result19[0]["dates"]
+
+        # This covers parsing errors like "09/09/2014" becoming "2014-01-01"
+        html20 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>Stakeholder meetings took place on 09/09/2014 and 12.10.2015.</p>
+        """
+        soup20 = BeautifulSoup(html20, "html.parser")
+        result20 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup20
+        )
+
+        assert len(result20) == 1
+        assert "2014-09-09" in result20[0]["dates"]  # Correctly parsed slash format
+        assert "2015-10-12" in result20[0]["dates"]  # Correctly parsed dot format
+        assert "2014-01-01" not in result20[0]["dates"]  # Should NOT be generic year
+
+        # TEST 21: False Positive - Directive IDs (Slash)
+        # "Directive 2010/63/EU" should NOT result in date "2010-01-01"
+        html21 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>The Commission published a report on Directive 2010/63/EU.</p>
+        """
+        soup21 = BeautifulSoup(html21, "html.parser")
+        result21 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup21
+        )
+
+        assert len(result21) == 1
+        assert "2010-01-01" not in result21[0]["dates"]  # The year is part of ID
+        assert result21[0]["dates"] == []  # No actual dates here
+
+        # TEST 22: False Positive - Document Numbers (Parens)
+        # "Communication C(2021) 171" should NOT result in date "2021-01-01"
+        html22 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>See Communication C(2021) 171 for more details.</p>
+        """
+        soup22 = BeautifulSoup(html22, "html.parser")
+        result22 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup22
+        )
+
+        assert len(result22) == 1
+        assert "2021-01-01" not in result22[0]["dates"]  # The year is inside parens
+        assert result22[0]["dates"] == []
+
+        # TEST 23: False Positive - Initiative IDs (Slash)
+        # "Initiative 2022/000002" should NOT result in date "2022-01-01"
+        html23 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>Details in initiative 2022/000002_en.</p>
+        """
+        soup23 = BeautifulSoup(html23, "html.parser")
+        result23 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup23
+        )
+
+        assert len(result23) == 1
+        assert "2022-01-01" not in result23[0]["dates"]  # The year is part of ID
+        assert result23[0]["dates"] == []
+
+        # TEST 24: False Positive - Year Ranges (Hyphens)
+        # "2021-2027" refers to a program duration/label, not a specific event date.
+        # Should be ignored to prevent false positives.
+        html24 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>Funding is available under the Horizon Europe program (2021-2027).</p>
+        """
+        soup24 = BeautifulSoup(html24, "html.parser")
+        result24 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup24
+        )
+
+        assert len(result24) == 1
+        assert "2021-01-01" not in result24[0]["dates"]
+        assert "2027-01-01" not in result24[0]["dates"]
+        assert result24[0]["dates"] == []
+
+        # TEST 25: False Positive - Short Ranges (Hyphens)
+        # "2025-27" refers to a planning period.
+        html25 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>See the work programmes 2025-27 for more details.</p>
+        """
+        soup25 = BeautifulSoup(html25, "html.parser")
+        result25 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup25
+        )
+
+        assert len(result25) == 1
+        assert "2025-01-01" not in result25[0]["dates"]
+        assert result25[0]["dates"] == []
+
+        # TEST 26: Valid Date amidst Ranges
+        # Ensures that excluding ranges doesn't accidentally exclude valid standalone years
+        # in the same context.
+        html26 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>Under the 2014-2020 framework, the Commission adopted a new rule in 2018.</p>
+        """
+        soup26 = BeautifulSoup(html26, "html.parser")
+        result26 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup26
+        )
+
+        assert len(result26) == 1
+        assert "2014-01-01" not in result26[0]["dates"]  # Range start - ignore
+        assert "2020-01-01" not in result26[0]["dates"]  # Range end - ignore
+        assert "2018-01-01" in result26[0]["dates"]  # Standalone year - KEEP
+
+        # TEST 27: False Positive - URLs with Dates
+        # URLs containing full ISO dates (which would pass other regex checks) must be stripped.
+        # Without URL stripping, "2023-05-12" would be extracted.
+        html27 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>The report is available at https://example.com/files/report-2023-05-12.pdf for review.</p>
+        """
+        soup27 = BeautifulSoup(html27, "html.parser")
+        result27 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup27
+        )
+
+        assert len(result27) == 1
+        assert (
+            "2023-05-12" not in result27[0]["dates"]
+        )  # Should be stripped with the URL
+        assert result27[0]["dates"] == []
+
+        # TEST 28: False Positive - Named Agendas
+        # "2030 Agenda", "Vision 2050", etc. should be ignored.
+        html28 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>This action supports the 2030 Agenda and Vision 2050. Also relates to Industry 4.0 standards.</p>
+        """
+        soup28 = BeautifulSoup(html28, "html.parser")
+        result28 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup28
+        )
+
+        assert len(result28) == 1
+        assert "2030-01-01" not in result28[0]["dates"]  # "2030 Agenda" excluded
+        assert "2050-01-01" not in result28[0]["dates"]  # "Vision 2050" excluded
+        assert result28[0]["dates"] == []
+
+        # TEST 29: Complex Deadline Expressions (Halves, Seasons, "Since")
+        html29 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>In the second half of 2023, the Commission started work.</p>
+        <p>This has been ongoing since 2022.</p>
+        <p>Results expected by autumn 2024.</p>
+        <p>A comprehensive review of the legislation is planned for late 2025.</p>
+        """
+        soup29 = BeautifulSoup(html29, "html.parser")
+        result29 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup29
+        )
+
+        assert len(result29) == 4
+        # "second half of 2023" -> 2023-12-31
+        assert "2023-12-31" in result29[0]["dates"]
+
+        # "since 2022" -> 2022-01-01
+        assert "2022-01-01" in result29[1]["dates"]
+
+        # "autumn 2024" -> 2024-12-21 (or similar end-of-season logic)
+        assert "2024-12-21" in result29[2]["dates"]
+
+        # "late 2025" -> 2025-12-31
+        assert "2025-12-31" in result29[3]["dates"]
+
+        # TEST 30: Quarters (Q1, First Quarter)
+        html30 = """
+        <h2 id="Follow-up">Follow-up</h2>
+        <p>The first implementation report is currently due for publication in Q1 2024.</p>
+        <p>A stakeholder meeting is scheduled to take place in the third quarter of 2025.</p>
+        """
+        soup30 = BeautifulSoup(html30, "html.parser")
+        result30 = self.parser.followup_activity.extract_followup_events_with_dates(
+            soup30
+        )
+
+        assert len(result30) == 2
+        # "Q1 2024" -> 2024-03-31
+        assert "2024-03-31" in result30[0]["dates"]
+
+        # "third quarter of 2025" -> 2025-09-30
+        assert "2025-09-30" in result30[1]["dates"]

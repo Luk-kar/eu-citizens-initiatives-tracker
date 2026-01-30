@@ -564,7 +564,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         Each action contains:
         - type: Type of action (e.g., "Regulation Proposal", "Directive Revision", "Tariff Codes Creation")
         - description: Brief description of the action
-        - status: Status of action ("proposed", "adopted", "in_force", "withdrawn", "planned")
+        - status: Status of action ("proposed", "adopted", "in_vacatio_legis", "withdrawn", "planned")
         - date: Date in YYYY-MM-DD format (when applicable)
         - document_url: URL to official document (optional)
         """
@@ -748,10 +748,8 @@ class LegislativeOutcomeExtractor(BaseExtractor):
         keywords = status_obj.keywords
 
         # Try to find date in context of status keyword
-        best_date = None
-        best_priority = 0
+        for keyword in keywords:
 
-        for keyword, priority in keywords:
             if keyword not in text_lower:
                 continue
 
@@ -763,6 +761,7 @@ class LegislativeOutcomeExtractor(BaseExtractor):
 
             # Find the end of the sentence/clause (., ; or end of text)
             clause_end = len(text_from_keyword)
+
             for delimiter in [". ", "; "]:
                 pos = text_from_keyword.find(delimiter)
                 if pos != -1 and pos < clause_end:
@@ -778,13 +777,12 @@ class LegislativeOutcomeExtractor(BaseExtractor):
                     date_str = match.group(1)
                     parsed = parse_date_string(date_str)
                     if parsed:
-                        # Update if this is higher priority
-                        if priority > best_priority:
-                            best_date = parsed
-                            best_priority = priority
+                        found_date = parsed
                         break
 
-        found_date = best_date
+            # If we found a date with this keyword, stop searching
+            if found_date:
+                break
 
         # Fallback: if no date found near status keyword, try the whole text
         if not found_date:

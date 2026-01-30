@@ -584,7 +584,7 @@ class FollowupWebsiteLegislativeOutcomeExtractor(LegislativeOutcomeExtractor):
         Each action contains:
         - type: Type of action (e.g., "Regulation Proposal", "Directive Revision")
         - description: Brief description of the action
-        - status: Status of action ("proposed", "adopted", "in_force", "withdrawn", "planned")
+        - status: Status of action ("proposed", "adopted", "in_vacatio_legis", "withdrawn", "planned")
         - date: Date in YYYY-MM-DD format (when applicable)
         - document_url: URL to official document (optional)
         """
