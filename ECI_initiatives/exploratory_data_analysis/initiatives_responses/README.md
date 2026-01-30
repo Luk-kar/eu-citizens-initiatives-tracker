@@ -1,6 +1,5 @@
 Here's the updated README.md with notebook opening instructions:
 
-```markdown
 # ECI Initiatives Analysis - Response Data Exploration
 
 Exploratory data analysis of European Citizens' Initiatives (ECI) responses, including participation patterns, legislative linkages, and campaign outcomes.
@@ -56,4 +55,3 @@ See `requirements.prod.txt` for complete list with pinned versions.
 ## Legislation Titles Module
 
 The `legislation_titles/` subdirectory contains a standalone package for fetching EU legislation metadata. See its README for details.
-```
