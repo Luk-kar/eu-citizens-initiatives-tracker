@@ -11,6 +11,17 @@ Comprehensive web scraping pipeline for **European Citizens' Initiatives (ECI)**
 | `responses` | Commission response pages | `initiatives` | `responses_list.csv`, `responses/` HTML |
 | `responses_followup_website` | Dedicated follow-up sites | `responses` | `responses_followup_website/` HTML |
 
+## 🧪 Testing
+
+Comprehensive **pytest suite** in `tests/scraper/`:
+
+- **Unit tests**: Mocked WebDriver, browser lifecycle, error handling
+- **Integration tests**: CSV generation, HTML parsing, file structure validation
+- **Exception testing**: Missing directories, rate limits, malformed HTML
+- **Coverage**: Data extraction accuracy, retry logic, directory setup
+
+Run tests: `pytest tests/scraper/ -v`
+
 ## 🛠️ Prerequisites
 
 - **Python 3.8+**
