@@ -36,6 +36,20 @@ The merger uses a column-by-column strategy to handle data conflicts. It doesn't
 
 *Full strategy details are documented in `strategies.py`.*
 
+## 🧪 Testing
+
+The merger is covered by a comprehensive test suite in `tests/merger/responses` ensuring data integrity and correct conflict resolution:
+
+- **Unit Tests**: Verify individual merge strategies (e.g., ensuring JSON lists are correctly deduplicated, dates are parsed correctly).
+- **Integration Tests**: Simulate full file merges using mock CSV data to verify the end-to-end workflow.
+- **Edge Cases**: specific tests for null handling, malformed JSON, and mismatched row counts.
+
+Run the tests:
+```bash
+# Run merger-specific tests
+python tests/run_tests.py --merger
+```
+
 ## 📊 Output
 
 The module produces a final merged CSV in the same timestamped data directory:
