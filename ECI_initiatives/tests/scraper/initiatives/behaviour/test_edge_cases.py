@@ -24,11 +24,6 @@ from ECI_initiatives.tests.consts import (
     LOG_MESSAGES,
 )
 
-from ECI_initiatives.data_pipeline.scraper.initiatives import browser
-from ECI_initiatives.data_pipeline.scraper.initiatives import downloader
-from ECI_initiatives.data_pipeline.scraper.initiatives import file_ops
-from ECI_initiatives.data_pipeline.scraper.initiatives import __main__ as main_module
-
 
 class TestBrowserInitialization:
     """Test browser initialization edge cases."""
@@ -42,29 +37,27 @@ class TestBrowserInitialization:
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
+        from ECI_initiatives.data_pipeline.scraper.initiatives import browser
 
         cls.initialize_browser = staticmethod(browser.initialize_browser)
 
-    @patch.object(main_module, "logger")
+    @patch("ECI_initiatives.data_pipeline.scraper.initiatives.__main__.logger")
     @patch("selenium.webdriver.Chrome")
     def test_webdriver_initialization_failures(self, mock_chrome, mock_logger):
         """Test WebDriver initialization failures."""
 
         # Test ChromeDriver not found
         mock_chrome.side_effect = WebDriverException("ChromeDriver not found")
-
         with pytest.raises(WebDriverException):
             self.initialize_browser()
 
         # Test Chrome browser not installed
         mock_chrome.side_effect = WebDriverException("Chrome binary not found")
-
         with pytest.raises(WebDriverException):
             self.initialize_browser()
 
         # Test permission errors
         mock_chrome.side_effect = PermissionError("Permission denied")
-
         with pytest.raises(PermissionError):
             self.initialize_browser()
 
@@ -81,15 +74,20 @@ class TestResourceCleanup:
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
+        from ECI_initiatives.data_pipeline.scraper.initiatives import downloader
 
         cls.download_initiatives = staticmethod(downloader.download_initiatives)
         cls.download_single_initiative = staticmethod(
             downloader.download_single_initiative
         )
 
-    @patch.object(downloader, "logger")
-    @patch.object(downloader, "initialize_browser")
-    @patch.object(downloader, "download_single_initiative")
+    @patch("ECI_initiatives.data_pipeline.scraper.initiatives.downloader.logger")
+    @patch(
+        "ECI_initiatives.data_pipeline.scraper.initiatives.downloader.initialize_browser"
+    )
+    @patch(
+        "ECI_initiatives.data_pipeline.scraper.initiatives.downloader.download_single_initiative"
+    )
     def test_browser_cleanup_on_interruption(
         self, mock_download_single, mock_init_browser, mock_logger
     ):
@@ -118,7 +116,6 @@ class TestResourceCleanup:
 
         # Test KeyboardInterrupt cleanup
         mock_download_single.side_effect = KeyboardInterrupt("User interrupted")
-
         with pytest.raises(KeyboardInterrupt):
             self.download_initiatives("/tmp", test_initiative_data)
 
@@ -132,7 +129,6 @@ class TestResourceCleanup:
 
         # Test SystemExit cleanup
         mock_download_single.side_effect = SystemExit("System shutdown")
-
         with pytest.raises(SystemExit):
             self.download_initiatives("/tmp", test_initiative_data)
 
@@ -159,7 +155,6 @@ class TestResourceCleanup:
         # Verify normal completion and cleanup
         mock_driver.quit.assert_called_once()
         mock_logger.info.assert_any_call(LOG_MESSAGES["pages_browser_closed"])
-
         assert len(failed_urls) == 2  # Both URLs should fail
         assert len(updated_data) == 2  # But data should still be returned
 
@@ -176,12 +171,14 @@ class TestContentProcessing:
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
+        from ECI_initiatives.data_pipeline.scraper.initiatives import file_ops
+        from ECI_initiatives.data_pipeline.scraper.initiatives import downloader
 
         cls.save_initiative_page = staticmethod(file_ops.save_initiative_page)
         cls.wait_for_page_content = staticmethod(downloader.wait_for_page_content)
         cls.check_rate_limiting = staticmethod(downloader.check_rate_limiting)
 
-    @patch.object(file_ops, "logger")
+    @patch("ECI_initiatives.data_pipeline.scraper.initiatives.file_ops.logger")
     def test_malformed_html_responses(self, mock_logger):
         """Test handling of malformed HTML responses."""
 
@@ -189,13 +186,11 @@ class TestContentProcessing:
 
         # Test empty page source
         mock_driver.page_source = ""
-
         result = self.save_initiative_page("/tmp", "http://test.com/2024/000001", "")
         assert result == "2024_000001.html"  # Should still save the file
 
         # Test malformed HTML that BeautifulSoup can't parse well
-        malformed_html = "<html><body><div><p>Unclosed tags<div><span></body>"
-
+        malformed_html = "<html><body><div><p>Unclosed tags</div></span></body>"
         # BeautifulSoup is robust, but test that our code handles edge cases
         result = self.save_initiative_page(
             "/tmp", "http://test.com/2024/000002", malformed_html
@@ -205,12 +200,12 @@ class TestContentProcessing:
         # Test page with no useful content
         empty_content_html = "<html><head></head><body></body></html>"
         mock_driver.page_source = empty_content_html
-
         self.wait_for_page_content(mock_driver)
+
         # Should log warnings but not crash
         mock_logger.warning.assert_called()
 
-    @patch.object(file_ops, "logger")
+    @patch("ECI_initiatives.data_pipeline.scraper.initiatives.file_ops.logger")
     def test_rate_limiting_scenarios(self, mock_logger):
         """Test various rate limiting scenarios."""
 
@@ -225,14 +220,12 @@ class TestContentProcessing:
             self.check_rate_limiting(mock_driver)
 
         # Test rate limiting in page source during save
-        rate_limited_html = """
-        <html>
+        rate_limited_html = """<html>
             <body>
                 <h1>Server inaccessibility</h1>
                 <p>429 - Too Many Requests</p>
             </body>
-        </html>
-        """
+        </html>"""
 
         with pytest.raises(Exception, match=RATE_LIMIT_INDICATORS.RATE_LIMITED):
             self.save_initiative_page(
@@ -255,25 +248,28 @@ class TestContentProcessing:
         mock_element.text = "Normal page content"  # NOT "Server inaccessibility"
         mock_driver.find_element.return_value = mock_element
 
-        with patch.object(
-            downloader, "save_initiative_page"
-        ) as mock_save, patch.object(downloader, "time") as mock_time, patch.object(
-            downloader, "wait_for_page_content"
+        with patch(
+            "ECI_initiatives.data_pipeline.scraper.initiatives.downloader.save_initiative_page"
+        ) as mock_save, patch(
+            "ECI_initiatives.data_pipeline.scraper.initiatives.downloader.time"
+        ) as mock_time, patch(
+            "ECI_initiatives.data_pipeline.scraper.initiatives.downloader.wait_for_page_content"
         ) as mock_wait_content:
-
             # Setup mocks
             mock_wait_content.return_value = None
             mock_save.return_value = "test_file.html"
+
+            # Import downloader to call the real function
+            from ECI_initiatives.data_pipeline.scraper.initiatives import downloader
 
             # CALL THE REAL FUNCTION directly from the module
             result = downloader.download_single_initiative(
                 mock_driver, "/tmp", "http://test.com", max_retries=3
             )
 
-        assert result is True
-
-        # Verify retry logic was executed
-        assert mock_driver.get.call_count == 3
+            assert result is True
+            # Verify retry logic was executed
+            assert mock_driver.get.call_count == 3
 
 
 class TestNetworkConditions:
@@ -288,15 +284,18 @@ class TestNetworkConditions:
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
+        from ECI_initiatives.data_pipeline.scraper.initiatives import downloader
 
         cls.wait_for_page_content = staticmethod(downloader.wait_for_page_content)
         cls.download_single_initiative = staticmethod(
             downloader.download_single_initiative
         )
 
-    @patch.object(downloader, "logger")
-    @patch.object(downloader, "time")  # Mock the time module used in downloader
-    @patch.object(downloader, "WebDriverWait")
+    @patch("ECI_initiatives.data_pipeline.scraper.initiatives.downloader.logger")
+    @patch(
+        "ECI_initiatives.data_pipeline.scraper.initiatives.downloader.time"
+    )  # Mock the time module used in downloader
+    @patch("ECI_initiatives.data_pipeline.scraper.initiatives.downloader.WebDriverWait")
     def test_slow_network_conditions(self, mock_wait, mock_sleep, mock_logger):
         """Test behavior under slow network conditions."""
 
@@ -323,15 +322,18 @@ class TestNetworkConditions:
         mock_driver.get.side_effect = None  # Reset side effect
         mock_driver.page_source = "<html><body>Test content</body></html>"
 
-        with patch.object(file_ops, "save_initiative_page") as mock_save:
+        with patch(
+            "ECI_initiatives.data_pipeline.scraper.initiatives.file_ops.save_initiative_page"
+        ) as mock_save:
             mock_save.return_value = "test_file.html"
+
             result = self.download_single_initiative(
                 mock_driver, "/tmp", "http://test.com"
             )
 
-        assert result is True
-        # Verify retries were attempted due to slow conditions
-        assert mock_sleep.sleep.call_count > 0
+            assert result is True
+            # Verify retries were attempted due to slow conditions
+            assert mock_sleep.sleep.call_count > 0
 
 
 class TestDownloadSingleInitiative:
@@ -346,12 +348,13 @@ class TestDownloadSingleInitiative:
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
+        from ECI_initiatives.data_pipeline.scraper.initiatives import downloader
 
         cls.download_single_initiative = staticmethod(
             downloader.download_single_initiative
         )
 
-    @patch.object(downloader, "logger")
+    @patch("ECI_initiatives.data_pipeline.scraper.initiatives.downloader.logger")
     def test_download_single_initiative_error_handling(self, mock_logger):
         """Test download_single_initiative handles various error scenarios."""
 
@@ -381,6 +384,7 @@ class TestDownloadSingleInitiative:
             result = self.download_single_initiative(
                 mock_driver, "/tmp", "http://test.com"
             )
+
             assert result is False
 
             # Verify appropriate error logging
