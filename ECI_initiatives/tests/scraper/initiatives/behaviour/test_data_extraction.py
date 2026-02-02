@@ -38,11 +38,10 @@ from ECI_initiatives.tests.consts import (
 @pytest.fixture(scope="session")
 def parsed_test_data():
     """Parse test HTML files once and reuse across all tests."""
-    
+
     # Import here to avoid early logger initialization
-    from ECI_initiatives.scraper.initiatives.data_parser import parse_initiatives_list_data
-    
-    with patch("ECI_initiatives.scraper.initiatives.data_parser.logger"):
+    with patch.object(data_parser, "logger"):
+
         all_initiatives = []
 
         for page_file in SAMPLE_LISTING_FILES:
@@ -53,9 +52,11 @@ def parsed_test_data():
 
             with open(page_path, "r", encoding="utf-8") as f:
                 page_source = f.read()
-
-            initiatives = parse_initiatives_list_data(page_source, BASE_URL)
-            all_initiatives.extend(initiatives)
+                # Use module function directly
+                initiatives = data_parser.parse_initiatives_list_data(
+                    page_source, BASE_URL
+                )
+                all_initiatives.extend(initiatives)
 
         return all_initiatives
 
@@ -73,6 +74,13 @@ def reference_data():
 
 # ===== TEST CLASSES =====
 
+# Top-Level Imports for Modules
+from ECI_initiatives.data_pipeline.scraper.initiatives import __main__ as main_module
+from ECI_initiatives.data_pipeline.scraper.initiatives import data_parser
+from ECI_initiatives.data_pipeline.scraper.initiatives import crawler
+from ECI_initiatives.data_pipeline.scraper.initiatives import browser
+from ECI_initiatives.data_pipeline.scraper.initiatives import file_ops
+
 
 class TestCsvFileOperations:
     """Test CSV data validation functionality."""
@@ -81,17 +89,18 @@ class TestCsvFileOperations:
     def setup_class(cls):
         """
         Import modules and set up class attributes.
-        
+
         Imports are done here rather than at module level to avoid
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
-        from ECI_initiatives.scraper.initiatives.__main__ import save_and_download_initiatives
-        
-        cls.save_and_download_initiatives = staticmethod(save_and_download_initiatives)
 
-    @patch("ECI_initiatives.scraper.initiatives.__main__.download_initiatives")
-    @patch("ECI_initiatives.scraper.initiatives.__main__.logger")
+        cls.save_and_download_initiatives = staticmethod(
+            main_module.save_and_download_initiatives
+        )
+
+    @patch.object(main_module, "download_initiatives")
+    @patch.object(main_module, "logger")
     def test_csv_created_with_correct_headers(self, mock_logger, mock_download_pages):
         """
         Verify that initiatives_list.csv is created with correct headers:
@@ -126,7 +135,9 @@ class TestCsvFileOperations:
             os.makedirs(pages_dir, exist_ok=True)
 
             # Call the function to test
-            self.save_and_download_initiatives(list_dir, pages_dir, test_initiative_data)
+            self.save_and_download_initiatives(
+                list_dir, pages_dir, test_initiative_data
+            )
 
             # Check that CSV file was created
             csv_file_path = os.path.join(list_dir, "initiatives_list.csv")
@@ -166,8 +177,8 @@ class TestCsvFileOperations:
                     data_row[0] == test_initiative_data[0][REQUIRED_CSV_COLUMNS.URL]
                 ), "URL not correctly written to CSV:\n" + str(data_row[0])
 
-    @patch("ECI_initiatives.scraper.initiatives.__main__.logger")
-    @patch("ECI_initiatives.scraper.initiatives.__main__.download_initiatives")
+    @patch.object(main_module, "logger")
+    @patch.object(main_module, "download_initiatives")
     def test_no_duplicate_initiatives(self, mock_download_pages, mock_logger):
         """Ensure no duplicate initiatives are recorded in the CSV when scraping produces duplicates."""
 
@@ -313,16 +324,17 @@ class TestScrapingWorkflow:
     def setup_class(cls):
         """
         Import modules and set up class attributes.
-        
+
         Imports are done here rather than at module level to avoid
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
-        from ECI_initiatives.scraper.initiatives.crawler import scrape_all_initiatives_on_all_pages
-        from ECI_initiatives.scraper.initiatives.data_parser import parse_initiatives_list_data
-        
-        cls.scrape_all_initiatives_on_all_pages = staticmethod(scrape_all_initiatives_on_all_pages)
-        cls.parse_initiatives_list_data = staticmethod(parse_initiatives_list_data)
+        cls.scrape_all_initiatives_on_all_pages = staticmethod(
+            crawler.scrape_all_initiatives_on_all_pages
+        )
+        cls.parse_initiatives_list_data = staticmethod(
+            data_parser.parse_initiatives_list_data
+        )
 
     def test_initiative_count_matches_reference(self, parsed_test_data, reference_data):
         """Compare initiative count with reference data."""
@@ -330,8 +342,8 @@ class TestScrapingWorkflow:
             reference_data
         ), f"Found {len(parsed_test_data)} initiatives, expected at least {len(reference_data)}"
 
-    @patch("ECI_initiatives.scraper.initiatives.browser.initialize_browser")
-    @patch("ECI_initiatives.scraper.initiatives.__main__.logger")
+    @patch.object(browser, "initialize_browser")
+    @patch.object(main_module, "logger")
     def test_pagination_handling(self, mock_logger, mock_browser):
         """Test pagination processing logic."""
         # Create a mock driver
@@ -377,12 +389,10 @@ class TestScrapingWorkflow:
         )
 
         # Mock other required methods
-        with patch(
-            "ECI_initiatives.scraper.initiatives.crawler.wait_for_listing_page_content"
-        ), patch(
-            "ECI_initiatives.scraper.initiatives.file_ops.save_listing_page"
-        ) as mock_save, patch(
-            "ECI_initiatives.scraper.initiatives.data_parser.parse_initiatives_list_data"
+        with patch.object(crawler, "wait_for_listing_page_content"), patch.object(
+            file_ops, "save_listing_page"
+        ) as mock_save, patch.object(
+            data_parser, "parse_initiatives_list_data"
         ) as mock_parse, patch(
             "time.sleep"
         ):

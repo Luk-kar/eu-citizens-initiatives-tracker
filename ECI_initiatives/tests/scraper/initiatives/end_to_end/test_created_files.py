@@ -65,6 +65,10 @@ from ECI_initiatives.tests.consts import (
     LOG_DIR_NAME,
 )
 
+from ECI_initiatives.data_pipeline.scraper.initiatives import crawler
+from ECI_initiatives.data_pipeline.scraper.initiatives import data_parser
+from ECI_initiatives.data_pipeline.scraper.initiatives import __main__ as main_module
+
 
 class TestCreatedFiles:
     """Test suite for validating created files from ECI scraping."""
@@ -73,36 +77,32 @@ class TestCreatedFiles:
     def setup_class(cls, data_dir=None):
         """
         Setup class-level resources that runs once before all tests.
-        
+
         Imports are done here rather than at module level to avoid
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
-        
+
         Args:
             data_dir: Path to the data directory (injected by pytest via fixture)
         """
 
-        # Import scraper modules at setup time
-        from ECI_initiatives.scraper.initiatives.__main__ import scrape_eci_initiatives
-        from ECI_initiatives.scraper.initiatives.data_parser import parse_initiatives_list_data
-        from ECI_initiatives.scraper.initiatives.crawler import (
-            scrape_all_initiatives_on_all_pages,
-            navigate_to_next_page,
-        )
-        
         # Store as class attributes for use in tests
-        cls.scrape_eci_initiatives = staticmethod(scrape_eci_initiatives)
-        cls.parse_initiatives_list_data = staticmethod(parse_initiatives_list_data)
-        cls.scrape_all_initiatives_on_all_pages = staticmethod(scrape_all_initiatives_on_all_pages)
-        cls.navigate_to_next_page = staticmethod(navigate_to_next_page)
+        cls.scrape_eci_initiatives = staticmethod(main_module.scrape_eci_initiatives)
+        cls.parse_initiatives_list_data = staticmethod(
+            data_parser.parse_initiatives_list_data
+        )
+        cls.scrape_all_initiatives_on_all_pages = staticmethod(
+            crawler.scrape_all_initiatives_on_all_pages
+        )
+        cls.navigate_to_next_page = staticmethod(crawler.navigate_to_next_page)
 
         # Create temporary directories for testing
         cls.temp_base_dir = tempfile.mkdtemp(prefix="eci_test_")
         cls.temp_data_dir = os.path.join(cls.temp_base_dir, DATA_DIR_NAME)
 
         # Store original functions for later restoration
-        original_parse_initiatives = parse_initiatives_list_data
-        original_navigate_to_next_page = navigate_to_next_page
+        original_parse_initiatives = data_parser.parse_initiatives_list_data
+        original_navigate_to_next_page = crawler.navigate_to_next_page
 
         def mock_parse_initiatives_limited(page_source, base_url):
             """
@@ -125,11 +125,11 @@ class TestCreatedFiles:
 
         # Apply mocks and run scraping - using REAL directories
         with patch.object(
-            sys.modules["ECI_initiatives.scraper.initiatives.crawler"],
+            crawler,
             "parse_initiatives_list_data",
             side_effect=mock_parse_initiatives_limited,
         ), patch.object(
-            sys.modules["ECI_initiatives.scraper.initiatives.crawler"],
+            crawler,
             "navigate_to_next_page",
             side_effect=mock_navigate_to_next_page_first_only,
         ):
@@ -139,17 +139,19 @@ class TestCreatedFiles:
 
         # Store results for tests - use fixture-provided data_dir
         cls.timestamp = timestamp
-        
+
         # Get data_dir from pytest request context
         # This will be injected by the pytest fixture mechanism
-        request = pytest._current_request if hasattr(pytest, '_current_request') else None
+        request = (
+            pytest._current_request if hasattr(pytest, "_current_request") else None
+        )
         if request:
-            real_data_dir = request.getfixturevalue('data_dir')
+            real_data_dir = request.getfixturevalue("data_dir")
         else:
             # Fallback: calculate manually (should not happen with proper fixture setup)
             script_dir = Path(__file__).parent.parent.parent.parent.parent.absolute()
             real_data_dir = script_dir / "data"
-        
+
         cls.data_path = real_data_dir / timestamp
         cls.listings_path = cls.data_path / LISTINGS_DIR_NAME
         cls.pages_path = cls.data_path / PAGES_DIR_NAME

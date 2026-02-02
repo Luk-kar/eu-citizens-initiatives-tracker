@@ -16,9 +16,10 @@ It consists of four sequential stages:
 
 ```text
 ECI_initiatives/
-├── scraper/                     # [Stage 1] Selenium web scrapers
-├── extractor/                   # [Stage 2] BeautifulSoup parsers
-├── csv_merger/                  # [Stage 3] CSV consolidation
+├── data_pipeline/
+│   ├── scraper/                     # [Stage 1] Selenium web scrapers
+│   ├──extractor/                   # [Stage 2] BeautifulSoup parsers
+│   └── csv_merger/                  # [Stage 3] CSV consolidation
 ├── exploratory_data_analysis/   # [Stage 4] Jupyter Notebooks & Visuals
 ├── data/                        # [Storage] Timestamped input/output folders
 └── tests/                       # [QA] Pytest suite for all modules
@@ -90,7 +91,7 @@ All data is versioned in timestamped folders (e.g., `data/2025-12-15_15-33-12/`)
 
 Detailed documentation for each sub-module:
 
-- [**Scraper Documentation**](./scraper/README.md)
+- [**Scraper Documentation**](./data_pipeline/scraper/initiatives/README.md)
 - [**Extractor Documentation**](./extractor/README.md)
 - [**Merger Documentation**](./csv_merger/responses/README.md)
 - [**Notebook Initiatives Documentation**](./exploratory_data_analysis/initiatives_campaigns/README.md)

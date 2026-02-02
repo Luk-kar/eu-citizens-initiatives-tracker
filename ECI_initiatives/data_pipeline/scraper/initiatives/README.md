@@ -136,5 +136,5 @@ source .venv/bin/activate
 Once the environment is active (you should see `(.venv)` in your prompt), run the module:
 
 ```bash
-python -m scraper.initiatives
+python -m data_pipeline.scraper.initiatives
 ```

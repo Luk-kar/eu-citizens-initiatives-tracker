@@ -3,7 +3,7 @@
 # python
 import os
 
-from ..scraper.initiatives.consts import (
+from ..data_pipeline.scraper.initiatives.consts import (
     BASE_URL,
     ROUTE_FIND_INITIATIVE,
     CSV_FILENAME,
