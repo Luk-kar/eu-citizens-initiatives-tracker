@@ -11,22 +11,31 @@ from unittest.mock import patch
 import pytest
 
 # Local imports
-from ECI_initiatives.scraper.responses.file_operations.page import PageFileManager
-from ECI_initiatives.scraper.responses.file_operations.csv import write_responses_csv
+from ECI_initiatives.data_pipeline.scraper.responses.file_operations.page import (
+    PageFileManager,
+)
+from ECI_initiatives.data_pipeline.scraper.responses.file_operations.csv import (
+    write_responses_csv,
+)
 
 
 class TestDirectoryStructure:
-    
+
     @pytest.fixture
     def test_data_dir(self):
         """Get path to test data directory."""
-        return Path(__file__).parent.parent.parent.parent / "data" / "example_htmls" / "responses"
-    
+        return (
+            Path(__file__).parent.parent.parent.parent
+            / "data"
+            / "example_htmls"
+            / "responses"
+        )
+
     @pytest.fixture
     def temp_base_dir(self, tmp_path):
         """Create temporary base directory for testing."""
         return tmp_path / "responses"
-    
+
     @pytest.fixture
     def sample_html_content(self, test_data_dir):
         """Provide sample HTML content for testing from actual file."""
@@ -70,7 +79,9 @@ class TestDirectoryStructure:
         files_in_root = [
             f for f in responses_dir.iterdir() if f.is_file() and f.suffix == ".html"
         ]
-        assert len(files_in_root) == 0, "HTML files should not be in root responses directory"
+        assert (
+            len(files_in_root) == 0
+        ), "HTML files should not be in root responses directory"
 
     def test_csv_file_created(self, temp_base_dir):
         """
@@ -110,12 +121,19 @@ class TestDirectoryStructure:
         an appropriate error indicating the initiatives scraper should run first.
         """
         # Arrange
-        from ECI_initiatives.scraper.responses.__main__ import scrape_commission_responses
-        from ECI_initiatives.scraper.responses.errors import MissingDataDirectoryError
-        
+        from ECI_initiatives.data_pipeline.scraper.responses.__main__ import (
+            scrape_commission_responses,
+        )
+        from ECI_initiatives.data_pipeline.scraper.responses.errors import (
+            MissingDataDirectoryError,
+        )
+
         # Patch the SCRIPT_DIR to point to our temp directory where no data exists
-        with patch('ECI_initiatives.scraper.responses.__main__.SCRIPT_DIR', str(temp_base_dir)):
-            
+        with patch(
+            "ECI_initiatives.data_pipeline.scraper.responses.__main__.SCRIPT_DIR",
+            str(temp_base_dir),
+        ):
+
             # Ensure no data directory exists
             data_dir = temp_base_dir / "data"
             if data_dir.exists():
@@ -123,17 +141,17 @@ class TestDirectoryStructure:
                     f"Test setup failed: Directory {data_dir} should not exist. "
                     "This indicates a problem with test isolation."
                 )
-            
+
             # Act & Assert - Call the actual scraper function
             with pytest.raises(MissingDataDirectoryError) as exc_info:
                 scrape_commission_responses()
-            
+
             # Verify the error message contains the expected hint
             error = exc_info.value
             assert error.expected_path is not None
             assert "data" in error.expected_path.lower()
             assert "Run the initiatives scraper first" in error.hint
-            
+
             # Verify error message format
             error_message = str(error)
             assert "Cannot find required data directory" in error_message
@@ -146,8 +164,10 @@ class TestDirectoryStructure:
         in the most recent timestamp directory from the initiatives scraper.
         """
         # Arrange
-        from ECI_initiatives.scraper.responses.__main__ import _find_latest_timestamp_directory
-        
+        from ECI_initiatives.data_pipeline.scraper.responses.__main__ import (
+            _find_latest_timestamp_directory,
+        )
+
         # Create multiple timestamp directories
         data_dir = temp_base_dir / "data"
         data_dir.mkdir(parents=True)
@@ -162,15 +182,22 @@ class TestDirectoryStructure:
             (data_dir / timestamp).mkdir()
 
         # Act - Patch SCRIPT_DIR and call the actual function
-        with patch('ECI_initiatives.scraper.responses.__main__.SCRIPT_DIR', str(temp_base_dir)):
+        with patch(
+            "ECI_initiatives.data_pipeline.scraper.responses.__main__.SCRIPT_DIR",
+            str(temp_base_dir),
+        ):
             most_recent_path = _find_latest_timestamp_directory()
 
         # Assert - Verify the function selected the most recent timestamp
         most_recent = Path(most_recent_path)
-        assert most_recent.name == "2024-10-09_16-45-00", "Did not select most recent timestamp"
-        assert most_recent.parent == data_dir, "Timestamp directory not in data directory"
+        assert (
+            most_recent.name == "2024-10-09_16-45-00"
+        ), "Did not select most recent timestamp"
+        assert (
+            most_recent.parent == data_dir
+        ), "Timestamp directory not in data directory"
         assert most_recent.exists(), "Selected timestamp directory does not exist"
-        
+
     def test_responses_directory_creation(self, temp_base_dir):
         """
         Verify that the responses directory is created if it doesn't exist.
@@ -187,7 +214,9 @@ class TestDirectoryStructure:
         assert responses_dir.exists(), "Responses directory was not created"
         assert responses_dir.is_dir(), "Responses path is not a directory"
 
-    def test_multiple_year_directories_coexist(self, temp_base_dir, sample_html_content):
+    def test_multiple_year_directories_coexist(
+        self, temp_base_dir, sample_html_content
+    ):
         """
         Verify that multiple year subdirectories can coexist without conflicts.
         """

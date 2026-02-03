@@ -3,7 +3,7 @@
 Extension designed to scrape the **Commission's answer and follow-up** pages for European Citizens' Initiatives. Unlike the primary scraper, this tool **does not crawl listings from scratch**. Instead, it parses the local HTML files already downloaded by the `initiatives` scraper to discover response links, then fetches those specific documents.
 
 > [!IMPORTANT]
-> **Dependency Warning**: This scraper depends on the output of the `initiatives` scraper. You must run `scraper.initiatives` first to generate the necessary `data/YYYY-MM-DD.../initiatives` directory structure.
+> **Dependency Warning**: This scraper depends on the output of the `initiatives` scraper. You must run `data_pipeline.scraper.initiatives` first to generate the necessary `data/YYYY-MM-DD.../initiatives` directory structure.
 
 ## 📂 Project Structure
 
@@ -126,5 +126,5 @@ source .venv/bin/activate
 Once the environment is active (you should see `(.venv)` in your prompt), run the module:
 
 ```bash
-python -m scraper.responses
+python -m data_pipeline.scraper.responses
 ```

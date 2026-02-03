@@ -33,8 +33,10 @@ import pytest
 from bs4 import BeautifulSoup
 
 # Local imports
-from ECI_initiatives.scraper.responses import __main__ as responses_main
-from ECI_initiatives.scraper.responses.downloader import ResponseDownloader
+from ECI_initiatives.data_pipeline.scraper.responses import __main__ as responses_main
+from ECI_initiatives.data_pipeline.scraper.responses.downloader import (
+    ResponseDownloader,
+)
 from ECI_initiatives.tests.consts import (
     DATA_DIR_NAME,
     LOG_DIR_NAME,

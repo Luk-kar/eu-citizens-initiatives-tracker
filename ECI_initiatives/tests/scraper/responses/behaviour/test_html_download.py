@@ -13,8 +13,10 @@ import pytest
 from bs4 import BeautifulSoup
 
 # Local imports
-from ECI_initiatives.scraper.responses.file_operations.page import PageFileManager
-from ECI_initiatives.scraper.responses.consts import MIN_HTML_LENGTH
+from ECI_initiatives.data_pipeline.scraper.responses.file_operations.page import (
+    PageFileManager,
+)
+from ECI_initiatives.data_pipeline.scraper.responses.consts import MIN_HTML_LENGTH
 
 
 class TestHTMLDownload:
@@ -23,18 +25,28 @@ class TestHTMLDownload:
     @pytest.fixture
     def test_data_dir(self):
         """Get path to test data directory."""
-        return Path(__file__).parent.parent.parent.parent / "data" / "example_htmls" / "responses"
-    
+        return (
+            Path(__file__).parent.parent.parent.parent
+            / "data"
+            / "example_htmls"
+            / "responses"
+        )
+
     @pytest.fixture
     def temp_responses_dir(self, tmp_path):
         """Create temporary responses directory for testing."""
         return tmp_path / "responses"
-    
+
     @pytest.fixture
     def valid_response_html(self, test_data_dir):
         """Valid Commission response HTML content from actual file."""
         # Use strong_legislative_success example
-        html_file = test_data_dir / "strong_legislative_success" / "2012" / "2012_000003_en.html"
+        html_file = (
+            test_data_dir
+            / "strong_legislative_success"
+            / "2012"
+            / "2012_000003_en.html"
+        )
         with open(html_file, "r", encoding="utf-8") as f:
             return f.read()
 
@@ -82,7 +94,9 @@ class TestHTMLDownload:
         file_ops.setup_directories()
 
         # Act
-        filename = file_ops.save_response_page(valid_response_html, "2019", "2019_000007")
+        filename = file_ops.save_response_page(
+            valid_response_html, "2019", "2019_000007"
+        )
 
         # Assert
         saved_file = temp_responses_dir / filename
@@ -168,51 +182,53 @@ class TestHTMLDownload:
         that the item is marked as failed and included in the failure summary.
         """
         # Arrange
-        from ECI_initiatives.scraper.responses.downloader import ResponseDownloader
+        from ECI_initiatives.data_pipeline.scraper.responses.downloader import (
+            ResponseDownloader,
+        )
         from unittest.mock import Mock, MagicMock, patch
         import tempfile
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            
+
             # Create downloader instance
             downloader = ResponseDownloader(tmpdir)
-            
+
             # Mock the driver directly on the downloader instance
             mock_driver = MagicMock()
             mock_driver.get.side_effect = Exception("Connection timeout")
             downloader.driver = mock_driver
-            
+
             # Mock logger to prevent actual logging
             downloader.logger = Mock()
-            
+
             # Mock time.sleep to avoid actual delays between retries
-            with patch('time.sleep'):
-                
+            with patch("time.sleep"):
+
                 # Test parameters
                 test_url = "https://citizens-initiative.europa.eu/initiatives/response/2019/000007"
                 test_year = "2019"
                 test_reg_number = "2019_000007"
                 max_retries = 3
-                
+
                 # Act - Call the actual download method
                 success, timestamp = downloader.download_single_response(
                     url=test_url,
                     year=test_year,
                     reg_number=test_reg_number,
-                    max_retries=max_retries
+                    max_retries=max_retries,
                 )
-                
+
                 # Assert
                 assert success is False, "Download should fail after max retries"
                 assert timestamp == "", "Timestamp should be empty for failed download"
-                
+
                 # Verify driver.get was called max_retries times
-                assert mock_driver.get.call_count == max_retries, \
-                    f"Expected {max_retries} retry attempts, but got {mock_driver.get.call_count}"
-                
+                assert (
+                    mock_driver.get.call_count == max_retries
+                ), f"Expected {max_retries} retry attempts, but got {mock_driver.get.call_count}"
+
                 # Verify error was logged
                 downloader.logger.error.assert_called_once()
-
 
     def test_html_files_prettified(self, temp_responses_dir):
         """
@@ -236,7 +252,7 @@ class TestHTMLDownload:
         # Verify prettification (indentation and newlines)
         assert "\n" in content, "Should contain newlines"
         assert "  " in content or "\t" in content, "Should contain indentation"
-        
+
         # Count lines to verify it's been expanded
         lines = content.split("\n")
         assert len(lines) > 5, "Prettified HTML should have multiple lines"
@@ -284,47 +300,50 @@ class TestHTMLDownload:
         """
 
         # Arrange
-        from ECI_initiatives.scraper.responses.downloader import ResponseDownloader
+        from ECI_initiatives.data_pipeline.scraper.responses.downloader import (
+            ResponseDownloader,
+        )
         from unittest.mock import Mock, patch, MagicMock
         import tempfile
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
 
             # Patch initialize_browser to return a mock driver
-            with patch('ECI_initiatives.scraper.responses.downloader.initialize_browser') as mock_init_browser:
-                
+            with patch(
+                "ECI_initiatives.data_pipeline.scraper.responses.downloader.initialize_browser"
+            ) as mock_init_browser:
+
                 # Create mock driver
                 mock_driver = MagicMock()
                 mock_quit = Mock()
                 mock_driver.quit = mock_quit
                 mock_driver.get.side_effect = Exception("Connection error")
                 mock_init_browser.return_value = mock_driver
-                
+
                 downloader = ResponseDownloader(tmpdir)
-                
+
                 # Mock logger to prevent actual logging
                 downloader.logger = Mock()
-                
+
                 # Initialize the driver (this calls initialize_browser)
                 downloader._initialize_driver()
-                
+
                 # Act - Attempt download that will fail
                 try:
                     downloader.download_single_response(
                         url="https://test-url.com",
                         year="2019",
                         reg_number="000007",
-                        max_retries=1  # Single attempt to speed up test
+                        max_retries=1,  # Single attempt to speed up test
                     )
                 except Exception:
                     pass  # Expected to fail
-                
+
                 # Now close the downloader (which should call driver.quit)
                 downloader._close_driver()
-                
+
                 # Assert - Browser quit was called
                 mock_quit.assert_called_once()
-
 
     def test_validate_html_content_length(self, temp_responses_dir):
         """
@@ -333,10 +352,10 @@ class TestHTMLDownload:
 
         # Arrange
         file_ops = PageFileManager(str(temp_responses_dir))
-        
+
         # Test with content just below threshold
         short_content = "x" * (MIN_HTML_LENGTH - 1)
-        
+
         # Act & Assert
         with pytest.raises(Exception, match="HTML content too short"):
             file_ops._validate_html(short_content)

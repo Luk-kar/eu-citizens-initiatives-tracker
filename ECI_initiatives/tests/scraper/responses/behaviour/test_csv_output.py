@@ -1,15 +1,14 @@
 """
 Test suite for CSV output file creation and content validation.
 
-This test suite verifies that the Commission responses scraper correctly generates CSV files 
-with proper structure, required columns, and accurate content based on download outcomes. 
+This test suite verifies that the Commission responses scraper correctly generates CSV files
+with proper structure, required columns, and accurate content based on download outcomes.
 
-It validates registration number normalization from underscore to slash format, 
-ensures timestamps are populated only for successful downloads 
-while failed downloads have empty timestamps, 
+It validates registration number normalization from underscore to slash format,
+ensures timestamps are populated only for successful downloads
+while failed downloads have empty timestamps,
 and confirms proper UTF-8 encoding for multilingual content.
 """
-
 
 # Standard library
 import csv
@@ -22,8 +21,10 @@ from typing import List, Dict
 import pytest
 
 # Local imports
-from ECI_initiatives.scraper.responses.file_operations.csv import write_responses_csv
-from ECI_initiatives.scraper.responses.consts import CSV_FIELDNAMES
+from ECI_initiatives.data_pipeline.scraper.responses.file_operations.csv import (
+    write_responses_csv,
+)
+from ECI_initiatives.data_pipeline.scraper.responses.consts import CSV_FIELDNAMES
 
 
 class TestCSVOutput:
@@ -120,13 +121,19 @@ class TestCSVOutput:
 
         for row in rows:
             reg_number = row["registration_number"]
-            assert "/" in reg_number, f"Registration number should use slash format: {reg_number}"
-            assert "_" not in reg_number, f"Registration number should not contain underscores: {reg_number}"
+            assert (
+                "/" in reg_number
+            ), f"Registration number should use slash format: {reg_number}"
+            assert (
+                "_" not in reg_number
+            ), f"Registration number should not contain underscores: {reg_number}"
 
         # Verify specific normalized values
         expected_reg_numbers = ["2019/000007", "2020/000001", "2021/000006"]
         actual_reg_numbers = [row["registration_number"] for row in rows]
-        assert actual_reg_numbers == expected_reg_numbers, "Registration numbers not properly normalized"
+        assert (
+            actual_reg_numbers == expected_reg_numbers
+        ), "Registration numbers not properly normalized"
 
     def test_csv_timestamps_for_successful_downloads(
         self, temp_csv_dir, sample_response_data_mixed_success
@@ -148,13 +155,19 @@ class TestCSVOutput:
 
         # Verify successful downloads have timestamps
         successful_rows = [row for row in rows if row["datetime"]]
-        assert len(successful_rows) == 2, "Expected 2 successful downloads with timestamps"
+        assert (
+            len(successful_rows) == 2
+        ), "Expected 2 successful downloads with timestamps"
 
         # Verify timestamp format (YYYY-MM-DD HH:MM:SS)
         for row in successful_rows:
             timestamp = row["datetime"]
-            assert len(timestamp) > 0, "Timestamp should not be empty for successful downloads"
-            assert "-" in timestamp and ":" in timestamp, f"Invalid timestamp format: {timestamp}"
+            assert (
+                len(timestamp) > 0
+            ), "Timestamp should not be empty for successful downloads"
+            assert (
+                "-" in timestamp and ":" in timestamp
+            ), f"Invalid timestamp format: {timestamp}"
 
         # Verify specific successful downloads
         successful_reg_numbers = [row["registration_number"] for row in successful_rows]
@@ -181,12 +194,16 @@ class TestCSVOutput:
 
         # Verify failed downloads have empty timestamps
         failed_rows = [row for row in rows if not row["datetime"]]
-        assert len(failed_rows) == 2, "Expected 2 failed downloads with empty timestamps"
+        assert (
+            len(failed_rows) == 2
+        ), "Expected 2 failed downloads with empty timestamps"
 
         # Verify failed rows still have other data
         for row in failed_rows:
             assert row["url_find_initiative"], "Failed row should have URL"
-            assert row["registration_number"], "Failed row should have registration number"
+            assert row[
+                "registration_number"
+            ], "Failed row should have registration number"
             assert row["title"], "Failed row should have title"
             assert row["datetime"] == "", "Failed row should have empty timestamp"
 
@@ -217,14 +234,25 @@ class TestCSVOutput:
 
         # Verify all required columns exist
         required_columns = CSV_FIELDNAMES
-        assert headers == required_columns, f"CSV headers don't match required columns. Expected: {required_columns}, Got: {headers}"
+        assert (
+            headers == required_columns
+        ), f"CSV headers don't match required columns. Expected: {required_columns}, Got: {headers}"
 
         # Verify column order matches expected order
-        expected_order = ["url_find_initiative", "registration_number", "title", "datetime"]
-        assert list(headers) == expected_order, f"CSV column order incorrect. Expected: {expected_order}, Got: {list(headers)}"
+        expected_order = [
+            "url_find_initiative",
+            "registration_number",
+            "title",
+            "datetime",
+        ]
+        assert (
+            list(headers) == expected_order
+        ), f"CSV column order incorrect. Expected: {expected_order}, Got: {list(headers)}"
 
         # Verify no extra columns
-        assert len(headers) == len(expected_order), f"CSV should have exactly {len(expected_order)} columns, got {len(headers)}"
+        assert len(headers) == len(
+            expected_order
+        ), f"CSV should have exactly {len(expected_order)} columns, got {len(headers)}"
 
     def test_csv_handles_empty_data_list(self, temp_csv_dir):
         """
@@ -246,7 +274,9 @@ class TestCSVOutput:
             headers = reader.fieldnames
             rows = list(reader)
 
-        assert headers == CSV_FIELDNAMES, "Headers should be present even with empty data"
+        assert (
+            headers == CSV_FIELDNAMES
+        ), "Headers should be present even with empty data"
         assert len(rows) == 0, "No data rows should be present"
 
     def test_csv_utf8_encoding_for_special_characters(self, temp_csv_dir):
@@ -291,7 +321,7 @@ class TestCSVOutput:
         """
         # Arrange
         csv_path = temp_csv_dir / "responses_overwrite.csv"
-        
+
         first_data = [
             {
                 "url_find_initiative": "https://example.com/1",
@@ -300,7 +330,7 @@ class TestCSVOutput:
                 "datetime": "2024-10-09 14:00:00",
             }
         ]
-        
+
         second_data = [
             {
                 "url_find_initiative": "https://example.com/2",
@@ -313,12 +343,12 @@ class TestCSVOutput:
                 "registration_number": "2020_000003",
                 "title": "Third Initiative",
                 "datetime": "2024-10-09 16:00:00",
-            }
+            },
         ]
 
         # Act - Write first dataset
         write_responses_csv(str(csv_path), first_data)
-        
+
         # Act - Write second dataset (should overwrite)
         write_responses_csv(str(csv_path), second_data)
 

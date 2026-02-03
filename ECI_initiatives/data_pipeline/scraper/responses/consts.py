@@ -1,6 +1,7 @@
 """
 Constants and configuration for Commission responses scraper.
 """
+
 from pathlib import Path
 
 # URLs and Routes
@@ -13,16 +14,11 @@ RESPONSES_DIR_NAME = "responses"
 INITIATIVE_PAGES_DIR_NAME = "initiatives"
 
 # Script directory (3 levels up from this file: responses -> scraper -> ECI_initiatives)
-SCRIPT_DIR = Path(__file__).parent.parent.parent.absolute()
+SCRIPT_DIR = Path(__file__).parent.parent.parent.parent.absolute()
 
 # CSV Configuration
 CSV_FILENAME = "responses_list.csv"
-CSV_FIELDNAMES = [
-    "url_find_initiative",
-    "registration_number", 
-    "title",
-    "datetime"
-]
+CSV_FIELDNAMES = ["url_find_initiative", "registration_number", "title", "datetime"]
 
 # Timing Configuration (in seconds)
 WAIT_DYNAMIC_CONTENT = (1.5, 1.9)
@@ -53,7 +49,7 @@ RATE_LIMIT_INDICATORS = [
     "429 - Too Many Requests",
     "HTTP 429",
     "Too Many Requests",
-    "Rate limited"
+    "Rate limited",
 ]
 
 # Log messages
@@ -61,21 +57,17 @@ LOG_MESSAGES = {
     # Scraping lifecycle
     "scraping_start": "Starting Commission responses scraping at {timestamp} directory",
     "scraping_complete": "COMMISSION RESPONSES SCRAPING FINISHED!",
-
     # Browser
     "browser_init": "Initializing browser...",
     "browser_success": "Browser initialized successfully",
     "browser_closed": "Browser closed",
-
     # Link extraction
     "links_found": "Found {count} Commission response links",
     "no_links_found": "No Commission response links found",
-
     # Download
     "download_success": "Successfully downloaded {filename}",
     "download_failed": "Failed to download {url}",
     "rate_limit_retry": "Received rate limiting. Retrying ({retry}/{max_retries}) in {wait_time:.1f} seconds...",
-
     # Summary
     "completion_timestamp": "Scraping completed at {timestamp}",
     "start_time": "Start time: {start_scraping}",
@@ -85,5 +77,5 @@ LOG_MESSAGES = {
     "failed_url": "  - {failed_url}",
     "all_downloads_successful": "All downloads successful!",
     "files_saved_in": "Files saved in: {path}",
-    "divider_line": "=" * 60
+    "divider_line": "=" * 60,
 }
