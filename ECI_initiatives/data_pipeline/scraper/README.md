@@ -1,4 +1,3 @@
-```markdown
 # ECI Scraper Pipeline
 
 Comprehensive web scraping pipeline for **European Citizens' Initiatives (ECI)** data, from core registry → Commission responses → dedicated follow-up websites.
