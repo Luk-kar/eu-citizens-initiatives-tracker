@@ -17,6 +17,7 @@ The extractor converts the raw HTML pages (downloaded by the scraper) into a cle
 - **`model.py`**: Defines the **standardized schema** for an initiative, enforcing a consistent data contract across the application.
 - **`initiatives_logger.py`**: Handles unified logging for the extraction process.
 - **`__main__.py`**: Entry point for running the extractor directly.
+- **`tests/`**: Comprehensive test suite for extraction logic and data processing.
 
 ## ⚙️ Workflow
 
@@ -91,9 +92,8 @@ source .venv/bin/activate
 Once the environment is active (you should see `(.venv)` in your prompt), run the module. It will automatically find the latest data directory:
 
 ```bash
-python -m extractor.initiatives
+python -m data_pipeline.extractor.initiatives
 ```
 
 **Output Location:**  
 `data/{TIMESTAMP}/eci_initiatives_{DATE}.csv`
-```
