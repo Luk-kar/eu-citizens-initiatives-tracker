@@ -6,24 +6,26 @@ Usage:
     python run_tests.py [options]
 
 Basic Examples:
-    python run_tests.py                         # Run all tests
-    python run_tests.py --scraper               # Run all scraper tests
-    python run_tests.py --extractor             # Run all extractor tests
-    python run_tests.py --merger                # Run all merger tests
-
-    python run_tests.py --merger --behaviour    # Run merger behaviour tests
-    python run_tests.py --merger --end-to-end   # Run merger end-to-end tests
-
-    python run_tests.py --scraper --initiatives # Run scraper initiatives tests
-    python run_tests.py --scraper --responses   # Run scraper responses tests
+    python run_tests.py                                    # Run all tests
+    python run_tests.py --scraper                          # Run all scraper tests
+    python run_tests.py --extractor                        # Run all extractor tests
+    python run_tests.py --merger                           # Run all merger tests
+    python run_tests.py --merger --behaviour               # Run merger behaviour tests
+    python run_tests.py --merger --end-to-end              # Run merger end-to-end tests
+    python run_tests.py --scraper --initiatives            # Run scraper initiatives tests
+    python run_tests.py --scraper --responses              # Run scraper responses tests
+    python run_tests.py --scraper --followup-website       # Run scraper followup website tests
+    python run_tests.py --scraper --followup-website --behaviour  # Run followup website behaviour tests
 
 Specific Test Selection:
     # Run specific test file
-    python run_tests.py scraper/responses/behaviour/test_link_extraction.py
+    python run_tests.py scraper/responses_followup_website/behaviour/test_browser.py
+
     # Run specific test class
-    python run_tests.py scraper/responses/behaviour/test_link_extraction.py::TestLinkExtraction
+    python run_tests.py scraper/responses_followup_website/behaviour/test_browser.py::TestBrowserInitialization
+
     # Run specific test method
-    python run_tests.py scraper/responses/behaviour/test_link_extraction.py::TestLinkExtraction::test_only_initiatives_with_response_links_included
+    python run_tests.py scraper/responses_followup_website/behaviour/test_browser.py::TestBrowserInitialization::test_browser_initialized_with_chrome_options
 """
 
 import os
@@ -110,6 +112,10 @@ def main():
             "action": "store_true",
             "help": "Run responses tests (scraper only)",
         },
+        "--followup-website": {
+            "action": "store_true",
+            "help": "Run responses followup website tests (scraper only)",
+        },
         "--behaviour": {"action": "store_true", "help": "Run only behaviour tests"},
         "--end-to-end": {"action": "store_true", "help": "Run only end-to-end tests"},
     }
@@ -134,6 +140,7 @@ def main():
         test_path = "csv_merger"
 
     # --- SCRAPER ---
+
     # Scraper paths with initiatives/responses differentiation
     elif args.scraper and args.initiatives and args.behaviour:
         test_path = "scraper/initiatives/behaviour"
@@ -148,6 +155,17 @@ def main():
         test_path = "scraper/responses/end_to_end"
     elif args.scraper and args.responses:
         test_path = "scraper/responses"
+
+    elif args.scraper and getattr(args, "followup_website") and args.behaviour:
+        test_path = "scraper/responses_followup_website/behaviour"
+    elif (
+        args.scraper
+        and getattr(args, "followup_website")
+        and getattr(args, "end_to_end")
+    ):
+        test_path = "scraper/responses_followup_website/end_to_end"
+    elif args.scraper and getattr(args, "followup_website"):
+        test_path = "scraper/responses_followup_website"
 
     elif args.scraper and args.behaviour:
         # Run all scraper behaviour tests (both initiatives and responses)
@@ -201,6 +219,10 @@ def main():
     elif args.responses:
         # All responses tests (scraper only)
         test_path = "scraper/responses"
+
+    elif getattr(args, "followup_website"):
+        # All responses followup website tests (scraper only)
+        test_path = "scraper/responses_followup_website"
 
     else:
         # Default - run all tests

@@ -12,11 +12,11 @@ import csv
 import pytest
 
 # Local imports
-from ECI_initiatives.scraper.responses_followup_website.file_operations.csv_reader import (
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website.file_operations.csv_reader import (
     find_latest_csv_file,
     extract_followup_website_urls,
 )
-from ECI_initiatives.scraper.responses_followup_website.errors import (
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website.errors import (
     MissingCSVFileError,
 )
 

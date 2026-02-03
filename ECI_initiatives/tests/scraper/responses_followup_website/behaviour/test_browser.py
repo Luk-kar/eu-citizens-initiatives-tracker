@@ -9,10 +9,12 @@ options application, and proper cleanup after scraping sessions.
 from unittest.mock import patch, MagicMock
 
 # Local imports
-from ECI_initiatives.scraper.responses_followup_website.browser import (
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website.browser import (
     initialize_browser,
 )
-from ECI_initiatives.scraper.responses_followup_website.consts import CHROME_OPTIONS
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website.consts import (
+    CHROME_OPTIONS,
+)
 
 # pylint: disable=unused-variable
 # Rationale: Mock objects (mock_chrome) are created as byproducts of patch context
@@ -32,9 +34,9 @@ class TestBrowserInitialization:
         """
         # Arrange
         with patch(
-            "ECI_initiatives.scraper.responses_followup_website.browser.webdriver.Chrome"
+            "ECI_initiatives.data_pipeline.scraper.responses_followup_website.browser.webdriver.Chrome"
         ) as mock_chrome, patch(
-            "ECI_initiatives.scraper.responses_followup_website.browser.Options"
+            "ECI_initiatives.data_pipeline.scraper.responses_followup_website.browser.Options"
         ) as mock_options:
 
             mock_options_instance = MagicMock()
@@ -67,9 +69,9 @@ class TestBrowserInitialization:
         """
         # Arrange
         with patch(
-            "ECI_initiatives.scraper.responses_followup_website.browser.webdriver.Chrome"
+            "ECI_initiatives.data_pipeline.scraper.responses_followup_website.browser.webdriver.Chrome"
         ) as mock_chrome, patch(
-            "ECI_initiatives.scraper.responses_followup_website.browser.Options"
+            "ECI_initiatives.data_pipeline.scraper.responses_followup_website.browser.Options"
         ) as mock_options:
 
             mock_options_instance = MagicMock()
@@ -88,9 +90,9 @@ class TestBrowserInitialization:
         """
         # Arrange
         with patch(
-            "ECI_initiatives.scraper.responses_followup_website.browser.webdriver.Chrome"
+            "ECI_initiatives.data_pipeline.scraper.responses_followup_website.browser.webdriver.Chrome"
         ) as mock_chrome, patch(
-            "ECI_initiatives.scraper.responses_followup_website.browser.Options"
+            "ECI_initiatives.data_pipeline.scraper.responses_followup_website.browser.Options"
         ) as mock_options:
 
             mock_options_instance = MagicMock()
@@ -109,9 +111,9 @@ class TestBrowserInitialization:
         """
         # Arrange
         with patch(
-            "ECI_initiatives.scraper.responses_followup_website.browser.webdriver.Chrome"
+            "ECI_initiatives.data_pipeline.scraper.responses_followup_website.browser.webdriver.Chrome"
         ) as mock_chrome, patch(
-            "ECI_initiatives.scraper.responses_followup_website.browser.Options"
+            "ECI_initiatives.data_pipeline.scraper.responses_followup_website.browser.Options"
         ) as mock_options:
 
             mock_options_instance = MagicMock()

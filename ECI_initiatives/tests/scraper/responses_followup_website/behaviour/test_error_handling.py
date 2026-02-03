@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch, MagicMock
 import pytest
 
 # Local imports
-from ECI_initiatives.scraper.responses_followup_website.downloader import (
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website.downloader import (
     FollowupWebsiteDownloader,
 )
 
@@ -44,11 +44,11 @@ class TestRetryMechanism:
             response_sequence = [rate_limit_html, valid_html]
 
             with patch(
-                "ECI_initiatives.scraper.responses_followup_website.downloader.initialize_browser"
+                "ECI_initiatives.data_pipeline.scraper.responses_followup_website.downloader.initialize_browser"
             ) as mock_init_browser, patch(
-                "ECI_initiatives.scraper.responses_followup_website.downloader.time.sleep"
+                "ECI_initiatives.data_pipeline.scraper.responses_followup_website.downloader.time.sleep"
             ), patch(
-                "ECI_initiatives.scraper.responses_followup_website.downloader.random.uniform",
+                "ECI_initiatives.data_pipeline.scraper.responses_followup_website.downloader.random.uniform",
                 return_value=0.1,
             ):
 
@@ -62,7 +62,7 @@ class TestRetryMechanism:
                 downloader._initialize_driver()
 
                 with patch(
-                    "ECI_initiatives.scraper.responses_followup_website.downloader.save_followup_website_html_file",
+                    "ECI_initiatives.data_pipeline.scraper.responses_followup_website.downloader.save_followup_website_html_file",
                     return_value="test.html",
                 ):
 
@@ -123,9 +123,9 @@ class TestRetryMechanism:
         with tempfile.TemporaryDirectory() as tmpdir:
 
             with patch(
-                "ECI_initiatives.scraper.responses_followup_website.downloader.initialize_browser"
+                "ECI_initiatives.data_pipeline.scraper.responses_followup_website.downloader.initialize_browser"
             ) as mock_init_browser, patch(
-                "ECI_initiatives.scraper.responses_followup_website.downloader.time.sleep"
+                "ECI_initiatives.data_pipeline.scraper.responses_followup_website.downloader.time.sleep"
             ):
 
                 mock_driver = MagicMock()
@@ -159,7 +159,7 @@ class TestRetryMechanism:
         # Arrange
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch(
-                "ECI_initiatives.scraper.responses_followup_website.downloader.initialize_browser"
+                "ECI_initiatives.data_pipeline.scraper.responses_followup_website.downloader.initialize_browser"
             ) as mock_init_browser:
 
                 mock_driver = MagicMock()
@@ -183,7 +183,7 @@ class TestRetryMechanism:
         # Arrange
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch(
-                "ECI_initiatives.scraper.responses_followup_website.downloader.initialize_browser"
+                "ECI_initiatives.data_pipeline.scraper.responses_followup_website.downloader.initialize_browser"
             ) as mock_init_browser:
 
                 mock_driver = MagicMock()

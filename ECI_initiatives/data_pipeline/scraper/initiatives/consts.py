@@ -1,3 +1,7 @@
+"""
+Constants and configuration for Commission initiatives scraper.
+"""
+
 # python
 import datetime
 import os

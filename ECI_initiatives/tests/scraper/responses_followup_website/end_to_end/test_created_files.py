@@ -30,8 +30,10 @@ import re
 from bs4 import BeautifulSoup
 
 # Local imports
-from ECI_initiatives.scraper.responses_followup_website import __main__ as followup_main
-from ECI_initiatives.scraper.responses_followup_website.downloader import (
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website import (
+    __main__ as followup_main,
+)
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website.downloader import (
     FollowupWebsiteDownloader,
 )
 

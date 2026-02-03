@@ -13,14 +13,14 @@ from unittest.mock import patch
 import pytest
 
 # Local imports
-from ECI_initiatives.scraper.responses_followup_website.file_operations.page import (
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website.file_operations.page import (
     PageFileManager,
 )
-from ECI_initiatives.scraper.responses_followup_website.__main__ import (
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website.__main__ import (
     _find_latest_timestamp_directory,
     scrape_followup_websites,
 )
-from ECI_initiatives.scraper.responses_followup_website.errors import (
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website.errors import (
     MissingDataDirectoryError,
 )
 
@@ -104,7 +104,7 @@ class TestDirectoryStructure:
 
         # Act - Patch SCRIPT_DIR and call the function
         with patch(
-            "ECI_initiatives.scraper.responses_followup_website.__main__.SCRIPT_DIR",
+            "ECI_initiatives.data_pipeline.scraper.responses_followup_website.__main__.SCRIPT_DIR",
             str(tmp_path),
         ):
             most_recent_path = _find_latest_timestamp_directory()
@@ -142,7 +142,7 @@ class TestDirectoryStructure:
 
         # Patch SCRIPT_DIR to point to temp directory with no data
         with patch(
-            "ECI_initiatives.scraper.responses_followup_website.__main__.SCRIPT_DIR",
+            "ECI_initiatives.data_pipeline.scraper.responses_followup_website.__main__.SCRIPT_DIR",
             str(tmp_path),
         ):
 

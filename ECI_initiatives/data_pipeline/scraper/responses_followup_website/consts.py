@@ -10,7 +10,7 @@ LOG_DIR_NAME = "logs"
 RESPONSES_FOLLOWUP_WEBSITE_DIR_NAME = "responses_followup_website"
 
 # Script directory (3 levels up from this file)
-SCRIPT_DIR = Path(__file__).parent.parent.parent.absolute()
+SCRIPT_DIR = Path(__file__).parent.parent.parent.parent.absolute()
 
 # CSV Configuration
 ECI_RESPONSES_CSV_PATTERN = "eci_responses_*.csv"
