@@ -8,25 +8,51 @@ The extraction modules process data in the same order as the scrapers, building 
 
 | Module | Purpose | Source Data | Key Output |
 |--------|---------|-------------|------------|
-| `initiatives` | structured metadata & signature counts | `initiatives/` HTML | `eci_initiatives_{TIMESTAMP}.csv` |
+| `initiatives` | Structured metadata & signature counts | `initiatives/` HTML | `eci_initiatives_{TIMESTAMP}.csv` |
 | `responses` | Legislative analysis of Commission answers | `responses/` HTML | `eci_responses_{TIMESTAMP}.csv` |
 | `responses_followup_website` | Deep-dive into dedicated follow-up pages | `responses_followup_website/` HTML | `eci_responses_followup_website_{TIMESTAMP}.csv` |
 
 ## 🧪 Testing
 
-Comprehensive **pytest suite** available in `tests/extractor/`:
+Each extractor module includes its own comprehensive **pytest suite** located in its `tests/` subdirectory:
 
-- **Unit tests**: Regex pattern validation, date parsing logic, text normalization.
-- **Integration tests**: HTML file parsing, CSV schema verification.
-- **Data Quality**: Checks for correct extraction of complex nested JSON fields.
+- **`initiatives/tests/`**: Behavioral tests for metadata extraction, registration numbers, titles, objectives, timelines, signatures, organizers, and CSV processing.
+- **`responses/tests/`**: Tests for legislative outcome classification, rejection reason parsing, and response data extraction.
+- **`responses_followup_website/tests/`**: Tests for follow-up event detection, implementation tracking, and complex text analysis.
 
-Run tests:
+### Running Tests
+
+From the project root, use the `run_tests.py` script:
+
 ```bash
 # Run all extractor tests
-python tests/run_tests.py --extractor
+python run_tests.py --extractor
 
 # Run specific component tests
-python tests/run_tests.py --extractor --initiatives
+python run_tests.py --extractor --initiatives
+python run_tests.py --extractor --responses
+python run_tests.py --extractor --followup-website
+
+# Run with specific test types
+python run_tests.py --extractor --initiatives --behaviour
+python run_tests.py --extractor --responses --end-to-end
+
+# Run with verbose output and coverage
+python run_tests.py --extractor --coverage -v
+```
+
+### Direct pytest Usage
+
+You can also run tests directly with pytest:
+
+```bash
+# All extractor tests
+pytest ECI_initiatives/data_pipeline/extractor
+
+# Specific module tests
+pytest ECI_initiatives/data_pipeline/extractor/initiatives/tests
+pytest ECI_initiatives/data_pipeline/extractor/responses/tests
+pytest ECI_initiatives/data_pipeline/extractor/responses_followup_website/tests
 ```
 
 ## 🛠️ Prerequisites
@@ -34,6 +60,7 @@ python tests/run_tests.py --extractor --initiatives
 - **Python 3.8+**
 - Dependencies: `pip install -r ECI_initiatives/requirements.prod.txt`
   - Key library: **BeautifulSoup4** (for parsing)
+- Test dependencies: `pip install -r ECI_initiatives/requirements.dev.txt`
 
 ## 🚀 Quick Start
 
@@ -43,13 +70,14 @@ Ensure you have already run the **Scraper Pipeline** so that the `data/` directo
 cd ECI_initiatives
 uv venv && uv pip install -r requirements.prod.txt
 source .venv/bin/activate  # Linux/macOS
+# Windows: .venv\Scripts\activate
 
 # Run pipeline sequentially
 # Each step automatically detects the latest timestamped data folder
 
-python -m extractor.initiatives
-python -m extractor.responses
-python -m extractor.responses_followup_website
+python -m data_pipeline.extractor.initiatives
+python -m data_pipeline.extractor.responses
+python -m data_pipeline.extractor.responses_followup_website
 ```
 
 ## 📦 Data Pipeline Flow
@@ -67,4 +95,21 @@ data/YYYY-MM-DD_HH-MM-SS/
 └── eci_responses_followup_....csv # [OUTPUT] Implementation details, events
 ```
 
-**Full details in each module's README.md**
+## 📚 Module Documentation
+
+Each extractor module has detailed documentation in its own README:
+
+- **[initiatives/README.md](initiatives/README.md)**: Core metadata extraction, timeline parsing, signature analysis
+- **[responses/README.md](responses/README.md)**: Legislative outcome classification, rejection analysis
+- **[responses_followup_website/README.md](responses_followup_website/README.md)**: Implementation tracking, event detection, text analysis
+
+## 🔗 Dependencies
+
+The extractor modules have the following dependencies:
+
+1. **`initiatives`**: Standalone (only requires scraped HTML)
+2. **`responses`**: Requires `eci_initiatives_*.csv` from the initiatives extractor
+3. **`responses_followup_website`**: Requires `eci_responses_*.csv` from the responses extractor
+
+> [!IMPORTANT]
+> Always run extractors in sequence: **initiatives** → **responses** → **responses_followup_website**
