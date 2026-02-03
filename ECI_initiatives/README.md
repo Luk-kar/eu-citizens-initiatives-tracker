@@ -18,7 +18,7 @@ It consists of four sequential stages:
 ECI_initiatives/
 ├── data_pipeline/
 │   ├── scraper/                     # [Stage 1] Selenium web scrapers
-│   ├──extractor/                   # [Stage 2] BeautifulSoup parsers
+│   ├── extractor/                   # [Stage 2] BeautifulSoup parsers
 │   └── csv_merger/                  # [Stage 3] CSV consolidation
 ├── exploratory_data_analysis/   # [Stage 4] Jupyter Notebooks & Visuals
 ├── data/                        # [Storage] Timestamped input/output folders
