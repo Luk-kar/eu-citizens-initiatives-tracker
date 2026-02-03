@@ -18,7 +18,7 @@ from datetime import date
 from unittest.mock import patch
 
 # Local
-from ECI_initiatives.extractor.responses_followup_website.parser.extractors import (
+from ECI_initiatives.data_pipeline.extractor.responses_followup_website.parser.extractors import (
     FollowupWebsiteExtractor,
     FollowupWebsiteLegislativeOutcomeExtractor,
 )

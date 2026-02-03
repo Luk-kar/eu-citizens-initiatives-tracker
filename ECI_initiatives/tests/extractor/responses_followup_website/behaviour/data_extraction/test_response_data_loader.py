@@ -14,7 +14,7 @@ import csv
 import pytest
 
 # Local
-from ECI_initiatives.extractor.responses_followup_website.processor import (
+from ECI_initiatives.data_pipeline.extractor.responses_followup_website.processor import (
     ECIResponseDataLoader,
 )
 
