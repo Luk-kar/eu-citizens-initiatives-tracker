@@ -30,12 +30,12 @@ OPTIONAL fields unique to Response Data (base may be empty):
 
 import pytest
 
-from ECI_initiatives.csv_merger.responses.strategies import (
+from ECI_initiatives.data_pipeline.csv_merger.responses.strategies import (
     merge_field_values,
     merge_keep_base_only,
     get_merge_strategy_for_field,
 )
-from ECI_initiatives.csv_merger.responses.exceptions import (
+from ECI_initiatives.data_pipeline.csv_merger.responses.exceptions import (
     MandatoryFieldMissingError,
     ImmutableFieldConflictError,
 )

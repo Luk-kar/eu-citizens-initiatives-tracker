@@ -63,10 +63,10 @@ Run the module after both extraction steps (`extractor.responses` and `extractor
 
 ```bash
 # Using uv (recommended)
-uv run -m csv_merger.responses
+uv run -m data_pipeline.csv_merger.responses
 
 # Standard python
-python -m csv_merger.responses
+python -m data_pipeline.csv_merger.responses
 ```
 
 ## 🔗 Dependencies

@@ -28,7 +28,7 @@ This module tests merging of 20 overlapping columns with various strategies:
 import pytest
 import json
 
-from ECI_initiatives.csv_merger.responses.strategies import (
+from ECI_initiatives.data_pipeline.csv_merger.responses.strategies import (
     merge_field_values,
     merge_by_concatenation,
     merge_json_objects,
@@ -41,7 +41,7 @@ from ECI_initiatives.csv_merger.responses.strategies import (
     merge_law_implementation_date,
     get_merge_strategy_for_field,
 )
-from ECI_initiatives.csv_merger.responses.exceptions import (
+from ECI_initiatives.data_pipeline.csv_merger.responses.exceptions import (
     ImmutableFieldConflictError,
     MandatoryFieldMissingError,
 )

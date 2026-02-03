@@ -19,8 +19,10 @@ from pathlib import Path
 import pytest
 
 # Local
-from ECI_initiatives.csv_merger.responses.merger import ResponsesAndFollowupMerger
-from ECI_initiatives.csv_merger.responses.exceptions import (
+from ECI_initiatives.data_pipeline.csv_merger.responses.merger import (
+    ResponsesAndFollowupMerger,
+)
+from ECI_initiatives.data_pipeline.csv_merger.responses.exceptions import (
     MissingInputFileError,
     EmptyDataError,
     FollowupRowCountExceedsBaseError,

@@ -10,12 +10,12 @@ Both fields are also mandatory and must have non-empty values in BOTH datasets.
 """
 
 import pytest
-from ECI_initiatives.csv_merger.responses.strategies import (
+from ECI_initiatives.data_pipeline.csv_merger.responses.strategies import (
     merge_field_values,
     merge_keep_base_only,
     validate_mandatory_many_fields,
 )
-from ECI_initiatives.csv_merger.responses.exceptions import (
+from ECI_initiatives.data_pipeline.csv_merger.responses.exceptions import (
     ImmutableFieldConflictError,
     MandatoryFieldMissingError,
 )
