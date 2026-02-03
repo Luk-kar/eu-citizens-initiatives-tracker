@@ -5,8 +5,10 @@ import pytest
 from bs4 import BeautifulSoup
 
 # Local
-from ECI_initiatives.extractor.responses.parser.main_parser import ECIResponseHTMLParser
-from ECI_initiatives.extractor.responses.responses_logger import (
+from ECI_initiatives.data_pipeline.extractor.responses.parser.main_parser import (
+    ECIResponseHTMLParser,
+)
+from ECI_initiatives.data_pipeline.extractor.responses.responses_logger import (
     ResponsesExtractorLogger,
 )
 

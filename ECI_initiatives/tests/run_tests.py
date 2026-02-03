@@ -189,7 +189,22 @@ def main():
         test_path = "extractor/initiatives/end_to_end"
     elif args.extractor and args.initiatives:
         test_path = "extractor/initiatives"
-
+    elif args.extractor and args.responses and args.behaviour:
+        test_path = "extractor/responses/behaviour"
+    elif args.extractor and args.responses and getattr(args, "end_to_end"):
+        test_path = "extractor/responses/end_to_end"
+    elif args.extractor and args.responses:
+        test_path = "extractor/responses"
+    elif args.extractor and getattr(args, "followup_website") and args.behaviour:
+        test_path = "extractor/responses_followup_website/behaviour"
+    elif (
+        args.extractor
+        and getattr(args, "followup_website")
+        and getattr(args, "end_to_end")
+    ):
+        test_path = "extractor/responses_followup_website/end_to_end"
+    elif args.extractor and getattr(args, "followup_website"):
+        test_path = "extractor/responses_followup_website"
     elif args.extractor and args.behaviour:
         test_path = "extractor/initiatives/behaviour"
     elif args.extractor and getattr(args, "end_to_end"):
