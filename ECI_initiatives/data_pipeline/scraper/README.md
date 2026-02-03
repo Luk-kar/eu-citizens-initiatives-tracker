@@ -36,9 +36,9 @@ uv venv && uv pip install -r requirements.prod.txt
 source .venv/bin/activate  # Linux/macOS
 
 # Run pipeline sequentially
-python -m scraper.initiatives
-python -m scraper.responses
-python -m scraper.responses_followup_website
+python -m data_pipeline.scraper.initiatives
+python -m data_pipeline.scraper.responses
+python -m data_pipeline.scraper.responses_followup_website
 ```
 
 ## 📦 Data Pipeline

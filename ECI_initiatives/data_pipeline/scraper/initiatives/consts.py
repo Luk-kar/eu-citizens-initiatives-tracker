@@ -1,47 +1,66 @@
 """
 Constants and configuration for Commission initiatives scraper.
+
+Module-specific settings for scraping the main ECI initiatives listings.
+Common settings are imported from scraper_shared.const.py
+
+Note on Fine-Tuning:
+    The timing configurations (WAIT_BETWEEN_*, RETRY_WAIT_BASE) and retry limits
+    (DEFAULT_MAX_RETRIES) can be adjusted based on:
+    - Server load and response times
+    - Rate limiting policies of the target website
+    - Network conditions and infrastructure changes
+    - Other development teams' usage patterns
+
+    If you experience frequent rate limiting or timeouts, consider increasing
+    wait times and retry intervals. For faster, more stable servers, you may
+    reduce these values to speed up scraping.
 """
 
-# python
 import datetime
 import os
 from pathlib import Path
 
-# The program is so small that we can treat it as init during running it
+from ..scraper_shared.const import (
+    BASE_URL,
+    DATA_DIR_NAME,
+    LOG_DIR_NAME,
+    CHROME_OPTIONS,
+    WAIT_DYNAMIC_CONTENT,
+    WEBDRIVER_TIMEOUT_DEFAULT,
+    WEBDRIVER_TIMEOUT_CONTENT,
+    MIN_HTML_LENGTH,
+    RATE_LIMIT_INDICATORS,
+    SCRIPT_DIR,
+)
+
+# Scraping timestamp (unique to initiatives scraper as it runs first)
 START_SCRAPING = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-# URLs and Routes
-BASE_URL = "https://citizens-initiative.europa.eu"
+# Routes (initiatives-specific)
 ROUTE_FIND_INITIATIVE = "/find-initiative_en"
 
-# Directory Structure
-DATA_DIR_NAME = "data"
-LOG_DIR_NAME = "logs"
+# Module-specific Directory Names
 LISTINGS_DIR_NAME = "listings"
 PAGES_DIR_NAME = "initiatives"
-SCRIPT_DIR = Path(__file__).parent.parent.parent.parent.absolute()
+
+# Log directory path
 LOG_DIR = os.path.join(SCRIPT_DIR, DATA_DIR_NAME, START_SCRAPING, LOG_DIR_NAME)
 
-# Timing Configuration (in seconds)
-WAIT_DYNAMIC_CONTENT = (1.5, 1.9)
-WAIT_BETWEEN_PAGES = (1.0, 2.0)
-WAIT_BETWEEN_DOWNLOADS = (0.5, 1.5)
-RETRY_WAIT_BASE = (1.0, 1.2)
+# Module-specific Timing Configuration (in seconds)
+# Fine-tune these based on server response times and rate limiting behavior
+WAIT_BETWEEN_PAGES = (1.0, 2.0)  # Delay between pagination clicks
+WAIT_BETWEEN_DOWNLOADS = (0.5, 1.5)  # Delay between downloading individual pages
+RETRY_WAIT_BASE = (1.0, 1.2)  # Base time for retry exponential backoff
 
-# Timeout Configuration (in seconds)
-WEBDRIVER_TIMEOUT_DEFAULT = 30
-WEBDRIVER_TIMEOUT_CONTENT = 15
-
-# Browser Configuration
-CHROME_OPTIONS = ["--headless", "--no-sandbox", "--disable-dev-shm-usage"]
-
-# File Naming Patterns
+# Module-specific File Naming Patterns
 LISTING_PAGE_FILENAME_PATTERN = (
     "Find_initiative_European_Citizens_Initiative_page_{:03d}.html"
 )
 LISTING_PAGE_MAIN_FILENAME = "Find_initiative_European_Citizens_Initiative.html"
 INITIATIVE_PAGE_FILENAME_PATTERN = "{year}_{number}.html"
 
+# CSV Configuration
 CSV_FIELDNAMES = [
     "url",
     "current_status",
@@ -51,18 +70,11 @@ CSV_FIELDNAMES = [
 ]
 CSV_FILENAME = "initiatives_list.csv"
 
+# Retry Configuration
+# Adjust based on network stability and server reliability
 DEFAULT_MAX_RETRIES = 5
 
-MIN_HTML_LENGTH = 50
-
-RATE_LIMIT_INDICATORS = [
-    "Server inaccessibility",
-    "429 - Too Many Requests",
-    "429",
-    "Too Many Requests",
-    "Rate limited",
-]
-
+# Log Messages (initiatives-specific)
 LOG_MESSAGES = {
     "scraping_start": "Starting scraping at: {timestamp}",
     "browser_init": "Initializing browser...",

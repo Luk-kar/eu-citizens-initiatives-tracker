@@ -1,55 +1,73 @@
 """
-Constants and configuration for followup website scraper.
+Constants and configuration for the responses followup website scraper.
+
+Module-specific settings for scraping dedicated followup website pages.
+Common settings are imported from scraper_shared.const.
+
+Note on Fine-Tuning:
+    The timing configurations (WAIT_BETWEEN_DOWNLOADS, RETRY_WAIT_BASE) and retry
+    limits (DEFAULT_MAX_RETRIES) can be adjusted based on:
+    - Server load and response times
+    - Rate limiting policies of the target website
+    - Network conditions and infrastructure changes
+    - Other development teams' usage patterns
+
+    If you experience frequent rate limiting or timeouts, consider increasing
+    wait times and retry intervals. For faster, more stable servers, you may
+    reduce these values to speed up scraping.
 """
 
 from pathlib import Path
 
+# Import shared constants
+from ..scraper_shared.const import (
+    BASE_URL,
+    SCRIPT_DIR,
+    DATA_DIR_NAME,
+    LOG_DIR_NAME,
+    CHROME_OPTIONS,
+    WAIT_DYNAMIC_CONTENT,
+    WEBDRIVER_TIMEOUT_DEFAULT,
+    WEBDRIVER_TIMEOUT_CONTENT,
+    MIN_HTML_LENGTH,
+    RATE_LIMIT_INDICATORS,
+)
+
 # Directory Structure
-DATA_DIR_NAME = "data"
-LOG_DIR_NAME = "logs"
 RESPONSES_FOLLOWUP_WEBSITE_DIR_NAME = "responses_followup_website"
 
-# Script directory (3 levels up from this file)
-SCRIPT_DIR = Path(__file__).parent.parent.parent.parent.absolute()
+# Module-specific Directory Names
+FOLLOWUP_WEBSITE_DIR_NAME = "responses_followup_website"
+RESPONSES_DIR_NAME = "responses"
 
 # CSV Configuration
 ECI_RESPONSES_CSV_PATTERN = "eci_responses_*.csv"
 FOLLOWUP_WEBSITE_COLUMN = "followup_dedicated_website"
 REGISTRATION_NUMBER_COLUMN = "registration_number"
+CSV_FILENAME = "responses_list.csv"  # Read from responses scraper output
+CSV_FIELDNAME_FOLLOWUP_URL = "followup_dedicated_website"
 
-# Timing Configuration (in seconds)
-WAIT_DYNAMIC_CONTENT = (1.5, 1.9)
-WAIT_BETWEEN_DOWNLOADS = (1.5, 1.9)
-RETRY_WAIT_BASE = (2.0, 2.5)
+# Module-specific Timing Configuration (in seconds)
+# Fine-tune these based on server response times and rate limiting behavior
+WAIT_BETWEEN_DOWNLOADS = (1.5, 2.0)  # Delay between downloading followup pages
+RETRY_WAIT_BASE = (2.0, 3.0)  # Base time for retry exponential backoff
 
-# Timeout Configuration (in seconds)
-WEBDRIVER_TIMEOUT_DEFAULT = 30
-WEBDRIVER_TIMEOUT_CONTENT = 15
+# Module-specific File Naming Patterns
+FOLLOWUP_PAGE_FILENAME_PATTERN = "{year}/{reg_number}_en.html"
 
-# Browser Configuration
-CHROME_OPTIONS = [
-    "--headless",
-    "--no-sandbox",
-    "--disable-dev-shm-usage",
-]
-
-# File Naming Patterns
-FOLLOWUP_WEBSITE_FILENAME_PATTERN = "{year}/{registration_number}_en.html"
-
-# Retry and validation
+# Retry Configuration
+# Adjust based on network stability and server reliability
 DEFAULT_MAX_RETRIES = 3
-MIN_HTML_LENGTH = 50
 
-# Rate limiting indicators
-RATE_LIMIT_INDICATORS = [
-    "Server inaccessibility",
-    "429 - Too Many Requests",
-    "HTTP 429",
-    "Too Many Requests",
-    "Rate limited",
+# Error Page Detection (in addition to shared RATE_LIMIT_INDICATORS)
+# These multilingual error messages indicate server issues
+ERROR_PAGE_INDICATORS = [
+    "We apologise for any inconvenience",
+    "Veuillez nous excuser pour ce désagrément",
+    "Ci scusiamo per il disagio arrecato",
 ]
 
-# Log messages
+# Log Messages (followup-website-specific)
 LOG_MESSAGES = {
     # Scraping lifecycle
     "scraping_start": "Starting followup website scraping at {timestamp} directory",

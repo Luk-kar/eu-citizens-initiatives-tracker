@@ -216,7 +216,7 @@ class TestContentProcessing:
             RATE_LIMIT_INDICATORS.SERVER_INACCESSIBILITY
         )
 
-        with pytest.raises(Exception, match=RATE_LIMIT_INDICATORS.RATE_LIMITED):
+        with pytest.raises(Exception, match=RATE_LIMIT_INDICATORS.TOO_MANY_REQUESTS):
             self.check_rate_limiting(mock_driver)
 
         # Test rate limiting in page source during save

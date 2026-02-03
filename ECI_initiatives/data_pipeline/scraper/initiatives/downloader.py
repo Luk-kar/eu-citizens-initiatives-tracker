@@ -29,9 +29,7 @@ from .file_ops import save_initiative_page
 from .scraper_logger import logger
 
 
-def download_initiatives(
-    pages_dir: str, initiative_data: list
-) -> Tuple[list, list]:
+def download_initiatives(pages_dir: str, initiative_data: list) -> Tuple[list, list]:
     """Download individual initiative pages using Selenium.
 
     Args:
@@ -201,7 +199,7 @@ def check_rate_limiting(driver: webdriver.Chrome) -> None:
         if rate_limit_title and any(
             indicator in rate_limit_title.text for indicator in RATE_LIMIT_INDICATORS
         ):
-            raise Exception("429 - Rate limited (HTML response)")
+            raise Exception(RATE_LIMIT_INDICATORS[4])
 
     except Exception as rate_check_error:
 
