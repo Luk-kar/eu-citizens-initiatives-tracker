@@ -95,21 +95,20 @@ data/YYYY-MM-DD_HH-MM-SS/
 └── eci_responses_followup_....csv # [OUTPUT] Implementation details, events
 ```
 
-## 📚 Module Documentation
-
-Each extractor module has detailed documentation in its own README:
-
-- **[initiatives/README.md](initiatives/README.md)**: Core metadata extraction, timeline parsing, signature analysis
-- **[responses/README.md](responses/README.md)**: Legislative outcome classification, rejection analysis
-- **[responses_followup_website/README.md](responses_followup_website/README.md)**: Implementation tracking, event detection, text analysis
-
 ## 🔗 Dependencies
 
 The extractor modules have the following dependencies:
 
-1. **`initiatives`**: Standalone (only requires scraped HTML)
-2. **`responses`**: Requires `eci_initiatives_*.csv` from the initiatives extractor
-3. **`responses_followup_website`**: Requires `eci_responses_*.csv` from the responses extractor
+1. **`initiatives`**: Requires scraped HTML from `scraper.initiatives`
+2. **`responses`**: Requires:
+   - Scraped HTML from `scraper.responses`
+   - `eci_initiatives_*.csv` from `extractor.initiatives` (for validation)
+3. **`responses_followup_website`**: Requires:
+   - Scraped HTML from `scraper.responses_followup_website`
+   - `eci_responses_*.csv` from `extractor.responses` (for validation and metadata)
 
-> [!IMPORTANT]
-> Always run extractors in sequence: **initiatives** → **responses** → **responses_followup_website**
+**For detailed module documentation:**
+
+- [Initiatives Extractor](./initiatives/README.ex_initiatives.md)
+- [Responses Extractor](./responses/README.ex_responses.md)
+- [Follow-up Website Extractor](./responses_followup_website/README.ex_followup.md)

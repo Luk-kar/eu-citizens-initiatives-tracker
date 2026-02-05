@@ -42,6 +42,7 @@ The module is organized as a Python package with the following key components:
 
 ## 🛠️ Prerequisites
 
+
 Ensure you have the following installed:
 - **Python 3.8+**
 - **Google Chrome** (latest version)
@@ -49,12 +50,11 @@ Ensure you have the following installed:
 
 ### Python Dependencies
 
-Install the required libraries using the production requirements file:
+See the [main project documentation](../../README.ECI_initiatives.md#-quick-start-end-to-end) for detailed installation instructions.
 
 ```bash
 pip install -r ECI_initiatives/data_pipeline/requirements.prod.txt
 ```
-
 ## ⚙️ Configuration
 
 Key settings can be modified in `consts.py`:
@@ -95,18 +95,19 @@ The generated `responses_list.csv` includes:
 
 ## 🖥️ Usage
 
-It is recommended to use **[uv](https://github.com/astral-sh/uv)** for fast dependency management and execution.
+For detailed setup and environment configuration, see the [main project documentation](../../README.ECI_initiatives.md#-quick-start-end-to-end).
 
-Navigate to the `ECI_initiatives` directory:
+**Quick Start:**
+
 ```bash
+# From project root
 cd ECI_initiatives
 ```
-
 ### 1. Setup Environment
 Create the virtual environment and install dependencies:
 ```bash
 uv venv
-uv pip install -r /ECI_initiatives/data_pipeline/requirements.prod.txt
+uv pip install -r ECI_initiatives/data_pipeline/requirements.prod.txt
 ```
 
 ### 2. Activate Shell

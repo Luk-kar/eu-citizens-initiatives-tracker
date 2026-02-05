@@ -38,18 +38,24 @@ The merger uses a column-by-column strategy to handle data conflicts. It doesn't
 
 ## 🧪 Testing
 
-The merger is covered by a comprehensive test suite in `tests/merger/responses` ensuring data integrity and correct conflict resolution:
+For comprehensive testing documentation and instructions, see the [main project testing documentation](../../README.ECI_initiatives.md#-testing).
 
-- **Unit Tests**: Verify individual merge strategies (e.g., ensuring JSON lists are correctly deduplicated, dates are parsed correctly).
-- **Integration Tests**: Simulate full file merges using mock CSV data to verify the end-to-end workflow.
-- **Edge Cases**: specific tests for null handling, malformed JSON, and mismatched row counts.
+**Setup test environment:**
 
-Run the tests:
 ```bash
-# Run merger-specific tests
-python tests/run_tests.py --merger
+cd ECI_initiatives/tests
+deactivate  # Exit production venv if active
+uv venv
+uv pip install -r requirements.test.txt
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+cd ..  # Back to ECI_initiatives/
 ```
 
+**Run tests:**
+
+```bash
+python run_tests.py --merger
+```
 ## 📊 Output
 
 The module produces a final merged CSV in the same timestamped data directory:
@@ -59,21 +65,34 @@ This file contains **36 columns** covering the full lifecycle of the initiative,
 
 ## 🖥️ Usage
 
-Run the module after both extraction steps (`extractor.responses` and `extractor.responses_followup_website`) have completed.
+For detailed setup and environment configuration, see the [main project documentation](../../README.ECI_initiatives.md#-quick-start-end-to-end).
+
+**Quick Start:**
 
 ```bash
-# Using uv (recommended)
-uv run -m data_pipeline.csv_merger.responses
+# From project root
+cd ECI_initiatives
 
-# Standard python
 python -m data_pipeline.csv_merger.responses
+```
+## 🛠️ Prerequisites
+
+- **Python 3.8+**
+
+### Python Dependencies
+
+See the [main project documentation](../../README.ECI_initiatives.md#-quick-start-end-to-end) for detailed installation instructions.
+
+```bash
+pip install -r ECI_initiatives/data_pipeline/requirements.prod.txt
 ```
 
 ## 🔗 Dependencies
 
-- Requires **Python 3.8+**
-- **Critical Dependency**: Must be run **last**. It requires the existence of both:
-  1. `eci_responses_{TIMESTAMP}.csv`
-  2. `eci_responses_followup_website_{TIMESTAMP}.csv`
-  in the latest `data/` subdirectory.
-```
+**Data Dependencies:**
+
+Must be run **after** both extractor modules. Requires the existence of both:
+1. `eci_responses_{TIMESTAMP}.csv` from `extractor.responses`
+2. `eci_responses_followup_website_{TIMESTAMP}.csv` from `extractor.responses_followup_website`
+
+Both files must be in the latest timestamped `data/` subdirectory.

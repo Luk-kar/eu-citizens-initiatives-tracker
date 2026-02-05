@@ -60,26 +60,47 @@ The output CSV (`eci_responses_{TIMESTAMP}.csv`) provides a deep-dive analysis o
 
 ### Python Dependencies
 
-The extractor relies on `BeautifulSoup` for parsing. Install the required libraries using the production requirements file:
+See the [main project documentation](../../README.ECI_initiatives.md#-quick-start-end-to-end) for detailed installation instructions.
 
 ```bash
 pip install -r ECI_initiatives/data_pipeline/requirements.prod.txt
 ```
-
 ## 🖥️ Usage
 
-Run the module from the `ECI_initiatives`. It will automatically detect the latest scraped data folder.
+For detailed setup and environment configuration, see the [main project documentation](../../README.ECI_initiatives.md#-quick-start-end-to-end).
+
+**Quick Start:**
 
 ```bash
-# Using uv (recommended)
-uv run -m data_pipeline.extractor.responses
-
-# Standard python
-python -m data_pipeline.extractor.responses
+# From project root
+cd ECI_initiatives
+```
+### 1. Setup Environment
+Create the virtual environment and install dependencies:
+```bash
+uv venv
+uv pip install -r data_pipeline/requirements.prod.txt
 ```
 
-**Output Location:**  
-`data/{TIMESTAMP}/eci_responses_{DATE}.csv`
+### 2. Activate Shell
+Load the virtual environment into your current shell session:
+
+**Linux/macOS:**
+```bash
+source .venv/bin/activate
+```
+
+**Windows:**
+```powershell
+.venv\Scripts\activate
+```
+
+### 3. Run the Extractor
+Once the environment is active (you should see `(.venv)` in your prompt), run the module. It will automatically find the latest data directory:
+
+```bash
+python -m data_pipeline.extractor.responses
+```
 
 ## 🔗 Dependencies
 

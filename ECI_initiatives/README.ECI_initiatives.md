@@ -31,10 +31,11 @@ Run the entire pipeline in sequence. Each step detects the output of the previou
 
 ### 1. Setup Environment
 ```bash
+# Requires Python 3.8+
 # Recommended: Use uv for fast dependency management
 cd ECI_initiatives
 uv venv
-uv pip install -r requirements.prod.txt
+uv pip install -r data_pipeline/requirements.prod.txt
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 ```
 
@@ -82,7 +83,7 @@ python run_tests.py --merger
 
 All data is versioned in timestamped folders (e.g., `data/2025-12-15_15-33-12/`) containing:
 
-- **Raw HTML**: `initiatives/`, `responses/`
+- **Raw HTML**: `initiatives/`, `responses/`, `responses_followup_website/`
 - **Structured Data**:
   - `eci_initiatives_*.csv`: Campaign metrics & signature geography.
   - `eci_merger_responses_and_followup_*.csv`: **The Master Dataset** containing the full legislative accountability trail.
@@ -91,9 +92,8 @@ All data is versioned in timestamped folders (e.g., `data/2025-12-15_15-33-12/`)
 
 Detailed documentation for each sub-module:
 
-- [**Scraper Documentation**](./data_pipeline/scraper/initiatives/README.md)
-- [**Extractor Documentation**](./extractor/README.md)
-- [**Merger Documentation**](./csv_merger/responses/README.md)
-- [**Notebook Initiatives Documentation**](./exploratory_data_analysis/initiatives_campaigns/README.md)
-- [**Notebook Responses Documentation**](./exploratory_data_analysis/initiatives_responses/README.md)
-```
+- [**Scraper Documentation**](./data_pipeline/scraper/README.scraper.md)
+- [**Extractor Documentation**](./data_pipeline/extractor/README.extractor.md)
+- [**Merger Documentation**](./data_pipeline/csv_merger/README.merger.md)
+- [**Notebook Initiatives Documentation**](./exploratory_data_analysis/initiatives_campaigns/README.eda.signatures.md)
+- [**Notebook Responses Documentation**](./exploratory_data_analysis/initiatives_responses/README.eda_responses.md)

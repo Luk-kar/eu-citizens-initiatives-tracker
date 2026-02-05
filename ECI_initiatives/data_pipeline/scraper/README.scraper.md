@@ -12,16 +12,19 @@ Comprehensive web scraping pipeline for **European Citizens' Initiatives (ECI)**
 
 ## 🧪 Testing
 
-Comprehensive **pytest suite** in `tests/scraper/`:
+For comprehensive testing documentation and instructions, see the [main project testing documentation](../../README.ECI_initiatives.md#-testing).
 
-- **Unit tests**: Mocked WebDriver, browser lifecycle, error handling
-- **Integration tests**: CSV generation, HTML parsing, file structure validation
-- **Exception testing**: Missing directories, rate limits, malformed HTML
-- **Coverage**: Data extraction accuracy, retry logic, directory setup
+**Quick test:**
 
-Run tests: `pytest tests/scraper/ -v`
-
+```bash
+cd ECI_initiatives/tests
+deactivate  # Exit production venv if active
+uv venv
+uv pip install -r requirements.test.txt
+python run_tests.py --scraper
+```
 ## 🛠️ Prerequisites
+
 
 - **Python 3.8+**
 - **Google Chrome** + **ChromeDriver**
@@ -53,3 +56,7 @@ data/YYYY-MM-DD_HH-MM-SS/
 ```
 
 **Full details in each module's README.md**
+
+- [Initiatives Scraper](./initiatives/README.sc_initiatives.md)
+- [Responses Scraper](./responses/README.sc_responses.md)
+- [Follow-up Website Scraper](./responses_followup_website/README.sc_followup.md)
