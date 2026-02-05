@@ -38,7 +38,7 @@ MIN_HTML_LENGTH = 50  # Minimum acceptable length for HTML content (characters)
 RATE_LIMIT_INDICATORS = [
     "Server inaccessibility",
     "429 - Too Many Requests",
-    "429",
+    # "429", # To avoid false positive (e.g., press release URLs)
     "HTTP 429",
     "Too Many Requests",
     "Rate limited",

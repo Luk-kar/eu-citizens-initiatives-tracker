@@ -42,17 +42,17 @@ source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 ### 2. Run the Pipeline
 ```bash
 # --- Step 1: SCRAPE ---
-python -m scraper.initiatives               # Get registry data
-python -m scraper.responses                 # Get Commission answers
-python -m scraper.responses_followup_website # Get dedicated project sites
+python -m data_pipeline.scraper.initiatives               # Get registry data
+python -m data_pipeline.scraper.responses                 # Get Commission answers
+python -m data_pipeline.scraper.responses_followup_website # Get dedicated project sites
 
 # --- Step 2: EXTRACT ---
-python -m extractor.initiatives             # Parse signature counts & metadata
-python -m extractor.responses               # Analyze legislative outcomes
-python -m extractor.responses_followup_website # Extract implementation details
+python -m data_pipeline.extractor.initiatives             # Parse signature counts & metadata
+python -m data_pipeline.extractor.responses               # Analyze legislative outcomes
+python -m data_pipeline.extractor.responses_followup_website # Extract implementation details
 
 # --- Step 3: MERGE ---
-python -m csv_merger.responses              # Create the final Master CSV
+python -m data_pipeline.csv_merger.responses              # Create the final Master CSV
 ```
 
 ### 3. Analyze Results
@@ -70,14 +70,24 @@ jupyter notebook
 The project is protected by a unified test runner covering scraping logic, regex parsing, and data merging.
 
 ```bash
+cd ECI_initiatives/tests
+deactivate
+uv venv
+uv pip install -r requirements.test.txt
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+
 # Run all tests
 python run_tests.py
+
+# Check args
+python run_tests.py --help
 
 # Run specific module tests
 python run_tests.py --scraper
 python run_tests.py --extractor
 python run_tests.py --merger
 ```
+more details in the [run_tests.py](./tests/run_tests.py)
 
 ## 📦 Data Output
 

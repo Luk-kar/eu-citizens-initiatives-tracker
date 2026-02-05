@@ -57,7 +57,7 @@ FOLLOWUP_PAGE_FILENAME_PATTERN = "{year}/{reg_number}_en.html"
 
 # Retry Configuration
 # Adjust based on network stability and server reliability
-DEFAULT_MAX_RETRIES = 3
+DEFAULT_MAX_RETRIES = 5
 
 # Error Page Detection (in addition to shared RATE_LIMIT_INDICATORS)
 # These multilingual error messages indicate server issues

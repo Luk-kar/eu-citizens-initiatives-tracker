@@ -56,7 +56,7 @@ RESPONSE_PAGE_FILENAME_PATTERN = "{year}/{number}_en.html"
 
 # Retry Configuration
 # Adjust based on network stability and server reliability
-DEFAULT_MAX_RETRIES = 3
+DEFAULT_MAX_RETRIES = 5
 
 # Log Messages (responses-specific)
 LOG_MESSAGES = {

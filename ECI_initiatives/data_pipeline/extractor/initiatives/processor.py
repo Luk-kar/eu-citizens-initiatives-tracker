@@ -21,17 +21,19 @@ from .initiatives_logger import InitiativesExtractorLogger
 class ECIDataProcessor:
     """Main processor for ECI data extraction"""
 
-    def __init__(self, data_root: str = "/data", logger: Optional[logging.Logger] = None):
+    def __init__(
+        self, data_root: str = "/data", logger: Optional[logging.Logger] = None
+    ):
         """
         Initialize the data processor
-        
+
         Args:
             data_root: Root directory for ECI data
             logger: Optional logger instance. If None, will be initialized in run()
         """
         current_file = Path(__file__)
-        project_root = current_file.parent.parent.parent  # Move 3 directories up
-        self.data_root = project_root / data_root.lstrip('/')
+        project_root = current_file.parent.parent.parent.parent  # Move 3 directories up
+        self.data_root = project_root / data_root.lstrip("/")
         self.last_session_scraping_dir = None
 
         # Logger can be passed or initialized later
@@ -42,8 +44,12 @@ class ECIDataProcessor:
         """Find the most recent scraping session directory"""
 
         try:
-            session_dirs = [d for d in self.data_root.iterdir() 
-                           if d.is_dir() and re.match(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}', d.name)]
+            session_dirs = [
+                d
+                for d in self.data_root.iterdir()
+                if d.is_dir()
+                and re.match(r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}", d.name)
+            ]
 
             if session_dirs:
                 last_session = max(session_dirs, key=lambda x: x.name)
@@ -57,14 +63,18 @@ class ECIDataProcessor:
 
         return None
 
-    def process_initiative_pages(self, session_path: Path) -> List[ECIInitiativeDetailsRecord]:
+    def process_initiative_pages(
+        self, session_path: Path
+    ) -> List[ECIInitiativeDetailsRecord]:
         """Process all initiative HTML pages in a session"""
 
         initiatives = []
         initiative_pages_dir = session_path / "initiatives"
 
         if not initiative_pages_dir.exists():
-            self.logger.error(f"Initiative pages directory not found: {initiative_pages_dir}")
+            self.logger.error(
+                f"Initiative pages directory not found: {initiative_pages_dir}"
+            )
             return initiatives
 
         # Process each year directory
@@ -83,11 +93,13 @@ class ECIDataProcessor:
         self.logger.info(f"Successfully processed {len(initiatives)} initiatives")
         return initiatives
 
-    def save_to_csv(self, initiatives: List[ECIInitiativeDetailsRecord], output_path: Path) -> None:
+    def save_to_csv(
+        self, initiatives: List[ECIInitiativeDetailsRecord], output_path: Path
+    ) -> None:
         """Save initiatives data to CSV file"""
-        
+
         try:
-            with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
+            with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
                 if not initiatives:
                     self.logger.warning("No initiatives to save")
                     return
@@ -106,36 +118,38 @@ class ECIDataProcessor:
 
     def run(self, output_filename: str = None) -> None:
         """Main processing pipeline"""
-        
+
         # Find latest scraping session
         session_path = self.find_latest_scrape_session()
         self.last_session_scraping_dir = session_path
-        
+
         if not session_path:
             print("No scraping session found in:\n" + str(self.data_root))
             return
-        
+
         # Initialize unified logger if not already provided
         if self.logger is None:
 
             log_dir = self.last_session_scraping_dir / "logs"
             eci_logger = InitiativesExtractorLogger()
             self.logger = eci_logger.setup(log_dir=log_dir)
-        
+
         # Initialize parser with shared logger
         self.parser = ECIHTMLParser(logger=self.logger)
-        
+
         self.logger.info("Starting ECI data processing")
         self.logger.info(f"Processing session: {session_path.name}")
-        
+
         # Process all initiative pages
         initiatives = self.process_initiative_pages(session_path)
-        
+
         # Save to CSV
         if not output_filename:
-            output_filename = f"eci_initiatives_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
-        
+            output_filename = (
+                f"eci_initiatives_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+            )
+
         output_path = session_path / output_filename
         self.save_to_csv(initiatives, output_path)
-        
+
         self.logger.info("Processing completed successfully")

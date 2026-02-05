@@ -86,8 +86,8 @@ SAMPLE_INITIATIVE_DATA = {
 # Rate limiting patterns to detect
 class RATE_LIMIT_INDICATORS:
     SERVER_INACCESSIBILITY = MAIN_RATE_LIMIT_INDICATORS[0]  # "Server inaccessibility"
-    TOO_MANY_REQUESTS = MAIN_RATE_LIMIT_INDICATORS[4]  # "429 - Too Many Requests"
-    RATE_LIMITED = MAIN_RATE_LIMIT_INDICATORS[5]  # "Rate limited"
+    TOO_MANY_REQUESTS = MAIN_RATE_LIMIT_INDICATORS[3]  # "429 - Too Many Requests"
+    RATE_LIMITED = MAIN_RATE_LIMIT_INDICATORS[4]  # "Rate limited"
 
 
 # ===== STATUS CATEGORIES =====

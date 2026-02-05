@@ -199,7 +199,7 @@ def check_rate_limiting(driver: webdriver.Chrome) -> None:
         if rate_limit_title and any(
             indicator in rate_limit_title.text for indicator in RATE_LIMIT_INDICATORS
         ):
-            raise Exception(RATE_LIMIT_INDICATORS[4])
+            raise Exception(RATE_LIMIT_INDICATORS[3])
 
     except Exception as rate_check_error:
 
