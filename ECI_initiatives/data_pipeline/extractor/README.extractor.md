@@ -58,9 +58,9 @@ pytest ECI_initiatives/data_pipeline/extractor/responses_followup_website/tests
 ## 🛠️ Prerequisites
 
 - **Python 3.8+**
-- Dependencies: `pip install -r ECI_initiatives/requirements.prod.txt`
+- Dependencies: `pip install -r ECI_initiatives/data_pipeline/requirements.prod.txt`
   - Key library: **BeautifulSoup4** (for parsing)
-- Test dependencies: `pip install -r ECI_initiatives/requirements.dev.txt`
+- Test dependencies: `pip install -r ECI_initiatives/tests/requirements.test.txt`
 
 ## 🚀 Quick Start
 
@@ -68,7 +68,7 @@ Ensure you have already run the **Scraper Pipeline** so that the `data/` directo
 
 ```bash
 cd ECI_initiatives
-uv venv && uv pip install -r requirements.prod.txt
+uv venv && uv pip install -r data_pipeline/requirements.prod.txt
 source .venv/bin/activate  # Linux/macOS
 # Windows: .venv\Scripts\activate
 

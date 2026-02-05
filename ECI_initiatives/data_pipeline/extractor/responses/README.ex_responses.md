@@ -63,19 +63,19 @@ The output CSV (`eci_responses_{TIMESTAMP}.csv`) provides a deep-dive analysis o
 The extractor relies on `BeautifulSoup` for parsing. Install the required libraries using the production requirements file:
 
 ```bash
-pip install -r ECI_initiatives/requirements.prod.txt
+pip install -r ECI_initiatives/data_pipeline/requirements.prod.txt
 ```
 
 ## 🖥️ Usage
 
-Run the module from the project root. It will automatically detect the latest scraped data folder.
+Run the module from the `ECI_initiatives`. It will automatically detect the latest scraped data folder.
 
 ```bash
 # Using uv (recommended)
-uv run -m extractor.responses
+uv run -m data_pipeline.extractor.responses
 
 # Standard python
-python -m extractor.responses
+python -m data_pipeline.extractor.responses
 ```
 
 **Output Location:**  

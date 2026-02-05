@@ -55,7 +55,7 @@ Ensure you have the following installed:
 Install the required libraries using the production requirements file:
 
 ```bash
-pip install -r ECI_initiatives/requirements.prod.txt
+pip install -r ECI_initiatives/data_pipeline/requirements.prod.txt
 ```
 
 ## ⚙️ Configuration
@@ -97,7 +97,7 @@ cd ECI_initiatives
 Create the virtual environment and install dependencies:
 ```bash
 uv venv
-uv pip install -r requirements.prod.txt
+uv pip install -r data_pipeline/requirements.prod.txt
 ```
 
 ### 2. Activate Shell
@@ -117,6 +117,6 @@ source .venv/bin/activate
 Once the environment is active (you should see `(.venv)` in your prompt), run the module:
 
 ```bash
-python -m scraper.responses_followup_website
+python -m data_pipeline.scraper.responses_followup_website
 ```
 ```

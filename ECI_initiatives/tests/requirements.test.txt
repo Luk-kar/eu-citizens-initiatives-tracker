@@ -1,5 +1,5 @@
 # Include production dependencies
--r ../requirements.prod.txt
+-r ../data_pipeline/requirements.prod.txt
 
 # Testing dependencies
 pytest==8.4.2

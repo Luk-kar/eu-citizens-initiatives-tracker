@@ -62,10 +62,10 @@ Ensure you have the following installed:
 The extractor relies on `BeautifulSoup` for parsing. Install the required libraries using the production requirements file:
 
 ```bash
-pip install -r ECI_initiatives/requirements.prod.txt
+pip install -r ECI_initiatives/data_pipeline/requirements.prod.txt
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > **Data Dependency**: This module requires data from previous pipeline steps (`extractor.responses` and `scraper.responses_followup_website`).
 
 ## 🖥️ Usage
@@ -131,10 +131,10 @@ python run_tests.py --extractor --followup-website --coverage
 Tests require additional dependencies beyond production requirements. Install development dependencies:
 
 ```bash
-pip install -r ECI_initiatives/requirements.dev.txt
+pip install -r ECI_initiatives/tests/requirements.test.txt
 ```
 
-> [!TIP]
+> [!IMPORTANT]
 > Tests use example HTML files located in `ECI_initiatives/tests/data/example_htmls/responses_followup_website/` for validation. These fixtures represent real-world HTML structures from dedicated ECI follow-up websites.
 
 ## 🔗 Dependencies

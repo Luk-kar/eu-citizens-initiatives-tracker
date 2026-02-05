@@ -52,7 +52,7 @@ Ensure you have the following installed:
 Install the required libraries using the production requirements file:
 
 ```bash
-pip install -r ECI_initiatives/requirements.prod.txt
+pip install -r ECI_initiatives/data_pipeline/requirements.prod.txt
 ```
 
 ## ⚙️ Configuration
@@ -106,7 +106,7 @@ cd ECI_initiatives
 Create the virtual environment and install dependencies:
 ```bash
 uv venv
-uv pip install -r requirements.prod.txt
+uv pip install -r /ECI_initiatives/data_pipeline/requirements.prod.txt
 ```
 
 ### 2. Activate Shell

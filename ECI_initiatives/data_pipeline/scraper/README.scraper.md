@@ -25,13 +25,13 @@ Run tests: `pytest tests/scraper/ -v`
 
 - **Python 3.8+**
 - **Google Chrome** + **ChromeDriver**
-- Dependencies: `pip install -r ECI_initiatives/requirements.prod.txt`
+- Dependencies: `pip install -r ECI_initiatives/data_pipeline/requirements.prod.txt`
 
 ## 🚀 Quick Start
 
 ```bash
 cd ECI_initiatives
-uv venv && uv pip install -r requirements.prod.txt
+uv venv && uv pip install -r data_pipeline/requirements.prod.txt
 source .venv/bin/activate  # Linux/macOS
 
 # Run pipeline sequentially
