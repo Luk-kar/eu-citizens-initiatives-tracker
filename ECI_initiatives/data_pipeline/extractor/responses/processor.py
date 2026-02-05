@@ -1,5 +1,6 @@
 """
 ECI Responses Data Processor
+
 Main orchestration class for processing response HTML files
 """
 
@@ -13,6 +14,15 @@ import logging
 from .parser import ECIResponseHTMLParser
 from .model import ECICommissionResponseRecord
 from .responses_logger import ResponsesExtractorLogger
+from .const import (
+    SCRIPT_DIR,
+    DATA_DIR_NAME,
+    LOG_DIR_NAME,
+    RESPONSES_DIR_NAME,
+    CSV_FILENAME,
+    RESPONSE_PAGE_FILENAME_PATTERN,
+    FilePatterns,
+)
 
 
 class ECIResponseDataProcessor:
@@ -20,28 +30,25 @@ class ECIResponseDataProcessor:
 
     def __init__(
         self,
-        data_root: str = "ECI_initiatives/data",
-        responses_list_csv: str = "responses_list.csv",
+        data_root: Optional[Path] = None,
+        responses_list_csv: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
     ):
         """
         Initialize the processor
 
         Args:
-            data_root: Root directory for ECI data (contains date-time session directories)
-            responses_list_csv: Path to responses_list.csv with metadata (relative to session dir)
-            output_csv: Path to output CSV file (relative to session dir).
+            data_root: Root directory for ECI data (contains date-time session directories).
+                      If None, defaults to SCRIPT_DIR / DATA_DIR_NAME
+            responses_list_csv: Filename of responses list CSV with metadata.
+                               If None, defaults to CSV_FILENAME from const
             logger: Optional logger instance. If None, will be initialized in run()
         """
-        # Determine project root (4 directories up from current file)
-        current_file = Path(__file__)
-        project_root = current_file.parent.parent.parent.parent
+        # Use constants for default paths
+        self.data_root = data_root if data_root else SCRIPT_DIR / DATA_DIR_NAME
+        self.responses_list_csv_name = responses_list_csv or CSV_FILENAME
 
-        self.data_root = project_root / data_root.lstrip("/")
-
-        self.responses_list_csv_name = responses_list_csv
-
-        # Generate output filename with timestamp if not provided
+        # Generate output filename with timestamp
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.output_csv_name = f"eci_responses_{timestamp}.csv"
 
@@ -93,7 +100,7 @@ class ECIResponseDataProcessor:
 
         # Initialize unified logger if not already provided
         if self.logger is None:
-            log_dir = self.last_session_scraping_dir / "logs"
+            log_dir = self.last_session_scraping_dir / LOG_DIR_NAME
             eci_logger = ResponsesExtractorLogger()
             self.logger = eci_logger.setup(log_dir=log_dir)
 
@@ -103,8 +110,8 @@ class ECIResponseDataProcessor:
         self.logger.info("Starting ECI responses data extraction")
         self.logger.info(f"Processing session: {session_path.name}")
 
-        # Update paths to be relative to session directory
-        html_dir = session_path / "responses"
+        # Update paths to be relative to session directory (use constants)
+        html_dir = session_path / RESPONSES_DIR_NAME
         responses_list_csv = html_dir / self.responses_list_csv_name
         output_csv = session_path / self.output_csv_name
 
@@ -112,7 +119,7 @@ class ECIResponseDataProcessor:
         if not html_dir.exists():
             raise FileNotFoundError(
                 f"HTML responses directory does not exist: {html_dir}\n"
-                f"Expected location: {session_path}/responses"
+                f"Expected location: {session_path}/{RESPONSES_DIR_NAME}"
             )
 
         if not html_dir.is_dir():
@@ -129,7 +136,7 @@ class ECIResponseDataProcessor:
         responses_metadata = self._load_responses_metadata(responses_list_csv)
         self.logger.info(f"Loaded metadata for {len(responses_metadata)} responses")
 
-        # Find all HTML files
+        # Find all HTML files (pattern from constant)
         html_files = sorted(html_dir.glob("**/*_en.html"))
         if not html_files:
             raise FileNotFoundError(
@@ -151,10 +158,10 @@ class ECIResponseDataProcessor:
 
                 # Parse the file
                 response_data = self.parser.parse_file(html_file, metadata)
+
                 if response_data:
                     results.append(response_data)
-
-                self.logger.info(f"Successfully processed {html_file.name}")
+                    self.logger.info(f"Successfully processed {html_file.name}")
 
             except Exception as e:
                 self.logger.error(
@@ -186,7 +193,9 @@ class ECIResponseDataProcessor:
 
     def _extract_reg_num_from_filename(self, filename: str) -> str:
         """Extract registration number from filename (YYYY_NNNNNN_en.html -> YYYY/NNNNNN)"""
-        pattern = r"(\d{4})_(\d{6})_en\.html"
+        # Use pattern from constant: "{year}_{number}_en.html"
+
+        pattern = FilePatterns.FILENAME_REGEX
         match = re.match(pattern, filename)
         if match:
             year, number = match.groups()

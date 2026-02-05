@@ -1,5 +1,6 @@
 """
 ECI Response HTML Parser - Main Orchestrator
+
 Coordinates all extractor classes to parse response pages
 """
 
@@ -8,6 +9,7 @@ from datetime import datetime
 import logging
 from pathlib import Path
 from typing import Dict, Optional
+
 from bs4 import BeautifulSoup
 
 from ..model import ECICommissionResponseRecord
@@ -22,6 +24,10 @@ from .extractors.outcome import LegislativeOutcomeExtractor
 from .extractors.followup import FollowUpActivityExtractor
 from .extractors.multimedia import MultimediaDocumentationExtractor
 from .extractors.legislative_references import LegislativeReferences
+
+# Constants for JSON serialization
+HTML_ENCODING = "utf-8"
+JSON_ENSURE_ASCII = False
 
 
 class ECIResponseHTMLParser:
@@ -50,13 +56,11 @@ class ECIResponseHTMLParser:
     @property
     def registration_number(self):
         """Get registration number"""
-
         return self._registration_number
 
     @registration_number.setter
     def registration_number(self, value):
         """Set registration number and propagate to all extractors"""
-
         self._registration_number = value
 
         # Automatically update ALL extractors
@@ -72,13 +76,16 @@ class ECIResponseHTMLParser:
         ]:
             extractor.set_registration_number(value)
 
+    def _to_json(self, data) -> str:
+        """Helper to serialize data to JSON with consistent settings"""
+        return json.dumps(data, ensure_ascii=JSON_ENSURE_ASCII)
+
     def parse_file(
         self, html_path: Path, responses_list_data: Dict
     ) -> Optional[ECICommissionResponseRecord]:
         """Parse a single ECI response HTML file and extract data"""
         try:
             self.logger.info(f"Parsing response file: {html_path.name}")
-
             self.registration_number = responses_list_data["registration_number"]
 
             # Update registration number in all extractors
@@ -96,7 +103,7 @@ class ECIResponseHTMLParser:
                 extractor.set_registration_number(self.registration_number)
 
             # Read and parse HTML file
-            with open(html_path, "r", encoding="utf-8") as f:
+            with open(html_path, "r", encoding=HTML_ENCODING) as f:
                 html_content = f.read()
 
             soup = BeautifulSoup(html_content, "html.parser")
@@ -140,25 +147,20 @@ class ECIResponseHTMLParser:
                 parliament_hearing_date=self.parliament_activity.extract_parliament_hearing_date(
                     soup
                 ),
-                parliament_hearing_video_urls=json.dumps(
-                    self.parliament_activity.extract_parliament_hearing_video_urls(
-                        soup
-                    ),
-                    ensure_ascii=False,
+                parliament_hearing_video_urls=self._to_json(
+                    self.parliament_activity.extract_parliament_hearing_video_urls(soup)
                 ),
                 plenary_debate_date=self.parliament_activity.extract_plenary_debate_date(
                     soup
                 ),
-                plenary_debate_video_urls=json.dumps(
-                    self.parliament_activity.extract_plenary_debate_video_urls(soup),
-                    ensure_ascii=False,
+                plenary_debate_video_urls=self._to_json(
+                    self.parliament_activity.extract_plenary_debate_video_urls(soup)
                 ),
                 official_communication_adoption_date=official_communication_adoption_date,
-                official_communication_document_urls=json.dumps(
+                official_communication_document_urls=self._to_json(
                     self.commission_response.extract_official_communication_document_urls(
                         soup
-                    ),
-                    ensure_ascii=False,
+                    )
                 ),
                 # Commission Response Content
                 commission_answer_text=self.commission_response.extract_commission_answer_text(
@@ -176,9 +178,8 @@ class ECIResponseHTMLParser:
                 commission_promised_new_law=self.legislative_outcome.extract_proposal_commitment_stated(
                     soup
                 ),
-                commission_deadlines=json.dumps(
-                    self.legislative_outcome.extract_commissions_deadlines(soup),
-                    ensure_ascii=False,
+                commission_deadlines=self._to_json(
+                    self.legislative_outcome.extract_commissions_deadlines(soup)
                 ),
                 commission_rejected_initiative=self.legislative_outcome.extract_proposal_rejected(
                     soup
@@ -187,30 +188,26 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 # Actions Taken (What actually happened)
-                laws_actions=json.dumps(
-                    self.legislative_outcome.extract_legislative_action(soup),
-                    ensure_ascii=False,
+                laws_actions=self._to_json(
+                    self.legislative_outcome.extract_legislative_action(soup)
                 ),
-                policies_actions=json.dumps(
-                    self.legislative_outcome.extract_non_legislative_action(soup),
-                    ensure_ascii=False,
+                policies_actions=self._to_json(
+                    self.legislative_outcome.extract_non_legislative_action(soup)
                 ),
                 # Follow-up Activities Section
                 has_followup_section=self.followup_activity.extract_has_followup_section(
                     soup
                 ),
-                followup_events_with_dates=json.dumps(
-                    self.followup_activity.extract_followup_events_with_dates(soup),
-                    ensure_ascii=False,
+                followup_events_with_dates=self._to_json(
+                    self.followup_activity.extract_followup_events_with_dates(soup)
                 ),
                 has_roadmap=self.followup_activity.extract_has_roadmap(soup),
                 has_workshop=self.followup_activity.extract_has_workshop(soup),
                 has_partnership_programs=self.followup_activity.extract_has_partnership_programs(
                     soup
                 ),
-                court_cases_referenced=json.dumps(
-                    self.followup_activity.extract_court_cases_referenced(soup),
-                    ensure_ascii=False,
+                court_cases_referenced=self._to_json(
+                    self.followup_activity.extract_court_cases_referenced(soup)
                 ),
                 followup_latest_date=followup_latest_date,
                 followup_most_future_date=followup_most_future_date,
@@ -222,21 +219,20 @@ class ECIResponseHTMLParser:
                     soup
                 ),
                 # Legislation References
-                referenced_legislation_by_id=json.dumps(
-                    self.structural_analysis.extract_referenced_legislation_by_id(soup),
-                    ensure_ascii=False,
+                referenced_legislation_by_id=self._to_json(
+                    self.structural_analysis.extract_referenced_legislation_by_id(soup)
                 ),
-                referenced_legislation_by_name=json.dumps(
+                referenced_legislation_by_name=self._to_json(
                     self.structural_analysis.extract_referenced_legislation_by_name(
                         soup
-                    ),
-                    ensure_ascii=False,
+                    )
                 ),
             )
 
             self.logger.info(
                 f"Successfully parsed response: {response.registration_number}"
             )
+
             return response
 
         except FileNotFoundError:
