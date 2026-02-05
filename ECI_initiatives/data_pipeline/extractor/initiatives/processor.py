@@ -16,60 +16,57 @@ import logging
 from .model import ECIInitiativeDetailsRecord
 from .parser import ECIHTMLParser
 from .initiatives_logger import InitiativesExtractorLogger
+from .const import (
+    SCRIPT_DIR,
+    DirectoryStructure,
+    FilePatterns,
+    CSVConfig,
+)
 
 
 class ECIDataProcessor:
     """Main processor for ECI data extraction"""
 
-    def __init__(
-        self, data_root: str = "/data", logger: Optional[logging.Logger] = None
-    ):
+    def __init__(self, data_root: str = None, logger: Optional[logging.Logger] = None):
         """
         Initialize the data processor
 
         Args:
-            data_root: Root directory for ECI data
+            data_root: Root directory for ECI data. If None, uses default from const
             logger: Optional logger instance. If None, will be initialized in run()
         """
-        current_file = Path(__file__)
-        project_root = current_file.parent.parent.parent.parent  # Move 3 directories up
-        self.data_root = project_root / data_root.lstrip("/")
+        if data_root is None:
+            data_root = DirectoryStructure.DATA_DIR_NAME
+        self.data_root = SCRIPT_DIR / data_root.lstrip("/")
         self.last_session_scraping_dir = None
-
         # Logger can be passed or initialized later
         self.logger = logger
         self.parser = None
 
     def find_latest_scrape_session(self) -> Optional[Path]:
         """Find the most recent scraping session directory"""
-
         try:
             session_dirs = [
                 d
                 for d in self.data_root.iterdir()
-                if d.is_dir()
-                and re.match(r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}", d.name)
+                if d.is_dir() and re.match(FilePatterns.TIMESTAMP_DIR_REGEX, d.name)
             ]
-
             if session_dirs:
                 last_session = max(session_dirs, key=lambda x: x.name)
                 return last_session
-
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error finding scrape sessions: {e}")
             else:
                 print(f"Error finding scrape sessions: {e}")
-
         return None
 
     def process_initiative_pages(
         self, session_path: Path
     ) -> List[ECIInitiativeDetailsRecord]:
         """Process all initiative HTML pages in a session"""
-
         initiatives = []
-        initiative_pages_dir = session_path / "initiatives"
+        initiative_pages_dir = session_path / DirectoryStructure.INITIATIVES_DIR_NAME
 
         if not initiative_pages_dir.exists():
             self.logger.error(
@@ -85,7 +82,7 @@ class ECIDataProcessor:
             self.logger.info(f"Processing year: {year_dir.name}")
 
             # Process each HTML file in the year directory
-            for html_file in sorted(year_dir.glob("*.html")):
+            for html_file in sorted(year_dir.glob(FilePatterns.HTML_FILE_PATTERN)):
                 initiative = self.parser.parse_html_file(html_file)
                 if initiative:
                     initiatives.append(initiative)
@@ -130,7 +127,7 @@ class ECIDataProcessor:
         # Initialize unified logger if not already provided
         if self.logger is None:
 
-            log_dir = self.last_session_scraping_dir / "logs"
+            log_dir = self.last_session_scraping_dir / DirectoryStructure.LOG_DIR_NAME
             eci_logger = InitiativesExtractorLogger()
             self.logger = eci_logger.setup(log_dir=log_dir)
 
@@ -145,8 +142,9 @@ class ECIDataProcessor:
 
         # Save to CSV
         if not output_filename:
-            output_filename = (
-                f"eci_initiatives_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            output_filename = CSVConfig.OUTPUT_FILENAME_TEMPLATE.format(
+                timestamp=timestamp
             )
 
         output_path = session_path / output_filename

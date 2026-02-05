@@ -17,6 +17,7 @@ from bs4 import BeautifulSoup
 
 # Local
 from .model import ECIInitiativeDetailsRecord
+from .const import URLConfig, FilePatterns, OBJECTIVE_MAX_LENGTH
 
 
 class ECIHTMLParser:
@@ -364,7 +365,7 @@ class ECIHTMLParser:
     def _extract_registration_number(self, filename: str) -> str:
         """Extract registration number from filename pattern YYYY_NNNNNN_en.html"""
 
-        pattern = r"(\d{4})_(\d{6})_en\.html"
+        pattern = FilePatterns.FILENAME_REGEX
         match = re.match(pattern, filename)
 
         if match:
@@ -402,7 +403,7 @@ class ECIHTMLParser:
                     objective_text += next_element.get_text().strip() + " "
                 next_element = next_element.find_next_sibling()
 
-            return objective_text.strip()[:1100]
+            return objective_text.strip()[:OBJECTIVE_MAX_LENGTH]
 
         return ""
 
@@ -428,7 +429,10 @@ class ECIHTMLParser:
 
         if reg_number:
             year, number = reg_number.split("/")
-            return f"https://citizens-initiative.europa.eu/initiatives/details/{year}/{number}_en"
+
+            return URLConfig.INITIATIVE_DETAILS_URL_TEMPLATE.format(
+                base_url=URLConfig.BASE_URL, year=year, number=number
+            )
         return ""
 
     def _extract_signatures_collected(self, soup: BeautifulSoup) -> Optional[str]:
