@@ -19,6 +19,14 @@ from .exceptions import (
     MissingColumnsError,
 )
 from .strategies import merge_field_values
+from .consts import (
+    DATA_DIR,
+    FILE_ENCODING,
+    CSV_NEWLINE,
+    FilenamePatterns,
+    TimestampPatterns,
+    LoggingConfig,
+)
 
 
 class ResponsesAndFollowupMerger:
@@ -51,12 +59,7 @@ class ResponsesAndFollowupMerger:
 
         # Resolve base_data_dir
         if base_data_dir is None:
-            # Get the absolute path of this file (merger.py)
-            current_file = Path(__file__).resolve()
-            # Navigate from ECI_initiatives/csv_merger/responses/merger.py
-            # to ECI_initiatives/data
-            # merger.py -> responses/ -> csv_merger/ -> ECI_initiatives/ -> data/
-            base_data_dir = current_file.parent.parent.parent / "data"
+            base_data_dir = DATA_DIR
 
         self.base_data_dir = base_data_dir
         self.merge_strategy = merge_strategy or merge_field_values
@@ -70,12 +73,14 @@ class ResponsesAndFollowupMerger:
         )
 
         # Setup output paths
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        self.output_csv_path = (
-            self.latest_dir / f"eci_merger_responses_and_followup_{timestamp}.csv"
+        timestamp = TimestampPatterns.now_timestamp()
+        self.output_csv_path = self.latest_dir / FilenamePatterns.OUTPUT_PATTERN.format(
+            timestamp=timestamp
         )
         self.log_path = (
-            self.latest_dir / "logs" / f"merger_responses_and_followup_{timestamp}.log"
+            self.latest_dir
+            / "logs"
+            / FilenamePatterns.LOG_PATTERN.format(timestamp=timestamp)
         )
 
         # Setup logging
@@ -179,25 +184,40 @@ class ResponsesAndFollowupMerger:
 
         # Create logger
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
+
+        # Map string level to logging constant if needed
+        level = (
+            LoggingConfig.LEVEL
+            if isinstance(LoggingConfig.LEVEL, int)
+            else getattr(logging, LoggingConfig.LEVEL, logging.INFO)
+        )
+        self.logger.setLevel(level)
 
         # Remove existing handlers to avoid duplicates
         self.logger.handlers.clear()
 
         # File handler
-        file_handler = logging.FileHandler(self.log_path, mode="w", encoding="utf-8")
-        file_handler.setLevel(logging.INFO)
+        file_handler = logging.FileHandler(
+            self.log_path, mode="w", encoding=FILE_ENCODING
+        )
+        file_handler.setLevel(level)
 
         # Console handler
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(level)
 
         # Formatter
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            LoggingConfig.FORMAT_FILE,
+            datefmt=LoggingConfig.DATE_FORMAT,
         )
         file_handler.setFormatter(formatter)
-        console_handler.setFormatter(formatter)
+
+        console_formatter = logging.Formatter(
+            LoggingConfig.FORMAT_CONSOLE,
+            datefmt=LoggingConfig.DATE_FORMAT,
+        )
+        console_handler.setFormatter(console_formatter)
 
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
@@ -267,7 +287,7 @@ class ResponsesAndFollowupMerger:
     def _load_csv(self, path: Path) -> List[Dict[str, str]]:
         """Load CSV file and return list of row dictionaries."""
 
-        with open(path, "r", encoding="utf-8", newline="") as f:
+        with open(path, "r", encoding=FILE_ENCODING, newline=CSV_NEWLINE) as f:
             reader = csv.DictReader(f)
             return list(reader)
 
