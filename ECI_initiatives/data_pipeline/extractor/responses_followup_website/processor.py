@@ -14,8 +14,7 @@ from .model import ECIFollowupWebsiteRecord
 from .parser.extractors import FollowupWebsiteExtractor
 
 # TODO
-# conflicts with ath calculations in:
-# extractor/responses_followup_website/end_to_end/test_created_files
+# apply the: SCRIPT_DIR / DATA_DIR_NAME
 from .consts import (
     SCRIPT_DIR,
     DATA_DIR_NAME,
@@ -44,6 +43,11 @@ class ECIFollowupWebsiteProcessor:
         project_root = current_file.parent.parent.parent.parent
         data_root = "ECI_initiatives/data"
         data_base = project_root / data_root
+
+        # TODO: The old implementation remains for the test:
+        # ECI_initiatives/tests/extractor/responses_followup_website/end_to_end/test_created_files.py
+        # test_processor_raises_when_no_html_files
+        #
         # data_base = SCRIPT_DIR / DATA_DIR_NAME
 
         # Use regex pattern to find timestamped directories
