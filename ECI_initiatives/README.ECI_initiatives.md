@@ -76,8 +76,6 @@ uv venv
 uv pip install -r requirements.test.txt
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 
-# Run all tests
-python run_tests.py
 
 # Check args
 python run_tests.py --help
@@ -86,6 +84,10 @@ python run_tests.py --help
 python run_tests.py --scraper
 python run_tests.py --extractor
 python run_tests.py --merger
+
+# ATTENTION!
+# Run individually if encountering failures with missing files
+python run_tests.py
 ```
 more details in the [run_tests.py](./tests/run_tests.py)
 
