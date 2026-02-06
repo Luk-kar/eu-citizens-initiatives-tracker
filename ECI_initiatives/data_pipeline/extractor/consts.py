@@ -173,6 +173,3 @@ class ContentLimits:
 
     # Maximum characters for objective/description fields
     OBJECTIVE_MAX_LENGTH = 1100
-
-    # Maximum characters for summary fields
-    SUMMARY_MAX_LENGTH = 500

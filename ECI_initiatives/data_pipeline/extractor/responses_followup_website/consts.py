@@ -7,27 +7,38 @@ and extracts structured data about Commission responses and follow-up actions.
 
 from pathlib import Path
 
+from ..consts import (
+    SCRIPT_DIR,
+    DirectoryStructure,
+    TimeFormats,
+    FilePatterns,
+    FILE_ENCODING,
+    CSVConfig,
+    HTMLParsingConfig,
+    LoggingConfig,
+    RegistrationNumberFormat,
+)
+
 # ============================================================================
 # Shared Project Structure Constants
 # ============================================================================
 
-# Script directory (project root detection)
-SCRIPT_DIR = Path(__file__).resolve().parent.parent.parent.parent
-
 # Directory names
-DATA_DIR_NAME = "data"
-LOG_DIR_NAME = "logs"
-RESPONSES_FOLLOWUP_WEBSITE_DIR_NAME = "responses_followup_website"
+DATA_DIR_NAME = DirectoryStructure.DATA_DIR_NAME
+LOG_DIR_NAME = DirectoryStructure.LOG_DIR_NAME
+RESPONSES_FOLLOWUP_WEBSITE_DIR_NAME = (
+    DirectoryStructure.RESPONSES_FOLLOWUP_WEBSITE_DIR_NAME
+)
 
 # ============================================================================
 # File Patterns and Naming
 # ============================================================================
 
 # Timestamp format for generated files
-TIMESTAMP_FORMAT = "%Y-%m-%d_%H-%M-%S"
+TIMESTAMP_FORMAT = TimeFormats.TIMESTAMP_FORMAT
 
 # Timestamp directory pattern (regex) for finding session directories
-TIMESTAMP_DIR_PATTERN = r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}"
+TIMESTAMP_DIR_PATTERN = FilePatterns.TIMESTAMP_DIR_PATTERN
 
 # Input CSV patterns
 INPUT_CSV_PATTERN = "eci_responses_*.csv"
@@ -42,26 +53,20 @@ LOG_FILE_PREFIX = "extractor_responses_followup_website"
 LOG_FILE_PATTERN = f"{LOG_FILE_PREFIX}_{{timestamp}}.log"
 
 # HTML file patterns
-HTML_FILE_EXTENSION = ".html"
-HTML_FILE_GLOB_PATTERN = f"**/*{HTML_FILE_EXTENSION}"
+HTML_FILE_EXTENSION = FilePatterns.HTML_FILENAME_PATTERN
+HTML_FILE_GLOB_PATTERN = FilePatterns.HTML_FILE_GLOB_PATTERN
 
 # HTML filename regex pattern for extracting registration number
 # Expected format: YYYY_NNNNNN_en.html
-HTML_FILENAME_PATTERN = r"(\d{4})_(\d{6})_([a-z]{2})\.html"
-
-# ============================================================================
-# File Encoding
-# ============================================================================
-
-FILE_ENCODING = "utf-8"
+HTML_FILENAME_PATTERN = FilePatterns.HTML_FILENAME_PATTERN
 
 # ============================================================================
 # CSV Configuration
 # ============================================================================
 
 # Input CSV field names (from responses extractor)
-CSV_FIELD_REGISTRATION_NUMBER = "registration_number"
-CSV_FIELD_INITIATIVE_TITLE = "initiative_title"
+CSV_FIELD_REGISTRATION_NUMBER = CSVConfig.FIELD_REGISTRATION_NUMBER
+CSV_FIELD_INITIATIVE_TITLE = CSVConfig.FIELD_INITIATIVE_TITLE
 CSV_FIELD_FOLLOWUP_DEDICATED_WEBSITE = "followup_dedicated_website"
 
 # ============================================================================
@@ -69,22 +74,22 @@ CSV_FIELD_FOLLOWUP_DEDICATED_WEBSITE = "followup_dedicated_website"
 # ============================================================================
 
 # BeautifulSoup parser
-HTML_PARSER = "html.parser"
+HTML_PARSER = HTMLParsingConfig.PARSER
 
 # ============================================================================
 # Logging Configuration
 # ============================================================================
 
 # Log level
-LOG_LEVEL = "INFO"
+LOG_LEVEL = LoggingConfig.LOG_LEVEL
 
 # Log format
-LOG_FORMAT_DETAILED = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+LOG_FORMAT_DETAILED = LoggingConfig.FORMAT_DETAILED
 
 # ============================================================================
 # Registration Number Format
 # ============================================================================
 
 # Format for registration numbers: YYYY/NNNNNN
-REGISTRATION_NUMBER_SEPARATOR = "/"
-REGISTRATION_NUMBER_FORMAT = "{year}{separator}{number}"
+REGISTRATION_NUMBER_SEPARATOR = RegistrationNumberFormat.SEPARATOR
+REGISTRATION_NUMBER_FORMAT = RegistrationNumberFormat.FORMAT_TEMPLATE

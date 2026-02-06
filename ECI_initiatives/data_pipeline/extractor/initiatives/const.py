@@ -7,38 +7,14 @@ configuration values used across the extractor modules.
 
 from pathlib import Path
 
-# Project Structure
-SCRIPT_DIR = Path(__file__).parent.parent.parent.parent.absolute()
-
-
-# Directory Structure
-class DirectoryStructure:
-    """Directory names and paths for the extractor."""
-
-    DATA_DIR_NAME = "data"
-    LOG_DIR_NAME = "logs"
-    INITIATIVES_DIR_NAME = "initiatives"
-
-
-# File Patterns
-class FilePatterns:
-    """File naming patterns and regex for matching files."""
-
-    HTML_FILE_PATTERN = "*.html"
-    FILENAME_REGEX = r"(\d{4})_(\d{6})_en\.html"  # Matches YYYY_NNNNNN_en.html
-    TIMESTAMP_DIR_REGEX = (
-        r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}"  # Matches scraper timestamp dirs
-    )
-
-
-# URL Configuration
-class URLConfig:
-    """URL templates and base URLs."""
-
-    BASE_URL = "https://citizens-initiative.europa.eu"
-    INITIATIVE_DETAILS_URL_TEMPLATE = (
-        "{base_url}/initiatives/details/{year}/{number}_en"
-    )
+from ..consts import (
+    SCRIPT_DIR,
+    DirectoryStructure,
+    FilePatterns,
+    URLConfig,
+    LoggingConfig,
+    ContentLimits,
+)
 
 
 # CSV Configuration
@@ -54,11 +30,11 @@ class LoggingConfig:
 
     LOGGER_NAME = "eci_initiatives_extractor"
     LOG_FILENAME_TEMPLATE = "extractor_initiatives_{timestamp}.log"
-    FORMAT_CONSOLE = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    FORMAT_FILE = (
-        "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
-    )
+    FORMAT_CONSOLE = LoggingConfig.FORMAT_CONSOLE
+    FORMAT_FILE = LoggingConfig.FORMAT_DETAILED
 
 
 # Content Extraction Limits
-OBJECTIVE_MAX_LENGTH = 1100  # Maximum characters for objective field
+OBJECTIVE_MAX_LENGTH = (
+    ContentLimits.OBJECTIVE_MAX_LENGTH
+)  # Maximum characters for objective field
