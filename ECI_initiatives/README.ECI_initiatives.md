@@ -71,7 +71,7 @@ The project is protected by a unified test runner covering scraping logic, regex
 
 ```bash
 cd ECI_initiatives/tests
-deactivate
+deactivate # if virtual environment remove current one
 uv venv
 uv pip install -r requirements.test.txt
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows

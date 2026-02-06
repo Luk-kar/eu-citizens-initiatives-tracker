@@ -5,11 +5,35 @@ import csv
 import logging
 from pathlib import Path
 from datetime import datetime
+from typing import List
+import re
 
 
 # Local
 from .model import ECIFollowupWebsiteRecord
 from .parser.extractors import FollowupWebsiteExtractor
+
+# TODO
+# conflicts with ath calculations in:
+# extractor/responses_followup_website/end_to_end/test_created_files
+from .consts import (
+    SCRIPT_DIR,
+    DATA_DIR_NAME,
+    LOG_DIR_NAME,
+    RESPONSES_FOLLOWUP_WEBSITE_DIR_NAME,
+    TIMESTAMP_FORMAT,
+    TIMESTAMP_DIR_PATTERN,
+    INPUT_CSV_PATTERN,
+    INPUT_CSV_EXCLUDE_KEYWORD,
+    OUTPUT_CSV_PREFIX,
+    LOG_FILE_PREFIX,
+    LOG_FORMAT_DETAILED,
+    FILE_ENCODING,
+    HTML_FILE_GLOB_PATTERN,
+    CSV_FIELD_REGISTRATION_NUMBER,
+    CSV_FIELD_INITIATIVE_TITLE,
+    CSV_FIELD_FOLLOWUP_DEDICATED_WEBSITE,
+)
 
 
 class ECIFollowupWebsiteProcessor:
@@ -20,11 +44,13 @@ class ECIFollowupWebsiteProcessor:
         project_root = current_file.parent.parent.parent.parent
         data_root = "ECI_initiatives/data"
         data_base = project_root / data_root
+        # data_base = SCRIPT_DIR / DATA_DIR_NAME
 
+        # Use regex pattern to find timestamped directories
         all_dirs = [
             d
-            for d in glob.glob(os.path.join(data_base, "20*-*-*_*-*-*"))
-            if os.path.isdir(d)
+            for d in data_base.iterdir()
+            if d.is_dir() and re.match(TIMESTAMP_DIR_PATTERN, d.name)
         ]
 
         if not all_dirs:
@@ -33,9 +59,9 @@ class ECIFollowupWebsiteProcessor:
                 f"Expected format: YYYY-MM-DD_HH-MM-SS"
             )
 
-        self.input_dir = max(all_dirs)  # use latest
+        self.input_dir = max(all_dirs, key=lambda x: x.name)  # use latest
         self.output_dir = self.input_dir
-        self.extractor_run_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.extractor_run_datetime = datetime.now().strftime(TIMESTAMP_FORMAT)
 
         # Setup logging first
         self._setup_logging()
@@ -46,9 +72,8 @@ class ECIFollowupWebsiteProcessor:
         # Find HTML files early - will raise FileNotFoundError if none found
         self.html_files = self._find_html_files()
 
-        self.output_csv = os.path.join(
-            self.output_dir,
-            f"eci_responses_followup_website_{self.extractor_run_datetime}.csv",
+        self.output_csv = (
+            self.output_dir / f"{OUTPUT_CSV_PREFIX}_{self.extractor_run_datetime}.csv"
         )
 
         self.logger.info(f"Initialized ECIFollowupWebsiteProcessor")
@@ -57,45 +82,39 @@ class ECIFollowupWebsiteProcessor:
 
     def _setup_logging(self):
         """Configure logging with file and console handlers."""
+        logs_dir = self.output_dir / LOG_DIR_NAME
+        logs_dir.mkdir(parents=True, exist_ok=True)
 
-        logs_dir = os.path.join(self.output_dir, "logs")
-        os.makedirs(logs_dir, exist_ok=True)
-
-        log_file = os.path.join(
-            logs_dir,
-            f"extractor_responses_followup_website_{self.extractor_run_datetime}.log",
-        )
+        log_file = logs_dir / f"{LOG_FILE_PREFIX}_{self.extractor_run_datetime}.log"
 
         logging.basicConfig(
             level=logging.INFO,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            format=LOG_FORMAT_DETAILED,
             handlers=[
-                logging.FileHandler(log_file, encoding="utf-8"),
+                logging.FileHandler(log_file, encoding=FILE_ENCODING),
                 logging.StreamHandler(),
             ],
         )
+
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"Log file: {log_file}")
 
     def _load_response_data(self) -> "ECIResponseDataLoader":
         """Load responses list CSV to get initiative metadata."""
-
         responses_csv_files = [
             csv_file
-            for csv_file in glob.glob(
-                os.path.join(self.input_dir, "eci_responses_*.csv")
-            )
-            if "followup_website" not in os.path.basename(csv_file)
+            for csv_file in self.input_dir.glob(INPUT_CSV_PATTERN)
+            if INPUT_CSV_EXCLUDE_KEYWORD not in csv_file.name
         ]
 
         if not responses_csv_files:
             raise FileNotFoundError(
                 f"No responses CSV file found in {self.input_dir}. "
-                f"Expected file matching pattern: eci_responses_YYYY-MM-DD_HH-MM-SS.csv "
-                f"(excluding followup_website files)"
+                f"Expected file matching pattern: {INPUT_CSV_PATTERN} "
+                f"(excluding files with '{INPUT_CSV_EXCLUDE_KEYWORD}' in name)"
             )
 
-        responses_csv_path = max(responses_csv_files)
+        responses_csv_path = max(responses_csv_files, key=lambda x: x.name)
         self.logger.info(f"Loading responses data from: {responses_csv_path}")
 
         response_data = ECIResponseDataLoader(responses_csv_path)
@@ -105,11 +124,10 @@ class ECIFollowupWebsiteProcessor:
 
         return response_data
 
-    def _find_html_files(self) -> list:
+    def _find_html_files(self) -> List[Path]:
         """Find all HTML files in the responses_followup_website directory."""
-
-        html_dir = os.path.join(self.input_dir, "responses_followup_website")
-        html_files = glob.glob(os.path.join(html_dir, "**", "*.html"), recursive=True)
+        html_dir = self.input_dir / RESPONSES_FOLLOWUP_WEBSITE_DIR_NAME
+        html_files = list(html_dir.glob(HTML_FILE_GLOB_PATTERN))
 
         self.logger.info(f"In the directory:\n{html_dir}")
         self.logger.info(f"Found {len(html_files)} HTML files to process")
@@ -117,30 +135,26 @@ class ECIFollowupWebsiteProcessor:
         if not html_files:
             raise FileNotFoundError(
                 f"No HTML files found in {html_dir}. "
-                f"Expected HTML files in subdirectories matching pattern: <year>/*.html"
+                f"Expected HTML files matching pattern: {HTML_FILE_GLOB_PATTERN}"
             )
 
         return html_files
 
     def run(self):
         """Process all HTML files and generate output CSV."""
-
         records = []
 
         for idx, path in enumerate(self.html_files, 1):
-
             self.logger.info(
-                f"Processing file {idx}/{len(self.html_files)}: {os.path.basename(path)}"
+                f"Processing file {idx}/{len(self.html_files)}: {path.name}"
             )
 
             try:
                 record = self._process_html_file(path, self.response_data)
-
                 records.append(record)
                 self.logger.info(
                     f"Successfully processed: {record.registration_number}"
                 )
-
             except Exception as e:
                 self.logger.error(f"Error processing {path}: {e}", exc_info=True)
                 continue
@@ -149,14 +163,13 @@ class ECIFollowupWebsiteProcessor:
         self.logger.info(f"Processing complete. Output written to {self.output_csv}")
 
     def _process_html_file(
-        self, path: str, response_data: "ECIResponseDataLoader"
+        self, path: Path, response_data: "ECIResponseDataLoader"
     ) -> ECIFollowupWebsiteRecord:
         """Process a single HTML file and return extracted record."""
-
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding=FILE_ENCODING) as f:
             html_content = f.read()
 
-        html_file_name = os.path.basename(path)
+        html_file_name = path.name
 
         # Create extractor with logger
         extractor = FollowupWebsiteExtractor(html_content, logger=self.logger)
@@ -208,17 +221,14 @@ class ECIFollowupWebsiteProcessor:
             followup_events_with_dates=extractor.extract_followup_events_with_dates(),
         )
 
-    def _write_output_csv(self, records: list):
+    def _write_output_csv(self, records: List[ECIFollowupWebsiteRecord]):
         """Write extracted records to output CSV file."""
-
         self.logger.info(f"Writing {len(records)} records to CSV: {self.output_csv}")
 
-        with open(self.output_csv, mode="w", encoding="utf-8", newline="") as f:
-
+        with open(self.output_csv, mode="w", encoding=FILE_ENCODING, newline="") as f:
             writer = csv.DictWriter(
                 f, fieldnames=list(ECIFollowupWebsiteRecord.__dataclass_fields__.keys())
             )
-
             writer.writeheader()
             for r in records:
                 writer.writerow(r.to_dict())
@@ -227,36 +237,31 @@ class ECIFollowupWebsiteProcessor:
 class ECIResponseDataLoader:
     """Loads and provides access to ECI response data from CSV files."""
 
-    def __init__(self, csv_path: str):
+    def __init__(self, csv_path: Path):
         """Load response data from CSV file into memory."""
-
         self.records = self._load_from_csv(csv_path)
 
-    def _load_from_csv(self, csv_path: str) -> dict:
+    def _load_from_csv(self, csv_path: Path) -> dict:
         """Parse CSV file and return dictionary keyed by registration number."""
-
         responses_data = {}
 
-        with open(csv_path, mode="r", encoding="utf-8") as f:
-
+        with open(csv_path, mode="r", encoding=FILE_ENCODING) as f:
             reader = csv.DictReader(f)
-
             for row in reader:
-
-                reg_num = row["registration_number"]
+                reg_num = row[CSV_FIELD_REGISTRATION_NUMBER]
                 responses_data[reg_num] = {
-                    "initiative_title": row["initiative_title"],
-                    "followup_dedicated_website": row["followup_dedicated_website"],
+                    CSV_FIELD_INITIATIVE_TITLE: row[CSV_FIELD_INITIATIVE_TITLE],
+                    CSV_FIELD_FOLLOWUP_DEDICATED_WEBSITE: row[
+                        CSV_FIELD_FOLLOWUP_DEDICATED_WEBSITE
+                    ],
                 }
 
         return responses_data
 
     def get_title(self, registration_number: str) -> str:
         """Retrieve initiative title for given registration number."""
-
-        return self.records[registration_number]["initiative_title"]
+        return self.records[registration_number][CSV_FIELD_INITIATIVE_TITLE]
 
     def get_website_url(self, registration_number: str) -> str:
         """Retrieve followup dedicated website URL for given registration number."""
-
-        return self.records[registration_number]["followup_dedicated_website"]
+        return self.records[registration_number][CSV_FIELD_FOLLOWUP_DEDICATED_WEBSITE]
