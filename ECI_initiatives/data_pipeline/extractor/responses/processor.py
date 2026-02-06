@@ -16,12 +16,10 @@ from .model import ECICommissionResponseRecord
 from .responses_logger import ResponsesExtractorLogger
 from .const import (
     SCRIPT_DIR,
-    DATA_DIR_NAME,
-    LOG_DIR_NAME,
-    RESPONSES_DIR_NAME,
     CSV_FILENAME,
     RESPONSE_PAGE_FILENAME_PATTERN,
     FilePatterns,
+    DirectoryStructure,
 )
 
 
@@ -45,7 +43,9 @@ class ECIResponseDataProcessor:
             logger: Optional logger instance. If None, will be initialized in run()
         """
         # Use constants for default paths
-        self.data_root = data_root if data_root else SCRIPT_DIR / DATA_DIR_NAME
+        self.data_root = (
+            data_root if data_root else SCRIPT_DIR / DirectoryStructure.DATA_DIR_NAME
+        )
         self.responses_list_csv_name = responses_list_csv or CSV_FILENAME
 
         # Generate output filename with timestamp
@@ -100,7 +100,7 @@ class ECIResponseDataProcessor:
 
         # Initialize unified logger if not already provided
         if self.logger is None:
-            log_dir = self.last_session_scraping_dir / LOG_DIR_NAME
+            log_dir = self.last_session_scraping_dir / DirectoryStructure.LOG_DIR_NAME
             eci_logger = ResponsesExtractorLogger()
             self.logger = eci_logger.setup(log_dir=log_dir)
 
@@ -111,7 +111,8 @@ class ECIResponseDataProcessor:
         self.logger.info(f"Processing session: {session_path.name}")
 
         # Update paths to be relative to session directory (use constants)
-        html_dir = session_path / RESPONSES_DIR_NAME
+        responses_dir_name = DirectoryStructure.RESPONSES_DIR_NAME
+        html_dir = session_path / responses_dir_name
         responses_list_csv = html_dir / self.responses_list_csv_name
         output_csv = session_path / self.output_csv_name
 
@@ -119,7 +120,7 @@ class ECIResponseDataProcessor:
         if not html_dir.exists():
             raise FileNotFoundError(
                 f"HTML responses directory does not exist: {html_dir}\n"
-                f"Expected location: {session_path}/{RESPONSES_DIR_NAME}"
+                f"Expected location: {session_path}/{responses_dir_name}"
             )
 
         if not html_dir.is_dir():

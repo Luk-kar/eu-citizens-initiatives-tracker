@@ -17,20 +17,16 @@ from .parser.extractors import FollowupWebsiteExtractor
 # apply the: SCRIPT_DIR / DATA_DIR_NAME
 from .consts import (
     SCRIPT_DIR,
-    DATA_DIR_NAME,
-    LOG_DIR_NAME,
-    RESPONSES_FOLLOWUP_WEBSITE_DIR_NAME,
-    TIMESTAMP_FORMAT,
-    TIMESTAMP_DIR_PATTERN,
+    DirectoryStructure,
+    TimeFormats,
+    FilePatterns,
     INPUT_CSV_PATTERN,
     INPUT_CSV_EXCLUDE_KEYWORD,
     OUTPUT_CSV_PREFIX,
     LOG_FILE_PREFIX,
-    LOG_FORMAT_DETAILED,
+    LoggingConfig,
     FILE_ENCODING,
-    HTML_FILE_GLOB_PATTERN,
-    CSV_FIELD_REGISTRATION_NUMBER,
-    CSV_FIELD_INITIATIVE_TITLE,
+    CSVConfig,
     CSV_FIELD_FOLLOWUP_DEDICATED_WEBSITE,
 )
 
@@ -48,13 +44,16 @@ class ECIFollowupWebsiteProcessor:
         # ECI_initiatives/tests/extractor/responses_followup_website/end_to_end/test_created_files.py
         # test_processor_raises_when_no_html_files
         #
+        # DATA_DIR_NAME = DirectoryStructure.DATA_DIR_NAME
         # data_base = SCRIPT_DIR / DATA_DIR_NAME
 
         # Use regex pattern to find timestamped directories
+        timestamp_dir_pattern = FilePatterns.TIMESTAMP_DIR_PATTERN
+
         all_dirs = [
             d
             for d in data_base.iterdir()
-            if d.is_dir() and re.match(TIMESTAMP_DIR_PATTERN, d.name)
+            if d.is_dir() and re.match(timestamp_dir_pattern, d.name)
         ]
 
         if not all_dirs:
@@ -65,7 +64,9 @@ class ECIFollowupWebsiteProcessor:
 
         self.input_dir = max(all_dirs, key=lambda x: x.name)  # use latest
         self.output_dir = self.input_dir
-        self.extractor_run_datetime = datetime.now().strftime(TIMESTAMP_FORMAT)
+
+        timestamp_format = TimeFormats.TIMESTAMP_FORMAT
+        self.extractor_run_datetime = datetime.now().strftime(timestamp_format)
 
         # Setup logging first
         self._setup_logging()
@@ -86,14 +87,20 @@ class ECIFollowupWebsiteProcessor:
 
     def _setup_logging(self):
         """Configure logging with file and console handlers."""
-        logs_dir = self.output_dir / LOG_DIR_NAME
+
+        log_format_detailed = LoggingConfig.FORMAT_DETAILED
+
+        log_dir_name = DirectoryStructure.LOG_DIR_NAME
+        log_format_detailed = LoggingConfig.FORMAT_DETAILED
+
+        logs_dir = self.output_dir / log_dir_name
         logs_dir.mkdir(parents=True, exist_ok=True)
 
         log_file = logs_dir / f"{LOG_FILE_PREFIX}_{self.extractor_run_datetime}.log"
 
         logging.basicConfig(
             level=logging.INFO,
-            format=LOG_FORMAT_DETAILED,
+            format=log_format_detailed,
             handlers=[
                 logging.FileHandler(log_file, encoding=FILE_ENCODING),
                 logging.StreamHandler(),
@@ -130,8 +137,15 @@ class ECIFollowupWebsiteProcessor:
 
     def _find_html_files(self) -> List[Path]:
         """Find all HTML files in the responses_followup_website directory."""
+
+        html_file_glob_pattern = FilePatterns.HTML_FILE_GLOB_PATTERN
+
+        RESPONSES_FOLLOWUP_WEBSITE_DIR_NAME = (
+            DirectoryStructure.RESPONSES_FOLLOWUP_WEBSITE_DIR_NAME
+        )
+
         html_dir = self.input_dir / RESPONSES_FOLLOWUP_WEBSITE_DIR_NAME
-        html_files = list(html_dir.glob(HTML_FILE_GLOB_PATTERN))
+        html_files = list(html_dir.glob(html_file_glob_pattern))
 
         self.logger.info(f"In the directory:\n{html_dir}")
         self.logger.info(f"Found {len(html_files)} HTML files to process")
@@ -139,7 +153,7 @@ class ECIFollowupWebsiteProcessor:
         if not html_files:
             raise FileNotFoundError(
                 f"No HTML files found in {html_dir}. "
-                f"Expected HTML files matching pattern: {HTML_FILE_GLOB_PATTERN}"
+                f"Expected HTML files matching pattern: {html_file_glob_pattern}"
             )
 
         return html_files
@@ -248,13 +262,17 @@ class ECIResponseDataLoader:
     def _load_from_csv(self, csv_path: Path) -> dict:
         """Parse CSV file and return dictionary keyed by registration number."""
         responses_data = {}
+        csv_field_initiative_title = CSVConfig.FIELD_INITIATIVE_TITLE
 
         with open(csv_path, mode="r", encoding=FILE_ENCODING) as f:
+
+            csv_field_registration_number = CSVConfig.FIELD_REGISTRATION_NUMBER
             reader = csv.DictReader(f)
+
             for row in reader:
-                reg_num = row[CSV_FIELD_REGISTRATION_NUMBER]
+                reg_num = row[csv_field_registration_number]
                 responses_data[reg_num] = {
-                    CSV_FIELD_INITIATIVE_TITLE: row[CSV_FIELD_INITIATIVE_TITLE],
+                    csv_field_initiative_title: row[csv_field_initiative_title],
                     CSV_FIELD_FOLLOWUP_DEDICATED_WEBSITE: row[
                         CSV_FIELD_FOLLOWUP_DEDICATED_WEBSITE
                     ],
@@ -264,7 +282,9 @@ class ECIResponseDataLoader:
 
     def get_title(self, registration_number: str) -> str:
         """Retrieve initiative title for given registration number."""
-        return self.records[registration_number][CSV_FIELD_INITIATIVE_TITLE]
+        csv_field_initiative_title = CSVConfig.FIELD_INITIATIVE_TITLE
+
+        return self.records[registration_number][csv_field_initiative_title]
 
     def get_website_url(self, registration_number: str) -> str:
         """Retrieve followup dedicated website URL for given registration number."""

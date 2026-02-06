@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup
 
 # Local
 from .model import ECIInitiativeDetailsRecord
-from .const import URLConfig, FilePatterns, OBJECTIVE_MAX_LENGTH
+from .const import URLConfig, FilePatterns, ContentLimits
 
 
 class ECIHTMLParser:
@@ -403,7 +403,7 @@ class ECIHTMLParser:
                     objective_text += next_element.get_text().strip() + " "
                 next_element = next_element.find_next_sibling()
 
-            return objective_text.strip()[:OBJECTIVE_MAX_LENGTH]
+            return objective_text.strip()[: ContentLimits.OBJECTIVE_MAX_LENGTH]
 
         return ""
 
