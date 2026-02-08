@@ -56,6 +56,9 @@ python -m data_pipeline.extractor.responses_followup_website # Extract implement
 # --- Step 4: Merge ---
 python -m data_pipeline.csv_merger.responses              # Combine into master CSV
 ```
+Note: 
+The pipeline alternates between scraping and extraction to provide natural delays between scraping sessions.
+This approach gives the server time to "forget" your requests between sessions, reducing the risk of blacklisting.
 
 ### 3. Analyze Results
 Launch Jupyter to explore the notebooks in `exploratory_data_analysis/`:

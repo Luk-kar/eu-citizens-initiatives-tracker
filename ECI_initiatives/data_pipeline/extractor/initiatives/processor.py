@@ -49,7 +49,7 @@ class ECIDataProcessor:
             session_dirs = [
                 d
                 for d in self.data_root.iterdir()
-                if d.is_dir() and re.match(FilePatterns.TIMESTAMP_DIR_REGEX, d.name)
+                if d.is_dir() and re.match(FilePatterns.TIMESTAMP_DIR_PATTERN, d.name)
             ]
             if session_dirs:
                 last_session = max(session_dirs, key=lambda x: x.name)

@@ -15,7 +15,7 @@ from datetime import datetime
 
 # Base directory for the project, resolved from this file:
 # csv_merger/responses/const.py -> responses -> csv_merger -> ECI_initiatives
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 # Base data directory (ECI_initiatives/data)
 DATA_DIR = PROJECT_ROOT / "data"

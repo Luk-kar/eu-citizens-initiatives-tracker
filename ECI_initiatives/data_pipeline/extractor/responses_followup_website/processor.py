@@ -37,7 +37,7 @@ class ECIFollowupWebsiteProcessor:
         # Find latest timestamped directory under data
         current_file = Path(__file__)
         project_root = current_file.parent.parent.parent.parent
-        data_root = "ECI_initiatives/data"
+        data_root = "data"
         data_base = project_root / data_root
 
         # TODO: The old implementation remains for the test:
