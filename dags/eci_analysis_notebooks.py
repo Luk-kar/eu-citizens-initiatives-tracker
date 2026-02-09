@@ -16,16 +16,69 @@ from pathlib import Path
 from airflow.sdk import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.sensors.external_task import ExternalTaskSensor
-from airflow.utils.state import DagRunState
-from airflow.operators.python import BranchPythonOperator
-from airflow.models import DagRun
-from airflow.utils.session import provide_session
-from airflow.operators.python import ShortCircuitOperator
 
-# Configuration
+# ----------------------------------------------------------------------
+# GLOBAL CONFIGURATION
+# ----------------------------------------------------------------------
+
+# Paths
 ECI_PROJECT_DIR = Path("/opt/airflow/ECI_initiatives")
 EDA_DIR = f"{ECI_PROJECT_DIR}/exploratory_data_analysis"
+CAMPAIGNS_DIR = f"{EDA_DIR}/initiatives_campaigns"
+RESPONSES_DIR = f"{EDA_DIR}/initiatives_responses"
+
+# Virtual Environment Configuration
+# Extracting these allows you to change the venv name globally in one place
+VENV_NAME = ".airflow_venv"
+VENV_PYTHON = f"{VENV_NAME}/bin/python"
+
+# ----------------------------------------------------------------------
+# BASH COMMAND TEMPLATES
+# ----------------------------------------------------------------------
+
+# Template for creating/updating the virtual environment
+SETUP_VENV_TEMPLATE = """
+    cd {directory}
+
+    # 1. Check if the python executable exists
+    if [ ! -f "{venv_python}" ]; then
+        echo "Creating {venv_name} in $(pwd)..."
+        rm -rf {venv_name}
+        
+        python -m venv {venv_name}
+        
+        # Use generated python to call pip (avoids shebang issues)
+        "{venv_python}" -m pip install --upgrade pip
+        "{venv_python}" -m pip install -r requirements.prod.txt
+    else
+        echo "Venv already exists at {venv_name}"
+    fi
+    
+    # 2. Ensure Jupyter is installed
+    "{venv_python}" -m pip show jupyter > /dev/null || \\
+        "{venv_python}" -m pip install jupyter nbconvert ipykernel
+"""
+
+# Template for running the notebook
+RUN_NOTEBOOK_TEMPLATE = """
+    cd {directory}
+    
+    echo "Executing {notebook_name} using {venv_name}..."
+    
+    # Run nbconvert via the venv's python module
+    "{venv_python}" -m jupyter nbconvert \\
+        --to notebook \\
+        --execute \\
+        --inplace \\
+        {notebook_name}
+    
+    echo "✓ {notebook_name} updated successfully."
+    echo "  (Using pandas==$("{venv_python}" -c 'import pandas; print(pandas.__version__)'))"
+"""
+
+# ----------------------------------------------------------------------
+# DAG DEFINITION
+# ----------------------------------------------------------------------
 
 default_args = {
     "depends_on_past": False,
@@ -39,142 +92,67 @@ with DAG(
     dag_id="eci_analysis_notebooks",
     default_args=default_args,
     description="Execute EDA notebooks after pipeline completion",
-    schedule=timedelta(days=30),  # Same schedule as data pipeline
+    schedule=timedelta(days=30),
     start_date=datetime(2026, 2, 1),
-    catchup=False,  # Don't backfill
+    catchup=False,
     tags=["eci", "analysis", "notebooks"],
     doc_md=__doc__,
 ) as dag:
 
     start = EmptyOperator(task_id="start_analysis")
 
-    # ========== SETUP VENVS (if needed) ==========
+    # ========== SETUP VENVS ==========
 
     setup_campaigns_venv = BashOperator(
         task_id="setup_campaigns_venv",
-        bash_command=f"""
-        cd {EDA_DIR}/initiatives_campaigns
-        
-        # Define a container-specific venv name to avoid conflict with host's .venv
-        VENV=".airflow_venv"
-
-        # Check for the python executable specifically
-        if [ ! -f "$VENV/bin/python" ]; then
-            echo "Creating $VENV for campaigns notebook..."
-            rm -rf $VENV
-            
-            python -m venv $VENV
-            
-            # Use python -m pip to avoid shebang/script issues
-            $VENV/bin/python -m pip install --upgrade pip
-            $VENV/bin/python -m pip install -r requirements.prod.txt
-        else
-            echo "Campaigns venv ($VENV) already exists"
-        fi
-        
-        # Verify Jupyter is installed
-        $VENV/bin/python -m pip show jupyter > /dev/null || \\
-            $VENV/bin/python -m pip install jupyter nbconvert ipykernel
-        """,
-        doc_md="Create/verify virtual environment for campaigns notebook with isolated dependencies",
+        bash_command=SETUP_VENV_TEMPLATE.format(
+            directory=CAMPAIGNS_DIR, venv_name=VENV_NAME, venv_python=VENV_PYTHON
+        ),
+        doc_md="Create container-specific venv for campaigns notebook",
     )
 
     setup_responses_venv = BashOperator(
         task_id="setup_responses_venv",
-        bash_command=f"""
-        cd {EDA_DIR}/initiatives_responses
-        
-        # Define a container-specific venv name to avoid conflict with host's .venv
-        VENV=".airflow_venv"
-        
-        # Check for the python executable specifically
-        if [ ! -f "$VENV/bin/python" ]; then
-            echo "Creating $VENV for responses notebook..."
-            rm -rf $VENV
-            
-            python -m venv $VENV
-            
-            # Use python -m pip to avoid shebang/script issues
-            $VENV/bin/python -m pip install --upgrade pip
-            $VENV/bin/python -m pip install -r requirements.prod.txt
-        else
-            echo "Responses venv ($VENV) already exists"
-        fi
-        
-        # Verify Jupyter is installed
-        $VENV/bin/python -m pip show jupyter > /dev/null || \\
-            $VENV/bin/python -m pip install jupyter nbconvert ipykernel
-        """,
-        doc_md="Create/verify virtual environment for responses notebook with isolated dependencies",
+        bash_command=SETUP_VENV_TEMPLATE.format(
+            directory=RESPONSES_DIR, venv_name=VENV_NAME, venv_python=VENV_PYTHON
+        ),
+        doc_md="Create container-specific venv for responses notebook",
     )
 
     # ========== RUN NOTEBOOKS ==========
 
     run_signatures_notebook = BashOperator(
         task_id="run_signatures_notebook",
-        bash_command=f"""
-        cd {EDA_DIR}/initiatives_campaigns
-        
-        # Use the container-specific venv
-        .airflow_venv/bin/python -m jupyter nbconvert \\
-            --to notebook \\
-            --execute \\
-            --inplace \\
-            eci_analysis_signatures.ipynb
-        
-        echo "✓ Signatures notebook updated (pandas==$(.airflow_venv/bin/python -c 'import pandas; print(pandas.__version__)'))"
-        """,
-        doc_md="""
-        ### Execute Signatures Analysis
-        Runs eci_analysis_signatures.ipynb with pandas==3.0.0 in isolated venv.
-        Analyzes campaign signatures and geographic patterns.
-        """,
+        bash_command=RUN_NOTEBOOK_TEMPLATE.format(
+            directory=CAMPAIGNS_DIR,
+            notebook_name="eci_analysis_signatures.ipynb",
+            venv_name=VENV_NAME,
+            venv_python=VENV_PYTHON,
+        ),
+        doc_md="### Execute Signatures Analysis\nRuns eci_analysis_signatures.ipynb",
     )
 
     run_responses_notebook = BashOperator(
         task_id="run_responses_notebook",
-        bash_command=f"""
-        cd {EDA_DIR}/initiatives_responses
-        
-        # Use the container-specific venv
-        .airflow_venv/bin/python -m jupyter nbconvert \\
-            --to notebook \\
-            --execute \\
-            --inplace \\
-            eci_analysis_responses.ipynb
-        
-        echo "✓ Responses notebook updated (pandas==$(.airflow_venv/bin/python -c 'import pandas; print(pandas.__version__)'))"
-        """,
-        doc_md="""
-        ### Execute Responses Analysis
-        Runs eci_analysis_responses.ipynb with pandas==2.3.3 in isolated venv.
-        Analyzes Commission responses and legislative outcomes.
-        """,
+        bash_command=RUN_NOTEBOOK_TEMPLATE.format(
+            directory=RESPONSES_DIR,
+            notebook_name="eci_analysis_responses.ipynb",
+            venv_name=VENV_NAME,
+            venv_python=VENV_PYTHON,
+        ),
+        doc_md="### Execute Responses Analysis\nRuns eci_analysis_responses.ipynb",
     )
 
     # ========== COMPLETE ==========
 
     complete = EmptyOperator(
         task_id="analysis_complete",
-        doc_md="""
-        Analysis notebooks updated successfully.
-        
-        **View Results:**
-        - initiatives_campaigns/eci_analysis_signatures.ipynb
-        - initiatives_responses/eci_analysis_responses.ipynb
-        
-        Each notebook runs with its own isolated dependencies in separate venvs.
-        """,
+        doc_md="Analysis notebooks updated successfully.",
     )
 
-    # ========== TASK DEPENDENCIES ==========
+    # ========== DEPENDENCIES ==========
 
-    # Setup venvs after pipeline completes
     start >> [setup_campaigns_venv, setup_responses_venv]
-
-    # Run notebooks with their respective venvs
     setup_campaigns_venv >> run_signatures_notebook
     setup_responses_venv >> run_responses_notebook
-
-    # Complete after both notebooks finish
     [run_signatures_notebook, run_responses_notebook] >> complete
