@@ -38,15 +38,17 @@ You will see two main pipelines (DAGs) in the dashboard:
 
 2. **`eci_analysis_notebooks`**:
    - **What it does:** Runs the Jupyter notebooks found in `ECI_initiatives/exploratory_data_analysis`. It ensures the analysis is always based on the freshest scraped data.
-   - **Schedule:** Runs automatically after the data pipeline finishes.
+   - **Schedule:** Runs monthly, scheduled 1 hour after the data pipeline starts, and waits for the pipeline to finish before executing.
 
 ## 4. How to Trigger a Run Manually
 If you don't want to wait for the schedule:
 1. Go to the UI ([localhost:8080](http://localhost:8080)).
-2. Find the DAG you want (e.g., `eci_data_pipeline`).
-3. Click the "Play" button (▶) in the `Actions` column.
-4. Click "Trigger DAG".
-5. Click on the DAG name to switch to the **Grid View** or **Graph View** to watch the boxes turn green as they complete!
+1. Click **Dags** in the left sidebar (the workflow icon) to view all available pipelines.
+1. Find the DAG you want (e.g., `eci_data_pipeline`).
+2. Click the button (▶) in the right upper corner of the dag.
+3. Click "▶ Trigger" with the selected "Single Run".
+4. Click on the DAG to see how the workflow goes.
+5. Click on any step to see logs.
 
 ## 5. Directory Structure
 `orchestrator/airflow`, what the folders do:
@@ -64,5 +66,3 @@ When choosing an orchestration tool, be careful. Many modern "open-source" tools
 - **The Trap:** They offer a basic open-source version but entangle it with closed-source, remote API dependencies or "Cloud" features. They often try to force you into a paid SaaS subscription to get essential security or usability features.
 - **Version Control Risk:** Companies can downgrade features in the next open-source version if core development becomes tied to their commercial interests, effectively forcing you to upgrade to their paid tier to maintain functionality you previously had for free.
 - **Chosen One:** We use Airflow here because the community edition is fully functional and self-hosted. It runs entirely on your machine via Docker without phoning home to a paid cloud service. Dagster is another valid option that fits this criteria, as its open-source core is feature-complete and allows for full self-hosting without forced cloud dependencies.
-
-
