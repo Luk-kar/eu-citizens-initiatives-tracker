@@ -93,7 +93,7 @@ with DAG(
     default_args=default_args,
     description="Execute EDA notebooks after pipeline completion",
     schedule=timedelta(days=30),
-    start_date=datetime(2026, 2, 1),
+    start_date=datetime(2026, 2, 1, 1),  # 1 hour after eci_data_pipeline
     catchup=False,
     tags=["eci", "analysis", "notebooks"],
     doc_md=__doc__,
