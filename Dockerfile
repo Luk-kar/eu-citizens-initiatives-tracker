@@ -19,3 +19,5 @@ USER airflow
 # Install Python dependencies
 COPY ECI_initiatives/data_pipeline/requirements.prod.txt /tmp/
 RUN pip install --no-cache-dir -r /tmp/requirements.prod.txt
+
+# Note: Notebook dependencies installed in separate venvs at runtime to avoid conflicts

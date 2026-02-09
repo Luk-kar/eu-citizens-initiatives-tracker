@@ -6,7 +6,10 @@ ECI_initiatives/dev/missing_data_report_*
 # read_files_and_content.sh - output:
 /*.md
 !/README.md
+
+# enviro
 .venv
+.airflow_venv
 
 # Temp CSVs
 calculated_cases_responses.csv
