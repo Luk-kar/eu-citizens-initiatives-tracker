@@ -142,11 +142,11 @@ python -m data_pipeline.csv_merger.responses
 
 ### Most important libraries
 
--   **`selenium`**: Browser automation for dynamic EU websites.
--   **`beautifulsoup4`**: HTML parsing and data extraction.
--   **`pandas`**: Data manipulation and CSV merging.
--   **`plotly` / `matplotlib`**: Interactive and static charts.
--   **`pytest`**: Testing framework.
+-   **[`selenium`](https://selenium-python.readthedocs.io/)**: Browser automation for dynamic EU websites.
+-   **[`beautifulsoup4`](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)**: HTML parsing and data extraction.
+-   **[`pandas`](https://pandas.pydata.org/docs/)**: Data manipulation and CSV merging.
+-   **[`plotly`](https://plotly.com/python/)** / **[`matplotlib`](https://matplotlib.org/stable/users/index.html)**: Interactive and static charts.
+-   **[`pytest`](https://docs.pytest.org/en/stable/)**: Testing framework.
 
 ### Pipeline Elements Breakdown
 
@@ -159,7 +159,7 @@ python -m data_pipeline.csv_merger.responses
 
 ## Configuration
 
--   **Environment Variables**: Configured via `.env` (if applicable) or `docker-compose.yaml`.
+-   **Environment Variables**: Configured via [`.env`](.env) (if applicable) or **[`docker-compose.yaml`](./docker-compose.yaml)**.
 -   **Dependencies**:
     -   `ECI_initiatives/data_pipeline/requirements.prod.txt`: Core pipeline libs.
     -   `ECI_initiatives/exploratory_data_analysis/*/requirements.prod.txt`: Analysis libs.

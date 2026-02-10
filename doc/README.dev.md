@@ -6,17 +6,17 @@
 
 **The Case:**
 
-Although the EU releases official ["Key Figures"](https://citizens-initiative-forum.europa.eu/sites/default/files/2022-05/ECI_Infographic_2022.pdf) and annual statistics on European Citizens' Initiatives (ECIs), these reports largely track administrative metrics—such as total signatures collected, organizer demographics, and geographic distribution. However, they lack the granular, structured data essential for strategic analysis, such as: [citizens-initiative.europa](https://citizens-initiative.europa.eu/find-initiative/eci-lifecycle-statistics_en)
+Although the EU releases official ["Key Figures"](https://citizens-initiative-forum.europa.eu/sites/default/files/2022-05/ECI_Infographic_2022.pdf) and annual statistics on European Citizens' Initiatives (ECIs), these reports largely track administrative metrics—such as total signatures collected, organizer demographics, and geographic distribution. However, they lack the granular, structured data essential for strategic analysis, such as: [eci-lifecycle-statistics_en](https://citizens-initiative.europa.eu/find-initiative/eci-lifecycle-statistics)
 
 - Precise collection timelines
 - Historical success rates by policy area
 - Specific legislative outcomes of successful initiatives
 
-Currently, the European Commission does not offer a centralized, downloadable dataset that links initiatives directly to their long-term legal results. Critical follow-up data (Commission communications, Parliament hearings, and subsequent legal acts) remains fragmented across separate web pages. [citizens-initiative.europa](https://citizens-initiative.europa.eu/find-initiative/eci-lifecycle-statistics_en)
+Currently, the European Commission does not offer a centralized, downloadable dataset that links initiatives directly to their long-term legal results. Critical follow-up data (Commission communications, Parliament hearings, and subsequent legal acts) remains fragmented across separate web pages.
 
 **The Solution:**
 
-Consequently, citizens and researchers cannot simply download a "lifecycle" dataset. To analyze the actual impact of initiatives, one must rely on scraping and unifying data from individual official initiative pages—exactly what this project does.
+Consequently, citizens cannot simply download a "lifecycle" dataset. To analyze the actual impact of initiatives, one must rely on scraping and unifying data from individual official initiative pages—exactly what this project does.
 
 ***
 
@@ -58,11 +58,13 @@ For improved scalability and accuracy, the following columns would benefit from 
 
 *Note: Due to the lengthy legislative process and delays in Commission responses, the dataset of "successful" initiatives with detailed follow-up is currently small (11 at the time of writing). While this makes manual regex maintenance manageable for now, the following fields are prime candidates for NLP automation as the dataset grows:*
 
-- **`laws_actions` & `policies_actions`**: Highly susceptible to false positives/negatives. The variability in how the Commission describes "actions taken" (e.g., *adopted*, *proposed*, *entered into force*) makes regex patterns brittle and high-maintenance.
+*   **`policies_actions`**: Highly susceptible to false positives/negatives. Non-legislative actions (e.g., *roadmaps*, *public consultations*, *working groups*) lack standardized terminology, making regex patterns quite challenging to maintain and prone to missing subtle commitments.
 
-- **`referenced_legislation_by_name`**: Legal titles are often abbreviated (e.g., *"GDPR"* vs. *"DGeneral Data Protection Regulation"*). Pattern matching struggles with these informal references.
+*   **`laws_actions`**: Moderately susceptible to errors. While legal acts often follow standard patterns (e.g., *adopted*, *proposed*, *entered into force*), extracting structured metadata like exact dates and document types across different phrasing variations remains brittle.
+  
+- **`referenced_legislation_by_name`**: Legal titles are often abbreviated (e.g., *"GDPR"* vs. *"General Data Protection Regulation"*). Pattern matching struggles with these informal references.
 
-- **`commission_promised_new_law`**: Currently handled via regex. Given the strict, formulaic nature of legal commitments (e.g., *"the Commission commits to adopt..."*), regex may remain sufficient here, though semantic analysis would provide higher confidence.
+- **`commission_promised_new_law`**: Currently handled via regex. Given the strict, formulatic nature of legal commitments (e.g., *"the Commission commits to adopt..."*), regex may remain sufficient here, though semantic analysis would provide higher confidence.
 
 **Model Maintenance:**
 
@@ -130,7 +132,7 @@ A lightweight backend (e.g., **FastAPI** or **Flask**) to:
 
 For detailed schema documentation of the extracted datasets, see:
 - [`eci_initiatives_columns_info.csv`](../ECI_initiatives/exploratory_data_analysis/initiatives_campaigns/eci_initiatives_columns_info.csv)
-- [`eci_merger_columns_info.csv`](../ECI_initiatives/exploratory_data_analysis/initiatives_campaigns/eci_merger_columns_info.csv)
+- [`eci_merger_columns_info.csv`](../ECI_initiatives/exploratory_data_analysis/initiatives_responses/eci_merger_columns_info.csv)
 
 ***
 
