@@ -17,8 +17,12 @@ from unittest import mock
 import pytest
 
 # Eci app extractor
-from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
-from ECI_initiatives.extractor.responses.processor import ECIResponseDataProcessor
+from ECI_initiatives.data_pipeline.extractor.responses.model import (
+    ECICommissionResponseRecord,
+)
+from ECI_initiatives.data_pipeline.extractor.responses.processor import (
+    ECIResponseDataProcessor,
+)
 
 # Test data paths
 TEST_DATA_DIR = (

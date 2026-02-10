@@ -9,10 +9,12 @@ and proper UTF-8 encoding for multilingual content.
 import pytest
 
 # Local imports
-from ECI_initiatives.scraper.responses_followup_website.file_operations.page import (
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website.file_operations.page import (
     PageFileManager,
 )
-from ECI_initiatives.scraper.responses_followup_website.consts import MIN_HTML_LENGTH
+from ECI_initiatives.data_pipeline.scraper.responses_followup_website.consts import (
+    MIN_HTML_LENGTH,
+)
 
 # pylint: disable=protected-access
 # Rationale: Unit tests directly access protected member _validate_html to test

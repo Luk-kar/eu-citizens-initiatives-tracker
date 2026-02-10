@@ -8,12 +8,9 @@ ECI_initiatives/dev/missing_data_report_*
 /*.md
 !/README.md
 
-# Virtual Environments (General and Specific)
-.airflow_venv/
-ECI_initiatives/exploratory_data_analysis/initiatives_campaigns/.airflow_venv/
-.venv/
-venv/
-ENV/
+# enviro
+.venv
+.airflow_venv
 
 # Temp CSVs
 calculated_cases_responses.csv

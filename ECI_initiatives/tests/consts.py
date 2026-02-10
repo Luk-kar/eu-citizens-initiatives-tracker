@@ -3,7 +3,7 @@
 # python
 import os
 
-from ..scraper.initiatives.consts import (
+from ..data_pipeline.scraper.initiatives.consts import (
     BASE_URL,
     ROUTE_FIND_INITIATIVE,
     CSV_FILENAME,
@@ -86,7 +86,7 @@ SAMPLE_INITIATIVE_DATA = {
 # Rate limiting patterns to detect
 class RATE_LIMIT_INDICATORS:
     SERVER_INACCESSIBILITY = MAIN_RATE_LIMIT_INDICATORS[0]  # "Server inaccessibility"
-    TOO_MANY_REQUESTS = MAIN_RATE_LIMIT_INDICATORS[1]  # "429 - Too Many Requests"
+    TOO_MANY_REQUESTS = MAIN_RATE_LIMIT_INDICATORS[3]  # "429 - Too Many Requests"
     RATE_LIMITED = MAIN_RATE_LIMIT_INDICATORS[4]  # "Rate limited"
 
 

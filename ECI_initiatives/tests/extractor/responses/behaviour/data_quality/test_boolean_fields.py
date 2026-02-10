@@ -7,7 +7,9 @@ European Citizens' Initiative response data.
 
 from typing import List, Any
 
-from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from ECI_initiatives.data_pipeline.extractor.responses.model import (
+    ECICommissionResponseRecord,
+)
 from .validation_helpers import normalize_boolean, is_empty_value
 
 

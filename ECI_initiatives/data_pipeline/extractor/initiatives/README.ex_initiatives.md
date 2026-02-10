@@ -1,0 +1,97 @@
+# ECI Initiative Extractor
+
+Extraction engine for European Citizens' Initiatives. It processes raw HTML files (downloaded by the `scraper/initiatives` module) and transforms them into a structured, analytical dataset.
+
+## 🚀 Purpose
+
+The extractor converts the raw HTML pages (downloaded by the scraper) into a clean, analysis-ready dataset. It handles the messy work of parsing the website's layout to extract:
+- **Core Metadata**: Titles, objectives, registration numbers, and annexes.
+- **Timelines**: Registration, collection, verification, and Commission response dates.
+- **Support Data**: Signature counts per country, threshold achievements, and funding sources.
+- **Organizer Info**: Legal entities, representatives, and committee members.
+
+## 📂 Project Structure
+
+- **`processor.py`**: Orchestrates the extraction workflow (finds data, loops through files, saves output).
+- **`parser.py`**: Contains the logic to extract specific fields from HTML content using BeautifulSoup.
+- **`model.py`**: Defines the **standardized schema** for an initiative, enforcing a consistent data contract across the application.
+- **`initiatives_logger.py`**: Handles unified logging for the extraction process.
+- **`__main__.py`**: Entry point for running the extractor directly.
+- **`tests/`**: Comprehensive test suite for extraction logic and data processing.
+
+## ⚙️ Workflow
+
+1. **Discovery**: Locates the most recent timestamped directory in `data/` (e.g., `data/2024-02-01_10-00-00/`).
+2. **Traversal**: Iterates through all HTML files in `initiatives/{year}/` subdirectories.
+3. **Extraction**:
+   - Parses the "Timeline" section to determine critical dates and current status.
+   - Extracts the country-by-country breakdown to capture verified signature counts and determine which member states met their specific support thresholds.
+   - Identifies funding sources and amounts.
+   - Serializes complex nested data (organizers, country breakdowns) into JSON strings.
+4. **Output**: Writes the structured CSV back into the source timestamped directory (e.g., `data/2024-02-01.../`), ensuring the raw HTML inputs and the extracted output remain bundled together for auditability.
+
+## 📊 Data Fields
+
+The output CSV contains comprehensive fields, including:
+
+| Category | Key Fields |
+| :--- | :--- |
+| **Identity** | `registration_number`, `title`, `url`, `current_status` |
+| **Content** | `objective`, `annex`, `languages_available` |
+| **Timeline** | `timeline_registered`, `timeline_collection_start/end`, `timeline_verification_start/end` |
+| **Signatures** | `signatures_collected`, `signatures_threshold_met`, `signatures_collected_by_country` (JSON) |
+| **Organizers** | `organizer_representative` (JSON), `organizer_entity` (JSON) |
+| **Funding** | `funding_total`, `funding_by` (JSON) |
+
+## 🛠️ Prerequisites
+
+
+Ensure you have the following installed:
+- **Python 3.8+**
+
+### Python Dependencies
+
+See the [main project documentation](../../README.ECI_initiatives.md#-quick-start-end-to-end) for detailed installation instructions.
+
+```bash
+pip install -r ECI_initiatives/data_pipeline/requirements.prod.txt
+```
+## 🖥️ Usage
+
+For detailed setup and environment configuration, see the [main project documentation](../../README.ECI_initiatives.md#-quick-start-end-to-end).
+
+**Quick Start:**
+
+```bash
+# From project root
+cd ECI_initiatives
+```
+### 1. Setup Environment
+Create the virtual environment and install dependencies:
+```bash
+uv venv
+uv pip install -r data_pipeline/requirements.prod.txt
+```
+
+### 2. Activate Shell
+Load the virtual environment into your current shell session:
+
+**Linux/macOS:**
+```bash
+source .venv/bin/activate
+```
+
+**Windows:**
+```powershell
+.venv\Scripts\activate
+```
+
+### 3. Run the Extractor
+Once the environment is active (you should see `(.venv)` in your prompt), run the module. It will automatically find the latest data directory:
+
+```bash
+python -m data_pipeline.extractor.initiatives
+```
+
+**Output Location:**  
+`data/{TIMESTAMP}/eci_initiatives_{DATE}.csv`

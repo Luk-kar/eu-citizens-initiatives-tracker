@@ -38,23 +38,24 @@ from ECI_initiatives.tests.consts import (
 @pytest.fixture(scope="session")
 def parsed_test_data():
     """Parse test HTML files once and reuse across all tests."""
-    
-    # Import here to avoid early logger initialization
-    from ECI_initiatives.scraper.initiatives.data_parser import parse_initiatives_list_data
-    
-    with patch("ECI_initiatives.scraper.initiatives.data_parser.logger"):
-        all_initiatives = []
 
+    # Import here to avoid early logger initialization - use string-based patching
+    with patch("ECI_initiatives.data_pipeline.scraper.initiatives.data_parser.logger"):
+        # Import after patching logger
+        from ECI_initiatives.data_pipeline.scraper.initiatives import data_parser
+
+        all_initiatives = []
         for page_file in SAMPLE_LISTING_FILES:
             page_path = os.path.join(LISTINGS_HTML_DIR, page_file)
-
             if not os.path.exists(page_path):
                 continue
 
             with open(page_path, "r", encoding="utf-8") as f:
                 page_source = f.read()
 
-            initiatives = parse_initiatives_list_data(page_source, BASE_URL)
+            # Use module function directly
+            initiatives = data_parser.parse_initiatives_list_data(page_source, BASE_URL)
+
             all_initiatives.extend(initiatives)
 
         return all_initiatives
@@ -81,23 +82,28 @@ class TestCsvFileOperations:
     def setup_class(cls):
         """
         Import modules and set up class attributes.
-        
+
         Imports are done here rather than at module level to avoid
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
-        from ECI_initiatives.scraper.initiatives.__main__ import save_and_download_initiatives
-        
-        cls.save_and_download_initiatives = staticmethod(save_and_download_initiatives)
+        from ECI_initiatives.data_pipeline.scraper.initiatives import (
+            __main__ as main_module,
+        )
 
-    @patch("ECI_initiatives.scraper.initiatives.__main__.download_initiatives")
-    @patch("ECI_initiatives.scraper.initiatives.__main__.logger")
+        cls.save_and_download_initiatives = staticmethod(
+            main_module.save_and_download_initiatives
+        )
+
+    @patch(
+        "ECI_initiatives.data_pipeline.scraper.initiatives.__main__.download_initiatives"
+    )
+    @patch("ECI_initiatives.data_pipeline.scraper.initiatives.__main__.logger")
     def test_csv_created_with_correct_headers(self, mock_logger, mock_download_pages):
         """
         Verify that initiatives_list.csv is created with correct headers:
         url, current_status, registration_number, signature_collection, datetime.
         """
-
         # Sample initiative data
         test_initiative_data = [
             {
@@ -112,21 +118,21 @@ class TestCsvFileOperations:
         # Mock download_initiatives to return the same data with updated datetime
         updated_data = copy.deepcopy(test_initiative_data)
         updated_data[0][REQUIRED_CSV_COLUMNS.DATETIME] = "2025-09-21 11:24:00"
-
         mock_download_pages.return_value = (
             updated_data,
             [],
         )  # (updated_data, failed_urls)
 
         with tempfile.TemporaryDirectory() as temp_dir:
-
             list_dir = os.path.join(temp_dir, "listings")
             pages_dir = os.path.join(temp_dir, "pages")
             os.makedirs(list_dir, exist_ok=True)
             os.makedirs(pages_dir, exist_ok=True)
 
             # Call the function to test
-            self.save_and_download_initiatives(list_dir, pages_dir, test_initiative_data)
+            self.save_and_download_initiatives(
+                list_dir, pages_dir, test_initiative_data
+            )
 
             # Check that CSV file was created
             csv_file_path = os.path.join(list_dir, "initiatives_list.csv")
@@ -134,9 +140,9 @@ class TestCsvFileOperations:
 
             # Read and verify CSV headers and data
             with open(csv_file_path, "r", encoding="utf-8") as f:
-
                 reader = csv.reader(f)
                 headers = next(reader)
+
                 expected_headers = [
                     REQUIRED_CSV_COLUMNS.URL,
                     REQUIRED_CSV_COLUMNS.CURRENT_STATUS,
@@ -155,7 +161,6 @@ class TestCsvFileOperations:
 
                 # Verify first data row
                 data_row = data_rows[0]
-
                 assert len(data_row) == len(expected_headers), (
                     "Data row has incorrect number of columns.\n"
                     + "The first row:\n"
@@ -166,8 +171,10 @@ class TestCsvFileOperations:
                     data_row[0] == test_initiative_data[0][REQUIRED_CSV_COLUMNS.URL]
                 ), "URL not correctly written to CSV:\n" + str(data_row[0])
 
-    @patch("ECI_initiatives.scraper.initiatives.__main__.logger")
-    @patch("ECI_initiatives.scraper.initiatives.__main__.download_initiatives")
+    @patch("ECI_initiatives.data_pipeline.scraper.initiatives.__main__.logger")
+    @patch(
+        "ECI_initiatives.data_pipeline.scraper.initiatives.__main__.download_initiatives"
+    )
     def test_no_duplicate_initiatives(self, mock_download_pages, mock_logger):
         """Ensure no duplicate initiatives are recorded in the CSV when scraping produces duplicates."""
 
@@ -199,21 +206,16 @@ class TestCsvFileOperations:
         # Mock download_initiatives to return data without duplicates
         unique_data = []
         seen_urls = set()
-
         for item in test_initiative_data_with_duplicates:
-
             if item[REQUIRED_CSV_COLUMNS.URL] not in seen_urls:
-
                 unique_data.append(item.copy())
                 seen_urls.add(item[REQUIRED_CSV_COLUMNS.URL])
 
         mock_download_pages.return_value = (unique_data, [])
 
         with tempfile.TemporaryDirectory() as temp_dir:
-
             list_dir = os.path.join(temp_dir, "listings")
             pages_dir = os.path.join(temp_dir, "pages")
-
             os.makedirs(list_dir, exist_ok=True)
             os.makedirs(pages_dir, exist_ok=True)
 
@@ -239,6 +241,7 @@ class TestCsvFileOperations:
             assert (
                 len(csv_urls) == 2
             ), f"Expected 2 rows in CSV (duplicates removed), got:\n{len(csv_urls)}"
+
             assert (
                 len(unique_csv_urls) == 2
             ), f"Found duplicate URLs in CSV:\n{csv_urls}"
@@ -260,6 +263,7 @@ class TestHtmlParsingBehaviour:
 
     def test_all_fields_extracted(self, parsed_test_data):
         """Ensure all required fields are present in extracted data."""
+
         expected_fields = [
             REQUIRED_CSV_COLUMNS.URL,
             REQUIRED_CSV_COLUMNS.CURRENT_STATUS,
@@ -277,6 +281,7 @@ class TestHtmlParsingBehaviour:
 
     def test_extracted_data_accuracy(self, parsed_test_data, reference_data):
         """Verify extracted data matches reference values."""
+
         reference_dict = {
             row[REQUIRED_CSV_COLUMNS.URL]: row[REQUIRED_CSV_COLUMNS.CURRENT_STATUS]
             for row in reference_data
@@ -293,9 +298,11 @@ class TestHtmlParsingBehaviour:
 
     def test_status_distribution_accuracy(self, parsed_test_data, reference_data):
         """Check that expected statuses appear in parsed data."""
+
         expected_statuses = {
             row[REQUIRED_CSV_COLUMNS.CURRENT_STATUS] for row in reference_data
         }
+
         actual_statuses = {
             init[REQUIRED_CSV_COLUMNS.CURRENT_STATUS]
             for init in parsed_test_data
@@ -313,27 +320,35 @@ class TestScrapingWorkflow:
     def setup_class(cls):
         """
         Import modules and set up class attributes.
-        
+
         Imports are done here rather than at module level to avoid
         log file creation during module loading, allowing the session
         fixture to properly track and clean up test artifacts.
         """
-        from ECI_initiatives.scraper.initiatives.crawler import scrape_all_initiatives_on_all_pages
-        from ECI_initiatives.scraper.initiatives.data_parser import parse_initiatives_list_data
-        
-        cls.scrape_all_initiatives_on_all_pages = staticmethod(scrape_all_initiatives_on_all_pages)
-        cls.parse_initiatives_list_data = staticmethod(parse_initiatives_list_data)
+        from ECI_initiatives.data_pipeline.scraper.initiatives import crawler
+        from ECI_initiatives.data_pipeline.scraper.initiatives import data_parser
+
+        cls.scrape_all_initiatives_on_all_pages = staticmethod(
+            crawler.scrape_all_initiatives_on_all_pages
+        )
+        cls.parse_initiatives_list_data = staticmethod(
+            data_parser.parse_initiatives_list_data
+        )
 
     def test_initiative_count_matches_reference(self, parsed_test_data, reference_data):
         """Compare initiative count with reference data."""
+
         assert len(parsed_test_data) >= len(
             reference_data
         ), f"Found {len(parsed_test_data)} initiatives, expected at least {len(reference_data)}"
 
-    @patch("ECI_initiatives.scraper.initiatives.browser.initialize_browser")
-    @patch("ECI_initiatives.scraper.initiatives.__main__.logger")
+    @patch(
+        "ECI_initiatives.data_pipeline.scraper.initiatives.browser.initialize_browser"
+    )
+    @patch("ECI_initiatives.data_pipeline.scraper.initiatives.__main__.logger")
     def test_pagination_handling(self, mock_logger, mock_browser):
         """Test pagination processing logic."""
+
         # Create a mock driver
         mock_driver = MagicMock()
         mock_browser.return_value = mock_driver
@@ -344,6 +359,7 @@ class TestScrapingWorkflow:
             "<html>page2</html>",
             "<html>page3</html>",
         ]
+
         mock_driver.page_source = page_sources[0]  # Start with first page
 
         # Mock find_element for next button
@@ -378,15 +394,14 @@ class TestScrapingWorkflow:
 
         # Mock other required methods
         with patch(
-            "ECI_initiatives.scraper.initiatives.crawler.wait_for_listing_page_content"
+            "ECI_initiatives.data_pipeline.scraper.initiatives.crawler.wait_for_listing_page_content"
         ), patch(
-            "ECI_initiatives.scraper.initiatives.file_ops.save_listing_page"
+            "ECI_initiatives.data_pipeline.scraper.initiatives.file_ops.save_listing_page"
         ) as mock_save, patch(
-            "ECI_initiatives.scraper.initiatives.data_parser.parse_initiatives_list_data"
+            "ECI_initiatives.data_pipeline.scraper.initiatives.data_parser.parse_initiatives_list_data"
         ) as mock_parse, patch(
             "time.sleep"
         ):
-
             mock_save.return_value = ("", "test_path")
             mock_parse.return_value = [
                 {
@@ -409,16 +424,17 @@ class TestScrapingWorkflow:
                 assert (
                     len(saved_paths) == expected_page_count
                 ), f"Expected {expected_page_count} pages processed, got {len(saved_paths)}"
+
                 assert (
                     mock_driver.find_element.call_count == expected_page_count
                 ), f"Should have checked for next button {expected_page_count} times"
+
+    def test_all_initiative_fields_extracted_from_source_pages(self):
         """Ensure all initiative fields are extracted when available on source pages."""
 
         def load_expected_statuses():
             """Load status distribution from reference CSV file."""
-
             with open(CSV_FILE_PATH, "r", encoding="utf-8") as f:
-
                 reader = csv.DictReader(f)
                 return Counter(
                     row[REQUIRED_CSV_COLUMNS.CURRENT_STATUS] for row in reader
@@ -426,13 +442,9 @@ class TestScrapingWorkflow:
 
         def parse_test_pages():
             """Parse all test HTML pages and extract statuses."""
-
             all_statuses = []
-
             for page_file in SAMPLE_LISTING_FILES:
-
                 page_path = os.path.join(LISTINGS_HTML_DIR, page_file)
-
                 with open(page_path, "r", encoding="utf-8") as f:
                     page_content = f.read()
 
@@ -444,6 +456,7 @@ class TestScrapingWorkflow:
                     for init in initiatives
                     if init[REQUIRED_CSV_COLUMNS.CURRENT_STATUS]
                 ]
+
                 all_statuses.extend(page_statuses)
 
             return Counter(all_statuses)

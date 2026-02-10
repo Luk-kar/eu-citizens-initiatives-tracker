@@ -9,8 +9,10 @@ from typing import List
 
 import pytest
 
-from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
-from ECI_initiatives.extractor.responses.parser.consts.eci_status import (
+from ECI_initiatives.data_pipeline.extractor.responses.model import (
+    ECICommissionResponseRecord,
+)
+from ECI_initiatives.data_pipeline.extractor.responses.parser.consts.eci_status import (
     ECIImplementationStatus,
 )
 from .validation_helpers import (

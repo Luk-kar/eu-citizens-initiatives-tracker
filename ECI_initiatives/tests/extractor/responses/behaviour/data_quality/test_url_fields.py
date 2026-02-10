@@ -9,7 +9,9 @@ import re
 from typing import List
 from urllib.parse import urlparse, ParseResult
 
-from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from ECI_initiatives.data_pipeline.extractor.responses.model import (
+    ECICommissionResponseRecord,
+)
 from .validation_helpers import (
     validate_url_structure,
 )

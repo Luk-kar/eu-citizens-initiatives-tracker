@@ -12,7 +12,9 @@ from typing import List
 from bs4 import BeautifulSoup
 import pytest
 
-from ECI_initiatives.extractor.responses.model import ECICommissionResponseRecord
+from ECI_initiatives.data_pipeline.extractor.responses.model import (
+    ECICommissionResponseRecord,
+)
 
 
 class TestTextFieldsCompleteness:
