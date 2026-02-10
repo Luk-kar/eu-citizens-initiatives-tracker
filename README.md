@@ -37,12 +37,12 @@ The pipeline automates the extraction of unstructured web data into a clean, ana
 
 The project relies on a few key technologies:
 
--   **Python 3.11+**
--   **Docker & Docker Compose** (for orchestration)
--   **uv** (recommended for fast Python package management)
--   **Selenium** (via webdriver) & **BeautifulSoup4** (Parsing)
--   **Pandas, Plotly, Matplotlib**, etc. (Analysis & Visualization)
-
+-   **[Python 3.11+](https://www.python.org/downloads/)**
+-   **[Docker & Docker Compose](https://docs.docker.com/compose/)** (for orchestration)
+-   **[uv](https://github.com/astral-sh/uv)** (recommended for fast Python package management)
+-   **[Selenium](https://selenium-python.readthedocs.io/)** (via webdriver) & **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)** (Parsing)
+-   **[Pandas](https://pandas.pydata.org/docs/)**, **[Plotly](https://plotly.com/python/)**, **[Matplotlib](https://matplotlib.org/)**, etc. (Analysis & Visualization)
+  
 ## Installation
 
 Clone the repository and set up the environment:
