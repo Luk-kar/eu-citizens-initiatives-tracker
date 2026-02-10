@@ -3,9 +3,17 @@ __pycache__
 ECI_initiatives/data/*
 ECI_initiatives/dev/extract.ipynb
 ECI_initiatives/dev/missing_data_report_*
+
 # read_files_and_content.sh - output:
 /*.md
 !/README.md
+
+# Virtual Environments (General and Specific)
+.airflow_venv/
+ECI_initiatives/exploratory_data_analysis/initiatives_campaigns/.airflow_venv/
+.venv/
+venv/
+ENV/
 
 # Temp CSVs
 calculated_cases_responses.csv
