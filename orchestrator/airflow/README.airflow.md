@@ -1,4 +1,4 @@
-# Orchestration with Apache Airflow
+# 🎼 Orchestration with Apache Airflow
 
 ## 1. What is an Orchestrator? (The Simple Explanation)
 
@@ -32,6 +32,8 @@ Once the containers are running, open your browser:
 ## 3. What is Running?
 You will see two main pipelines (DAGs) in the dashboard:
 
+![Main Dashboard Panel](./doc/images/main_panel.png)
+
 1. **`eci_data_pipeline`**:
    - **What it does:** Runs the scrapers (Selenium) to get data from EU websites, extracts it, and merges it into CSVs.
    - **Schedule:** Monthly.
@@ -43,12 +45,14 @@ You will see two main pipelines (DAGs) in the dashboard:
 ## 4. How to Trigger a Run Manually
 If you don't want to wait for the schedule:
 1. Go to the UI ([localhost:8080](http://localhost:8080)).
-1. Click **Dags** in the left sidebar (the workflow icon) to view all available pipelines.
-1. Find the DAG you want (e.g., `eci_data_pipeline`).
-2. Click the button (▶) in the right upper corner of the dag.
-3. Click "▶ Trigger" with the selected "Single Run".
-4. Click on the DAG to see how the workflow goes.
-5. Click on any step to see logs.
+2. Click **Dags** in the left sidebar (the workflow icon) to view all available pipelines.
+3. Find the DAG you want (e.g., `eci_data_pipeline`).
+4. Click the button (▶) in the right upper corner of the dag.
+5. Click "▶ Trigger" with the selected "Single Run".
+6. Click on the DAG to see how the workflow goes.
+7. Click on any step to see logs.
+
+![Task Logs](./doc/images/logs.png)
 
 ## 5. Directory Structure
 `orchestrator/airflow`, what the folders do:
@@ -61,8 +65,8 @@ If you don't want to wait for the schedule:
 ## 6. A Note on Tool Choice & Open Source
 We are using Airflow here, but the specific tool doesn't matter as much as the concept. You could replace this directory with **Dagster**, **Prefect**, or simple **Cron** jobs, and the data logic would remain the same. It really depends on your unique current or legacy requirements.
 
-## 7. A Warning on "Open Source" Orchestrators
+## 7. A Warning on pseudo "Open Source"
 When choosing an orchestration tool, be careful. Many modern "open-source" tools operate on an "Open Core" model.
 - **The Trap:** They offer a basic open-source version but entangle it with closed-source, remote API dependencies or "Cloud" features. They often try to force you into a paid SaaS subscription to get essential security or usability features.
 - **Version Control Risk:** Companies can downgrade features in the next open-source version if core development becomes tied to their commercial interests, effectively forcing you to upgrade to their paid tier to maintain functionality you previously had for free.
-- **Chosen One:** We use Airflow here because the community edition is fully functional and self-hosted. It runs entirely on your machine via Docker without phoning home to a paid cloud service. Dagster is another valid option that fits this criteria, as its open-source core is feature-complete and allows for full self-hosting without forced cloud dependencies.
+- **Chosen One:** Airflow is used here because the community edition is fully functional and self-hosted. It runs entirely on your machine via Docker without phoning home to a paid cloud service. Dagster is another valid option that fits this criteria, as its open-source core is feature-complete and allows for full self-hosting without forced cloud dependencies.
