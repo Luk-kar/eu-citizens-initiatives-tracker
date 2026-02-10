@@ -100,31 +100,31 @@ A dedicated `common/` module would improve consistency, simplify testing, and re
 
 **Interactive Web Dashboard:**
 
-A public-facing dashboard (e.g., using **Dash** or else fitting) to allow non-technical users to explore the "lifecycle" dataset without needing to:
+A public-facing dashboard (e.g., using [**Dash**](https://dash.plotly.com/) or else fitting) to allow non-technical users to explore the "lifecycle" dataset without needing to:
 - Run Jupyter notebooks locally
 - Rely on external services like [Kaggle](https://www.kaggle.com/)
 
 ### Infrastructure & Backend
 
 #### **Database Integration**
-Migration from CSV-based storage to a relational database (e.g., **PostgreSQL**) to support:
+Migration from CSV-based storage to a relational database (e.g., [**PostgreSQL**](https://www.postgresql.org/)) to support:
 - Complex queries (e.g., JOIN operations between initiatives and responses)
 - Live dashboard updates
 - Better concurrency for multi-user access
 
 #### **API Service**
-A lightweight backend (e.g., **FastAPI** or **Flask**) to:
+A lightweight backend (e.g., [**FastAPI**](https://fastapi.tiangolo.com/) or **Flask**) to:
 - Expose the dataset via a REST API
 - Separate data processing pipeline from frontend visualization
 
 #### **Configuration Management**
-**Ansible** playbooks to automate:
+[**Ansible**](https://docs.ansible.com/) playbooks to automate:
 - Setup of Selenium WebDriver dependencies
 - Docker container orchestration
 - Linux environment configuration
 
 #### **(Optional) Cloud Provisioning**
-**Terraform** scripts to manage cloud resources (e.g., AWS EC2, GCP Compute Engine) if the project scales beyond local execution.
+[**Terraform**](https://developer.hashicorp.com/terraform/docs) scripts to manage cloud resources (e.g., AWS EC2, GCP Compute Engine) if the project scales beyond local execution.
 
 ***
 
