@@ -41,20 +41,17 @@ source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 
 ### 2. Run the Pipeline
 ```bash
-# --- Step 1: Initiatives ---
-python -m data_pipeline.scraper.initiatives               # Scrape registry pages
-python -m data_pipeline.extractor.initiatives             # Extract signatures & metadata
-
-# --- Step 2: Commission Responses ---
-python -m data_pipeline.scraper.responses                 # Scrape response pages
-python -m data_pipeline.extractor.responses               # Extract legislative outcomes
-
-# --- Step 3: Followup Websites ---
-python -m data_pipeline.scraper.responses_followup_website # Scrape dedicated sites
-python -m data_pipeline.extractor.responses_followup_website # Extract implementation data
-
-# --- Step 4: Merge ---
-python -m data_pipeline.csv_merger.responses              # Combine into master CSV
+echo "--- Step 1: Initiatives ---" && \
+python -m data_pipeline.scraper.initiatives && \
+python -m data_pipeline.extractor.initiatives && \
+echo "--- Step 2: Commission Responses ---" && \
+python -m data_pipeline.scraper.responses && \
+python -m data_pipeline.extractor.responses && \
+echo "--- Step 3: Followup Websites ---" && \
+python -m data_pipeline.scraper.responses_followup_website && \
+python -m data_pipeline.extractor.responses_followup_website && \
+echo "--- Step 4: Merge ---" && \
+python -m data_pipeline.csv_merger.responses
 ```
 Note: 
 The pipeline alternates between scraping and extraction to provide natural delays between scraping sessions.
