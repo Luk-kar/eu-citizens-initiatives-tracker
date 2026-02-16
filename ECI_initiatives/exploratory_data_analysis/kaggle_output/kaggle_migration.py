@@ -4,8 +4,9 @@ Kaggle Notebook Migration Script for ECI Analysis
 --------------------------------------------------
 Converts local Jupyter notebooks to Kaggle-compatible format by:
 1. Replacing local file paths with Kaggle input paths
-2. Removing dynamic folder detection logic
-3. Clearing all notebook outputs using nbconvert
+2. Replacing local image paths with hosted GitHub raw links
+3. Removing dynamic folder detection logic
+4. Clearing all notebook outputs using nbconvert
 
 Requirements:
     pip install jupyter nbconvert
@@ -30,6 +31,7 @@ from datetime import datetime
 from typing import Dict, List, Tuple
 import shutil
 import csv
+import re
 
 # Configure logging to console AND file
 log_filename = f"migration_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -54,6 +56,12 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(c_handler)
 logger.addHandler(f_handler)
 
+# Image replacements mapping (Filename -> Raw GitHub URL)
+IMAGE_REPLACEMENTS = {
+    "eci_take_initiative_banner.png": "https://raw.githubusercontent.com/Luk-kar/eu-citizens-initiatives-tracker/main/ECI_initiatives/exploratory_data_analysis/initiatives_campaigns/images/eci_take_initiative_banner.png",
+    "eci_participation_campaign.jpg": "https://raw.githubusercontent.com/Luk-kar/eu-citizens-initiatives-tracker/main/ECI_initiatives/exploratory_data_analysis/initiatives_responses/images/eci_participation_campaign.jpg",
+    "european_commission_logo.svg": "https://raw.githubusercontent.com/Luk-kar/eu-citizens-initiatives-tracker/main/ECI_initiatives/exploratory_data_analysis/initiatives_responses/images/european_commission_logo.svg"
+}
 
 class KaggleMigrator:
     """Handles migration of ECI notebooks to Kaggle format"""
@@ -151,10 +159,6 @@ class KaggleMigrator:
 
         try:
             with open(csv_path, 'r', encoding='utf-8', newline='') as f:
-                # Read first few lines to check format
-                # We skip sniffing because the CSV contains complex quoted fields (JSON)
-                # that confuse the csv.Sniffer
-
                 reader = csv.reader(f)
                 header = next(reader, None)
 
@@ -164,7 +168,6 @@ class KaggleMigrator:
                 if len(header) < 2:
                     logger.warning(f"CSV {csv_path.name} has only {len(header)} columns, suspicious format")
 
-                # Try reading one more row to ensure structure is valid
                 try:
                     next(reader)
                 except csv.Error:
@@ -180,13 +183,6 @@ class KaggleMigrator:
     def find_most_recent_csv(self, data_folder: Path, pattern: str) -> Path:
         """
         Find the most recent CSV file matching a pattern in the data folder
-
-        Args:
-            data_folder: Path to the timestamped data folder
-            pattern: Filename pattern to match (e.g., "eci_initiatives_")
-
-        Returns:
-            Path object to the most recent matching CSV file
         """
         csv_files = list(data_folder.glob(f"{pattern}*.csv"))
 
@@ -195,10 +191,7 @@ class KaggleMigrator:
                 f"No CSV files found matching pattern '{pattern}' in {data_folder}"
             )
 
-        # Sort by filename (timestamp in filename ensures chronological order)
         most_recent = max(csv_files, key=lambda f: f.name)
-
-        # Validate the found CSV
         self.validate_csv(most_recent)
 
         logger.info(f"Found most recent {pattern}CSV: {most_recent.name}")
@@ -207,12 +200,6 @@ class KaggleMigrator:
     def find_required_csvs(self, data_folder: Path) -> Tuple[Path, Path]:
         """
         Find the most recent required CSV files in the data folder
-
-        Args:
-            data_folder: Path to the timestamped data folder
-
-        Returns:
-            Tuple of (initiatives_csv_path, responses_csv_path)
         """
         try:
             initiatives_csv = self.find_most_recent_csv(
@@ -300,18 +287,40 @@ class KaggleMigrator:
 
         return new_lines
 
+    def replace_image_links(self, source_lines: List[str]) -> List[str]:
+        """
+        Replace local image paths with raw GitHub URLs.
+        Example: images/banner.png -> https://raw.githubusercontent.com/.../banner.png
+        """
+        new_lines = []
+        for line in source_lines:
+            updated_line = line
+            for filename, raw_url in IMAGE_REPLACEMENTS.items():
+                if filename in updated_line:
+                    # Regex to match common markdown image patterns:
+                    # 1. ![Alt](images/filename.png)
+                    # 2. <img src="images/filename.png">
+                    # We simply look for the filename and replace the whole path preceeding it if it looks like a path
+
+                    # Pattern: match anything ending in the filename, possibly preceded by directory structure
+                    # This naive replacement is safer: just replace the known filename if it's in a path context
+
+                    # Check for markdown link: ](anything/filename)
+                    if f"]" in updated_line and f"{filename})" in updated_line:
+                         updated_line = re.sub(r'\]\([^)]*' + re.escape(filename) + r'\)', f']({raw_url})', updated_line)
+                         logger.debug(f"Replaced markdown image link for {filename}")
+
+                    # Check for HTML src: src="anything/filename"
+                    if f'src="' in updated_line and f'{filename}"' in updated_line:
+                         updated_line = re.sub(r'src="[^"]*' + re.escape(filename) + r'"', f'src="{raw_url}"', updated_line)
+                         logger.debug(f"Replaced HTML image source for {filename}")
+
+            new_lines.append(updated_line)
+        return new_lines
+
     def clear_notebook_outputs(self, notebook_path: Path) -> bool:
-        """
-        Clear all outputs from a notebook using nbconvert
-
-        Args:
-            notebook_path: Path to the notebook file
-
-        Returns:
-            True if successful, False otherwise
-        """
+        """Clear all outputs from a notebook using nbconvert"""
         try:
-            # Use nbconvert to clear outputs in place
             result = subprocess.run(
                 [
                     "jupyter", "nbconvert",
@@ -349,9 +358,12 @@ class KaggleMigrator:
         notebook = self.load_notebook(notebook_path)
         logger.debug(f"Loaded {notebook_path.name}")
 
-        # Process code cells
+        # Process cells
         cells_modified = 0
+        images_modified = 0
+
         for i, cell in enumerate(notebook["cells"]):
+            # Process Code Cells
             if cell["cell_type"] == "code":
                 original_source = cell["source"]
                 if any("Path" in line or "pd.read_csv" in line or "root_path" in line 
@@ -363,10 +375,17 @@ class KaggleMigrator:
                     )
                     cells_modified += 1
 
-        logger.info(f"Modified {cells_modified} code cells")
+            # Process Markdown Cells (Image Replacement)
+            elif cell["cell_type"] == "markdown":
+                original_source = cell["source"]
+                new_source = self.replace_image_links(original_source)
+                if new_source != original_source:
+                    cell["source"] = new_source
+                    images_modified += 1
+
+        logger.info(f"Modified {cells_modified} code cells and {images_modified} markdown image links")
 
         # Save migrated notebook with .kaggle.ipynb extension
-        # e.g., eci_analysis_signatures.kaggle.ipynb
         original_name = notebook_path.stem
         output_filename = f"{original_name}.kaggle.ipynb"
         output_path = self.output_path / output_filename
@@ -477,7 +496,6 @@ See the notebooks for detailed column descriptions and usage examples.
 
         outputs_status = "✓ Cleared using nbconvert" if outputs_cleared else "⚠️  Skipped (nbconvert not available)"
 
-        # Get filenames with .kaggle.ipynb extension
         sig_nb_name = f"{self.signatures_nb.stem}.kaggle.ipynb"
         resp_nb_name = f"{self.responses_nb.stem}.kaggle.ipynb"
 
@@ -517,12 +535,7 @@ Post-Migration Steps:
    - Run "Restart & Run All" on Kaggle
    - Verify all visualizations render
    - Check data loading works correctly
-
-5. Publish:
-   - Make dataset public
-   - Make notebooks public
-   - Add tags and descriptions
-   - Share on Kaggle forums
+   - Verify that images (banners/logos) load correctly from GitHub
 
 Files Generated:
 ----------------
@@ -538,13 +551,12 @@ Notes:
 ------
 - Original notebooks preserved in parent directories
 - All local paths converted to Kaggle input paths
+- Local image paths replaced with GitHub raw links
 - Dynamic folder detection removed
 - Most recent CSV files automatically selected
-- Original contact section preserved (NOT modified)
 - Output cells cleared using nbconvert
 - Kaggle metadata will be configured automatically when you upload
 - CSV files copied to csv_files/ for easy upload
-- CSV files validated (not empty/malformed)
 
 Success! ✓
 """

@@ -10,6 +10,7 @@ migration_report.txt
 # Large Data Files (Never commit data)
 csv_files/
 *.csv
+dataset-metadata.json
 
 # Optional: Generated Artifacts
 # Uncomment lines below if you do NOT want to version control the generated notebooks
