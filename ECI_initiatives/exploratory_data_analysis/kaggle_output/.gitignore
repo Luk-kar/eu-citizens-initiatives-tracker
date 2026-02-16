@@ -1,0 +1,17 @@
+# Python / Virtual Env
+venv/
+__pycache__/
+*.pyc
+
+# Logs and Reports
+*.log
+migration_report.txt
+
+# Large Data Files (Never commit data)
+csv_files/
+*.csv
+
+# Optional: Generated Artifacts
+# Uncomment lines below if you do NOT want to version control the generated notebooks
+# kaggle_eci_analysis_*.ipynb
+# dataset-metadata.json
