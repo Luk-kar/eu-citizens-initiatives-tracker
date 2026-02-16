@@ -5,8 +5,7 @@ Kaggle Notebook Migration Script for ECI Analysis
 Converts local Jupyter notebooks to Kaggle-compatible format by:
 1. Replacing local file paths with Kaggle input paths
 2. Removing dynamic folder detection logic
-3. Adding Kaggle-specific introduction header
-4. Clearing all notebook outputs using nbconvert
+3. Clearing all notebook outputs using nbconvert
 
 Requirements:
     pip install jupyter nbconvert
@@ -15,8 +14,8 @@ Usage:
     python kaggle_migration.py
 
 Output:
-    - kaggle_eci_analysis_signatures.ipynb
-    - kaggle_eci_analysis_responses.ipynb
+    - eci_analysis_signatures.kaggle.ipynb
+    - eci_analysis_responses.kaggle.ipynb
     - dataset-metadata.json
     - migration_report.txt
     - migration.log
@@ -33,21 +32,19 @@ import shutil
 import csv
 
 # Configure logging to console AND file
-log_filename = f"migration_{datetime.now().strftime('%Y-%m-%d_%H_%M_%S')}.log"
+log_filename = f"migration_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
 # Create handlers
 c_handler = logging.StreamHandler()
-f_handler = logging.FileHandler(log_filename, mode="w", encoding="utf-8")
+f_handler = logging.FileHandler(log_filename, mode='w', encoding='utf-8')
 
 # Set levels
 c_handler.setLevel(logging.INFO)
 f_handler.setLevel(logging.DEBUG)
 
 # Create formatters and add it to handlers
-c_format = logging.Formatter(
-    "%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S"
-)
-f_format = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
+c_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
+f_format = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 c_handler.setFormatter(c_format)
 f_handler.setFormatter(f_format)
 
@@ -71,12 +68,8 @@ class KaggleMigrator:
         self.output_path = Path(__file__).parent
 
         # Define paths
-        self.signatures_nb = (
-            self.base_path / "initiatives_campaigns" / "eci_analysis_signatures.ipynb"
-        )
-        self.responses_nb = (
-            self.base_path / "initiatives_responses" / "eci_analysis_responses.ipynb"
-        )
+        self.signatures_nb = self.base_path / "initiatives_campaigns" / "eci_analysis_signatures.ipynb"
+        self.responses_nb = self.base_path / "initiatives_responses" / "eci_analysis_responses.ipynb"
 
         # Look for data in parent ECI_initiatives directory
         self.eci_root = self.base_path.parent
@@ -96,7 +89,7 @@ class KaggleMigrator:
                 ["jupyter", "nbconvert", "--version"],
                 capture_output=True,
                 text=True,
-                timeout=5,
+                timeout=5
             )
             if result.returncode == 0:
                 version = result.stdout.strip()
@@ -111,12 +104,12 @@ class KaggleMigrator:
 
     def load_notebook(self, notebook_path: Path) -> Dict:
         """Load a Jupyter notebook as JSON"""
-        with open(notebook_path, "r", encoding="utf-8") as f:
+        with open(notebook_path, 'r', encoding='utf-8') as f:
             return json.load(f)
 
     def save_notebook(self, notebook: Dict, output_path: Path):
         """Save notebook with proper formatting"""
-        with open(output_path, "w", encoding="utf-8") as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(notebook, f, indent=1, ensure_ascii=False)
 
     def get_latest_data_folder(self) -> Path:
@@ -157,7 +150,7 @@ class KaggleMigrator:
             raise ValueError(f"CSV file is empty: {csv_path.name}")
 
         try:
-            with open(csv_path, "r", encoding="utf-8", newline="") as f:
+            with open(csv_path, 'r', encoding='utf-8', newline='') as f:
                 # Read first few lines to check format
                 # We skip sniffing because the CSV contains complex quoted fields (JSON)
                 # that confuse the csv.Sniffer
@@ -169,9 +162,7 @@ class KaggleMigrator:
                     raise ValueError(f"CSV file has no header: {csv_path.name}")
 
                 if len(header) < 2:
-                    logger.warning(
-                        f"CSV {csv_path.name} has only {len(header)} columns, suspicious format"
-                    )
+                    logger.warning(f"CSV {csv_path.name} has only {len(header)} columns, suspicious format")
 
                 # Try reading one more row to ensure structure is valid
                 try:
@@ -224,7 +215,10 @@ class KaggleMigrator:
             Tuple of (initiatives_csv_path, responses_csv_path)
         """
         try:
-            initiatives_csv = self.find_most_recent_csv(data_folder, "eci_initiatives_")
+            initiatives_csv = self.find_most_recent_csv(
+                data_folder, 
+                "eci_initiatives_"
+            )
         except FileNotFoundError:
             raise FileNotFoundError(
                 f"Could not find eci_initiatives CSV in {data_folder}\n"
@@ -233,7 +227,8 @@ class KaggleMigrator:
 
         try:
             responses_csv = self.find_most_recent_csv(
-                data_folder, "eci_merger_responses_and_followup_"
+                data_folder, 
+                "eci_merger_responses_and_followup_"
             )
         except FileNotFoundError:
             raise FileNotFoundError(
@@ -243,9 +238,9 @@ class KaggleMigrator:
 
         return initiatives_csv, responses_csv
 
-    def replace_path_code(
-        self, source_lines: List[str], csv_filename: str, notebook_type: str
-    ) -> List[str]:
+    def replace_path_code(self, source_lines: List[str], 
+                         csv_filename: str, 
+                         notebook_type: str) -> List[str]:
         """Replace local path detection code with Kaggle paths"""
         new_lines = []
         skip_until_imports = False
@@ -255,169 +250,55 @@ class KaggleMigrator:
             if "from pathlib import Path" in line and i < 20:
                 skip_until_imports = True
                 # Add Kaggle-compatible imports and path setup
-                new_lines.extend(
-                    [
-                        "# Kaggle Environment Setup\n",
-                        "from pathlib import Path\n",
-                        "import pandas as pd\n",
-                        "import numpy as np\n",
-                        "import plotly.graph_objects as go\n",
-                        "import plotly.express as px\n",
-                        "from datetime import datetime\n",
-                        "import warnings\n",
-                        "warnings.filterwarnings('ignore')\n",
-                        "\n",
-                        "# Data paths for Kaggle\n",
-                        "KAGGLE_INPUT = Path('/kaggle/input/eci-initiatives')\n",
-                        "\n",
-                    ]
-                )
+                new_lines.extend([
+                    "# Kaggle Environment Setup\n",
+                    "from pathlib import Path\n",
+                    "import pandas as pd\n",
+                    "import numpy as np\n",
+                    "import plotly.graph_objects as go\n",
+                    "import plotly.express as px\n",
+                    "from datetime import datetime\n",
+                    "import warnings\n",
+                    "warnings.filterwarnings('ignore')\n",
+                    "\n",
+                    "# Data paths for Kaggle\n",
+                    "KAGGLE_INPUT = Path('/kaggle/input/eci-initiatives')\n",
+                    "\n"
+                ])
                 continue
 
             # Skip original path detection logic
             if skip_until_imports:
                 if "import" in line and "from" not in line and "Path" not in line:
                     skip_until_imports = False
-                elif any(
-                    keyword in line
-                    for keyword in [
-                        "root_path",
-                        "data_directory",
-                        "data_folder",
-                        "latest_folder",
-                        "folder_date",
-                        "file_date",
-                    ]
-                ):
+                elif any(keyword in line for keyword in ["root_path", "data_directory", "data_folder", 
+                                                         "latest_folder", "folder_date", "file_date"]):
                     continue
 
             # Replace CSV loading
-            if "pd.read_csv" in line and (
-                "eci_initiatives" in line or "eci_merger" in line
-            ):
+            if "pd.read_csv" in line and ("eci_initiatives" in line or "eci_merger" in line):
                 if "eci_initiatives" in line and "merger" not in line:
-                    new_lines.append(
-                        f"df_initiatives = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
-                    )
+                    new_lines.append(f"df_initiatives = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n")
                     logger.debug(f"Replaced CSV loading: {line.strip()}")
                 elif "eci_merger" in line:
-                    new_lines.append(
-                        f"df_responses = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
-                    )
+                    new_lines.append(f"df_responses = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n")
                     logger.debug(f"Replaced CSV loading: {line.strip()}")
                 continue
 
             # Replace path references in print statements
             if "base_data_path" in line or "path_initiatives" in line:
-                new_lines.append(
-                    line.replace("base_data_path.resolve()", "KAGGLE_INPUT").replace(
-                        "path_initiatives.resolve()", "KAGGLE_INPUT"
-                    )
-                )
+                new_lines.append(line.replace("base_data_path.resolve()", "KAGGLE_INPUT")
+                                   .replace("path_initiatives.resolve()", "KAGGLE_INPUT"))
                 continue
 
             # Skip folder/file date calculations
-            if any(
-                keyword in line
-                for keyword in ["folder_date", "file_date", "datetime.strptime"]
-            ):
+            if any(keyword in line for keyword in ["folder_date", "file_date", "datetime.strptime"]):
                 if "print" not in line:
                     continue
 
             new_lines.append(line)
 
         return new_lines
-
-    def add_kaggle_header(self, notebook: Dict, notebook_type: str) -> Dict:
-        """Add Kaggle-specific introduction cell"""
-
-        if notebook_type == "signatures":
-            header_content = """
-# 🇪🇺✍️ European Citizens' Initiatives: Signature Collection Analysis
-
-<img src="https://i.imgur.com/placeholder.png" alt="ECI Banner" width="100%">
-
-*Source: European Citizens' Initiative | European Commission (CC BY 4.0)*
-
----
-
-## 📊 About This Analysis
-
-This notebook analyzes **signature collection patterns** across all European Citizens' Initiatives (ECIs) from 2012 to 2026. It examines:
-- Success vs. failure rates
-- Signature collection patterns
-- Geographic participation
-- Timeline analysis
-- Policy area performance
-
-## 🔗 Dataset & Resources
-
-- **Dataset**: [ECI Initiatives Dataset](https://www.kaggle.com/datasets/YOUR_USERNAME/eci-initiatives)
-- **Companion Notebook**: [ECI Commission Responses Analysis](https://www.kaggle.com/code/YOUR_USERNAME/eci-analysis-responses)
-- **Source Data**: [European Commission - ECI Register](https://citizens-initiative.europa.eu/)
-
-## 🚀 How to Use This Notebook
-
-1. **Fork** this notebook to your Kaggle account
-2. **Run All Cells** (Kernel → Restart & Run All)
-3. Explore interactive visualizations
-4. Modify analysis parameters in code cells
-
----
-
-**Last Updated**: February 2026 | **Data Coverage**: 127 ECIs | **Time Period**: 2012-2026
-
----
-"""
-        else:  # responses
-            header_content = """
-# 🇪🇺🏛️ European Citizens' Initiatives: Commission Response Analysis
-
-<img src="https://i.imgur.com/placeholder.png" alt="ECI Participation" width="100%">
-
-*Source: European Citizens' Initiative | European Commission (CC BY 4.0)*
-
----
-
-## 📊 About This Analysis
-
-This notebook analyzes **Commission responses** to successful European Citizens' Initiatives (ECIs). It examines:
-- Legislative outcomes and policy changes
-- Response timelines and processing delays
-- Institutional progress (Commission, Parliament, Council)
-- Funding patterns and organizational support
-- Success factors and team composition
-
-## 🔗 Dataset & Resources
-
-- **Dataset**: [ECI Initiatives Dataset](https://www.kaggle.com/datasets/YOUR_USERNAME/eci-initiatives)
-- **Companion Notebook**: [ECI Signature Collection Analysis](https://www.kaggle.com/code/YOUR_USERNAME/eci-analysis-signatures)
-- **Source Data**: [European Commission - ECI Register](https://citizens-initiative.europa.eu/)
-
-## 🚀 How to Use This Notebook
-
-1. **Fork** this notebook to your Kaggle account
-2. **Run All Cells** (Kernel → Restart & Run All)
-3. Explore interactive visualizations and legislative timelines
-4. Modify analysis parameters in code cells
-
----
-
-**Last Updated**: February 2026 | **Data Coverage**: 11 Responses | **Time Period**: 2012-2026
-
----
-"""
-
-        header_cell = {
-            "cell_type": "markdown",
-            "metadata": {},
-            "source": [line + "\n" for line in header_content.split("\n")],
-        }
-
-        # Insert after title cell (position 1)
-        notebook["cells"].insert(1, header_cell)
-        logger.debug(f"Added Kaggle header to {notebook_type} notebook")
-        return notebook
 
     def clear_notebook_outputs(self, notebook_path: Path) -> bool:
         """
@@ -433,24 +314,21 @@ This notebook analyzes **Commission responses** to successful European Citizens'
             # Use nbconvert to clear outputs in place
             result = subprocess.run(
                 [
-                    "jupyter",
-                    "nbconvert",
+                    "jupyter", "nbconvert",
                     "--ClearOutputPreprocessor.enabled=True",
                     "--inplace",
-                    str(notebook_path),
+                    str(notebook_path)
                 ],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=30
             )
 
             if result.returncode == 0:
                 logger.info(f"Cleared outputs: {notebook_path.name}")
                 return True
             else:
-                logger.warning(
-                    f"Failed to clear outputs for {notebook_path.name}: {result.stderr}"
-                )
+                logger.warning(f"Failed to clear outputs for {notebook_path.name}: {result.stderr}")
                 return False
 
         except subprocess.TimeoutExpired:
@@ -460,9 +338,9 @@ This notebook analyzes **Commission responses** to successful European Citizens'
             logger.error(f"Error clearing outputs for {notebook_path.name}: {e}")
             return False
 
-    def migrate_notebook(
-        self, notebook_path: Path, csv_file: Path, notebook_type: str
-    ) -> Path:
+    def migrate_notebook(self, notebook_path: Path, 
+                        csv_file: Path,
+                        notebook_type: str) -> Path:
         """Migrate a single notebook to Kaggle format"""
 
         logger.info(f"Migrating {notebook_type} notebook: {notebook_path.name}")
@@ -476,24 +354,21 @@ This notebook analyzes **Commission responses** to successful European Citizens'
         for i, cell in enumerate(notebook["cells"]):
             if cell["cell_type"] == "code":
                 original_source = cell["source"]
-                if any(
-                    "Path" in line or "pd.read_csv" in line or "root_path" in line
-                    for line in original_source
-                ):
+                if any("Path" in line or "pd.read_csv" in line or "root_path" in line 
+                       for line in original_source):
                     cell["source"] = self.replace_path_code(
-                        original_source, csv_file.name, notebook_type
+                        original_source, 
+                        csv_file.name, 
+                        notebook_type
                     )
                     cells_modified += 1
 
         logger.info(f"Modified {cells_modified} code cells")
 
-        # Add Kaggle-specific elements
-        notebook = self.add_kaggle_header(notebook, notebook_type)
-
-        # Note: Skipped updating contact section (preserving original)
-
-        # Save migrated notebook
-        output_filename = f"kaggle_eci_analysis_{notebook_type}.ipynb"
+        # Save migrated notebook with .kaggle.ipynb extension
+        # e.g., eci_analysis_signatures.kaggle.ipynb
+        original_name = notebook_path.stem
+        output_filename = f"{original_name}.kaggle.ipynb"
         output_path = self.output_path / output_filename
         self.save_notebook(notebook, output_path)
         logger.info(f"Saved migrated notebook: {output_filename}")
@@ -508,23 +383,23 @@ This notebook analyzes **Commission responses** to successful European Citizens'
             "id": "YOUR_USERNAME/eci-initiatives",
             "licenses": [{"name": "CC-BY-4.0"}],
             "keywords": [
-                "politics",
-                "europe",
-                "european-union",
-                "democracy",
+                "politics", 
+                "europe", 
+                "european-union", 
+                "democracy", 
                 "citizen-participation",
                 "policy-analysis",
-                "government",
+                "government"
             ],
             "resources": [
                 {
                     "path": initiatives_csv.name,
-                    "description": "Complete dataset of all registered European Citizens' Initiatives with signatures, countries, dates, and outcomes",
+                    "description": "Complete dataset of all registered European Citizens' Initiatives with signatures, countries, dates, and outcomes"
                 },
                 {
                     "path": responses_csv.name,
-                    "description": "Commission responses and follow-up actions for successful ECIs including legislative outcomes",
-                },
+                    "description": "Commission responses and follow-up actions for successful ECIs including legislative outcomes"
+                }
             ],
             "description": """# European Citizens' Initiatives Dataset
 
@@ -568,11 +443,11 @@ CC BY 4.0 - European Commission
 ## Data Dictionary
 
 See the notebooks for detailed column descriptions and usage examples.
-""",
+"""
         }
 
         output_path = self.output_path / "dataset-metadata.json"
-        with open(output_path, "w", encoding="utf-8") as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, indent=2)
 
         logger.info("Created dataset metadata: dataset-metadata.json")
@@ -594,20 +469,17 @@ See the notebooks for detailed column descriptions and usage examples.
         logger.info(f"Copied CSVs to: {output_dir.name}/")
         return output_dir
 
-    def create_migration_report(
-        self,
-        data_folder: Path,
-        initiatives_csv: Path,
-        responses_csv: Path,
-        outputs_cleared: bool,
-    ):
+    def create_migration_report(self, data_folder: Path, 
+                               initiatives_csv: Path, 
+                               responses_csv: Path,
+                               outputs_cleared: bool):
         """Create a detailed migration report"""
 
-        outputs_status = (
-            "✓ Cleared using nbconvert"
-            if outputs_cleared
-            else "⚠️  Skipped (nbconvert not available)"
-        )
+        outputs_status = "✓ Cleared using nbconvert" if outputs_cleared else "⚠️  Skipped (nbconvert not available)"
+
+        # Get filenames with .kaggle.ipynb extension
+        sig_nb_name = f"{self.signatures_nb.stem}.kaggle.ipynb"
+        resp_nb_name = f"{self.responses_nb.stem}.kaggle.ipynb"
 
         report_content = f"""
 Kaggle Migration Report
@@ -633,13 +505,12 @@ Post-Migration Steps:
    - Use the dataset-metadata.json file for configuration
 
 2. Create notebooks on Kaggle:
-   - Upload: kaggle_eci_analysis_signatures.ipynb
-   - Upload: kaggle_eci_analysis_responses.ipynb
+   - Upload: {sig_nb_name}
+   - Upload: {resp_nb_name}
    - Kaggle will automatically configure metadata (accelerator, GPU, internet, dataset links)
 
 3. Update placeholders:
    - Replace "YOUR_USERNAME" with your Kaggle username in:
-     * Both notebooks (header cells and contact sections)
      * dataset-metadata.json
 
 4. Test notebooks:
@@ -655,8 +526,8 @@ Post-Migration Steps:
 
 Files Generated:
 ----------------
-- kaggle_eci_analysis_signatures.ipynb
-- kaggle_eci_analysis_responses.ipynb
+- {sig_nb_name}
+- {resp_nb_name}
 - dataset-metadata.json
 - csv_files/{initiatives_csv.name}
 - csv_files/{responses_csv.name}
@@ -669,7 +540,6 @@ Notes:
 - All local paths converted to Kaggle input paths
 - Dynamic folder detection removed
 - Most recent CSV files automatically selected
-- Kaggle introduction header added
 - Original contact section preserved (NOT modified)
 - Output cells cleared using nbconvert
 - Kaggle metadata will be configured automatically when you upload
@@ -680,7 +550,7 @@ Success! ✓
 """
 
         report_path = self.output_path / "migration_report.txt"
-        with open(report_path, "w", encoding="utf-8") as f:
+        with open(report_path, 'w', encoding='utf-8') as f:
             f.write(report_content)
 
         logger.info("Migration report saved to: migration_report.txt")
@@ -689,9 +559,9 @@ Success! ✓
 
     def run(self):
         """Execute the complete migration process"""
-        logger.info("=" * 60)
+        logger.info("="*60)
         logger.info("ECI Notebooks → Kaggle Migration Tool")
-        logger.info("=" * 60)
+        logger.info("="*60)
         logger.info(f"Log file: {log_filename}")
 
         # Check for nbconvert
@@ -707,11 +577,15 @@ Success! ✓
             # Migrate notebooks
             logger.info("\nStarting notebook migration...")
             sig_output = self.migrate_notebook(
-                self.signatures_nb, initiatives_csv, "signatures"
+                self.signatures_nb, 
+                initiatives_csv, 
+                "signatures"
             )
 
             resp_output = self.migrate_notebook(
-                self.responses_nb, responses_csv, "responses"
+                self.responses_nb, 
+                responses_csv,
+                "responses"
             )
 
             # Clear outputs using nbconvert
@@ -731,14 +605,12 @@ Success! ✓
             logger.info("\nCreating supporting files...")
             self.create_dataset_metadata(initiatives_csv, responses_csv)
             csv_dir = self.copy_csvs_to_output(initiatives_csv, responses_csv)
-            self.create_migration_report(
-                data_folder, initiatives_csv, responses_csv, outputs_cleared
-            )
+            self.create_migration_report(data_folder, initiatives_csv, responses_csv, outputs_cleared)
 
             # Summary
-            logger.info("\n" + "=" * 60)
+            logger.info("\n" + "="*60)
             logger.info("✓ Migration Complete!")
-            logger.info("=" * 60)
+            logger.info("="*60)
             logger.info(f"\nGenerated Files:")
             logger.info(f"  1. {sig_output.name}")
             logger.info(f"  2. {resp_output.name}")
@@ -756,7 +628,7 @@ Success! ✓
             logger.info(f"  → Update 'YOUR_USERNAME' placeholders in all files")
             logger.info(f"  → Upload CSV files from csv_files/ directory to Kaggle")
             logger.info(f"  → Upload notebooks to Kaggle")
-            logger.info("=" * 60 + "\n")
+            logger.info("="*60 + "\n")
 
         except Exception as e:
             logger.error(f"Migration failed: {e}", exc_info=True)
