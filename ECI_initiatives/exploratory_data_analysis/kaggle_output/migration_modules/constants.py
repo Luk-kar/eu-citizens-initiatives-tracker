@@ -82,20 +82,21 @@ IMAGE_REPLACEMENTS = {
 }
 
 # Kaggle environment setup code injected into notebooks
+# FIXED: Using single backslash for actual newlines
 KAGGLE_SETUP_CODE = [
-    "# Kaggle Environment Setup\\n",
-    "from pathlib import Path\\n",
-    "import pandas as pd\\n",
-    "import numpy as np\\n",
-    "import plotly.graph_objects as go\\n",
-    "import plotly.express as px\\n",
-    "from datetime import datetime\\n",
-    "import warnings\\n",
-    "warnings.filterwarnings('ignore')\\n",
-    "\\n",
-    "# Data paths for Kaggle\\n",
-    "KAGGLE_INPUT = Path('/kaggle/input/eci-initiatives')\\n",
-    "\\n"
+    "# Kaggle Environment Setup\n",
+    "from pathlib import Path\n",
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import plotly.graph_objects as go\n",
+    "import plotly.express as px\n",
+    "from datetime import datetime\n",
+    "import warnings\n",
+    "warnings.filterwarnings('ignore')\n",
+    "\n",
+    "# Data paths for Kaggle\n",
+    "KAGGLE_INPUT = Path('/kaggle/input/eci-initiatives')\n",
+    "\n"
 ]
 
 # Kaggle dataset metadata template

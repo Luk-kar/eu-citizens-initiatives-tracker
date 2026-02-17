@@ -18,25 +18,23 @@ class NotebookProcessor:
     def __init__(self, logger: logging.Logger):
         self.logger = logger
 
-    # ──────────────────
+    # ──────────────────────────────
     # Low-level I/O
-    # ──────────────────
+    # ──────────────────────────────
 
     def load_notebook(self, notebook_path: Path) -> Dict:
         """Load a Jupyter notebook as JSON"""
-
         with open(notebook_path, "r", encoding="utf-8") as f:
             return json.load(f)
 
     def save_notebook(self, notebook: Dict, output_path: Path):
         """Save notebook with proper formatting"""
-
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(notebook, f, indent=1, ensure_ascii=False)
 
-    # ──────────────────
-    # Notebook mutation
-    # ──────────────────
+    # ──────────────────────────────
+    # Cell transformation
+    # ──────────────────────────────
 
     def replace_path_code(
         self, source_lines: List[str], csv_filename: str, notebook_type: str
@@ -44,22 +42,34 @@ class NotebookProcessor:
         """Replace local path detection code with Kaggle paths"""
 
         new_lines = []
-        skip_until_imports = False
+        setup_injected = False
+        skip_mode = False
 
         for i, line in enumerate(source_lines):
 
-            # Skip the entire path detection block
-            if "from pathlib import Path" in line and i < 20:
-                skip_until_imports = True
+            # Inject Kaggle setup at the very first line (before any imports)
+            if not setup_injected and i == 0:
+                # Add setup code with proper newlines
+                for code_line in KAGGLE_SETUP_CODE:
+                    new_lines.append(code_line)
+                new_lines.append("\n")  # Add blank line separator
+                setup_injected = True
 
-                # Add Kaggle-compatible imports and path setup
-                new_lines.extend(KAGGLE_SETUP_CODE)
+            # Skip commented-out lines (don't transform them)
+            stripped = line.lstrip()
+            if stripped.startswith("#"):
+                new_lines.append(line)
                 continue
 
-            # Skip original path detection logic
-            if skip_until_imports:
+            # Detect start of path detection block to skip
+            if "from pathlib import Path" in line and not skip_mode:
+                skip_mode = True
+                continue  # Skip this import line
+
+            # End skipping when we hit another import that's not path-related
+            if skip_mode:
                 if "import" in line and "from" not in line and "Path" not in line:
-                    skip_until_imports = False
+                    skip_mode = False
                 elif any(
                     keyword in line
                     for keyword in [
@@ -69,34 +79,33 @@ class NotebookProcessor:
                         "latest_folder",
                         "folder_date",
                         "file_date",
+                        "find_latest",
+                        "load_latest_eci_data",
                     ]
                 ):
-                    continue
+                    continue  # Skip path-detection helper functions
 
-            # Replace CSV loading
-            if "pd.read_csv" in line and (
-                "eci_initiatives" in line or "eci_merger" in line
-            ):
-
+            # Replace CSV loading (only non-commented lines)
+            if "pd.read_csv" in line and not line.lstrip().startswith("#"):
                 if "eci_initiatives" in line and "merger" not in line:
-
+                    indent = len(line) - len(line.lstrip())
                     new_lines.append(
-                        f"df_initiatives = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
+                        " " * indent
+                        + f"df_initiatives = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
                     )
                     self.logger.debug(f"Replaced CSV loading: {line.strip()}")
-
+                    continue
                 elif "eci_merger" in line:
-
+                    indent = len(line) - len(line.lstrip())
                     new_lines.append(
-                        f"df_responses = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
+                        " " * indent
+                        + f"df_responses = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
                     )
                     self.logger.debug(f"Replaced CSV loading: {line.strip()}")
-
-                continue
+                    continue
 
             # Replace path references in print statements
             if "base_data_path" in line or "path_initiatives" in line:
-
                 new_lines.append(
                     line.replace("base_data_path.resolve()", "KAGGLE_INPUT").replace(
                         "path_initiatives.resolve()", "KAGGLE_INPUT"
@@ -109,7 +118,6 @@ class NotebookProcessor:
                 keyword in line
                 for keyword in ["folder_date", "file_date", "datetime.strptime"]
             ):
-
                 if "print" not in line:
                     continue
 
@@ -122,7 +130,6 @@ class NotebookProcessor:
         Replace local image paths with raw GitHub URLs.
         Example: images/banner.png -> https://raw.githubusercontent.com/.../banner.png
         """
-
         new_lines = []
 
         for line in source_lines:
@@ -153,13 +160,12 @@ class NotebookProcessor:
 
         return new_lines
 
-    # ──────────────────
+    # ──────────────────────────────
     # nbconvert utilities
-    # ──────────────────
+    # ──────────────────────────────
 
     def check_nbconvert_available(self) -> bool:
         """Check if nbconvert is installed"""
-
         try:
             result = subprocess.run(
                 ["jupyter", "nbconvert", "--version"],
@@ -180,7 +186,6 @@ class NotebookProcessor:
 
     def clear_notebook_outputs(self, notebook_path: Path) -> bool:
         """Clear all outputs from a notebook using nbconvert"""
-
         try:
             result = subprocess.run(
                 [
@@ -209,9 +214,9 @@ class NotebookProcessor:
             self.logger.error(f"Error clearing outputs for {notebook_path.name}: {e}")
             return False
 
-    # ──────────────────
+    # ──────────────────────────────
     # High-level orchestration
-    # ──────────────────
+    # ──────────────────────────────
 
     def migrate_notebook(
         self, notebook_path: Path, csv_file: Path, notebook_type: str, output_path: Path
