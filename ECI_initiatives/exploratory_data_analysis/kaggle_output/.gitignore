@@ -14,5 +14,5 @@ dataset-metadata.json
 
 # Optional: Generated Artifacts
 # Uncomment lines below if you do NOT want to version control the generated notebooks
-# kaggle_eci_analysis_*.ipynb
-# dataset-metadata.json
+*.kaggle.ipynb
+dataset-metadata.json
