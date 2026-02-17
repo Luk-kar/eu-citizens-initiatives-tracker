@@ -42,25 +42,13 @@ class NotebookProcessor:
         """Replace local path detection code with Kaggle paths"""
 
         new_lines = []
-        setup_injected = False
         skip_mode = False
 
         for i, line in enumerate(source_lines):
 
-            # Inject Kaggle setup at the very first line (before any imports)
-            if not setup_injected and i == 0:
-
-                # Add setup code with proper newlines
-                for code_line in KAGGLE_SETUP_CODE:
-                    new_lines.append(code_line)
-
-                new_lines.append("\n")  # Add blank line separator
-                setup_injected = True
-
             # Skip commented-out lines (don't transform them)
             stripped = line.lstrip()
-
-            if stripped.startswith("#"):
+            if stripped.startswith('#'):
                 new_lines.append(line)
                 continue
 
@@ -77,42 +65,52 @@ class NotebookProcessor:
                     keyword in line
                     for keyword in [
                         "root_path",
-                        "data_directory",
+                        "data_directory", 
                         "data_folder",
                         "latest_folder",
                         "folder_date",
                         "file_date",
                         "find_latest",
-                        "load_latest_eci_data",
+                        "load_latest_eci_data"
                     ]
                 ):
                     continue  # Skip path-detection helper functions
 
             # Replace CSV loading (only non-commented lines)
-            if "pd.read_csv" in line and not line.lstrip().startswith("#"):
+            if "pd.read_csv" in line and not line.lstrip().startswith('#'):
+                # Handle main ECI data CSVs
                 if "eci_initiatives" in line and "merger" not in line:
                     indent = len(line) - len(line.lstrip())
                     new_lines.append(
-                        " " * indent
-                        + f"df_initiatives = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
+                        ' ' * indent + f"df_initiatives = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
                     )
                     self.logger.debug(f"Replaced CSV loading: {line.strip()}")
                     continue
                 elif "eci_merger" in line:
                     indent = len(line) - len(line.lstrip())
                     new_lines.append(
-                        " " * indent
-                        + f"df_responses = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
+                        ' ' * indent + f"df_responses = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
                     )
                     self.logger.debug(f"Replaced CSV loading: {line.strip()}")
                     continue
+                # Handle legislation_titles.csv reference data
+                elif "legislation_titles.csv" in line:
+                    indent = len(line) - len(line.lstrip())
+                    # Extract variable name (e.g., "legislation_titles = pd.read_csv...")
+                    match = re.match(r'(\s*)(\w+)\s*=\s*pd\.read_csv\(', line)
+                    if match:
+                        var_name = match.group(2)
+                        new_lines.append(
+                            ' ' * indent + f"{var_name} = pd.read_csv(KAGGLE_INPUT / 'legislation_titles.csv')\n"
+                        )
+                        self.logger.debug(f"Replaced legislation_titles CSV loading: {line.strip()}")
+                        continue
 
             # Replace path references in print statements
             if "base_data_path" in line or "path_initiatives" in line:
                 new_lines.append(
-                    line.replace("base_data_path.resolve()", "KAGGLE_INPUT").replace(
-                        "path_initiatives.resolve()", "KAGGLE_INPUT"
-                    )
+                    line.replace("base_data_path.resolve()", "KAGGLE_INPUT")
+                        .replace("path_initiatives.resolve()", "KAGGLE_INPUT")
                 )
                 continue
 
@@ -225,18 +223,32 @@ class NotebookProcessor:
         self, notebook_path: Path, csv_file: Path, notebook_type: str, output_path: Path
     ) -> Path:
         """Migrate a single notebook to Kaggle format"""
-
         self.logger.info(f"Migrating {notebook_type} notebook: {notebook_path.name}")
 
         # Load notebook
         notebook = self.load_notebook(notebook_path)
         self.logger.debug(f"Loaded {notebook_path.name}")
 
-        # Process cells
+        # Insert Kaggle setup cell at the beginning
+        setup_cell = {
+            "cell_type": "code",
+            "execution_count": None,
+            "metadata": {},
+            "outputs": [],
+            "source": KAGGLE_SETUP_CODE
+        }
+        notebook["cells"].insert(0, setup_cell)
+        self.logger.info("Inserted Kaggle setup cell at beginning")
+
+        # Process cells (starting from index 1, since 0 is now the setup cell)
         cells_modified = 0
         images_modified = 0
 
         for i, cell in enumerate(notebook["cells"]):
+            # Skip the setup cell we just inserted
+            if i == 0:
+                continue
+
             # Process Code Cells
             if cell["cell_type"] == "code":
                 original_source = cell["source"]

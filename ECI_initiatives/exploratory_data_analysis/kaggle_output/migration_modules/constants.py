@@ -82,21 +82,16 @@ IMAGE_REPLACEMENTS = {
 }
 
 # Kaggle environment setup code injected into notebooks
-# Updated: Flexible path detection for both Kaggle and local environments
+# Simplified: Only includes Path import and path detection logic
 KAGGLE_SETUP_CODE = [
     "# Kaggle Environment Setup\n",
     "from pathlib import Path\n",
-    "import pandas as pd\n",
-    "import numpy as np\n",
-    "import plotly.graph_objects as go\n",
-    "import plotly.express as px\n",
-    "from datetime import datetime\n",
-    "import warnings\n",
-    "warnings.filterwarnings('ignore')\n",
+    "\n",
     "\n",
     "# Data paths - supports both Kaggle and local environments\n",
     "kaggle_path = Path('/kaggle/input/eci-initiatives')\n",
     "local_path = Path('./csv_files')\n",
+    "\n",
     "\n",
     "if kaggle_path.exists():\n",
     "    KAGGLE_INPUT = kaggle_path\n",
@@ -110,8 +105,9 @@ KAGGLE_SETUP_CODE = [
     "        'Please ensure CSV files are available in one of these locations.'\n",
     "    )\n",
     "\n",
-    "print(f'📁 Using data from: {KAGGLE_INPUT}')\n",
-    "\n"
+    "\n",
+    "if KAGGLE_INPUT == local_path:\n",
+    "    print(f'📁 Using data from: {KAGGLE_INPUT}')\n"
 ]
 
 # Kaggle dataset metadata template

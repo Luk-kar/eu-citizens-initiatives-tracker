@@ -54,7 +54,9 @@ class KaggleMigrator:
 
     def _setup_logging(self) -> logging.Logger:
         """Configure logging to console AND file"""
-        self.log_filename = f"migration_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        self.log_filename = (
+            f"migration_{datetime.now().strftime('%Y_%m_%d_%H-%M-%S')}.log"
+        )
 
         console_handler = logging.StreamHandler()
         file_handler = logging.FileHandler(
