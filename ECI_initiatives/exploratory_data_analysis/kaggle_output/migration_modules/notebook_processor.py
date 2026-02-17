@@ -49,14 +49,17 @@ class NotebookProcessor:
 
             # Inject Kaggle setup at the very first line (before any imports)
             if not setup_injected and i == 0:
+
                 # Add setup code with proper newlines
                 for code_line in KAGGLE_SETUP_CODE:
                     new_lines.append(code_line)
+
                 new_lines.append("\n")  # Add blank line separator
                 setup_injected = True
 
             # Skip commented-out lines (don't transform them)
             stripped = line.lstrip()
+
             if stripped.startswith("#"):
                 new_lines.append(line)
                 continue

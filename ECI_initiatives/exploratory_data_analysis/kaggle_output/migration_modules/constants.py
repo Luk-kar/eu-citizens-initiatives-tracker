@@ -82,7 +82,7 @@ IMAGE_REPLACEMENTS = {
 }
 
 # Kaggle environment setup code injected into notebooks
-# FIXED: Using single backslash for actual newlines
+# Updated: Flexible path detection for both Kaggle and local environments
 KAGGLE_SETUP_CODE = [
     "# Kaggle Environment Setup\n",
     "from pathlib import Path\n",
@@ -94,8 +94,23 @@ KAGGLE_SETUP_CODE = [
     "import warnings\n",
     "warnings.filterwarnings('ignore')\n",
     "\n",
-    "# Data paths for Kaggle\n",
-    "KAGGLE_INPUT = Path('/kaggle/input/eci-initiatives')\n",
+    "# Data paths - supports both Kaggle and local environments\n",
+    "kaggle_path = Path('/kaggle/input/eci-initiatives')\n",
+    "local_path = Path('./csv_files')\n",
+    "\n",
+    "if kaggle_path.exists():\n",
+    "    KAGGLE_INPUT = kaggle_path\n",
+    "elif local_path.exists():\n",
+    "    KAGGLE_INPUT = local_path\n",
+    "else:\n",
+    "    raise FileNotFoundError(\n",
+    "        'Data directory not found. Expected one of:\\n'\n",
+    "        f'  - Kaggle: {kaggle_path}\\n'\n",
+    "        f'  - Local: {local_path}\\n'\n",
+    "        'Please ensure CSV files are available in one of these locations.'\n",
+    "    )\n",
+    "\n",
+    "print(f'📁 Using data from: {KAGGLE_INPUT}')\n",
     "\n"
 ]
 
@@ -217,6 +232,7 @@ Notes:
 - Output cells cleared using nbconvert
 - Kaggle metadata will be configured automatically when you upload
 - CSV files copied to csv_files/ for easy upload
+- Notebooks support both Kaggle and local environments (./csv_files/)
 
 Success! ✓
 """
