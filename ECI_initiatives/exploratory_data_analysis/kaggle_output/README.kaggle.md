@@ -55,6 +55,21 @@ To prepare these notebooks for publication on Kaggle:
 3. **Result**: 
    Check `kaggle_output/` for clean `.ipynb` files and a `csv_files` folder ready for upload.
 
+## 🔧 Maintenance
+
+**Priority: Low**
+
+The Kaggle migration tooling is designed for one-time or very infrequent use (typically once per major dataset publication). The migration scripts are self-contained and require minimal maintenance since:
+
+- Notebooks are primarily developed and maintained in their original local format
+- Kaggle versions are generated on-demand only when publishing/updating datasets
+- The migration process is automated and doesn't require ongoing updates unless notebook structure changes significantly
+
+Updates to the migration tool are only needed if:
+- Kaggle changes its platform requirements
+- New notebooks are added to the analysis suite
+- Significant changes to notebook structure require path transformation updates
+
 ## Structure
 
 ```

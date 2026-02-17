@@ -51,7 +51,7 @@ class DataFinder:
             raise ValueError(f"CSV file is empty: {csv_path.name}")
 
         try:
-            with open(csv_path, 'r', encoding='utf-8', newline='') as f:
+            with open(csv_path, "r", encoding="utf-8", newline="") as f:
                 reader = csv.reader(f)
                 header = next(reader, None)
                 if not header:
@@ -93,10 +93,7 @@ class DataFinder:
         Find the most recent required CSV files in the data folder
         """
         try:
-            initiatives_csv = self.find_most_recent_csv(
-                data_folder,
-                "eci_initiatives_"
-            )
+            initiatives_csv = self.find_most_recent_csv(data_folder, "eci_initiatives_")
         except FileNotFoundError:
             raise FileNotFoundError(
                 f"Could not find eci_initiatives CSV in {data_folder}\n"
@@ -105,8 +102,7 @@ class DataFinder:
 
         try:
             responses_csv = self.find_most_recent_csv(
-                data_folder,
-                "eci_merger_responses_and_followup_"
+                data_folder, "eci_merger_responses_and_followup_"
             )
         except FileNotFoundError:
             raise FileNotFoundError(

@@ -8,6 +8,7 @@ from typing import NamedTuple
 
 class ProjectPaths(NamedTuple):
     """Container for project path configuration"""
+
     base_path: Path
     output_path: Path
     signatures_nb: Path
@@ -38,9 +39,7 @@ def setup_project_paths(script_file: Path, base_path: Path = None) -> ProjectPat
     signatures_nb = (
         base_path / "initiatives_campaigns" / "eci_analysis_signatures.ipynb"
     )
-    responses_nb = (
-        base_path / "initiatives_responses" / "eci_analysis_responses.ipynb"
-    )
+    responses_nb = base_path / "initiatives_responses" / "eci_analysis_responses.ipynb"
 
     # Data path
     eci_root = base_path.parent
@@ -52,25 +51,29 @@ def setup_project_paths(script_file: Path, base_path: Path = None) -> ProjectPat
         signatures_nb=signatures_nb,
         responses_nb=responses_nb,
         eci_root=eci_root,
-        data_path=data_path
+        data_path=data_path,
     )
 
 
 # Default project paths - calculated directly from this module's location
 # constants.py is in: ECI_initiatives/exploratory_data_analysis/kaggle_output/migration_modules/constants.py
-_CONSTANTS_FILE = Path(__file__)                    # constants.py
-_MIGRATION_MODULES_DIR = _CONSTANTS_FILE.parent      # migration_modules/
-_KAGGLE_OUTPUT_DIR = _MIGRATION_MODULES_DIR.parent   # kaggle_output/
-_EXPLORATORY_DIR = _KAGGLE_OUTPUT_DIR.parent         # exploratory_data_analysis/
-_ECI_ROOT = _EXPLORATORY_DIR.parent                  # ECI_initiatives/
+_CONSTANTS_FILE = Path(__file__)  # constants.py
+_MIGRATION_MODULES_DIR = _CONSTANTS_FILE.parent  # migration_modules/
+_KAGGLE_OUTPUT_DIR = _MIGRATION_MODULES_DIR.parent  # kaggle_output/
+_EXPLORATORY_DIR = _KAGGLE_OUTPUT_DIR.parent  # exploratory_data_analysis/
+_ECI_ROOT = _EXPLORATORY_DIR.parent  # ECI_initiatives/
 
 PROJECT_PATHS = ProjectPaths(
     base_path=_EXPLORATORY_DIR,
     output_path=_KAGGLE_OUTPUT_DIR,
-    signatures_nb=_EXPLORATORY_DIR / "initiatives_campaigns" / "eci_analysis_signatures.ipynb",
-    responses_nb=_EXPLORATORY_DIR / "initiatives_responses" / "eci_analysis_responses.ipynb",
+    signatures_nb=_EXPLORATORY_DIR
+    / "initiatives_campaigns"
+    / "eci_analysis_signatures.ipynb",
+    responses_nb=_EXPLORATORY_DIR
+    / "initiatives_responses"
+    / "eci_analysis_responses.ipynb",
     eci_root=_ECI_ROOT,
-    data_path=_ECI_ROOT / "data"
+    data_path=_ECI_ROOT / "data",
 )
 
 
@@ -78,7 +81,7 @@ PROJECT_PATHS = ProjectPaths(
 IMAGE_REPLACEMENTS = {
     "eci_take_initiative_banner.png": "https://raw.githubusercontent.com/Luk-kar/eu-citizens-initiatives-tracker/main/ECI_initiatives/exploratory_data_analysis/initiatives_campaigns/images/eci_take_initiative_banner.png",
     "eci_participation_campaign.jpg": "https://raw.githubusercontent.com/Luk-kar/eu-citizens-initiatives-tracker/main/ECI_initiatives/exploratory_data_analysis/initiatives_responses/images/eci_participation_campaign.jpg",
-    "european_commission_logo.svg": "https://raw.githubusercontent.com/Luk-kar/eu-citizens-initiatives-tracker/main/ECI_initiatives/exploratory_data_analysis/initiatives_responses/images/european_commission_logo.svg"
+    "european_commission_logo.svg": "https://raw.githubusercontent.com/Luk-kar/eu-citizens-initiatives-tracker/main/ECI_initiatives/exploratory_data_analysis/initiatives_responses/images/european_commission_logo.svg",
 }
 
 # Kaggle environment setup code injected into notebooks
@@ -107,7 +110,7 @@ KAGGLE_SETUP_CODE = [
     "\n",
     "\n",
     "if KAGGLE_INPUT == local_path:\n",
-    "    print(f'📁 Using data from: {KAGGLE_INPUT}')\n"
+    "    print(f'📁 Using data from: {KAGGLE_INPUT}')\n",
 ]
 
 # Kaggle dataset metadata template
@@ -116,13 +119,13 @@ DATASET_METADATA_TEMPLATE = {
     "id": "YOUR_USERNAME/eci-initiatives",
     "licenses": [{"name": "CC-BY-4.0"}],
     "keywords": [
-        "politics", 
-        "europe", 
-        "european-union", 
-        "democracy", 
+        "politics",
+        "europe",
+        "european-union",
+        "democracy",
         "citizen-participation",
         "policy-analysis",
-        "government"
+        "government",
     ],
     "description": """# European Citizens' Initiatives Dataset
 
@@ -166,7 +169,7 @@ CC BY 4.0 - European Commission
 ## Data Dictionary
 
 See the notebooks for detailed column descriptions and usage examples.
-"""
+""",
 }
 
 # Migration report template
@@ -187,20 +190,20 @@ Status: {outputs_status}
 
 Post-Migration Steps:
 ---------------------
-1. Upload CSV files to Kaggle:
+1. Update placeholders:
+   - Replace "YOUR_USERNAME" with your Kaggle username in:
+     * dataset-metadata.json
+
+2. Upload CSV files to Kaggle:
    - Go to: [https://www.kaggle.com/datasets](https://www.kaggle.com/datasets)
    - Click "New Dataset"
    - Upload the CSV files from: kaggle_output/csv_files/
    - Use the dataset-metadata.json file for configuration
 
-2. Create notebooks on Kaggle:
+3. Create notebooks on Kaggle:
    - Upload: {sig_nb_name}
    - Upload: {resp_nb_name}
    - Kaggle will automatically configure metadata (accelerator, GPU, internet, dataset links)
-
-3. Update placeholders:
-   - Replace "YOUR_USERNAME" with your Kaggle username in:
-     * dataset-metadata.json
 
 4. Test notebooks:
    - Run "Restart & Run All" on Kaggle
@@ -235,17 +238,17 @@ Success! ✓
 
 # Success log messages
 SUCCESS_LOG_MESSAGES = {
-    "header": "="*60,
+    "header": "=" * 60,
     "title": "✓ Migration Complete!",
     "sections": {
         "generated_files": "\nGenerated Files:",
         "data_sources": "\nData Sources:",
-        "next_steps": "\nNext Steps:"
+        "next_steps": "\nNext Steps:",
     },
     "next_steps_items": [
         " → Review migration_report.txt for detailed instructions",
         " → Update 'YOUR_USERNAME' placeholders in all files",
         " → Upload CSV files from csv_files/ directory to Kaggle",
-        " → Upload notebooks to Kaggle"
-    ]
+        " → Upload notebooks to Kaggle",
+    ],
 }

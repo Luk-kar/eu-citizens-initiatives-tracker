@@ -18,22 +18,24 @@ class ReportGenerator:
         self.output_path = output_path
         self.logger = logger
 
-    def create_dataset_metadata(self, initiatives_csv: Path, responses_csv: Path) -> Path:
+    def create_dataset_metadata(
+        self, initiatives_csv: Path, responses_csv: Path
+    ) -> Path:
         """Create Kaggle dataset metadata file"""
         metadata = DATASET_METADATA_TEMPLATE.copy()
         metadata["resources"] = [
             {
                 "path": initiatives_csv.name,
-                "description": "Complete dataset of all registered European Citizens' Initiatives with signatures, countries, dates, and outcomes"
+                "description": "Complete dataset of all registered European Citizens' Initiatives with signatures, countries, dates, and outcomes",
             },
             {
                 "path": responses_csv.name,
-                "description": "Commission responses and follow-up actions for successful ECIs including legislative outcomes"
-            }
+                "description": "Commission responses and follow-up actions for successful ECIs including legislative outcomes",
+            },
         ]
 
         output_path = self.output_path / "dataset-metadata.json"
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2)
 
         self.logger.info("Created dataset metadata: dataset-metadata.json")
@@ -44,43 +46,61 @@ class ReportGenerator:
         output_dir = self.output_path / "csv_files"
         output_dir.mkdir(exist_ok=True)
 
-        # Copy files
+        # Copy main data files
         initiatives_dest = output_dir / initiatives_csv.name
         responses_dest = output_dir / responses_csv.name
 
         shutil.copy2(initiatives_csv, initiatives_dest)
         shutil.copy2(responses_csv, responses_dest)
 
+        # Copy additional CSV files used by notebooks
+        base_path = self.output_path.parent  # exploratory_data_analysis/
+        additional_csvs = [
+            base_path / "initiatives_campaigns" / "eci_categories.csv",
+            base_path / "initiatives_responses" / "legislation_titles.csv",
+        ]
+
+        for csv_file in additional_csvs:
+            if csv_file.exists():
+                dest = output_dir / csv_file.name
+                shutil.copy2(csv_file, dest)
+                self.logger.info(f"Copied {csv_file.name} to csv_files/")
+            else:
+                self.logger.warning(f"Additional CSV not found: {csv_file}")
+
         self.logger.info(f"Copied CSVs to: {output_dir.name}/")
         return output_dir
 
-    def create_migration_report(self,
-                                data_folder: Path,
-                                initiatives_csv: Path,
-                                responses_csv: Path,
-                                sig_nb_name: str,
-                                resp_nb_name: str,
-                                log_filename: str,
-                                outputs_cleared: bool) -> Path:
+    def create_migration_report(
+        self,
+        data_folder: Path,
+        initiatives_csv: Path,
+        responses_csv: Path,
+        sig_nb_name: str,
+        resp_nb_name: str,
+        log_filename: str,
+        outputs_cleared: bool,
+    ) -> Path:
         """Create a detailed migration report"""
         outputs_status = (
-            "✓ Cleared using nbconvert" if outputs_cleared 
+            "✓ Cleared using nbconvert"
+            if outputs_cleared
             else "⚠️ Skipped (nbconvert not available)"
         )
 
         report_content = MIGRATION_REPORT_TEMPLATE.format(
-            timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             data_folder=data_folder,
             initiatives_csv=initiatives_csv.name,
             responses_csv=responses_csv.name,
             outputs_status=outputs_status,
             sig_nb_name=sig_nb_name,
             resp_nb_name=resp_nb_name,
-            log_filename=log_filename
+            log_filename=log_filename,
         )
 
         report_path = self.output_path / "migration_report.txt"
-        with open(report_path, 'w', encoding='utf-8') as f:
+        with open(report_path, "w", encoding="utf-8") as f:
             f.write(report_content)
 
         self.logger.info("Migration report saved to: migration_report.txt")
