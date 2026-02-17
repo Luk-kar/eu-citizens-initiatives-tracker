@@ -47,9 +47,11 @@ class NotebookProcessor:
         skip_until_imports = False
 
         for i, line in enumerate(source_lines):
+
             # Skip the entire path detection block
             if "from pathlib import Path" in line and i < 20:
                 skip_until_imports = True
+
                 # Add Kaggle-compatible imports and path setup
                 new_lines.extend(KAGGLE_SETUP_CODE)
                 continue
@@ -75,20 +77,26 @@ class NotebookProcessor:
             if "pd.read_csv" in line and (
                 "eci_initiatives" in line or "eci_merger" in line
             ):
+
                 if "eci_initiatives" in line and "merger" not in line:
+
                     new_lines.append(
                         f"df_initiatives = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
                     )
                     self.logger.debug(f"Replaced CSV loading: {line.strip()}")
+
                 elif "eci_merger" in line:
+
                     new_lines.append(
                         f"df_responses = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
                     )
                     self.logger.debug(f"Replaced CSV loading: {line.strip()}")
+
                 continue
 
             # Replace path references in print statements
             if "base_data_path" in line or "path_initiatives" in line:
+
                 new_lines.append(
                     line.replace("base_data_path.resolve()", "KAGGLE_INPUT").replace(
                         "path_initiatives.resolve()", "KAGGLE_INPUT"
@@ -101,6 +109,7 @@ class NotebookProcessor:
                 keyword in line
                 for keyword in ["folder_date", "file_date", "datetime.strptime"]
             ):
+
                 if "print" not in line:
                     continue
 
