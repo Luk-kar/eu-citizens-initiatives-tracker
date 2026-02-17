@@ -2,6 +2,78 @@
 Constants and templates for Kaggle migration
 """
 
+from pathlib import Path
+from typing import NamedTuple
+
+
+class ProjectPaths(NamedTuple):
+    """Container for project path configuration"""
+    base_path: Path
+    output_path: Path
+    signatures_nb: Path
+    responses_nb: Path
+    eci_root: Path
+    data_path: Path
+
+
+def setup_project_paths(script_file: Path, base_path: Path = None) -> ProjectPaths:
+    """
+    Setup all project paths based on the script location
+
+    Args:
+        script_file: Path to the main script (__file__)
+        base_path: Optional override for base_path
+
+    Returns:
+        ProjectPaths namedtuple with all configured paths
+    """
+    if base_path is None:
+        base_path = script_file.parent.parent
+    else:
+        base_path = Path(base_path)
+
+    output_path = script_file.parent
+
+    # Define notebook paths
+    signatures_nb = (
+        base_path / "initiatives_campaigns" / "eci_analysis_signatures.ipynb"
+    )
+    responses_nb = (
+        base_path / "initiatives_responses" / "eci_analysis_responses.ipynb"
+    )
+
+    # Data path
+    eci_root = base_path.parent
+    data_path = eci_root / "data"
+
+    return ProjectPaths(
+        base_path=base_path,
+        output_path=output_path,
+        signatures_nb=signatures_nb,
+        responses_nb=responses_nb,
+        eci_root=eci_root,
+        data_path=data_path
+    )
+
+
+# Default project paths - calculated directly from this module's location
+# constants.py is in: ECI_initiatives/exploratory_data_analysis/kaggle_output/migration_modules/constants.py
+_CONSTANTS_FILE = Path(__file__)                    # constants.py
+_MIGRATION_MODULES_DIR = _CONSTANTS_FILE.parent      # migration_modules/
+_KAGGLE_OUTPUT_DIR = _MIGRATION_MODULES_DIR.parent   # kaggle_output/
+_EXPLORATORY_DIR = _KAGGLE_OUTPUT_DIR.parent         # exploratory_data_analysis/
+_ECI_ROOT = _EXPLORATORY_DIR.parent                  # ECI_initiatives/
+
+PROJECT_PATHS = ProjectPaths(
+    base_path=_EXPLORATORY_DIR,
+    output_path=_KAGGLE_OUTPUT_DIR,
+    signatures_nb=_EXPLORATORY_DIR / "initiatives_campaigns" / "eci_analysis_signatures.ipynb",
+    responses_nb=_EXPLORATORY_DIR / "initiatives_responses" / "eci_analysis_responses.ipynb",
+    eci_root=_ECI_ROOT,
+    data_path=_ECI_ROOT / "data"
+)
+
+
 # Image replacements mapping (Filename -> Raw GitHub URL)
 IMAGE_REPLACEMENTS = {
     "eci_take_initiative_banner.png": "https://raw.githubusercontent.com/Luk-kar/eu-citizens-initiatives-tracker/main/ECI_initiatives/exploratory_data_analysis/initiatives_campaigns/images/eci_take_initiative_banner.png",
