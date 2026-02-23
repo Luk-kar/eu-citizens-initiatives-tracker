@@ -26,6 +26,7 @@ Explores Commission responses to ECIs, including legislative linkages, follow-up
 
 - Python 3.11+
 - [uv](https://github.com/astral-sh/uv) package manager
+- `jupyter nbconvert` (required for clearing notebook outputs during Kaggle migration)
 
 ## Data
 
@@ -53,26 +54,30 @@ To prepare these notebooks for publication on Kaggle:
    ```
 
 3. **Result**: 
-   Check `kaggle_output/` for clean `.ipynb` files and a `csv_files` folder ready for upload.
+   The automated migration tool will package all requirements. Check the `kaggle_output/` directory for the following generated artifacts:
+   - **Clean `.ipynb` files**: Notebook outputs are automatically cleared via `nbconvert` and internal data paths/image links are rewritten for the Kaggle environment.
+   - **`csv_files/`**: A subdirectory containing the validated `.csv` datasets ready for Kaggle upload.
+   - **`dataset-metadata.json`**: Auto-generated metadata for easy Kaggle dataset creation.
+   - **`migration_report.txt`**: A detailed summary detailing source paths, dataset row/column shapes, and file sizes.
+   - **`migration_run_YYYYMMDD_HHMMSS.log`**: Detailed execution logs of the run.
 
 ## 🔧 Maintenance
 
 **Priority: Low**
 
-The Kaggle migration tooling is designed for one-time or very infrequent use (typically once per major dataset publication). The migration scripts are self-contained and require minimal maintenance since:
+The Kaggle migration tooling is designed for infrequent use (typically once per major dataset publication). The process is highly automated and does not require ongoing updates unless the underlying notebook structures change significantly.
 
-- Notebooks are primarily developed and maintained in their original local format
-- Kaggle versions are generated on-demand only when publishing/updating datasets
-- The migration process is automated and doesn't require ongoing updates unless notebook structure changes significantly
+### Modular Architecture
+The migration logic has been refactored into the `migration_modules/` package to ensure clean separation of concerns and easy maintainability:
 
-Updates to the migration tool are only needed if:
-- Kaggle changes its platform requirements
-- New notebooks are added to the analysis suite
-- Significant changes to notebook structure require path transformation updates
+- **`constants.py`**: Centralizes configuration, handling dynamic Kaggle and local path setups securely.
+- **`data_finder.py`**: Automatically identifies and validates the most recent timestamped dataset folder.
+- **`notebook_processor.py`**: Manages reading the notebooks, transforming path implementations, replacing image URLs, and systematically clearing outputs.
+- **`report_generator.py`**: Orchestrates final dataset packaging, metadata creation, and logging summaries.
 
 ## Structure
 
-```
+```text
 exploratory_data_analysis/
 ├── README.md                    # This file
 ├── initiatives_campaigns/       # Signature campaign analysis
@@ -82,6 +87,12 @@ exploratory_data_analysis/
 │   ├── eci_analysis_responses.ipynb
 │   └── README.md
 └── kaggle_output/               # Migration tools & output
-    ├── kaggle_migration.py
+    ├── migration_modules/       # Modular migration logic components
+    │   ├── __init__.py
+    │   ├── constants.py         # Project paths and Kaggle setups
+    │   ├── data_finder.py       # Data discovery and validation logic
+    │   ├── notebook_processor.py # Cell transformations & nbconvert clearing
+    │   └── report_generator.py  # Metadata JSON and report creation
+    ├── kaggle_migration.py      # Main migration orchestrator script
     └── requirements.txt
 ```

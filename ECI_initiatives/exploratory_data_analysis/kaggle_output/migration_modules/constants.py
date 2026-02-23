@@ -92,7 +92,7 @@ KAGGLE_SETUP_CODE = [
     "\n",
     "\n",
     "# Data paths - supports both Kaggle and local environments\n",
-    "kaggle_path = Path('/kaggle/input/eci-initiatives')\n",
+    "kaggle_path = Path('/kaggle/input/european-citizens-initiatives-2026')\n",
     "local_path = Path('./csv_files')\n",
     "\n",
     "\n",
@@ -251,4 +251,17 @@ SUCCESS_LOG_MESSAGES = {
         " → Upload CSV files from csv_files/ directory to Kaggle",
         " → Upload notebooks to Kaggle",
     ],
+}
+
+NOTEBOOK_LINK_REPLACEMENTS = {
+    "https://github.com/Luk-kar/eu-citizens-initiatives-tracker/blob/main"
+    "/ECI_initiatives/exploratory_data_analysis"
+    "/initiatives_responses/eci_analysis_responses.ipynb": (
+        "https://www.kaggle.com/code/lukkardata/eci-commission-response"
+    ),
+    "https://github.com/Luk-kar/eu-citizens-initiatives-tracker/blob/main"
+    "/ECI_initiatives/exploratory_data_analysis"
+    "/initiatives_campaigns/eci_analysis_signatures.ipynb": (
+        "https://www.kaggle.com/code/lukkardata/eci-signatures-collection"
+    ),
 }

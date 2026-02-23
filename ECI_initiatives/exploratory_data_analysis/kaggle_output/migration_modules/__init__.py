@@ -10,7 +10,8 @@ from .constants import (
     SUCCESS_LOG_MESSAGES,
     ProjectPaths,
     setup_project_paths,
-    PROJECT_PATHS,  # New: pre-configured default paths
+    PROJECT_PATHS,
+    NOTEBOOK_LINK_REPLACEMENTS,
 )
 from .data_finder import DataFinder
 from .notebook_processor import NotebookProcessor
@@ -24,7 +25,8 @@ __all__ = [
     "SUCCESS_LOG_MESSAGES",
     "ProjectPaths",
     "setup_project_paths",
-    "PROJECT_PATHS",  # New export
+    "PROJECT_PATHS",
+    "NOTEBOOK_LINK_REPLACEMENTS",
     "DataFinder",
     "NotebookProcessor",
     "ReportGenerator",

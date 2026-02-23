@@ -23,14 +23,32 @@ class ReportGenerator:
     ) -> Path:
         """Create Kaggle dataset metadata file"""
         metadata = DATASET_METADATA_TEMPLATE.copy()
+        metadata["id"] = (
+            "YOUR_USERNAME/european-citizens-initiatives-2026"  # ← Updated for 2026 dataset
+        )
+
         metadata["resources"] = [
             {
                 "path": initiatives_csv.name,
-                "description": "Complete dataset of all registered European Citizens' Initiatives with signatures, countries, dates, and outcomes",
+                "description": (
+                    "Core dataset: 127+ ECIs (2012-2026) with signatures by country, "
+                    "collection periods, outcomes, funding, organizers"
+                ),
             },
             {
                 "path": responses_csv.name,
-                "description": "Commission responses and follow-up actions for successful ECIs including legislative outcomes",
+                "description": (
+                    "Merged responses + follow-ups for 11 successful ECIs: "
+                    "legislative outcomes, hearings, Commission actions, timelines"
+                ),
+            },
+            {
+                "path": "eci_categories.csv",
+                "description": "ECI policy category mappings for analysis and visualization",
+            },
+            {
+                "path": "legislation_titles.csv",
+                "description": "Human-readable titles for EU legislation (CELEX codes) linked to ECIs",
             },
         ]
 
@@ -38,7 +56,7 @@ class ReportGenerator:
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2)
 
-        self.logger.info("Created dataset metadata: dataset-metadata.json")
+        self.logger.info("Created dataset-metadata.json (4 resources + 2026 slug)")
         return output_path
 
     def copy_csvs_to_output(self, initiatives_csv: Path, responses_csv: Path) -> Path:
@@ -68,7 +86,7 @@ class ReportGenerator:
             else:
                 self.logger.warning(f"Additional CSV not found: {csv_file}")
 
-        self.logger.info(f"Copied CSVs to: {output_dir.name}/")
+        self.logger.info(f"Copied 4 CSVs to: {output_dir.name}/")
         return output_dir
 
     def create_migration_report(
@@ -90,7 +108,7 @@ class ReportGenerator:
 
         report_content = MIGRATION_REPORT_TEMPLATE.format(
             timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            data_folder=data_folder,
+            data_folder=data_folder.name,
             initiatives_csv=initiatives_csv.name,
             responses_csv=responses_csv.name,
             outputs_status=outputs_status,
@@ -103,5 +121,5 @@ class ReportGenerator:
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(report_content)
 
-        self.logger.info("Migration report saved to: migration_report.txt")
+        self.logger.info("Migration report saved: migration_report.txt")
         return report_path

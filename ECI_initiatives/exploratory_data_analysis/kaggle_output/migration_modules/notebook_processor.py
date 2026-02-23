@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List
 
-from .constants import KAGGLE_SETUP_CODE, IMAGE_REPLACEMENTS
+from .constants import KAGGLE_SETUP_CODE, IMAGE_REPLACEMENTS, NOTEBOOK_LINK_REPLACEMENTS
 
 
 class NotebookProcessor:
@@ -216,6 +216,80 @@ class NotebookProcessor:
 
         return new_lines
 
+    def enhance_header_styles(self, source_lines: List[str]) -> List[str]:
+        """
+        Enhance existing header styles for better Kaggle rendering (font-size:150%).
+
+        Targets all <p style="...">Title</p> tags in markdown cells,
+        appending font-size without altering structure, anchors, or content.
+
+        Original: <p style="padding:15px;...font-family:'Arial',sans-serif;">🇪🇺 Title</p>
+        Enhanced: <p style="padding:15px;...font-family:'Arial',sans-serif;font-size:150%;">🇪🇺 Title</p>
+        """
+        source = "".join(source_lines)
+
+        # Split by quote type so inner quotes of the opposite kind are allowed:
+        # "..." attribute → single quotes inside are valid (e.g. font-family:'Arial')
+        # '...' attribute → double quotes inside are valid
+        pattern = r"""<p\s+style=(?:"([^"]*?)"|'([^']*?)')>(.*?)</p>"""
+
+        def style_enhancer(match: re.Match) -> str:
+
+            style_attr = match.group(1) or match.group(2)
+            quote = '"' if match.group(1) is not None else "'"
+            content = match.group(3)
+
+            if "font-size:" not in style_attr:
+
+                # Ensure existing style ends with ; before appending
+                if not style_attr.rstrip().endswith(";"):
+                    style_attr = style_attr.rstrip() + ";"
+
+                new_style = f"{style_attr}font-size:150%;"
+            else:
+                new_style = re.sub(
+                    r"font-size:\s*[^;]+;", "font-size:150%;", style_attr
+                )
+
+            return f"<p style={quote}{new_style}{quote}>{content}</p>"
+
+        result, n_enhanced = re.subn(pattern, style_enhancer, source, flags=re.DOTALL)
+
+        if n_enhanced:
+            self.logger.debug(
+                f"Enhanced {n_enhanced} header style(s) with font-size:150%"
+            )
+
+        return result.splitlines(keepends=True)
+
+    def replace_notebook_links(self, source_lines: List[str]) -> List[str]:
+        """
+        Replace GitHub notebook hrefs with published Kaggle notebook URLs.
+
+        Applies to code cells containing cross-reference links between
+        the signatures and responses companion notebooks.
+
+        Targets href attributes only, leaving all surrounding HTML intact:
+            href="https://github.com/.../eci_analysis_responses.ipynb"
+            → href="https://www.kaggle.com/code/lukkardata/eci-commission-response"
+
+            href="https://github.com/.../eci_analysis_signatures.ipynb"
+            → href="https://www.kaggle.com/code/lukkardata/eci-signatures-collection"
+        """
+        source = "".join(source_lines)
+        result = source
+
+        for github_url, kaggle_url in NOTEBOOK_LINK_REPLACEMENTS.items():
+            result = result.replace(github_url, kaggle_url)
+
+        if result != source:
+            n = sum(1 for url in NOTEBOOK_LINK_REPLACEMENTS if url not in result)
+            self.logger.debug(
+                f"Replaced {n} companion notebook link(s) with Kaggle URLs"
+            )
+
+        return result.splitlines(keepends=True)
+
     # ──────────────────────────────
     # nbconvert utilities
     # ──────────────────────────────
@@ -297,7 +371,7 @@ class NotebookProcessor:
 
         # Process cells (starting from index 1, since 0 is now the setup cell)
         cells_modified = 0
-        images_modified = 0
+        markdown_modified = 0
 
         for i, cell in enumerate(notebook["cells"]):
             # Skip the setup cell we just inserted
@@ -306,8 +380,29 @@ class NotebookProcessor:
 
             # Process Code Cells
             if cell["cell_type"] == "code":
-                original_source = cell["source"]
-                # Enhanced detection to catch all problematic cells
+                new_lines = cell["source"]
+
+                # Cross-notebook links: GitHub → Kaggle
+                new_lines = self.replace_notebook_links(new_lines)
+
+                # Plotly renderer fix
+                renderer_fixed = False
+                updated_lines = []
+
+                for line in new_lines:
+
+                    if 'pio.renderers.default = "notebook_connected"' in line:
+
+                        line = line.replace('"notebook_connected"', '"kaggle"')
+                        renderer_fixed = True
+                        self.logger.debug("Fixed Plotly renderer to 'kaggle'")
+
+                    updated_lines.append(line)
+
+                new_lines = updated_lines
+
+                # Path replacements
+                path_fixed = False
                 if any(
                     "Path" in line
                     or "pd.read_csv" in line
@@ -325,27 +420,35 @@ class NotebookProcessor:
                                 "path_initiatives",
                                 "folder_date",
                                 "file_date",
-                                "base_data_path",
                             ]
                         )
                     )
-                    for line in original_source
+                    for line in new_lines
                 ):
-                    cell["source"] = self.replace_path_code(
-                        original_source, csv_file.name, notebook_type
+                    new_lines = self.replace_path_code(
+                        new_lines, csv_file.name, notebook_type
                     )
-                    cells_modified += 1
+                    path_fixed = True
 
-            # Process Markdown Cells (Image Replacement)
+                if new_lines != cell["source"]:
+                    cell["source"] = new_lines
+                    cells_modified += 1
+                    if renderer_fixed:
+                        self.logger.info("Plotly renderer updated to 'kaggle'")
+
+            # Process Markdown Cells
             elif cell["cell_type"] == "markdown":
                 original_source = cell["source"]
+
                 new_source = self.replace_image_links(original_source)
+                new_source = self.enhance_header_styles(new_source)
+
                 if new_source != original_source:
                     cell["source"] = new_source
-                    images_modified += 1
+                    markdown_modified += 1
 
         self.logger.info(
-            f"Modified {cells_modified} code cells and {images_modified} markdown image links"
+            f"Modified {cells_modified} code cells and {markdown_modified} markdown cells"
         )
 
         # Save migrated notebook
