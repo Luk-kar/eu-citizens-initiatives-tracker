@@ -150,15 +150,16 @@ class KaggleMigrator:
         sig_output = self.notebook_processor.migrate_notebook(
             self.signatures_nb,
             initiatives_csv,
+            responses_csv,
             "signatures",
-            self.output_path / f"{self.signatures_nb.stem}.kaggle.ipynb",
+            self.output_path / "eci_analysis_signatures.kaggle.ipynb",
         )
-
         resp_output = self.notebook_processor.migrate_notebook(
             self.responses_nb,
+            initiatives_csv,
             responses_csv,
             "responses",
-            self.output_path / f"{self.responses_nb.stem}.kaggle.ipynb",
+            self.output_path / "eci_analysis_responses.kaggle.ipynb",
         )
 
         return sig_output, resp_output

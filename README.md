@@ -13,6 +13,11 @@ End-to-end data pipeline and analysis project to answer a question:<br>
 
 This project scrapes, processes, and analyzes the full lifecycle of ECIs, from signature collection to legislative outcomes. So you can actually see how the petition process works (and where it breaks).
 
+## Explore on Kaggle
+
+-   [ECI Signatures Collection](https://www.kaggle.com/code/lukkardata/eci-signatures-collection) — explores signature campaign data across all initiatives.
+-   [ECI Commission Response](https://www.kaggle.com/code/lukkardata/eci-commission-response) — analyzes how the Commission responded to successful initiatives.
+  
 ## Data Visualization
 
 A few charts showing what the data looks like:

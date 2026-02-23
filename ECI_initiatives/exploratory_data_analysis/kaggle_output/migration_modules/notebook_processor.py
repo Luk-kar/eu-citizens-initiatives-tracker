@@ -42,9 +42,16 @@ class NotebookProcessor:
     # ──────────────────────────────
 
     def replace_path_code(
-        self, source_lines: List[str], csv_filename: str, notebook_type: str
+        self,
+        source_lines: List[str],
+        initiatives_csv_name: str,
+        responses_csv_name: str,
+        notebook_type: str,
     ) -> List[str]:
         """Replace local path detection code with Kaggle paths"""
+
+        # Variables that only exist locally and have no Kaggle equivalent
+        local_assign_vars = {"root_path", "data_directory", "base_data_path"}
 
         new_lines = []
         skip_mode = False
@@ -53,10 +60,20 @@ class NotebookProcessor:
 
         for i, line in enumerate(source_lines):
 
-            # Skip commented-out lines (don't transform them)
             stripped = line.lstrip()
+
+            # Skip commented-out lines (don't transform them)
             if stripped.startswith("#"):
                 new_lines.append(line)
+                continue
+
+            # Skip local filesystem variable assignments (no Kaggle equivalent)
+            if (
+                "=" in line
+                and not stripped.startswith("print(")
+                and any(stripped.startswith(var) for var in local_assign_vars)
+            ):
+                self.logger.debug(f"Skipped local var assignment: {stripped[:60]}")
                 continue
 
             # Detect function definitions that should be skipped entirely
@@ -77,7 +94,6 @@ class NotebookProcessor:
             # Skip everything inside the function until we exit
             if inside_function:
                 current_indent = len(line) - len(line.lstrip())
-                # Exit function when we hit a line at same or lower indentation
                 if stripped and current_indent <= function_indent:
                     inside_function = False
                 else:
@@ -86,7 +102,7 @@ class NotebookProcessor:
             # Detect start of path detection block to skip
             if "from pathlib import Path" in line and not skip_mode:
                 skip_mode = True
-                continue  # Skip this import line
+                continue
 
             # End skipping when we hit another import that's not path-related
             if skip_mode:
@@ -100,7 +116,7 @@ class NotebookProcessor:
                         "data_folder",
                     ]
                 ):
-                    continue  # Skip path-detection variable assignments
+                    continue
 
             # Skip or replace print statements that reference removed variables
             if "print(" in line and any(
@@ -111,17 +127,17 @@ class NotebookProcessor:
                     "folder_date",
                     "file_date",
                     "base_data_path",
+                    "data_folder",
                 ]
             ):
-                # Replace with simplified print or skip
-                if "Base Data Path" in line or "base_data_path" in line:
-                    indent = len(line) - len(line.lstrip())
-                    new_lines.append(
-                        " " * indent + 'print(f"✓ Data loaded from: {KAGGLE_INPUT}")\n'
-                    )
-                    self.logger.debug(f"Replaced print statement: {line.strip()}")
-                else:
-                    self.logger.debug(f"Skipped print statement: {line.strip()}")
+                # if "Base Data Path" in line or "base_data_path" in line:
+                #     indent = len(line) - len(line.lstrip())
+                #     new_lines.append(
+                #         " " * indent + 'print(f"✓ Data loaded from: {KAGGLE_INPUT}")\n'
+                #     )
+                #     self.logger.debug(f"Replaced print statement: {line.strip()}")
+                # else:
+                #     self.logger.debug(f"Skipped print statement: {line.strip()}")
                 continue
 
             # Replace the function call that loads data
@@ -130,16 +146,23 @@ class NotebookProcessor:
                 for pattern in ["load_latest_eci_initiatives(", "load_latest_eci_data("]
             ):
                 indent = len(line) - len(line.lstrip())
-                # Replace complex function call with simple CSV load
-                new_lines.append(
-                    " " * indent
-                    + f"df = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
-                )
+                if notebook_type == "responses":
+                    replacement = (
+                        " " * indent
+                        + f"df_initiatives = pd.read_csv(KAGGLE_INPUT / '{initiatives_csv_name}')\n"
+                        + " " * indent
+                        + f"df_responses = pd.read_csv(KAGGLE_INPUT / '{responses_csv_name}')\n"
+                    )
+                else:  # signatures
+                    replacement = (
+                        " " * indent
+                        + f"df = pd.read_csv(KAGGLE_INPUT / '{initiatives_csv_name}')\n"
+                    )
+                new_lines.append(replacement)
                 self.logger.debug(f"Replaced function call: {line.strip()}")
                 continue
 
-            # Handle CSV file references (works for both single-line and multi-line calls)
-            # Check for specific CSV filenames regardless of pd.read_csv presence
+            # Handle specific secondary CSV references (legislation_titles, eci_categories)
             csv_replacements = {
                 "legislation_titles.csv": "legislation_titles.csv",
                 "eci_categories.csv": "eci_categories.csv",
@@ -148,8 +171,6 @@ class NotebookProcessor:
             line_modified = False
             for csv_name, csv_file in csv_replacements.items():
                 if csv_name in line and not line.lstrip().startswith("#"):
-                    # Use regex to replace the quoted filename with KAGGLE_INPUT / filename
-                    # Handles both "filename" and 'filename'
                     pattern = rf'(["\']){re.escape(csv_name)}\1'
                     replacement = rf"KAGGLE_INPUT / \1{csv_file}\1"
                     new_line = re.sub(pattern, replacement, line)
@@ -162,22 +183,20 @@ class NotebookProcessor:
             if line_modified:
                 continue
 
-            # Replace CSV loading for main data files (only if pd.read_csv is on same line)
+            # Replace remaining inline pd.read_csv calls for main data files
             if "pd.read_csv" in line and not line.lstrip().startswith("#"):
-                # Handle main ECI data CSVs
+                indent = len(line) - len(line.lstrip())
                 if "eci_initiatives" in line and "merger" not in line:
-                    indent = len(line) - len(line.lstrip())
                     new_lines.append(
                         " " * indent
-                        + f"df_initiatives = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
+                        + f"df_initiatives = pd.read_csv(KAGGLE_INPUT / '{initiatives_csv_name}')\n"
                     )
                     self.logger.debug(f"Replaced CSV loading: {line.strip()}")
                     continue
                 elif "eci_merger" in line:
-                    indent = len(line) - len(line.lstrip())
                     new_lines.append(
                         " " * indent
-                        + f"df_responses = pd.read_csv(KAGGLE_INPUT / '{csv_filename}')\n"
+                        + f"df_responses = pd.read_csv(KAGGLE_INPUT / '{responses_csv_name}')\n"
                     )
                     self.logger.debug(f"Replaced CSV loading: {line.strip()}")
                     continue
@@ -406,9 +425,15 @@ class NotebookProcessor:
     # ──────────────────────────────
 
     def migrate_notebook(
-        self, notebook_path: Path, csv_file: Path, notebook_type: str, output_path: Path
+        self,
+        notebook_path: Path,
+        initiatives_csv: Path,  # ← always needed (both notebooks use df_initiatives)
+        responses_csv: Path,  # ← needed for responses notebook
+        notebook_type: str,
+        output_path: Path,
     ) -> Path:
         """Migrate a single notebook to Kaggle format"""
+
         self.logger.info(f"Migrating {notebook_type} notebook: {notebook_path.name}")
 
         # Load notebook
@@ -450,9 +475,9 @@ class NotebookProcessor:
 
                     if 'pio.renderers.default = "notebook_connected"' in line:
 
-                        line = line.replace('"notebook_connected"', '"kaggle"')
+                        line = line.replace('"notebook_connected"', '"iframe"')
                         renderer_fixed = True
-                        self.logger.debug("Fixed Plotly renderer to 'kaggle'")
+                        self.logger.debug("Fixed Plotly renderer to 'iframe'")
 
                     updated_lines.append(line)
 
@@ -483,7 +508,10 @@ class NotebookProcessor:
                     for line in new_lines
                 ):
                     new_lines = self.replace_path_code(
-                        new_lines, csv_file.name, notebook_type
+                        new_lines,
+                        initiatives_csv.name,
+                        responses_csv.name,
+                        notebook_type,
                     )
                     path_fixed = True
 

@@ -89,6 +89,9 @@ IMAGE_REPLACEMENTS = {
 KAGGLE_SETUP_CODE = [
     "# Kaggle Environment Setup\n",
     "from pathlib import Path\n",
+    "import plotly.io as pio\n",
+    "\n",
+    "pio.renderers.default = 'iframe'\n",
     "\n",
     "\n",
     "# Data paths - supports both Kaggle and local environments\n",
