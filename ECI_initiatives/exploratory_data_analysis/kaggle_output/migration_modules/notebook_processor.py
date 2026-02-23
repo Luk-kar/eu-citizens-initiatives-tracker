@@ -9,7 +9,12 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List
 
-from .constants import KAGGLE_SETUP_CODE, IMAGE_REPLACEMENTS, NOTEBOOK_LINK_REPLACEMENTS
+from .constants import (
+    KAGGLE_SETUP_CODE,
+    IMAGE_REPLACEMENTS,
+    NOTEBOOK_LINK_REPLACEMENTS,
+    HEADER_TITLE_REPLACEMENTS,
+)
 
 
 class NotebookProcessor:
@@ -290,6 +295,58 @@ class NotebookProcessor:
 
         return result.splitlines(keepends=True)
 
+    def demote_h1_headers(self, source_lines: List[str]) -> List[str]:
+        """
+        Demote H1 styled headers to H2 for Kaggle rendering consistency.
+
+        On Kaggle, H1 renders disproportionately large relative to the styled <p>
+        block. Demoting to H2 aligns the introduction header with all other
+        section headers which already use ##.
+
+        Targets only Markdown headings immediately followed by a styled <p> tag:
+            # <p style="...">Title</p>   →   ## <p style="...">Title</p>
+
+        Plain Markdown H1 headings (e.g. # Some Title) are left untouched.
+        """
+        source = "".join(source_lines)
+
+        result, n = re.subn(
+            r"^# (<p\s+style=)",
+            r"## \1",
+            source,
+            flags=re.MULTILINE,
+        )
+
+        if n:
+            self.logger.debug(f"Demoted {n} H1 styled header(s) to H2")
+
+        return result.splitlines(keepends=True)
+
+    def replace_header_titles(self, source_lines: List[str]) -> List[str]:
+        """
+        Replace specific notebook title strings inside <p> tags with
+        line-broken versions for better two-line rendering on Kaggle.
+
+        Targets only the exact title strings defined in HEADER_TITLE_REPLACEMENTS,
+        leaving all surrounding HTML and style attributes intact.
+
+            🇪🇺✍️ European Citizens' Initiatives: Signatures Collection
+            → 🇪🇺✍️ European Citizens' Initiatives:<br>Signatures Collection
+
+            🇪🇺🏛️ European Citizens' Initiatives: After the Signatures
+            → 🇪🇺🏛️ European Citizens' Initiatives:<br>After the Signatures
+        """
+        source = "".join(source_lines)
+        result = source
+
+        for original, replacement in HEADER_TITLE_REPLACEMENTS.items():
+            result = result.replace(original, replacement)
+
+        if result != source:
+            self.logger.debug("Replaced header title(s) with line-broken version")
+
+        return result.splitlines(keepends=True)
+
     # ──────────────────────────────
     # nbconvert utilities
     # ──────────────────────────────
@@ -442,6 +499,8 @@ class NotebookProcessor:
 
                 new_source = self.replace_image_links(original_source)
                 new_source = self.enhance_header_styles(new_source)
+                new_source = self.demote_h1_headers(new_source)
+                new_source = self.replace_header_titles(new_source)
 
                 if new_source != original_source:
                     cell["source"] = new_source

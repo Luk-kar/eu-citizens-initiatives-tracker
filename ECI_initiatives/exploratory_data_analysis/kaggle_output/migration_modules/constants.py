@@ -92,7 +92,7 @@ KAGGLE_SETUP_CODE = [
     "\n",
     "\n",
     "# Data paths - supports both Kaggle and local environments\n",
-    "kaggle_path = Path('/kaggle/input/european-citizens-initiatives-2026')\n",
+    "kaggle_path = Path('/kaggle/input/datasets/lukkardata/european-citizens-initiatives-2026')\n",
     "local_path = Path('./csv_files')\n",
     "\n",
     "\n",
@@ -263,5 +263,14 @@ NOTEBOOK_LINK_REPLACEMENTS = {
     "/ECI_initiatives/exploratory_data_analysis"
     "/initiatives_campaigns/eci_analysis_signatures.ipynb": (
         "https://www.kaggle.com/code/lukkardata/eci-signatures-collection"
+    ),
+}
+
+HEADER_TITLE_REPLACEMENTS = {
+    "🇪🇺✍️ European Citizens' Initiatives: Signatures Collection": (
+        "🇪🇺✍️ European Citizens' Initiatives:<br>Signatures Collection"
+    ),
+    "🇪🇺🏛️ European Citizens' Initiatives: After the Signatures": (
+        "🇪🇺🏛️ European Citizens' Initiatives:<br>After the Signatures"
     ),
 }

@@ -12,6 +12,7 @@ from .constants import (
     setup_project_paths,
     PROJECT_PATHS,
     NOTEBOOK_LINK_REPLACEMENTS,
+    HEADER_TITLE_REPLACEMENTS,
 )
 from .data_finder import DataFinder
 from .notebook_processor import NotebookProcessor
@@ -30,4 +31,5 @@ __all__ = [
     "DataFinder",
     "NotebookProcessor",
     "ReportGenerator",
+    "HEADER_TITLE_REPLACEMENTS",
 ]
