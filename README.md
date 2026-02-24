@@ -11,7 +11,7 @@
 End-to-end data pipeline and analysis project to answer a question:<br>
 **"Do citizens' initiatives actually lead to new EU laws?"**
 
-This project scrapes, processes, and analyzes the full lifecycle of ECIs, from signature collection to legislative outcomes. So you can actually see how the petition process works (and where it breaks).
+This project scrapes, processes, and analyzes the [full lifecycle of ECIs](https://citizens-initiative.europa.eu/find-initiative_en), from signature collection to legislative outcomes. So you can actually see how the petition process works (and where it breaks).
 
 ## Explore on Kaggle
 
