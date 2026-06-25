@@ -13,6 +13,10 @@ End-to-end data pipeline and analysis project to answer a question:<br>
 
 This project scrapes, processes, and analyzes the [full lifecycle of ECIs](https://citizens-initiative.europa.eu/find-initiative_en), from signature collection to legislative outcomes. So you can actually see how the petition process works (and where it breaks).
 
+---
+
+This is a sister project to the [European Citizens' Initiatives Tracker](https://github.com/Luk-kar/european_citizens_initiatives_tracker), created as an initial proof-of-concept run rather than a continuously maintained pipeline.
+
 ## Explore on Kaggle
 
 -   [ECI Signatures Collection](https://www.kaggle.com/code/lukkardata/eci-signatures-collection) — explores signature campaign data across all initiatives.
